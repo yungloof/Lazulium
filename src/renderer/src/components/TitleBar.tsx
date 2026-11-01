@@ -27,9 +27,9 @@ export const TitleBar: React.FC = () => {
         <div className="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
           <Gamepad2 className="w-3.5 h-3.5 text-white" />
         </div>
-        <span className="text-sm font-bold tracking-wider text-slate-200">
-          STEAM<span className="text-indigo-400">2</span>
-          <span className="text-[10px] font-normal text-slate-500 ml-1.5 uppercase">GridForge</span>
+        <span className="text-sm font-extrabold tracking-wider text-slate-200">
+          LAZULIUM
+          <span className="text-[10px] font-medium text-indigo-400/80 ml-1.5 uppercase tracking-normal">Steam 2</span>
         </span>
       </div>
 

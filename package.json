@@ -1,9 +1,9 @@
 {
-  "name": "steamgridforge",
+  "name": "lazulium",
   "version": "0.1.0",
-  "description": "SteamGridForge (Steam 2) - Hub Universal de Jogos para PC, Emuladores e Conquistas",
+  "description": "Lazulium (Steam 2) - Hub Universal de Jogos para PC, Emuladores e Conquistas",
   "main": "./out/main/index.js",
-  "author": "SteamGridForge Team",
+  "author": "Lazulium Team",
   "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev --watch",

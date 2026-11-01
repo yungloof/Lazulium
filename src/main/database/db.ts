@@ -42,7 +42,7 @@ class DatabaseService {
         mkdirSync(storageDir, { recursive: true });
       }
 
-      this.dataFilePath = join(storageDir, 'steamgridforge_db.json');
+      this.dataFilePath = join(storageDir, 'lazulium_db.json');
 
       if (existsSync(this.dataFilePath)) {
         const raw = readFileSync(this.dataFilePath, 'utf-8');

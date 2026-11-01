@@ -1,7 +1,7 @@
-# 🏛️ SteamGridForge (Steam 2) - Arquitetura de Software
+# 🏛️ Lazulium (Steam 2) - Arquitetura de Software
 
 > **Codinome:** Steam 2  
-> **Nome do Projeto:** SteamGridForge  
+> **Nome Provisório/Principal:** Lazulium  
 > **Propósito:** Hub Universal de Jogos para PC (Steam, Epic, GOG, Emuladores e Standalones) com rastreador de horas universal, conquistas unificadas, artes via SteamGridDB, backup em nuvem de saves e suporte total a controles (Big Picture / 10-foot UI).
 
 ---
@@ -135,7 +135,7 @@ Unifica conquistas de plataformas de PC e retroemulação:
   * Mapeamento de diretórios comuns de saves (`%USERPROFILE%\Saved Games`, `%APPDATA%`, `%LOCALAPPDATA%`, pastas de emuladores como `User/nand` ou `memcards`).
 * **Sincronização:**
   * Autenticação OAuth2 simples via Google Drive API.
-  * Pasta dedicada no Google Drive do usuário: `SteamGridForge_CloudSaves/`.
+  * Pasta dedicada no Google Drive do usuário: `Lazulium_CloudSaves/`.
   * Criação de arquivo `.zip` com timestamp e hash MD5 para evitar uploads duplicados.
   * Backup disparado automaticamente assim que o jogo é fechado (com notificação de conclusão).
 

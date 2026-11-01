@@ -1,8 +1,8 @@
-# 🎮 SteamGridForge ("Steam 2")
+# 🎮 Lazulium ("Steam 2")
 
 **Hub Universal de Jogos para PC, Emuladores, Conquistas e Nuvem.**
 
-O **SteamGridForge** é um lançador e agregador universal de jogos moderno para PC, desenhado para unificar todas as suas plataformas (Steam, Epic Games, GOG, Emuladores e jogos standalone) em uma única interface rápida, bonita e compatível tanto com teclado/mouse quanto com controles de console (Modo Big Picture).
+O **Lazulium** (codinome *Steam 2*) é um lançador e agregador universal de jogos moderno para PC, desenhado para unificar todas as suas plataformas (Steam, Epic Games, GOG, Emuladores e jogos standalone) em uma única interface rápida, bonita e compatível tanto com teclado/mouse quanto com controles de console (Modo Big Picture).
 
 ---
 

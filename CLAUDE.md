@@ -1,6 +1,6 @@
-# 🤖 SteamGridForge - Diretrizes de Desenvolvimento e Colaboração (CLAUDE.md)
+# 🤖 Lazulium (Steam 2) - Diretrizes de Desenvolvimento e Colaboração (CLAUDE.md)
 
-Este documento define padrões de engenharia, arquitetura e convenções de código para agentes de IA (Claude, Antigravity) e desenvolvedores humanos trabalhando no **SteamGridForge (Steam 2)**.
+Este documento define padrões de engenharia, arquitetura e convenções de código para agentes de IA (Claude, Antigravity) e desenvolvedores humanos trabalhando no **Lazulium (Steam 2)**.
 
 ---
 
@@ -33,7 +33,7 @@ Este documento define padrões de engenharia, arquitetura e convenções de cód
 ## 2. Estrutura de Diretórios
 
 ```
-SteamGridForge/
+Lazulium/
 ├── src/
 │   ├── main/                    # Processo Principal do Electron (Node.js)
 │   │   ├── index.ts             # Inicialização da janela e ciclo de vida

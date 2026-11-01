@@ -1,4 +1,4 @@
-# 🗺️ Roadmap de Desenvolvimento - SteamGridForge (Steam 2)
+# 🗺️ Roadmap de Desenvolvimento - Lazulium (Steam 2)
 
 Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints modulares e bem delimitadas.
 
