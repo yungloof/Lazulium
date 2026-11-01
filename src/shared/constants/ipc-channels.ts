@@ -9,6 +9,10 @@ export const IPC_CHANNELS = {
   LIBRARY_DELETE_GAME: 'library:delete-game',
   LIBRARY_TOGGLE_FAVORITE: 'library:toggle-favorite',
 
+  // Emulators
+  EMULATORS_GET_CONFIGS: 'emulators:get-configs',
+  EMULATORS_SAVE_CONFIG: 'emulators:save-config',
+
   // Game Execution & Playtime Tracker
   GAME_LAUNCH: 'game:launch',
   GAME_STOP: 'game:stop',

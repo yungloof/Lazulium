@@ -2,14 +2,18 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { TitleBar } from './components/TitleBar';
 import { GameCard } from './components/GameCard';
 import { GamepadGuide } from './components/GamepadGuide';
+import { EmulatorSettings } from './components/EmulatorSettings';
 import { useLibraryStore } from './stores/useLibraryStore';
 import { useGamepadStore } from './stores/useGamepadStore';
 import { useGamepad } from './hooks/useGamepad';
 import { Game, GamePlatform } from '@shared/types/game';
+import { ScanResult } from '@shared/types/ipc';
 import {
   Search,
   RefreshCw,
-  Plus,
+  Cpu,
+  AlertTriangle,
+  X,
   Play,
   Trophy,
   Clock,
@@ -44,8 +48,10 @@ export const App: React.FC = () => {
 
   const { activeFocusedIndex, setActiveFocusedIndex } = useGamepadStore();
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
+  const [scanSummary, setScanSummary] = useState<ScanResult | null>(null);
+  const [showEmulatorSettings, setShowEmulatorSettings] = useState(false);
 
-  // Load games from local SQLite/storage on mount
+  // Load games from local storage on mount; first run triggers an automatic scan
   useEffect(() => {
     const loadGames = async () => {
       try {
@@ -54,61 +60,7 @@ export const App: React.FC = () => {
           setGames(loaded);
           setSelectedGame(loaded[0]);
         } else {
-          // If empty, insert a couple sample entries for instant visual preview
-          const samples: Game[] = [
-            {
-              id: 'sample-1',
-              title: 'The Legend of Zelda: Tears of the Kingdom',
-              platform: 'emulator',
-              emulatorId: 'ryujinx',
-              executablePath: 'Ryujinx.exe',
-              totalPlaytimeSeconds: 154800,
-              isFavorite: true,
-              isHidden: false,
-              tags: ['Aventura', 'Mundo Aberto'],
-              media: {
-                coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co5vmg.png',
-                heroUrl: 'https://images.igdb.com/igdb/image/upload/t_1080p/scdtvi.jpg'
-              },
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            },
-            {
-              id: 'sample-2',
-              title: 'Cyberpunk 2077',
-              platform: 'steam',
-              platformGameId: '1091500',
-              executablePath: 'Cyberpunk2077.exe',
-              totalPlaytimeSeconds: 312000,
-              isFavorite: true,
-              isHidden: false,
-              tags: ['RPG', 'Sci-Fi'],
-              media: {
-                coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co2mjs.png',
-                heroUrl: 'https://images.igdb.com/igdb/image/upload/t_1080p/sc6qq9.jpg'
-              },
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            },
-            {
-              id: 'sample-3',
-              title: 'Super Smash Bros. Melee',
-              platform: 'emulator',
-              emulatorId: 'dolphin',
-              executablePath: 'Dolphin.exe',
-              totalPlaytimeSeconds: 78000,
-              isFavorite: false,
-              isHidden: false,
-              tags: ['Luta', 'Clássico'],
-              media: {
-                coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co1x9r.png'
-              },
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            }
-          ];
-          setGames(samples);
-          setSelectedGame(samples[0]);
+          await handleScanLibraries();
         }
       } catch (err) {
         console.error('Failed to load games:', err);
@@ -116,6 +68,7 @@ export const App: React.FC = () => {
     };
 
     loadGames();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setGames]);
 
   // Filter and search computation
@@ -197,6 +150,8 @@ export const App: React.FC = () => {
       const result = await window.electronAPI?.scanAllLibraries();
       if (result?.games) {
         setGames(result.games);
+        setScanSummary(result);
+        setSelectedGame((current) => current ?? result.games[0] ?? null);
       }
     } catch (err) {
       console.error('Scan error:', err);
@@ -277,8 +232,39 @@ export const App: React.FC = () => {
               <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin text-indigo-400' : ''}`} />
               <span>{isScanning ? 'Escaneando...' : 'Escanear'}</span>
             </button>
+
+            {/* Emulator Settings Button */}
+            <button
+              onClick={() => setShowEmulatorSettings(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 rounded-lg text-slate-200 transition-colors"
+            >
+              <Cpu className="w-3.5 h-3.5" />
+              <span>Emuladores</span>
+            </button>
           </div>
         </div>
+
+        {/* Scan Summary */}
+        {scanSummary && (
+          <div className="px-6 z-10">
+            <div className="flex items-start justify-between gap-3 px-4 py-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
+              <div className="space-y-1">
+                <div className="text-slate-300">
+                  Scan concluído: <b className="text-emerald-400">{scanSummary.added}</b> novos,{' '}
+                  <b className="text-indigo-300">{scanSummary.updated}</b> atualizados, {scanSummary.total} na biblioteca.
+                </div>
+                {scanSummary.warnings.map((w) => (
+                  <div key={w} className="flex items-center gap-1.5 text-amber-400/90">
+                    <AlertTriangle className="w-3 h-3 flex-shrink-0" /> {w}
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => setScanSummary(null)} className="p-1 rounded text-slate-500 hover:text-white">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Selected Game Quick Banner (Hero Spotlight) */}
         {selectedGame && (
@@ -378,6 +364,10 @@ export const App: React.FC = () => {
 
       {/* Gamepad & Keyboard Controls Helper Guide */}
       <GamepadGuide />
+
+      {showEmulatorSettings && (
+        <EmulatorSettings onClose={() => setShowEmulatorSettings(false)} />
+      )}
     </div>
   );
 };

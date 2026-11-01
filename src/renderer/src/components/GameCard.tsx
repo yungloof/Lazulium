@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Game } from '@shared/types/game';
 import { Star, Play, Clock, Gamepad2 } from 'lucide-react';
 
@@ -15,6 +15,10 @@ export const GameCard: React.FC<GameCardProps> = ({
   onSelect,
   onToggleFavorite
 }) => {
+  // Nem todo AppID tem capa vertical na CDN: cai no placeholder em vez de imagem quebrada
+  const [coverFailed, setCoverFailed] = useState(false);
+  useEffect(() => setCoverFailed(false), [game.media?.coverUrl]);
+
   const formatPlaytime = (seconds: number) => {
     if (!seconds || seconds < 60) return 'Nunca jogado';
     const hours = (seconds / 3600).toFixed(1);
@@ -50,12 +54,13 @@ export const GameCard: React.FC<GameCardProps> = ({
       }`}
     >
       {/* Cover Image or Fallback */}
-      {game.media?.coverUrl ? (
+      {game.media?.coverUrl && !coverFailed ? (
         <img
           src={game.media.coverUrl}
           alt={game.title}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
+          onError={() => setCoverFailed(true)}
         />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-slate-800 to-slate-950 text-center">

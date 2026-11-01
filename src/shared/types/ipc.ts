@@ -1,4 +1,4 @@
-import { Game, GamePlatform, PlaytimeSession } from './game';
+import { EmulatorConfig, Game, GamePlatform, PlaytimeSession } from './game';
 import { Achievement } from './achievements';
 
 export interface ScanResult {
@@ -6,6 +6,7 @@ export interface ScanResult {
   updated: number;
   total: number;
   games: Game[];
+  warnings: string[];               // Falhas isoladas de scanners (não interrompem o scan)
 }
 
 export interface SteamGridDBAsset {
@@ -37,6 +38,10 @@ export interface ElectronAPI {
   updateGame: (id: string, updates: Partial<Game>) => Promise<Game>;
   deleteGame: (id: string) => Promise<boolean>;
   toggleFavorite: (id: string) => Promise<boolean>;
+
+  // Emuladores
+  getEmulatorConfigs: () => Promise<EmulatorConfig[]>;
+  saveEmulatorConfig: (config: EmulatorConfig) => Promise<EmulatorConfig[]>;
 
   // Execução & Playtime
   launchGame: (gameId: string) => Promise<boolean>;

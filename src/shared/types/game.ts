@@ -27,7 +27,9 @@ export interface Game {
   executablePath: string;           // Caminho do .exe ou do emulador
   launchArguments?: string;         // Argumentos passados via CLI
   workingDirectory?: string;        // Diretório de execução
-  
+  launchUri?: string;               // Protocolo do launcher (ex: steam://rungameid/123)
+  installPath?: string;             // Pasta de instalação detectada pelo scanner
+
   // Específico para emuladores
   emulatorId?: EmulatorType;        // Qual emulador executa este jogo
   romPath?: string;                 // Caminho da ROM/ISO
@@ -64,4 +66,13 @@ export interface EmulatorProfile {
   supportedExtensions: string[];    // Ex: ['.nsp', '.xci']
   commandTemplate: string;          // Ex: '"{rom}"' ou '-b -e "{rom}"'
   defaultRomDirectories: string[];
+}
+
+// Configuração do usuário para cada emulador (persistida no banco local)
+export interface EmulatorConfig {
+  emulatorId: EmulatorType;
+  enabled: boolean;
+  executablePath?: string;          // Caminho completo do .exe do emulador
+  romDirectories: string[];         // Pastas de ROMs a varrer
+  corePath?: string;                // RetroArch: caminho do core (.dll) usado em {core}
 }

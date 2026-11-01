@@ -1,8 +1,9 @@
 import { ipcMain, BrowserWindow, dialog } from 'electron';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { db } from '../database/db';
-import { Game } from '@shared/types/game';
+import { EmulatorConfig, Game, GamePlatform } from '@shared/types/game';
 import { randomUUID } from 'crypto';
+import { scanLibraries } from '../services/scanners';
 
 export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): void {
   // Library Handlers
@@ -51,14 +52,22 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   });
 
   ipcMain.handle(IPC_CHANNELS.LIBRARY_SCAN_ALL, async () => {
-    // Scaffold scanner result
     console.log('[IPC] Scanning all platform libraries...');
-    return {
-      added: 0,
-      updated: 0,
-      total: db.getGames().length,
-      games: db.getGames()
-    };
+    return scanLibraries();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.LIBRARY_SCAN_PLATFORM, async (_event, platform: GamePlatform) => {
+    console.log(`[IPC] Scanning platform: ${platform}`);
+    return scanLibraries([platform]);
+  });
+
+  // Emulator Handlers
+  ipcMain.handle(IPC_CHANNELS.EMULATORS_GET_CONFIGS, async () => {
+    return db.getEmulatorConfigs();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.EMULATORS_SAVE_CONFIG, async (_event, config: EmulatorConfig) => {
+    return db.saveEmulatorConfig(config);
   });
 
   // Playtime & Execution Handlers

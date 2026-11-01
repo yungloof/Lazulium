@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { ElectronAPI, GameLaunchStatus } from '@shared/types/ipc';
-import { Game, GamePlatform } from '@shared/types/game';
+import { EmulatorConfig, Game, GamePlatform } from '@shared/types/game';
 
 const electronAPI: ElectronAPI = {
   // Library & Scanners
@@ -13,6 +13,10 @@ const electronAPI: ElectronAPI = {
   updateGame: (id: string, updates: Partial<Game>) => ipcRenderer.invoke(IPC_CHANNELS.LIBRARY_UPDATE_GAME, id, updates),
   deleteGame: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.LIBRARY_DELETE_GAME, id),
   toggleFavorite: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.LIBRARY_TOGGLE_FAVORITE, id),
+
+  // Emuladores
+  getEmulatorConfigs: () => ipcRenderer.invoke(IPC_CHANNELS.EMULATORS_GET_CONFIGS),
+  saveEmulatorConfig: (config: EmulatorConfig) => ipcRenderer.invoke(IPC_CHANNELS.EMULATORS_SAVE_CONFIG, config),
 
   // Execução & Playtime
   launchGame: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_LAUNCH, gameId),

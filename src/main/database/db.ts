@@ -1,13 +1,15 @@
 import { app } from 'electron';
 import { join } from 'path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { Game, PlaytimeSession } from '@shared/types/game';
+import { EmulatorConfig, EmulatorType, Game, PlaytimeSession } from '@shared/types/game';
 import { Achievement } from '@shared/types/achievements';
+import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
 
 export interface DatabaseSchema {
   games: Game[];
   playtimeSessions: PlaytimeSession[];
   achievements: Achievement[];
+  emulatorConfigs: EmulatorConfig[];
   settings: Record<string, string>;
 }
 
@@ -15,6 +17,7 @@ const DEFAULT_DATA: DatabaseSchema = {
   games: [],
   playtimeSessions: [],
   achievements: [],
+  emulatorConfigs: [],
   settings: {
     steamGridDbApiKey: '',
     steamWebApiKey: '',
@@ -89,6 +92,21 @@ class DatabaseService {
     return game;
   }
 
+  // Upsert em lote com uma única escrita em disco (usado pelos scanners)
+  upsertGames(games: Game[]): void {
+    const indexById = new Map(this.data.games.map((g, i) => [g.id, i]));
+    for (const game of games) {
+      const index = indexById.get(game.id);
+      if (index !== undefined) {
+        this.data.games[index] = game;
+      } else {
+        indexById.set(game.id, this.data.games.length);
+        this.data.games.push(game);
+      }
+    }
+    this.persist();
+  }
+
   deleteGame(id: string): boolean {
     const initialLen = this.data.games.length;
     this.data.games = this.data.games.filter((g) => g.id !== id);
@@ -130,6 +148,21 @@ class DatabaseService {
   saveAchievements(gameId: string, achievements: Achievement[]): void {
     this.data.achievements = this.data.achievements.filter((a) => a.gameId !== gameId).concat(achievements);
     this.persist();
+  }
+
+  // Emulator Configs (sempre retorna um item por perfil conhecido)
+  getEmulatorConfigs(): EmulatorConfig[] {
+    const stored = new Map((this.data.emulatorConfigs ?? []).map((c) => [c.emulatorId, c]));
+    return (Object.keys(DEFAULT_EMULATOR_PROFILES) as EmulatorType[]).map(
+      (id) => stored.get(id) ?? { emulatorId: id, enabled: false, romDirectories: [] }
+    );
+  }
+
+  saveEmulatorConfig(config: EmulatorConfig): EmulatorConfig[] {
+    const others = (this.data.emulatorConfigs ?? []).filter((c) => c.emulatorId !== config.emulatorId);
+    this.data.emulatorConfigs = [...others, config];
+    this.persist();
+    return this.getEmulatorConfigs();
   }
 
   // Settings
