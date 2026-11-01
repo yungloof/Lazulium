@@ -21,11 +21,20 @@ export interface SteamGridDBAsset {
   };
 }
 
+// 'launching': comando enviado, aguardando o processo do jogo aparecer
+// 'running':   processo do jogo detectado, sessão contando tempo
+// 'stopped':   jogo encerrado (ou nunca detectado, ver `error`)
+export type GameLaunchState = 'launching' | 'running' | 'stopped';
+
 export interface GameLaunchStatus {
   gameId: string;
+  state: GameLaunchState;
   isRunning: boolean;
   pid?: number;
-  startTime?: string;
+  startTime?: string;               // ISO timestamp da detecção do processo
+  sessionSeconds?: number;          // Duração da sessão encerrada (0 se descartada por ser curta)
+  game?: Game;                      // Registro atualizado (playtime) ao encerrar
+  error?: string;
 }
 
 export interface ElectronAPI {

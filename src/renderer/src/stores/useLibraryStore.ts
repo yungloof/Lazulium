@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Game, GamePlatform } from '@shared/types/game';
+import { GameLaunchStatus } from '@shared/types/ipc';
 
 interface LibraryState {
   games: Game[];
@@ -8,6 +9,7 @@ interface LibraryState {
   searchQuery: string;
   isScanning: boolean;
   uiMode: 'desktop' | 'big-picture';
+  launchStatuses: Record<string, GameLaunchStatus>; // Apenas jogos iniciando/rodando
   
   // Actions
   setGames: (games: Game[]) => void;
@@ -17,6 +19,7 @@ interface LibraryState {
   setIsScanning: (scanning: boolean) => void;
   setUiMode: (mode: 'desktop' | 'big-picture') => void;
   toggleFavoriteLocal: (id: string) => void;
+  applyGameStatus: (status: GameLaunchStatus) => void;
 }
 
 export const useLibraryStore = create<LibraryState>((set) => ({
@@ -26,6 +29,7 @@ export const useLibraryStore = create<LibraryState>((set) => ({
   searchQuery: '',
   isScanning: false,
   uiMode: 'desktop',
+  launchStatuses: {},
 
   setGames: (games) => set({ games }),
   setSelectedGameId: (id) => set({ selectedGameId: id }),
@@ -36,5 +40,19 @@ export const useLibraryStore = create<LibraryState>((set) => ({
   toggleFavoriteLocal: (id) =>
     set((state) => ({
       games: state.games.map((g) => (g.id === id ? { ...g, isFavorite: !g.isFavorite } : g))
-    }))
+    })),
+  applyGameStatus: (status) =>
+    set((state) => {
+      const launchStatuses = { ...state.launchStatuses };
+      if (status.state === 'stopped') delete launchStatuses[status.gameId];
+      else launchStatuses[status.gameId] = status;
+
+      const games = state.games.map((g) => {
+        if (g.id !== status.gameId) return g;
+        // Ao encerrar, o main envia o registro com o playtime já atualizado
+        const base = status.game ? { ...status.game, isFavorite: g.isFavorite } : g;
+        return { ...base, isRunning: status.isRunning };
+      });
+      return { launchStatuses, games };
+    })
 }));

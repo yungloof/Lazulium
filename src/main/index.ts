@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'path';
 import { registerIpcHandlers } from './ipc';
 import { db } from './database/db';
+import { playtimeService } from './services/tracker/playtime.service';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -42,6 +43,7 @@ function createWindow(): void {
 app.whenReady().then(async () => {
   // Initialize local database
   await db.init();
+  playtimeService.recoverInterruptedSessions();
 
   // Register all typed IPC channels
   registerIpcHandlers(() => mainWindow);
@@ -51,6 +53,11 @@ app.whenReady().then(async () => {
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+
+// Contabiliza sessões em andamento e encerra o worker de processos
+app.on('before-quit', () => {
+  playtimeService.shutdown();
 });
 
 app.on('window-all-closed', () => {

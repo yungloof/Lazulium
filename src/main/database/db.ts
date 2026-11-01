@@ -5,12 +5,21 @@ import { EmulatorConfig, EmulatorType, Game, PlaytimeSession } from '@shared/typ
 import { Achievement } from '@shared/types/achievements';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
 
+// Sessão em andamento gravada periodicamente (heartbeat). Se o app fechar ou
+// travar com um jogo aberto, a sessão é recuperada no próximo início.
+export interface ActiveSessionRecord {
+  gameId: string;
+  startedAt: number;                // epoch ms
+  lastSeenAt: number;               // epoch ms
+}
+
 export interface DatabaseSchema {
   games: Game[];
   playtimeSessions: PlaytimeSession[];
   achievements: Achievement[];
   emulatorConfigs: EmulatorConfig[];
   standaloneDirectories: string[];
+  activeSessions: ActiveSessionRecord[];
   settings: Record<string, string>;
 }
 
@@ -20,6 +29,7 @@ const DEFAULT_DATA: DatabaseSchema = {
   achievements: [],
   emulatorConfigs: [],
   standaloneDirectories: [],
+  activeSessions: [],
   settings: {
     steamGridDbApiKey: '',
     steamWebApiKey: '',
@@ -127,7 +137,7 @@ class DatabaseService {
   }
 
   // Playtime Sessions
-  addPlaytimeSession(session: PlaytimeSession): void {
+  addPlaytimeSession(session: PlaytimeSession): Game | null {
     this.data.playtimeSessions.push(session);
     const game = this.data.games.find((g) => g.id === session.gameId);
     if (game) {
@@ -135,6 +145,24 @@ class DatabaseService {
       game.lastPlayedAt = session.endedAt;
       game.updatedAt = new Date().toISOString();
     }
+    this.persist();
+    return game ?? null;
+  }
+
+  // Sessões em andamento (recuperação após fechamento inesperado)
+  getActiveSessions(): ActiveSessionRecord[] {
+    return this.data.activeSessions ?? [];
+  }
+
+  setActiveSession(record: ActiveSessionRecord): void {
+    this.data.activeSessions = [...this.getActiveSessions().filter((s) => s.gameId !== record.gameId), record];
+    this.persist();
+  }
+
+  removeActiveSession(gameId: string): void {
+    const remaining = this.getActiveSessions().filter((s) => s.gameId !== gameId);
+    if (remaining.length === this.getActiveSessions().length) return;
+    this.data.activeSessions = remaining;
     this.persist();
   }
 

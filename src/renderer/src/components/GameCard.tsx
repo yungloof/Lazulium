@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Game } from '@shared/types/game';
-import { Star, Play, Clock, Gamepad2 } from 'lucide-react';
+import { Star, Play, Clock, Gamepad2, Loader2 } from 'lucide-react';
+import { useLibraryStore } from '../stores/useLibraryStore';
 
 interface GameCardProps {
   game: Game;
@@ -17,6 +18,7 @@ export const GameCard: React.FC<GameCardProps> = ({
 }) => {
   // Nem todo AppID tem capa vertical na CDN: cai no placeholder em vez de imagem quebrada
   const [coverFailed, setCoverFailed] = useState(false);
+  const isLaunching = useLibraryStore((s) => s.launchStatuses[game.id]?.state === 'launching');
   useEffect(() => setCoverFailed(false), [game.media?.coverUrl]);
 
   const formatPlaytime = (seconds: number) => {
@@ -95,11 +97,15 @@ export const GameCard: React.FC<GameCardProps> = ({
             <Clock className="w-3 h-3 text-slate-500" />
             <span>{formatPlaytime(game.totalPlaytimeSeconds)}</span>
           </div>
-          {game.isRunning && (
+          {game.isRunning ? (
             <span className="flex items-center gap-1 text-emerald-400 font-semibold animate-pulse">
               <Play className="w-3 h-3 fill-emerald-400" /> Em execução
             </span>
-          )}
+          ) : isLaunching ? (
+            <span className="flex items-center gap-1 text-slate-300 font-semibold">
+              <Loader2 className="w-3 h-3 animate-spin" /> Iniciando
+            </span>
+          ) : null}
         </div>
       </div>
     </div>

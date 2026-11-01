@@ -30,12 +30,14 @@ Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints m
 ---
 
 ## ⏱️ Fase 3: Monitor de Processos & Rastreador de Horas
-- [ ] Módulo de lançamento de jogos com desacoplamento de subprocessos.
-- [ ] Monitor de tempo real (process polling) via Windows Process API / WMI.
-- [ ] Cálculo preciso de tempo de jogo (`total_playtime_seconds`).
-- [ ] Registro histórico de sessões (data, hora de início, término, duração).
-- [ ] Tratamento de idle e fechamento inesperado do jogo ou do launcher.
-- [ ] Cards de estatísticas na UI (tempo total, última vez jogado, gráficos de tempo semanal).
+- [x] Módulo de lançamento de jogos com desacoplamento de subprocessos (`launchUri` ou `spawn` detached).
+- [x] Monitor de tempo real (process polling) via WMI/CIM em worker PowerShell persistente.
+- [x] Cálculo preciso de tempo de jogo (`total_playtime_seconds`), com filtro de sessões < 15s.
+- [x] Registro histórico de sessões (data, hora de início, término, duração).
+- [x] Fechamento inesperado do jogo/launcher (tolerância de handoff) e do próprio Lazulium (recuperação via heartbeat).
+- [ ] Tratamento de idle (jogador AFK com o jogo aberto).
+- [x] Indicadores em tempo real na UI (Iniciando / Em execução / cronômetro / Parar).
+- [ ] Cards de estatísticas na UI (última vez jogado, gráficos de tempo semanal).
 
 ---
 

@@ -4,6 +4,7 @@ import { GameCard } from './components/GameCard';
 import { GamepadGuide } from './components/GamepadGuide';
 import { EmulatorSettings } from './components/EmulatorSettings';
 import { AddCustomGameModal } from './components/AddCustomGameModal';
+import { PlayButton } from './components/PlayButton';
 import { useLibraryStore } from './stores/useLibraryStore';
 import { useGamepadStore } from './stores/useGamepadStore';
 import { useGamepad } from './hooks/useGamepad';
@@ -16,7 +17,6 @@ import {
   Plus,
   AlertTriangle,
   X,
-  Play,
   Trophy,
   Clock,
   Layers,
@@ -45,7 +45,8 @@ export const App: React.FC = () => {
     isScanning,
     setIsScanning,
     uiMode,
-    toggleFavoriteLocal
+    toggleFavoriteLocal,
+    applyGameStatus
   } = useLibraryStore();
 
   const { activeFocusedIndex, setActiveFocusedIndex } = useGamepadStore();
@@ -53,6 +54,37 @@ export const App: React.FC = () => {
   const [scanSummary, setScanSummary] = useState<ScanResult | null>(null);
   const [showEmulatorSettings, setShowEmulatorSettings] = useState(false);
   const [showAddGameModal, setShowAddGameModal] = useState(false);
+  const [launchNotice, setLaunchNotice] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
+
+  // Mantém o jogo do hero sincronizado com o store (playtime, favorito, execução)
+  useEffect(() => {
+    setSelectedGame((current) => (current ? games.find((g) => g.id === current.id) ?? current : current));
+  }, [games]);
+
+  // Eventos de execução vindos do monitor de processos
+  useEffect(() => {
+    const unsubscribe = window.electronAPI?.onGameStatusChanged((status) => {
+      applyGameStatus(status);
+      if (status.state !== 'stopped') return;
+
+      const title = status.game?.title ?? useLibraryStore.getState().games.find((g) => g.id === status.gameId)?.title ?? 'Jogo';
+      if (status.error) {
+        setLaunchNotice({ text: `${title}: ${status.error}`, tone: 'warn' });
+      } else if (status.sessionSeconds) {
+        const minutes = Math.max(1, Math.round(status.sessionSeconds / 60));
+        setLaunchNotice({ text: `${title}: sessão de ${minutes} min registrada.`, tone: 'ok' });
+      } else {
+        setLaunchNotice({ text: `${title}: sessão menor que 15 s, não contabilizada.`, tone: 'warn' });
+      }
+    });
+    return () => unsubscribe?.();
+  }, [applyGameStatus]);
+
+  useEffect(() => {
+    if (!launchNotice) return;
+    const timer = setTimeout(() => setLaunchNotice(null), 6000);
+    return () => clearTimeout(timer);
+  }, [launchNotice]);
 
   // Load games from local storage on mount; first run triggers an automatic scan
   useEffect(() => {
@@ -321,14 +353,23 @@ export const App: React.FC = () => {
 
               {/* Action Launch Button */}
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => handleLaunchGame(selectedGame)}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-sm shadow-xl shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
-                >
-                  <Play className="w-4 h-4 fill-white" />
-                  <span>JOGAR</span>
-                </button>
+                <PlayButton game={selectedGame} onLaunch={handleLaunchGame} />
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Launch / Session Notice */}
+        {launchNotice && (
+          <div className="px-6 z-10">
+            <div
+              className={`px-4 py-2 rounded-xl border text-xs ${
+                launchNotice.tone === 'ok'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                  : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+              }`}
+            >
+              {launchNotice.text}
             </div>
           </div>
         )}

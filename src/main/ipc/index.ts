@@ -4,11 +4,17 @@ import { db } from '../database/db';
 import { EmulatorConfig, Game, GamePlatform } from '@shared/types/game';
 import { randomUUID } from 'crypto';
 import { scanLibraries } from '../services/scanners';
+import { playtimeService } from '../services/tracker/playtime.service';
 
 export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): void {
+  // Eventos de execução (main -> renderer)
+  playtimeService.setStatusListener((status) => {
+    getMainWindow()?.webContents.send(IPC_CHANNELS.GAME_STATUS_CHANGED, status);
+  });
+
   // Library Handlers
   ipcMain.handle(IPC_CHANNELS.LIBRARY_GET_GAMES, async () => {
-    return db.getGames();
+    return db.getGames().map((g) => ({ ...g, isRunning: playtimeService.getState(g.id) === 'running' }));
   });
 
   ipcMain.handle(IPC_CHANNELS.LIBRARY_GET_GAME_BY_ID, async (_event, id: string) => {
@@ -83,16 +89,11 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
 
   // Playtime & Execution Handlers
   ipcMain.handle(IPC_CHANNELS.GAME_LAUNCH, async (_event, gameId: string) => {
-    const game = db.getGameById(gameId);
-    if (!game) return false;
-    console.log(`[IPC] Launching game: ${game.title} (${game.executablePath})`);
-    // Will be fully implemented with process-monitor in Phase 3
-    return true;
+    return playtimeService.launch(gameId);
   });
 
   ipcMain.handle(IPC_CHANNELS.GAME_STOP, async (_event, gameId: string) => {
-    console.log(`[IPC] Stopping game: ${gameId}`);
-    return true;
+    return playtimeService.stop(gameId);
   });
 
   ipcMain.handle(IPC_CHANNELS.GAME_GET_PLAYTIME_SESSIONS, async (_event, gameId: string) => {
