@@ -5,13 +5,15 @@ import { steamScanner } from './steam-scanner.service';
 import { epicScanner } from './epic-scanner.service';
 import { gogScanner } from './gog-scanner.service';
 import { createEmulatorScanner } from './emulator-scanner.service';
+import { createStandaloneScanner } from './standalone-scanner.service';
 import { DetectedGame, PlatformScanner } from './scanner.types';
 
 const SCANNERS: PlatformScanner[] = [
   steamScanner,
   epicScanner,
   gogScanner,
-  createEmulatorScanner(() => db.getEmulatorConfigs())
+  createEmulatorScanner(() => db.getEmulatorConfigs()),
+  createStandaloneScanner(() => db.getStandaloneDirectories())
 ];
 
 // Combina o que o scanner detectou com o que já existe no banco, preservando

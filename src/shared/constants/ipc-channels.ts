@@ -13,6 +13,10 @@ export const IPC_CHANNELS = {
   EMULATORS_GET_CONFIGS: 'emulators:get-configs',
   EMULATORS_SAVE_CONFIG: 'emulators:save-config',
 
+  // Standalone / PC Game Folders
+  STANDALONE_GET_DIRECTORIES: 'standalone:get-directories',
+  STANDALONE_SAVE_DIRECTORIES: 'standalone:save-directories',
+
   // Game Execution & Playtime Tracker
   GAME_LAUNCH: 'game:launch',
   GAME_STOP: 'game:stop',

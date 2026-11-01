@@ -72,6 +72,15 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     return db.saveEmulatorConfig(config);
   });
 
+  // Standalone Directory Handlers
+  ipcMain.handle(IPC_CHANNELS.STANDALONE_GET_DIRECTORIES, async () => {
+    return db.getStandaloneDirectories();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.STANDALONE_SAVE_DIRECTORIES, async (_event, directories: string[]) => {
+    return db.saveStandaloneDirectories(directories);
+  });
+
   // Playtime & Execution Handlers
   ipcMain.handle(IPC_CHANNELS.GAME_LAUNCH, async (_event, gameId: string) => {
     const game = db.getGameById(gameId);

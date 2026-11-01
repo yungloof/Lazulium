@@ -43,6 +43,10 @@ export interface ElectronAPI {
   getEmulatorConfigs: () => Promise<EmulatorConfig[]>;
   saveEmulatorConfig: (config: EmulatorConfig) => Promise<EmulatorConfig[]>;
 
+  // Jogos Standalone / Pastas de PC
+  getStandaloneDirectories: () => Promise<string[]>;
+  saveStandaloneDirectories: (directories: string[]) => Promise<string[]>;
+
   // Execução & Playtime
   launchGame: (gameId: string) => Promise<boolean>;
   stopGame: (gameId: string) => Promise<boolean>;

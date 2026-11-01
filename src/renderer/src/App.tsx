@@ -389,6 +389,12 @@ export const App: React.FC = () => {
             setGames([...games, newGame]);
             setSelectedGame(newGame);
           }}
+          onScanComplete={(updatedGames) => {
+            setGames(updatedGames);
+            if (updatedGames.length > 0) {
+              setSelectedGame(updatedGames[0]);
+            }
+          }}
         />
       )}
     </div>

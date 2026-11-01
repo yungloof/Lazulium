@@ -10,6 +10,7 @@ export interface DatabaseSchema {
   playtimeSessions: PlaytimeSession[];
   achievements: Achievement[];
   emulatorConfigs: EmulatorConfig[];
+  standaloneDirectories: string[];
   settings: Record<string, string>;
 }
 
@@ -18,6 +19,7 @@ const DEFAULT_DATA: DatabaseSchema = {
   playtimeSessions: [],
   achievements: [],
   emulatorConfigs: [],
+  standaloneDirectories: [],
   settings: {
     steamGridDbApiKey: '',
     steamWebApiKey: '',
@@ -163,6 +165,19 @@ class DatabaseService {
     this.data.emulatorConfigs = [...others, config];
     this.persist();
     return this.getEmulatorConfigs();
+  }
+
+  // Standalone Directories (Pastas de Jogos Soltos no PC)
+  getStandaloneDirectories(): string[] {
+    return this.data.standaloneDirectories ?? [];
+  }
+
+  saveStandaloneDirectories(directories: string[]): string[] {
+    // Normaliza caminhos e remove duplicatas
+    const unique = Array.from(new Set(directories.map((d) => d.trim()).filter(Boolean)));
+    this.data.standaloneDirectories = unique;
+    this.persist();
+    return this.getStandaloneDirectories();
   }
 
   // Settings

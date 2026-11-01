@@ -18,6 +18,11 @@ const electronAPI: ElectronAPI = {
   getEmulatorConfigs: () => ipcRenderer.invoke(IPC_CHANNELS.EMULATORS_GET_CONFIGS),
   saveEmulatorConfig: (config: EmulatorConfig) => ipcRenderer.invoke(IPC_CHANNELS.EMULATORS_SAVE_CONFIG, config),
 
+  // Jogos Standalone / Pastas de PC
+  getStandaloneDirectories: () => ipcRenderer.invoke(IPC_CHANNELS.STANDALONE_GET_DIRECTORIES),
+  saveStandaloneDirectories: (directories: string[]) =>
+    ipcRenderer.invoke(IPC_CHANNELS.STANDALONE_SAVE_DIRECTORIES, directories),
+
   // Execução & Playtime
   launchGame: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_LAUNCH, gameId),
   stopGame: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_STOP, gameId),
