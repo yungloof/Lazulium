@@ -89,8 +89,9 @@ Responsável por identificar jogos instalados no PC e extrair executáveis, argu
     * **RPCS3** (PS3): CLI `"<EBOOT.BIN_PATH>"`
     * **DuckStation / RetroArch**
   * O usuário define pastas de ROMs para cada plataforma (ex: `F:\ROMs\Switch`, `F:\ROMs\PS2`). O scanner varre as extensões correspondentes (`.iso`, `.nsp`, `.xci`, `.wua`, etc.) e cria entradas vinculadas ao emulador correspondente.
-* **Jogos Manuais / Standalone:**
-  * Permite adicionar qualquer executável `.exe` com argumentos customizados e diretório de trabalho.
+* **Jogos Manuais & Scanner de Pastas Standalone (Jogos Soltos de PC):**
+  * **Varredura em Lote por Pastas:** O usuário pode configurar diretórios raiz de jogos (ex: `F:\Games`, `D:\Jogos`). O scanner varre automaticamente cada subpasta procurando o executável ou script principal (`.exe`, `.bat`, `.cmd`), utilizando heurísticas inteligentes para priorizar scripts de inicialização (ex: `Jogar-*.bat`), executáveis com nomes expressivos e portas nativas/decompilações de PC, ignorando desinstaladores e crash handlers.
+  * **Adição Individual:** Diálogo dedicado para selecionar manualmente qualquer executável `.exe` ou `.bat` com argumentos e diretório de trabalho customizados.
 
 ---
 
