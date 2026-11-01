@@ -4,28 +4,28 @@ Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints m
 
 ---
 
-## 📍 Fase 1: Fundação & Arquitetura Base (Sprint Atual)
+## 📍 Fase 1: Fundação & Arquitetura Base
 - [x] Inicialização do repositório Git em `F:\projetos\SteamGridForge`.
 - [x] Definição detalhada da arquitetura técnica (`ARCHITECTURE.md`).
 - [x] Guia de engenharia e diretrizes para IA / desenvolvedores (`CLAUDE.md`).
 - [x] Estrutura de diretórios modular (`src/main`, `src/preload`, `src/renderer`, `src/shared`).
-- [ ] Configuração do `package.json`, `tsconfig.json`, `electron-builder` e scripts de execução.
-- [ ] Implementação da camada de banco de dados SQLite local (`src/main/database/`).
-- [ ] Implementação da ponte IPC segura (`ContextBridge`) com contratos fortemente tipados.
-- [ ] Shell da interface React básica com tema escuro (Dark OLED) e layout responsivo.
+- [x] Configuração do `package.json`, `tsconfig.json`, `electron-builder` e scripts de execução.
+- [x] Implementação da camada de banco de dados SQLite local (`src/main/database/`).
+- [x] Implementação da ponte IPC segura (`ContextBridge`) com contratos fortemente tipados.
+- [x] Shell da interface React básica com tema escuro (Dark OLED) e layout responsivo.
 
 ---
 
 ## 🎮 Fase 2: Scanners de Plataformas & Catálogo Universal
 - [x] **Steam Scanner:** Detecção automática de bibliotecas nos discos e leitura de `appmanifest_<id>.acf`.
 - [x] **Epic Games Scanner:** Parse de manifests JSON em `C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests`.
-- [ ] **GOG Galaxy Scanner:** Leitura do registro do Windows e pastas padrão de instalação.
+- [x] **GOG Galaxy Scanner:** Leitura do registro do Windows e pastas padrão de instalação.
 - [x] **Emuladores Scanner:** 
   - [x] Mapeamento de perfis de emuladores (Dolphin, Ryujinx, Cemu, PCSX2, RPCS3, DuckStation).
   - [x] Varredura de pastas de ROMs configuráveis pelo usuário.
   - [x] Geração automática de linha de comando com flags fullscreen/boot direto.
-- [ ] **Jogos Customizados / Standalone:** Diálogo para adicionar qualquer `.exe` manualmente.
-- [ ] Exibição unificada da biblioteca na interface (filtros por plataforma, gênero, favoritos, busca).
+- [x] **Jogos Customizados / Standalone:** Diálogo para adicionar qualquer `.exe` manualmente.
+- [x] Exibição unificada da biblioteca na interface (filtros por plataforma, gênero, favoritos, busca).
 
 ---
 

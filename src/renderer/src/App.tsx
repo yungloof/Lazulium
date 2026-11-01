@@ -3,6 +3,7 @@ import { TitleBar } from './components/TitleBar';
 import { GameCard } from './components/GameCard';
 import { GamepadGuide } from './components/GamepadGuide';
 import { EmulatorSettings } from './components/EmulatorSettings';
+import { AddCustomGameModal } from './components/AddCustomGameModal';
 import { useLibraryStore } from './stores/useLibraryStore';
 import { useGamepadStore } from './stores/useGamepadStore';
 import { useGamepad } from './hooks/useGamepad';
@@ -12,6 +13,7 @@ import {
   Search,
   RefreshCw,
   Cpu,
+  Plus,
   AlertTriangle,
   X,
   Play,
@@ -50,6 +52,7 @@ export const App: React.FC = () => {
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [scanSummary, setScanSummary] = useState<ScanResult | null>(null);
   const [showEmulatorSettings, setShowEmulatorSettings] = useState(false);
+  const [showAddGameModal, setShowAddGameModal] = useState(false);
 
   // Load games from local storage on mount; first run triggers an automatic scan
   useEffect(() => {
@@ -241,6 +244,16 @@ export const App: React.FC = () => {
               <Cpu className="w-3.5 h-3.5" />
               <span>Emuladores</span>
             </button>
+
+            {/* Add Custom Game Button */}
+            <button
+              onClick={() => setShowAddGameModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 rounded-lg transition-colors"
+              title="Adicionar jogo manual (.exe)"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Adicionar Jogo</span>
+            </button>
           </div>
         </div>
 
@@ -367,6 +380,16 @@ export const App: React.FC = () => {
 
       {showEmulatorSettings && (
         <EmulatorSettings onClose={() => setShowEmulatorSettings(false)} />
+      )}
+
+      {showAddGameModal && (
+        <AddCustomGameModal
+          onClose={() => setShowAddGameModal(false)}
+          onGameAdded={(newGame) => {
+            setGames([...games, newGame]);
+            setSelectedGame(newGame);
+          }}
+        />
       )}
     </div>
   );

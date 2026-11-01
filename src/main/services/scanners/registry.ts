@@ -23,3 +23,50 @@ export async function readRegistryValue(key: string, valueName: string): Promise
   }
   return undefined;
 }
+
+// Lista os caminhos completos das subchaves imediatas via `reg query <key>`.
+export async function listRegistrySubkeys(key: string): Promise<string[]> {
+  if (process.platform !== 'win32') return [];
+  try {
+    const { stdout } = await execFileAsync('reg', ['query', key], {
+      windowsHide: true,
+      timeout: 5000
+    });
+    const subkeys: string[] = [];
+    const normalizedParent = key.toLowerCase().replace(/\\+$/, '');
+    for (const rawLine of stdout.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      if (/^HKEY_/i.test(line)) {
+        const normalizedLine = line.toLowerCase().replace(/\\+$/, '');
+        if (normalizedLine !== normalizedParent) {
+          subkeys.push(line);
+        }
+      }
+    }
+    return subkeys;
+  } catch {
+    return [];
+  }
+}
+
+// Lê todos os valores de uma chave do registro em um único comando
+export async function readRegistryKeyValues(key: string): Promise<Record<string, string>> {
+  if (process.platform !== 'win32') return {};
+  try {
+    const { stdout } = await execFileAsync('reg', ['query', key], {
+      windowsHide: true,
+      timeout: 5000
+    });
+    const values: Record<string, string> = {};
+    for (const line of stdout.split(/\r?\n/)) {
+      const match = line.match(/^\s+(\S.*?)\s+(REG_\w+)\s*(.*)$/);
+      if (match) {
+        values[match[1].toLowerCase()] = match[3].trim();
+      }
+    }
+    return values;
+  } catch {
+    return {};
+  }
+}

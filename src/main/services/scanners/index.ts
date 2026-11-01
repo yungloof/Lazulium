@@ -3,12 +3,14 @@ import { ScanResult } from '@shared/types/ipc';
 import { db } from '../../database/db';
 import { steamScanner } from './steam-scanner.service';
 import { epicScanner } from './epic-scanner.service';
+import { gogScanner } from './gog-scanner.service';
 import { createEmulatorScanner } from './emulator-scanner.service';
 import { DetectedGame, PlatformScanner } from './scanner.types';
 
 const SCANNERS: PlatformScanner[] = [
   steamScanner,
   epicScanner,
+  gogScanner,
   createEmulatorScanner(() => db.getEmulatorConfigs())
 ];
 

@@ -16,19 +16,21 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   });
 
   ipcMain.handle(IPC_CHANNELS.LIBRARY_ADD_CUSTOM_GAME, async (_event, partialGame: Partial<Game>) => {
+    const id = `custom-${randomUUID()}`;
     const newGame: Game = {
-      id: randomUUID(),
-      title: partialGame.title || 'Novo Jogo',
+      id,
+      title: partialGame.title?.trim() || 'Novo Jogo',
       platform: partialGame.platform || 'standalone',
-      executablePath: partialGame.executablePath || '',
-      launchArguments: partialGame.launchArguments || '',
-      workingDirectory: partialGame.workingDirectory || '',
+      executablePath: partialGame.executablePath?.trim() || '',
+      launchArguments: partialGame.launchArguments?.trim() || undefined,
+      workingDirectory: partialGame.workingDirectory?.trim() || undefined,
+      installPath: partialGame.workingDirectory?.trim() || undefined,
       emulatorId: partialGame.emulatorId,
       romPath: partialGame.romPath,
       media: partialGame.media || {},
       isFavorite: false,
       isHidden: false,
-      tags: partialGame.tags || [],
+      tags: partialGame.tags || ['Custom'],
       totalPlaytimeSeconds: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
