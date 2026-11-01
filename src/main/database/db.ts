@@ -1,9 +1,47 @@
-import { app } from 'electron';
+import { app, safeStorage } from 'electron';
 import { join } from 'path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { EmulatorConfig, EmulatorType, Game, PlaytimeSession } from '@shared/types/game';
 import { Achievement } from '@shared/types/achievements';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
+
+function decryptSecret(value?: string): string {
+  if (!value) return '';
+  if (!value.startsWith('enc:')) {
+    // Texto puro (migração ou sem cifragem)
+    return value;
+  }
+  const base64Data = value.slice(4);
+  if (!safeStorage.isEncryptionAvailable()) {
+    console.warn('[Database] safeStorage não está disponível para decifrar a chave de API.');
+    return '';
+  }
+  try {
+    const buffer = Buffer.from(base64Data, 'base64');
+    return safeStorage.decryptString(buffer);
+  } catch (err) {
+    console.error('[Database] Falha ao decifrar a chave de API:', err);
+    return '';
+  }
+}
+
+function encryptSecret(value?: string): string {
+  if (!value) return '';
+  if (value.startsWith('enc:')) {
+    return value;
+  }
+  if (!safeStorage.isEncryptionAvailable()) {
+    console.warn('[Database] safeStorage não está disponível; mantendo chave em texto puro.');
+    return value;
+  }
+  try {
+    const buffer = safeStorage.encryptString(value);
+    return `enc:${buffer.toString('base64')}`;
+  } catch (err) {
+    console.error('[Database] Falha ao cifrar a chave de API:', err);
+    return value;
+  }
+}
 
 // Sessão em andamento gravada periodicamente (heartbeat). Se o app fechar ou
 // travar com um jogo aberto, a sessão é recuperada no próximo início.
@@ -61,7 +99,11 @@ class DatabaseService {
 
       if (existsSync(this.dataFilePath)) {
         const raw = readFileSync(this.dataFilePath, 'utf-8');
-        this.data = { ...DEFAULT_DATA, ...JSON.parse(raw) };
+        const parsed: DatabaseSchema = { ...DEFAULT_DATA, ...JSON.parse(raw) };
+        if (parsed.settings?.steamGridDbApiKey) {
+          parsed.settings.steamGridDbApiKey = decryptSecret(parsed.settings.steamGridDbApiKey);
+        }
+        this.data = parsed;
       } else {
         this.data = { ...DEFAULT_DATA };
         this.persist();
@@ -78,7 +120,14 @@ class DatabaseService {
   private persist(): void {
     try {
       if (!this.dataFilePath) return;
-      writeFileSync(this.dataFilePath, JSON.stringify(this.data, null, 2), 'utf-8');
+      const dataToPersist: DatabaseSchema = {
+        ...this.data,
+        settings: {
+          ...this.data.settings,
+          steamGridDbApiKey: encryptSecret(this.data.settings?.steamGridDbApiKey)
+        }
+      };
+      writeFileSync(this.dataFilePath, JSON.stringify(dataToPersist, null, 2), 'utf-8');
     } catch (err) {
       console.error('[Database] Persist error:', err);
     }
@@ -210,7 +259,7 @@ class DatabaseService {
 
   // Settings
   getSettings(): Record<string, string> {
-    return this.data.settings;
+    return { ...this.data.settings };
   }
 
   setSetting(key: string, value: string): void {
