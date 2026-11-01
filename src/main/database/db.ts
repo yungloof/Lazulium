@@ -1,0 +1,146 @@
+import { app } from 'electron';
+import { join } from 'path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { Game, PlaytimeSession } from '@shared/types/game';
+import { Achievement } from '@shared/types/achievements';
+
+export interface DatabaseSchema {
+  games: Game[];
+  playtimeSessions: PlaytimeSession[];
+  achievements: Achievement[];
+  settings: Record<string, string>;
+}
+
+const DEFAULT_DATA: DatabaseSchema = {
+  games: [],
+  playtimeSessions: [],
+  achievements: [],
+  settings: {
+    steamGridDbApiKey: '',
+    steamWebApiKey: '',
+    steamUserId: '',
+    retroAchievementsUser: '',
+    retroAchievementsApiKey: '',
+    uiMode: 'desktop', // 'desktop' | 'big-picture'
+    theme: 'dark-oled'
+  }
+};
+
+class DatabaseService {
+  private dataFilePath: string = '';
+  private data: DatabaseSchema = DEFAULT_DATA;
+  private initialized: boolean = false;
+
+  async init(): Promise<void> {
+    if (this.initialized) return;
+
+    try {
+      const userDataDir = app.getPath('userData');
+      const storageDir = join(userDataDir, 'storage');
+      
+      if (!existsSync(storageDir)) {
+        mkdirSync(storageDir, { recursive: true });
+      }
+
+      this.dataFilePath = join(storageDir, 'steamgridforge_db.json');
+
+      if (existsSync(this.dataFilePath)) {
+        const raw = readFileSync(this.dataFilePath, 'utf-8');
+        this.data = { ...DEFAULT_DATA, ...JSON.parse(raw) };
+      } else {
+        this.data = { ...DEFAULT_DATA };
+        this.persist();
+      }
+
+      this.initialized = true;
+      console.log(`[Database] Initialized at: ${this.dataFilePath}`);
+    } catch (err) {
+      console.error('[Database] Failed to initialize database:', err);
+      this.data = { ...DEFAULT_DATA };
+    }
+  }
+
+  private persist(): void {
+    try {
+      if (!this.dataFilePath) return;
+      writeFileSync(this.dataFilePath, JSON.stringify(this.data, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('[Database] Persist error:', err);
+    }
+  }
+
+  // Games CRUD
+  getGames(): Game[] {
+    return this.data.games;
+  }
+
+  getGameById(id: string): Game | null {
+    return this.data.games.find((g) => g.id === id) || null;
+  }
+
+  upsertGame(game: Game): Game {
+    const index = this.data.games.findIndex((g) => g.id === game.id);
+    if (index >= 0) {
+      this.data.games[index] = { ...this.data.games[index], ...game, updatedAt: new Date().toISOString() };
+    } else {
+      this.data.games.push(game);
+    }
+    this.persist();
+    return game;
+  }
+
+  deleteGame(id: string): boolean {
+    const initialLen = this.data.games.length;
+    this.data.games = this.data.games.filter((g) => g.id !== id);
+    const deleted = this.data.games.length < initialLen;
+    if (deleted) this.persist();
+    return deleted;
+  }
+
+  toggleFavorite(id: string): boolean {
+    const game = this.data.games.find((g) => g.id === id);
+    if (!game) return false;
+    game.isFavorite = !game.isFavorite;
+    game.updatedAt = new Date().toISOString();
+    this.persist();
+    return game.isFavorite;
+  }
+
+  // Playtime Sessions
+  addPlaytimeSession(session: PlaytimeSession): void {
+    this.data.playtimeSessions.push(session);
+    const game = this.data.games.find((g) => g.id === session.gameId);
+    if (game) {
+      game.totalPlaytimeSeconds += session.durationSeconds;
+      game.lastPlayedAt = session.endedAt;
+      game.updatedAt = new Date().toISOString();
+    }
+    this.persist();
+  }
+
+  getPlaytimeSessions(gameId: string): PlaytimeSession[] {
+    return this.data.playtimeSessions.filter((s) => s.gameId === gameId);
+  }
+
+  // Achievements
+  getAchievements(gameId: string): Achievement[] {
+    return this.data.achievements.filter((a) => a.gameId === gameId);
+  }
+
+  saveAchievements(gameId: string, achievements: Achievement[]): void {
+    this.data.achievements = this.data.achievements.filter((a) => a.gameId !== gameId).concat(achievements);
+    this.persist();
+  }
+
+  // Settings
+  getSettings(): Record<string, string> {
+    return this.data.settings;
+  }
+
+  setSetting(key: string, value: string): void {
+    this.data.settings[key] = value;
+    this.persist();
+  }
+}
+
+export const db = new DatabaseService();

@@ -1,0 +1,46 @@
+export const IPC_CHANNELS = {
+  // Library & Scanners
+  LIBRARY_SCAN_ALL: 'library:scan-all',
+  LIBRARY_SCAN_PLATFORM: 'library:scan-platform',
+  LIBRARY_GET_GAMES: 'library:get-games',
+  LIBRARY_GET_GAME_BY_ID: 'library:get-game-by-id',
+  LIBRARY_ADD_CUSTOM_GAME: 'library:add-custom-game',
+  LIBRARY_UPDATE_GAME: 'library:update-game',
+  LIBRARY_DELETE_GAME: 'library:delete-game',
+  LIBRARY_TOGGLE_FAVORITE: 'library:toggle-favorite',
+
+  // Game Execution & Playtime Tracker
+  GAME_LAUNCH: 'game:launch',
+  GAME_STOP: 'game:stop',
+  GAME_STATUS_CHANGED: 'game:status-changed',
+  GAME_GET_PLAYTIME_SESSIONS: 'game:get-playtime-sessions',
+
+  // SteamGridDB & Media Metadata
+  METADATA_FETCH_ASSETS: 'metadata:fetch-assets',
+  METADATA_SEARCH_ART: 'metadata:search-art',
+  METADATA_SET_CUSTOM_ASSET: 'metadata:set-custom-asset',
+
+  // Achievements
+  ACHIEVEMENTS_GET: 'achievements:get',
+  ACHIEVEMENTS_SYNC: 'achievements:sync',
+
+  // Cloud Sync (Google Drive)
+  CLOUDSYNC_AUTH: 'cloudsync:auth',
+  CLOUDSYNC_BACKUP: 'cloudsync:backup',
+  CLOUDSYNC_RESTORE: 'cloudsync:restore',
+  CLOUDSYNC_STATUS: 'cloudsync:status',
+
+  // Settings & Configuration
+  SETTINGS_GET_ALL: 'settings:get-all',
+  SETTINGS_SET: 'settings:set',
+
+  // System & Window Controls
+  WINDOW_MINIMIZE: 'window:minimize',
+  WINDOW_MAXIMIZE: 'window:maximize',
+  WINDOW_CLOSE: 'window:close',
+  WINDOW_IS_MAXIMIZED: 'window:is-maximized',
+  APP_SELECT_FILE: 'app:select-file',
+  APP_SELECT_DIRECTORY: 'app:select-directory'
+} as const;
+
+export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];
