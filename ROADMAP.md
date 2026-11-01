@@ -37,7 +37,7 @@ Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints m
 - [x] Fechamento inesperado do jogo/launcher (tolerância de handoff) e do próprio Lazulium (recuperação via heartbeat).
 - [ ] Tratamento de idle (jogador AFK com o jogo aberto).
 - [x] Indicadores em tempo real na UI (Iniciando / Em execução / cronômetro / Parar).
-- [ ] Cards de estatísticas na UI (última vez jogado, gráficos de tempo semanal).
+- [x] Cards de estatísticas na UI (última vez jogado, gráficos de tempo semanal).
 
 ---
 

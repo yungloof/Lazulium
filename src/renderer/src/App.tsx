@@ -5,6 +5,7 @@ import { GamepadGuide } from './components/GamepadGuide';
 import { EmulatorSettings } from './components/EmulatorSettings';
 import { AddCustomGameModal } from './components/AddCustomGameModal';
 import { PlayButton } from './components/PlayButton';
+import { GameStats } from './components/GameStats';
 import { useLibraryStore } from './stores/useLibraryStore';
 import { useGamepadStore } from './stores/useGamepadStore';
 import { useGamepad } from './hooks/useGamepad';
@@ -314,47 +315,52 @@ export const App: React.FC = () => {
         {/* Selected Game Quick Banner (Hero Spotlight) */}
         {selectedGame && (
           <div className="px-6 py-3 z-10">
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-slate-900/95 via-slate-900/80 to-transparent border border-slate-800/80 shadow-2xl backdrop-blur-md">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-24 rounded-lg overflow-hidden bg-slate-800 flex-shrink-0 shadow-lg border border-slate-700/50">
-                  {selectedGame.media?.coverUrl ? (
-                    <img src={selectedGame.media.coverUrl} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-500">
-                      <Sparkles className="w-6 h-6" />
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 uppercase tracking-wide">
-                      {selectedGame.platform === 'emulator' ? selectedGame.emulatorId : selectedGame.platform}
-                    </span>
-                    {selectedGame.isFavorite && (
-                      <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                        <Flame className="w-3 h-3 fill-amber-400" /> Favorito
-                      </span>
+            <div className="flex flex-col p-4 rounded-2xl bg-gradient-to-r from-slate-900/95 via-slate-900/80 to-transparent border border-slate-800/80 shadow-2xl backdrop-blur-md">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-24 rounded-lg overflow-hidden bg-slate-800 flex-shrink-0 shadow-lg border border-slate-700/50">
+                    {selectedGame.media?.coverUrl ? (
+                      <img src={selectedGame.media.coverUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-500">
+                        <Sparkles className="w-6 h-6" />
+                      </div>
                     )}
                   </div>
-                  <h2 className="text-xl font-extrabold text-white tracking-tight">{selectedGame.title}</h2>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
-                    <span className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                      {formatHours(selectedGame.totalPlaytimeSeconds)} jogadas
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                      Conquistas integradas
-                    </span>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 uppercase tracking-wide">
+                        {selectedGame.platform === 'emulator' ? selectedGame.emulatorId : selectedGame.platform}
+                      </span>
+                      {selectedGame.isFavorite && (
+                        <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                          <Flame className="w-3 h-3 fill-amber-400" /> Favorito
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-xl font-extrabold text-white tracking-tight">{selectedGame.title}</h2>
+                    <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-indigo-400" />
+                        {formatHours(selectedGame.totalPlaytimeSeconds)} jogadas
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                        Conquistas integradas
+                      </span>
+                    </div>
                   </div>
+                </div>
+
+                {/* Action Launch Button */}
+                <div className="flex items-center gap-3">
+                  <PlayButton game={selectedGame} onLaunch={handleLaunchGame} />
                 </div>
               </div>
 
-              {/* Action Launch Button */}
-              <div className="flex items-center gap-3">
-                <PlayButton game={selectedGame} onLaunch={handleLaunchGame} />
-              </div>
+              {/* Estatísticas Detalhadas & Gráfico dos Últimos 7 Dias */}
+              <GameStats game={selectedGame} />
             </div>
           </div>
         )}
