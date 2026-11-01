@@ -3,6 +3,10 @@ import { join } from 'path';
 import { registerIpcHandlers } from './ipc';
 import { db } from './database/db';
 import { playtimeService } from './services/tracker/playtime.service';
+import { registerMediaProtocol, registerMediaScheme } from './services/metadata/media-cache.service';
+
+// Esquema das artes em cache local (precisa ser registrado antes do app ficar pronto)
+registerMediaScheme();
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -43,6 +47,7 @@ function createWindow(): void {
 app.whenReady().then(async () => {
   // Initialize local database
   await db.init();
+  registerMediaProtocol();
   playtimeService.recoverInterruptedSessions();
 
   // Register all typed IPC channels

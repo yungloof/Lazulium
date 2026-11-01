@@ -42,14 +42,15 @@ Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints m
 ---
 
 ## 🎨 Fase 4: Integração SteamGridDB & Gerenciador de Mídia
-- [ ] Conexão com a API oficial do SteamGridDB (`v2`).
-- [ ] Busca automática de metadados ao catalogar um jogo novo.
-- [ ] Download e cache local de:
+- [x] Conexão com a API oficial do SteamGridDB (`v2`), com chave configurável e teste de validade.
+- [x] Busca automática de artes para jogos sem capa (após scan, jogo manual ou nova chave) e quando uma arte remota retorna 404.
+- [x] Download e cache local (`userData/cache/media/<jogo>/`, servido via `lazulium-media://`) de:
   - **Grids** (Capa vertical 600x900).
   - **Heroes** (Banner 1920x620).
   - **Logos** (PNG transparente com logo do jogo).
   - **Icons** (Ícones em alta definição).
-- [ ] Interface visual para o usuário trocar manualmente as artes (seletor de capas do SteamGridDB).
+- [x] Interface visual para o usuário trocar manualmente as artes (seletor de capas do SteamGridDB).
+- [ ] Exibir o logo sobre o Hero na tela de detalhes do jogo (depende da tela de detalhes).
 
 ---
 

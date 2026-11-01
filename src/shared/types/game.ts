@@ -33,6 +33,9 @@ export interface Game {
   // Específico para emuladores
   emulatorId?: EmulatorType;        // Qual emulador executa este jogo
   romPath?: string;                 // Caminho da ROM/ISO
+
+  // SteamGridDB
+  steamGridDbId?: number;           // Jogo do SteamGridDB escolhido pelo usuário (evita nova busca)
   
   // Metadados Visuais
   media: GameMedia;

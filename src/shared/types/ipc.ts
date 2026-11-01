@@ -9,6 +9,8 @@ export interface ScanResult {
   warnings: string[];               // Falhas isoladas de scanners (não interrompem o scan)
 }
 
+export type MediaAssetType = 'cover' | 'hero' | 'logo' | 'icon';
+
 export interface SteamGridDBAsset {
   id: number;
   url: string;
@@ -19,6 +21,33 @@ export interface SteamGridDBAsset {
   author?: {
     name: string;
   };
+}
+
+export interface SteamGridDBGame {
+  id: number;
+  name: string;
+  releaseYear?: number;
+  verified?: boolean;
+}
+
+export interface FetchAssetsOptions {
+  searchTitle?: string;             // Busca manual por outro título
+  sgdbGameId?: number;              // Usuário escolheu explicitamente um jogo do SteamGridDB
+}
+
+export interface GameAssetsResult {
+  sgdbGame: SteamGridDBGame | null; // Jogo do SteamGridDB usado para as artes
+  candidates: SteamGridDBGame[];    // Outros resultados da busca (para corrigir o match)
+  grids: SteamGridDBAsset[];
+  heroes: SteamGridDBAsset[];
+  logos: SteamGridDBAsset[];
+  icons: SteamGridDBAsset[];
+  error?: string;
+}
+
+export interface ApiKeyTestResult {
+  ok: boolean;
+  message: string;
 }
 
 // 'launching': comando enviado, aguardando o processo do jogo aparecer
@@ -63,13 +92,12 @@ export interface ElectronAPI {
   onGameStatusChanged: (callback: (status: GameLaunchStatus) => void) => () => void;
 
   // Metadados & SteamGridDB
-  fetchGameAssets: (gameId: string, customSearchTitle?: string) => Promise<{
-    grids: SteamGridDBAsset[];
-    heroes: SteamGridDBAsset[];
-    logos: SteamGridDBAsset[];
-    icons: SteamGridDBAsset[];
-  }>;
-  applyGameAsset: (gameId: string, assetType: 'cover' | 'hero' | 'logo' | 'icon', assetUrl: string) => Promise<Game>;
+  fetchGameAssets: (gameId: string, options?: FetchAssetsOptions) => Promise<GameAssetsResult>;
+  applyGameAsset: (gameId: string, assetType: MediaAssetType, assetUrl: string) => Promise<Game>;
+  testSteamGridDbKey: (apiKey: string) => Promise<ApiKeyTestResult>;
+  fetchMissingArtwork: () => Promise<number>;                 // Quantidade de jogos enfileirados
+  reportBrokenArtwork: (gameId: string, assetType: MediaAssetType) => Promise<void>;
+  onGameUpdated: (callback: (game: Game) => void) => () => void;
 
   // Conquistas
   getAchievements: (gameId: string) => Promise<Achievement[]>;

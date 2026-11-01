@@ -5,11 +5,17 @@ import { EmulatorConfig, Game, GamePlatform } from '@shared/types/game';
 import { randomUUID } from 'crypto';
 import { scanLibraries } from '../services/scanners';
 import { playtimeService } from '../services/tracker/playtime.service';
+import { artworkService } from '../services/metadata/artwork.service';
+import { removeGameMedia } from '../services/metadata/media-cache.service';
+import { FetchAssetsOptions, MediaAssetType } from '@shared/types/ipc';
 
 export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): void {
   // Eventos de execução (main -> renderer)
   playtimeService.setStatusListener((status) => {
     getMainWindow()?.webContents.send(IPC_CHANNELS.GAME_STATUS_CHANGED, status);
+  });
+  artworkService.setGameUpdatedListener((game) => {
+    getMainWindow()?.webContents.send(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
   });
 
   // Library Handlers
@@ -41,7 +47,9 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    return db.upsertGame(newGame);
+    const saved = db.upsertGame(newGame);
+    artworkService.enqueueMissing([saved.id]);
+    return saved;
   });
 
   ipcMain.handle(IPC_CHANNELS.LIBRARY_UPDATE_GAME, async (_event, id: string, updates: Partial<Game>) => {
@@ -52,7 +60,9 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   });
 
   ipcMain.handle(IPC_CHANNELS.LIBRARY_DELETE_GAME, async (_event, id: string) => {
-    return db.deleteGame(id);
+    const deleted = db.deleteGame(id);
+    if (deleted) await removeGameMedia(id).catch(() => undefined);
+    return deleted;
   });
 
   ipcMain.handle(IPC_CHANNELS.LIBRARY_TOGGLE_FAVORITE, async (_event, id: string) => {
@@ -61,12 +71,16 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
 
   ipcMain.handle(IPC_CHANNELS.LIBRARY_SCAN_ALL, async () => {
     console.log('[IPC] Scanning all platform libraries...');
-    return scanLibraries();
+    const result = await scanLibraries();
+    artworkService.enqueueMissing();
+    return result;
   });
 
   ipcMain.handle(IPC_CHANNELS.LIBRARY_SCAN_PLATFORM, async (_event, platform: GamePlatform) => {
     console.log(`[IPC] Scanning platform: ${platform}`);
-    return scanLibraries([platform]);
+    const result = await scanLibraries([platform]);
+    artworkService.enqueueMissing();
+    return result;
   });
 
   // Emulator Handlers
@@ -111,20 +125,24 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   });
 
   // Metadata / SteamGridDB Handlers
-  ipcMain.handle(IPC_CHANNELS.METADATA_FETCH_ASSETS, async (_event, gameId: string) => {
-    console.log(`[IPC] Fetching assets for: ${gameId}`);
-    return { grids: [], heroes: [], logos: [], icons: [] };
+  ipcMain.handle(IPC_CHANNELS.METADATA_FETCH_ASSETS, async (_event, gameId: string, options?: FetchAssetsOptions) => {
+    return artworkService.fetchAssets(gameId, options);
   });
 
-  ipcMain.handle(IPC_CHANNELS.METADATA_SET_CUSTOM_ASSET, async (_event, gameId: string, assetType: 'cover' | 'hero' | 'logo' | 'icon', url: string) => {
-    const game = db.getGameById(gameId);
-    if (!game) throw new Error('Game not found');
-    if (!game.media) game.media = {};
-    if (assetType === 'cover') game.media.coverUrl = url;
-    if (assetType === 'hero') game.media.heroUrl = url;
-    if (assetType === 'logo') game.media.logoUrl = url;
-    if (assetType === 'icon') game.media.iconUrl = url;
-    return db.upsertGame(game);
+  ipcMain.handle(IPC_CHANNELS.METADATA_SET_CUSTOM_ASSET, async (_event, gameId: string, assetType: MediaAssetType, url: string) => {
+    return artworkService.applyAsset(gameId, assetType, url);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.METADATA_TEST_API_KEY, async (_event, apiKey: string) => {
+    return artworkService.testKey(apiKey);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.METADATA_FETCH_MISSING, async () => {
+    return artworkService.enqueueMissing();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.METADATA_REPORT_BROKEN, async (_event, gameId: string, assetType: MediaAssetType) => {
+    await artworkService.reportBroken(gameId, assetType);
   });
 
   // Cloud Sync Handlers
@@ -147,6 +165,7 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
 
   ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, async (_event, key: string, value: string) => {
     db.setSetting(key, value);
+    if (key === 'steamGridDbApiKey' && value.trim()) artworkService.enqueueMissing();
   });
 
   // Window Controls

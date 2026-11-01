@@ -116,7 +116,10 @@ Responsável por identificar jogos instalados no PC e extrair executáveis, argu
      * **Hero (Banner horizontal):** 1920x620 (fundo cinematográfico da tela de detalhes).
      * **Logo (PNG transparente):** Logo do jogo posicionado sobre o Hero.
      * **Icon:** Ícone de alta resolução.
-  3. Salva as imagens em cache local (`assets/cache/covers/<game_id>/`) para carregamento instantâneo e offline.
+  3. Salva as imagens em cache local (`userData/cache/media/<game_id>/<tipo>-<hash>.<ext>`) para carregamento instantâneo e offline.
+     O renderer as carrega pelo protocolo privilegiado `lazulium-media://media/<game_id>/<arquivo>`, que só serve arquivos de dentro do cache.
+  4. Downloads são aceitos apenas via HTTPS do CDN do SteamGridDB (`*.steamgriddb.com`).
+  5. Ordem de correspondência: jogo escolhido pelo usuário (`steamGridDbId`) > AppID da Steam > busca por título.
 
 ---
 

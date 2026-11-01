@@ -25,8 +25,11 @@ export const IPC_CHANNELS = {
 
   // SteamGridDB & Media Metadata
   METADATA_FETCH_ASSETS: 'metadata:fetch-assets',
-  METADATA_SEARCH_ART: 'metadata:search-art',
   METADATA_SET_CUSTOM_ASSET: 'metadata:set-custom-asset',
+  METADATA_TEST_API_KEY: 'metadata:test-api-key',
+  METADATA_FETCH_MISSING: 'metadata:fetch-missing',
+  METADATA_REPORT_BROKEN: 'metadata:report-broken',
+  LIBRARY_GAME_UPDATED: 'library:game-updated',
 
   // Achievements
   ACHIEVEMENTS_GET: 'achievements:get',

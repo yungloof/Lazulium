@@ -6,6 +6,8 @@ import { EmulatorSettings } from './components/EmulatorSettings';
 import { AddCustomGameModal } from './components/AddCustomGameModal';
 import { PlayButton } from './components/PlayButton';
 import { GameStats } from './components/GameStats';
+import { SettingsModal } from './components/SettingsModal';
+import { ArtworkPicker } from './components/ArtworkPicker';
 import { useLibraryStore } from './stores/useLibraryStore';
 import { useGamepadStore } from './stores/useGamepadStore';
 import { useGamepad } from './hooks/useGamepad';
@@ -22,7 +24,9 @@ import {
   Clock,
   Layers,
   Sparkles,
-  Flame
+  Flame,
+  Settings,
+  ImageIcon
 } from 'lucide-react';
 
 const FILTERS: { id: 'all' | GamePlatform | 'favorites'; label: string }[] = [
@@ -47,7 +51,8 @@ export const App: React.FC = () => {
     setIsScanning,
     uiMode,
     toggleFavoriteLocal,
-    applyGameStatus
+    applyGameStatus,
+    upsertGameLocal
   } = useLibraryStore();
 
   const { activeFocusedIndex, setActiveFocusedIndex } = useGamepadStore();
@@ -55,6 +60,8 @@ export const App: React.FC = () => {
   const [scanSummary, setScanSummary] = useState<ScanResult | null>(null);
   const [showEmulatorSettings, setShowEmulatorSettings] = useState(false);
   const [showAddGameModal, setShowAddGameModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showArtworkPicker, setShowArtworkPicker] = useState(false);
   const [launchNotice, setLaunchNotice] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
 
   // Mantém o jogo do hero sincronizado com o store (playtime, favorito, execução)
@@ -80,6 +87,12 @@ export const App: React.FC = () => {
     });
     return () => unsubscribe?.();
   }, [applyGameStatus]);
+
+  // Artes baixadas em segundo plano (SteamGridDB) chegam jogo a jogo
+  useEffect(() => {
+    const unsubscribe = window.electronAPI?.onGameUpdated((game) => upsertGameLocal(game));
+    return () => unsubscribe?.();
+  }, [upsertGameLocal]);
 
   useEffect(() => {
     if (!launchNotice) return;
@@ -215,6 +228,7 @@ export const App: React.FC = () => {
               src={selectedGame.media.heroUrl}
               alt=""
               className="w-full h-full object-cover blur-sm scale-105"
+              onError={() => window.electronAPI?.reportBrokenArtwork(selectedGame.id, 'hero')}
             />
             <div className="absolute inset-0 bg-gradient-to-b from-[#090a0f]/20 via-[#090a0f]/80 to-[#090a0f]" />
           </div>
@@ -287,6 +301,15 @@ export const App: React.FC = () => {
               <Plus className="w-3.5 h-3.5" />
               <span>Adicionar Jogo</span>
             </button>
+
+            {/* Settings Button */}
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 rounded-lg text-slate-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              title="Configurações"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
@@ -355,6 +378,14 @@ export const App: React.FC = () => {
 
                 {/* Action Launch Button */}
                 <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setShowArtworkPicker(true)}
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                    title="Trocar capa, banner, logo e ícone"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    <span>Artes</span>
+                  </button>
                   <PlayButton game={selectedGame} onLaunch={handleLaunchGame} />
                 </div>
               </div>
@@ -427,6 +458,19 @@ export const App: React.FC = () => {
 
       {showEmulatorSettings && (
         <EmulatorSettings onClose={() => setShowEmulatorSettings(false)} />
+      )}
+
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+
+      {showArtworkPicker && selectedGame && (
+        <ArtworkPicker
+          game={selectedGame}
+          onClose={() => setShowArtworkPicker(false)}
+          onOpenSettings={() => {
+            setShowArtworkPicker(false);
+            setShowSettings(true);
+          }}
+        />
       )}
 
       {showAddGameModal && (

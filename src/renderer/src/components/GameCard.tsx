@@ -62,7 +62,11 @@ export const GameCard: React.FC<GameCardProps> = ({
           alt={game.title}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
-          onError={() => setCoverFailed(true)}
+          onError={() => {
+            setCoverFailed(true);
+            // O main confirma se a URL não existe e busca uma capa no SteamGridDB
+            window.electronAPI?.reportBrokenArtwork(game.id, 'cover');
+          }}
         />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-slate-800 to-slate-950 text-center">

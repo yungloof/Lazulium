@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
-import { ElectronAPI, GameLaunchStatus } from '@shared/types/ipc';
+import { ElectronAPI, FetchAssetsOptions, GameLaunchStatus, MediaAssetType } from '@shared/types/ipc';
 import { EmulatorConfig, Game, GamePlatform } from '@shared/types/game';
 
 const electronAPI: ElectronAPI = {
@@ -34,10 +34,19 @@ const electronAPI: ElectronAPI = {
   },
 
   // Metadados & SteamGridDB
-  fetchGameAssets: (gameId: string, customSearchTitle?: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.METADATA_FETCH_ASSETS, gameId, customSearchTitle),
-  applyGameAsset: (gameId: string, assetType: 'cover' | 'hero' | 'logo' | 'icon', assetUrl: string) =>
+  fetchGameAssets: (gameId: string, options?: FetchAssetsOptions) =>
+    ipcRenderer.invoke(IPC_CHANNELS.METADATA_FETCH_ASSETS, gameId, options),
+  applyGameAsset: (gameId: string, assetType: MediaAssetType, assetUrl: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.METADATA_SET_CUSTOM_ASSET, gameId, assetType, assetUrl),
+  testSteamGridDbKey: (apiKey: string) => ipcRenderer.invoke(IPC_CHANNELS.METADATA_TEST_API_KEY, apiKey),
+  fetchMissingArtwork: () => ipcRenderer.invoke(IPC_CHANNELS.METADATA_FETCH_MISSING),
+  reportBrokenArtwork: (gameId: string, assetType: MediaAssetType) =>
+    ipcRenderer.invoke(IPC_CHANNELS.METADATA_REPORT_BROKEN, gameId, assetType),
+  onGameUpdated: (callback: (game: Game) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, game: Game) => callback(game);
+    ipcRenderer.on(IPC_CHANNELS.LIBRARY_GAME_UPDATED, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.LIBRARY_GAME_UPDATED, subscription);
+  },
 
   // Conquistas
   getAchievements: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.ACHIEVEMENTS_GET, gameId),
