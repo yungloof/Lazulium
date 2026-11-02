@@ -2,6 +2,77 @@
   "schema": "lazulium-profile/1",
   "generatedAt": "2026-11-01T12:00:00.000Z",
   "displayName": "Jogador de Exemplo",
+  "avatarUrl": "https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg",
+  "steamLevel": 42,
+  "recentPlaytimeSeconds": 115200,
+  "recentGames": [
+    {
+      "id": "steam-1145360",
+      "title": "Hades",
+      "platform": "steam",
+      "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/library_600x900.jpg",
+      "heroUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/library_hero.jpg",
+      "playtimeSeconds": 404640,
+      "recentSeconds": 57600,
+      "lastPlayedAt": "2026-11-01T10:30:00.000Z",
+      "achievementsUnlocked": 38,
+      "achievementsTotal": 49
+    },
+    {
+      "id": "steam-367520",
+      "title": "Hollow Knight",
+      "platform": "steam",
+      "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg",
+      "heroUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/367520/library_hero.jpg",
+      "playtimeSeconds": 196920,
+      "recentSeconds": 36000,
+      "lastPlayedAt": "2026-10-30T19:00:00.000Z",
+      "achievementsUnlocked": 45,
+      "achievementsTotal": 63
+    },
+    {
+      "id": "steam-504230",
+      "title": "Celeste",
+      "platform": "steam",
+      "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/504230/library_600x900.jpg",
+      "heroUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/504230/library_hero.jpg",
+      "playtimeSeconds": 112320,
+      "recentSeconds": 21600,
+      "lastPlayedAt": "2026-10-28T14:15:00.000Z",
+      "achievementsUnlocked": 32,
+      "achievementsTotal": 32
+    }
+  ],
+  "recentAchievements": [
+    {
+      "gameId": "steam-1145360",
+      "gameTitle": "Hades",
+      "name": "One for the Ages",
+      "description": "Alcance o epílogo da história.",
+      "iconUrl": "https://community.cloudflare.steamstatic.com/public/images/apps/1145360/5faefee0df496924b138cf78e63da2482354f3be.jpg",
+      "unlockedAt": "2026-11-01T10:15:00.000Z",
+      "globalPercent": 8.4
+    },
+    {
+      "gameId": "steam-367520",
+      "gameTitle": "Hollow Knight",
+      "name": "Soul & Shade",
+      "description": "Conquiste o Panteão do Cavaleiro.",
+      "iconUrl": "https://community.cloudflare.steamstatic.com/public/images/apps/367520/8b8e01cae8ddcbb4933a38914041b6c00d43c98a.jpg",
+      "unlockedAt": "2026-10-30T18:45:00.000Z",
+      "globalPercent": 6.2
+    },
+    {
+      "gameId": "steam-504230",
+      "gameTitle": "Celeste",
+      "name": "Farewell",
+      "description": "Conclua o Capítulo 9.",
+      "iconUrl": "https://community.cloudflare.steamstatic.com/public/images/apps/504230/62d854dbfa03932cb4125b066922fa6bbf08f62f.jpg",
+      "unlockedAt": "2026-10-28T14:00:00.000Z",
+      "globalPercent": 2.3
+    }
+  ],
+  "screenshots": [],
   "totals": {
     "games": 42,
     "playedGames": 17,
@@ -40,40 +111,55 @@
       "title": "Hades",
       "platform": "steam",
       "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/library_600x900.jpg",
+      "heroUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/library_hero.jpg",
       "playtimeSeconds": 404640,
-      "lastPlayedAt": "2026-10-27T00:00:00.000Z"
+      "lastPlayedAt": "2026-11-01T10:30:00.000Z",
+      "achievementsUnlocked": 38,
+      "achievementsTotal": 49
     },
     {
       "id": "steam-413150",
       "title": "Stardew Valley",
       "platform": "steam",
       "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/413150/library_600x900.jpg",
+      "heroUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/413150/library_hero.jpg",
       "playtimeSeconds": 309960,
-      "lastPlayedAt": "2026-10-27T00:00:00.000Z"
+      "lastPlayedAt": "2026-10-27T00:00:00.000Z",
+      "achievementsUnlocked": 29,
+      "achievementsTotal": 40
     },
     {
       "id": "steam-367520",
       "title": "Hollow Knight",
       "platform": "steam",
       "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg",
+      "heroUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/367520/library_hero.jpg",
       "playtimeSeconds": 196920,
-      "lastPlayedAt": "2026-10-27T00:00:00.000Z"
+      "lastPlayedAt": "2026-10-30T19:00:00.000Z",
+      "achievementsUnlocked": 45,
+      "achievementsTotal": 63
     },
     {
       "id": "steam-504230",
       "title": "Celeste",
       "platform": "steam",
       "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/504230/library_600x900.jpg",
+      "heroUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/504230/library_hero.jpg",
       "playtimeSeconds": 112320,
-      "lastPlayedAt": "2026-10-27T00:00:00.000Z"
+      "lastPlayedAt": "2026-10-28T14:15:00.000Z",
+      "achievementsUnlocked": 32,
+      "achievementsTotal": 32
     },
     {
       "id": "steam-620",
       "title": "Portal 2",
       "platform": "steam",
       "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/620/library_600x900.jpg",
+      "heroUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/620/library_hero.jpg",
       "playtimeSeconds": 68040,
-      "lastPlayedAt": "2026-10-27T00:00:00.000Z"
+      "lastPlayedAt": "2026-10-27T00:00:00.000Z",
+      "achievementsUnlocked": 51,
+      "achievementsTotal": 51
     },
     {
       "id": "emu-exemplo-oot",
@@ -85,28 +171,37 @@
   ],
   "recentlyPlayed": [
     {
-      "id": "steam-367520",
-      "title": "Hollow Knight",
-      "platform": "steam",
-      "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg",
-      "playtimeSeconds": 196920,
-      "lastPlayedAt": "2026-10-27T00:00:00.000Z"
-    },
-    {
       "id": "steam-1145360",
       "title": "Hades",
       "platform": "steam",
       "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/library_600x900.jpg",
+      "heroUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/library_hero.jpg",
       "playtimeSeconds": 404640,
-      "lastPlayedAt": "2026-10-27T00:00:00.000Z"
+      "lastPlayedAt": "2026-11-01T10:30:00.000Z",
+      "achievementsUnlocked": 38,
+      "achievementsTotal": 49
     },
     {
-      "id": "steam-620",
-      "title": "Portal 2",
+      "id": "steam-367520",
+      "title": "Hollow Knight",
       "platform": "steam",
-      "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/620/library_600x900.jpg",
-      "playtimeSeconds": 68040,
-      "lastPlayedAt": "2026-10-27T00:00:00.000Z"
+      "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg",
+      "heroUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/367520/library_hero.jpg",
+      "playtimeSeconds": 196920,
+      "lastPlayedAt": "2026-10-30T19:00:00.000Z",
+      "achievementsUnlocked": 45,
+      "achievementsTotal": 63
+    },
+    {
+      "id": "steam-504230",
+      "title": "Celeste",
+      "platform": "steam",
+      "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/504230/library_600x900.jpg",
+      "heroUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/504230/library_hero.jpg",
+      "playtimeSeconds": 112320,
+      "lastPlayedAt": "2026-10-28T14:15:00.000Z",
+      "achievementsUnlocked": 32,
+      "achievementsTotal": 32
     }
   ],
   "favorites": [
@@ -115,24 +210,27 @@
       "title": "Hades",
       "platform": "steam",
       "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/library_600x900.jpg",
+      "heroUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/library_hero.jpg",
       "playtimeSeconds": 404640,
-      "lastPlayedAt": "2026-10-27T00:00:00.000Z"
+      "lastPlayedAt": "2026-11-01T10:30:00.000Z"
     },
     {
       "id": "steam-367520",
       "title": "Hollow Knight",
       "platform": "steam",
       "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg",
+      "heroUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/367520/library_hero.jpg",
       "playtimeSeconds": 196920,
-      "lastPlayedAt": "2026-10-27T00:00:00.000Z"
+      "lastPlayedAt": "2026-10-30T19:00:00.000Z"
     },
     {
       "id": "steam-504230",
       "title": "Celeste",
       "platform": "steam",
       "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/504230/library_600x900.jpg",
+      "heroUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/504230/library_hero.jpg",
       "playtimeSeconds": 112320,
-      "lastPlayedAt": "2026-10-27T00:00:00.000Z"
+      "lastPlayedAt": "2026-10-28T14:15:00.000Z"
     }
   ],
   "rarestAchievements": [
@@ -141,16 +239,16 @@
       "gameTitle": "Celeste",
       "name": "Farewell",
       "description": "Conclua o Capítulo 9.",
-      "iconUrl": "",
+      "iconUrl": "https://community.cloudflare.steamstatic.com/public/images/apps/504230/62d854dbfa03932cb4125b066922fa6bbf08f62f.jpg",
       "globalPercent": 2.3,
-      "unlockedAt": "2026-08-14T20:11:00.000Z"
+      "unlockedAt": "2026-10-28T14:00:00.000Z"
     },
     {
       "gameId": "steam-367520",
       "gameTitle": "Hollow Knight",
       "name": "Speedrun 1",
       "description": "Termine o jogo em menos de 10 horas.",
-      "iconUrl": "",
+      "iconUrl": "https://community.cloudflare.steamstatic.com/public/images/apps/367520/8b8e01cae8ddcbb4933a38914041b6c00d43c98a.jpg",
       "globalPercent": 4.1,
       "unlockedAt": "2026-06-02T22:40:00.000Z"
     },
@@ -159,7 +257,7 @@
       "gameTitle": "Hades",
       "name": "Is There No Escape?",
       "description": "Escape do Submundo.",
-      "iconUrl": "",
+      "iconUrl": "https://community.cloudflare.steamstatic.com/public/images/apps/1145360/5faefee0df496924b138cf78e63da2482354f3be.jpg",
       "globalPercent": 12.8,
       "unlockedAt": "2026-03-21T01:05:00.000Z"
     }
