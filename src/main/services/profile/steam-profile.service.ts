@@ -70,6 +70,8 @@ export function parseSteamProfileXml(xml: string): Partial<SteamProfileIdentity>
     if (appId && hours !== undefined) recentByAppId[appId] = hours;
   }
   return {
+    personaName: cdata(xml, 'steamID'),
+    avatarUrl: assetOrUndefined(cdata(xml, 'avatarFull') ?? cdata(xml, 'avatarMedium')),
     realName: cdata(xml, 'realname'),
     location: cdata(xml, 'location'),
     summary: cdata(xml, 'summary'),
@@ -135,6 +137,7 @@ function assetKey(url: string): string {
 
 function collectAssets(identity: SteamProfileIdentity): string[] {
   return [
+    identity.avatarUrl,
     identity.background?.imageUrl,
     identity.background?.videoUrl,
     identity.avatarFrameUrl,
@@ -210,6 +213,7 @@ class SteamProfileService {
     if (collectAssets(identity).some((url) => !files.some((f) => f.startsWith(`${assetKey(url)}.`)))) void this.downloadAssets(identity);
     return {
       ...identity,
+      avatarUrl: local(identity.avatarUrl),
       background: identity.background && { imageUrl: local(identity.background.imageUrl), videoUrl: local(identity.background.videoUrl) },
       avatarFrameUrl: local(identity.avatarFrameUrl),
       showcaseArt: identity.showcaseArt && { ...identity.showcaseArt, imageUrl: local(identity.showcaseArt.imageUrl)! },

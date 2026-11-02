@@ -41,6 +41,8 @@ export type ProfileMediaKind = 'avatar' | 'background' | 'artwork';
 export interface SteamProfileIdentity {
   steamId: string;
   fetchedAt: number;
+  personaName?: string;
+  avatarUrl?: string;
   realName?: string;
   location?: string;
   flagUrl?: string;

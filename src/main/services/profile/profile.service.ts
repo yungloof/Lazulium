@@ -17,7 +17,6 @@ import {
 } from '@shared/types/profile';
 import { db } from '../../database/db';
 import { achievementsService } from '../achievements/achievements.service';
-import { fetchSteamPersona } from '../accounts/steam-account.service';
 import { screenshotsService } from '../metadata/screenshots.service';
 import { readSteamProfileStats, SteamAppStats } from '../scanners/steam-scanner.service';
 import { steamProfileService } from './steam-profile.service';
@@ -38,7 +37,6 @@ const TOP_SCREENSHOTS = 8;
 const SCREENSHOT_SOURCE_GAMES = 8;     // Jogos (mais recentes) consultados para a vitrine de capturas
 const RECENT_WINDOW_MS = 14 * 86_400_000;
 const SYNC_DELAY_MS = 400;             // Espaço entre jogos para não estourar limites das APIs
-const AVATAR_CACHE_MS = 6 * 60 * 60_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -50,22 +48,7 @@ function steamStatsKey(game: Game): string | undefined {
 }
 
 class ProfileService {
-  private avatar?: { steamId: string; url?: string; fetchedAt: number };
   private syncing = false;
-
-  // Avatar público do perfil Steam (XML da comunidade, sem chave)
-  private async steamAvatar(steamId: string): Promise<string | undefined> {
-    if (this.avatar?.steamId === steamId && Date.now() - this.avatar.fetchedAt < AVATAR_CACHE_MS) return this.avatar.url;
-    let url: string | undefined;
-    try {
-      const xml = await (await fetch(`https://steamcommunity.com/profiles/${steamId}/?xml=1`, { signal: AbortSignal.timeout(10_000) })).text();
-      url = xml.match(/<avatarFull><!\[CDATA\[([^\]]+)\]\]><\/avatarFull>/)?.[1] ?? xml.match(/<avatarMedium><!\[CDATA\[([^\]]+)\]\]><\/avatarMedium>/)?.[1];
-    } catch {
-      // Offline: perfil sem avatar
-    }
-    this.avatar = { steamId, url, fetchedAt: Date.now() };
-    return url;
-  }
 
   private trackedSeconds(game: Game, since: number): number {
     return db
@@ -183,7 +166,7 @@ class ProfileService {
     }
 
     const displayName =
-      settings.steamPersonaName || (steamId ? await fetchSteamPersona(steamId) : undefined) || settings.retroAchievementsUser || 'Jogador';
+      settings.steamPersonaName || steamIdentity?.personaName || settings.retroAchievementsUser || 'Jogador';
 
     const saved = db.getProfileCustom();
     // Perfil salvo antes da arte em destaque existir: ela entra no topo, e o editor pode tirar
@@ -197,7 +180,7 @@ class ProfileService {
       schema: 'lazulium-profile/1',
       generatedAt: new Date().toISOString(),
       displayName: custom.displayName?.trim() || displayName,
-      avatarUrl: custom.avatarUrl || (steamId ? await this.steamAvatar(steamId) : undefined),
+      avatarUrl: custom.avatarUrl || steamIdentity?.avatarUrl,
       custom,
       steam: steamIdentity,
       background: this.resolveBackground(custom, steamIdentity, bannerGame?.media?.heroUrl ?? bannerGame?.media?.coverUrl ?? recentGames.find((g) => g.heroUrl)?.heroUrl),
