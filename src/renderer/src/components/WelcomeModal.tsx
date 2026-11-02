@@ -33,10 +33,10 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ games, isScanning, o
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-6">
-      <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-md bg-steam-bg border border-black/40 shadow-lg">
-        <div className="px-6 pt-6 pb-4 border-b border-black/30">
+      <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-lg bg-steam-panel border border-slate-800 shadow-lg">
+        <div className="px-6 pt-6 pb-4 border-b border-slate-800">
           <h2 className="flex items-center gap-2.5 text-xl text-white">
-            <span className="w-8 h-8 rounded-sm bg-indigo-800 flex items-center justify-center">
+            <span className="w-8 h-8 rounded-lg bg-indigo-900/60 border border-indigo-700/50 flex items-center justify-center">
               <Gamepad2 className="w-4 h-4 text-indigo-400" />
             </span>
             Bem-vindo ao Lazulium
@@ -57,11 +57,11 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ games, isScanning, o
           <AccountsSettings />
         </div>
 
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-black/30">
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-slate-800">
           <span className="text-[11px] text-slate-500">Dá para mudar isso depois em Configurações.</span>
           <button
             onClick={onFinish}
-            className={`px-6 py-2 rounded-sm bg-gradient-to-r from-[#75b022] to-[#588a1b] hover:from-[#8ed629] hover:to-[#6aa621] text-white text-sm font-semibold ${focusRing}`}
+            className={`px-6 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-colors ${focusRing}`}
           >
             Começar
           </button>
