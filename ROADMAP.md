@@ -1,6 +1,8 @@
 # 🗺️ Roadmap de Desenvolvimento - Lazulium (Steam 2)
 
-Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints modulares e bem delimitadas.
+Este roadmap organiza a implementação do aplicativo em fases modulares e bem delimitadas.
+
+> **Versão 0.1.0:** Fases 1 a 9 concluídas. Itens ainda abertos estão em [Depois da 0.1.0](#-depois-da-010).
 
 ---
 
@@ -10,7 +12,7 @@ Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints m
 - [x] Guia de engenharia e diretrizes para IA / desenvolvedores (`CLAUDE.md`).
 - [x] Estrutura de diretórios modular (`src/main`, `src/preload`, `src/renderer`, `src/shared`).
 - [x] Configuração do `package.json`, `tsconfig.json`, `electron-builder` e scripts de execução.
-- [x] Implementação da camada de banco de dados SQLite local (`src/main/database/`).
+- [x] Implementação da camada de banco de dados local (`src/main/database/`): banco JSON (`lazulium_db.json`) no lugar do SQLite previsto, com segredos cifrados pelo `safeStorage`.
 - [x] Implementação da ponte IPC segura (`ContextBridge`) com contratos fortemente tipados.
 - [x] Shell da interface React básica com tema escuro (Dark OLED) e layout responsivo.
 
@@ -110,3 +112,12 @@ Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints m
 - [x] Scanners da Riot (registro de desinstalação, abre pelo Riot Client) e da Xbox/Microsoft Store (pacotes com `MicrosoftGame.config`); jogos abertos por lançador são rastreados pela pasta do jogo.
 - [x] Página web pública do perfil (consumindo o JSON exportado).
 
+---
+
+## 🔭 Depois da 0.1.0
+- [ ] Testes de distribuição para amigos (instalador e versão portátil em outros PCs).
+- [ ] Client OAuth do Google no `.env` do build oficial, para o "Entrar com Google" funcionar para todos.
+- [ ] Tratamento de idle (jogador AFK com o jogo aberto).
+- [ ] Hospedar a página web do perfil e atualizá-la a partir do app.
+- [ ] Scanners de outros lançadores (Battle.net, EA app, Ubisoft Connect) quando houver jogos instalados para validar.
+- [ ] Assinatura digital do instalador (evita o aviso do SmartScreen).

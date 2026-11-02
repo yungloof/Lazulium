@@ -483,7 +483,7 @@
 
   <main>
     <div id="fallback-banner">
-      <strong>Nota:</strong> Não foi possível carregar <code>lazulium-perfil.json</code> automaticamente via <code>fetch</code> (comum ao abrir direto via <code>file://</code> no navegador sem servidor local). Selecione o arquivo exportado para carregar o perfil:
+      <strong>Mostrando dados de exemplo.</strong> No Lazulium, abra <em>Perfil → Exportar</em> e salve como <code>lazulium-perfil.json</code> nesta pasta, ou escolha o arquivo exportado aqui:
       <input type="file" id="json-file-input" accept=".json">
     </div>
 
@@ -578,32 +578,47 @@
       }
     }
 
+    const PLATFORM_LABEL = {
+      steam: 'Steam',
+      epic: 'Epic Games',
+      gog: 'GOG',
+      riot: 'Riot',
+      xbox: 'Xbox',
+      emulator: 'Emulador',
+      standalone: 'PC'
+    };
+
+    function platformLabel(platform) {
+      return PLATFORM_LABEL[platform] || 'PC';
+    }
+
+    // O JSON pode vir de qualquer lugar: só aceitamos imagens https, sempre escapadas
+    function safeUrl(url) {
+      return typeof url === 'string' && /^https:\/\//i.test(url) ? escapeHtml(url) : '';
+    }
+
+    function coverFallbackHtml(title) {
+      return `<div class="game-cover-fallback"><div class="icon">🎮</div><div class="title">${escapeHtml(title)}</div></div>`;
+    }
+
     function renderGameCard(game) {
       const card = document.createElement('div');
       card.className = 'game-card';
 
-      let coverHtml = '';
-      if (game.coverUrl) {
-        coverHtml = `<img src="${game.coverUrl}" alt="${game.title}" class="game-cover" loading="lazy" onerror="this.outerHTML='<div class=\\'game-cover-fallback\\'><div class=\\'icon\\'>🎮</div><div class=\\'title\\'>${escapeHtml(game.title)}</div></div>'">`;
-      } else {
-        coverHtml = `
-          <div class="game-cover-fallback">
-            <div class="icon">🎮</div>
-            <div class="title">${escapeHtml(game.title)}</div>
-          </div>
-        `;
-      }
-
+      const cover = safeUrl(game.coverUrl);
       card.innerHTML = `
-        ${coverHtml}
+        ${cover ? `<img src="${cover}" alt="${escapeHtml(game.title)}" class="game-cover" loading="lazy">` : coverFallbackHtml(game.title)}
         <div class="game-overlay">
           <div class="game-title" title="${escapeHtml(game.title)}">${escapeHtml(game.title)}</div>
           <div class="game-playtime">
             <span>${formatHours(game.playtimeSeconds)}</span>
-            <span class="platform-badge">${escapeHtml(game.platform || 'PC')}</span>
+            <span class="platform-badge">${escapeHtml(platformLabel(game.platform))}</span>
           </div>
         </div>
       `;
+      // Capa que não carrega (link expirado) vira o cartão com o título
+      const img = card.querySelector('img.game-cover');
+      if (img) img.addEventListener('error', () => { img.outerHTML = coverFallbackHtml(game.title); }, { once: true });
       return card;
     }
 
@@ -620,8 +635,8 @@
     function renderProfile(profile) {
       // Nome e Avatar
       document.getElementById('display-name').textContent = profile.displayName || 'Jogador';
-      if (profile.avatarUrl) {
-        document.getElementById('avatar-container').innerHTML = `<img src="${profile.avatarUrl}" alt="${profile.displayName}" class="avatar-img">`;
+      if (safeUrl(profile.avatarUrl)) {
+        document.getElementById('avatar-container').innerHTML = `<img src="${safeUrl(profile.avatarUrl)}" alt="${escapeHtml(profile.displayName)}" class="avatar-img">`;
       } else {
         const initial = (profile.displayName || 'L').charAt(0).toUpperCase();
         document.getElementById('avatar-initial').textContent = initial;
@@ -646,7 +661,7 @@
         profile.byPlatform.forEach(p => {
           const chip = document.createElement('div');
           chip.className = 'platform-chip';
-          chip.innerHTML = `<strong>${escapeHtml(p.platform.toUpperCase())}</strong> <span>· ${p.games} jogos (${formatHours(p.playtimeSeconds)})</span>`;
+          chip.innerHTML = `<strong>${escapeHtml(platformLabel(p.platform))}</strong> <span>· ${Number(p.games) || 0} jogos (${formatHours(p.playtimeSeconds)})</span>`;
           container.appendChild(chip);
         });
         document.getElementById('platforms-section').style.display = 'block';
@@ -660,7 +675,7 @@
           const item = document.createElement('div');
           item.className = 'achievement-card';
           item.innerHTML = `
-            <img src="${a.iconUrl || ''}" alt="${escapeHtml(a.name)}" class="achievement-icon" onerror="this.style.opacity=0.3">
+            <img src="${safeUrl(a.iconUrl)}" alt="" class="achievement-icon" onerror="this.style.opacity=0.3">
             <div class="achievement-info">
               <div class="achievement-name" title="${escapeHtml(a.name)}">${escapeHtml(a.name)}</div>
               <div class="achievement-game">${escapeHtml(a.gameTitle)}</div>
@@ -700,15 +715,26 @@
       }
     }
 
+    async function loadJson(path) {
+      // Sem cache: ao reexportar o perfil, a página mostra os dados novos
+      const res = await fetch(path, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Status HTTP ' + res.status);
+      return res.json();
+    }
+
+    // Perfil exportado pelo app (Perfil → Exportar); sem ele, mostra os dados de exemplo
     async function init() {
       try {
-        const res = await fetch('./lazulium-perfil.json');
-        if (!res.ok) throw new Error('Status HTTP ' + res.status);
-        const data = await res.json();
-        renderProfile(data);
+        renderProfile(await loadJson('./lazulium-perfil.json'));
+        return;
       } catch (err) {
         console.warn('Falha no carregamento automático de lazulium-perfil.json:', err);
-        document.getElementById('fallback-banner').style.display = 'block';
+      }
+      document.getElementById('fallback-banner').style.display = 'block';
+      try {
+        renderProfile(await loadJson('./lazulium-perfil.exemplo.json'));
+      } catch {
+        // Aberto via file://: o usuário escolhe o arquivo no aviso
       }
     }
 

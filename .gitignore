@@ -45,3 +45,6 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Perfil exportado do Lazulium (dados pessoais): a página web usa o .exemplo.json quando ele não existe
+web/profile/lazulium-perfil.json
