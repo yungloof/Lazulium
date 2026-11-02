@@ -40,7 +40,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ version, onOpenGallery
       <div className="h-full flex flex-col items-center justify-center gap-3 text-center p-8">
         <AlertTriangle className="w-8 h-8 text-amber-400/80" />
         <p className="text-sm text-slate-300">{error}</p>
-        <button onClick={() => setAttempt((n) => n + 1)} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-sm bg-slate-800 hover:bg-slate-700 ${focusRing}`}>
+        <button onClick={() => setAttempt((n) => n + 1)} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
           <RefreshCw className="w-3.5 h-3.5" /> Tentar de novo
         </button>
       </div>
@@ -70,7 +70,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ version, onOpenGallery
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar jogo"
-            className={`w-full pl-8 pr-2.5 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded-sm text-slate-200 placeholder-slate-500 ${focusRing}`}
+            className={`w-full pl-8 pr-2.5 py-1.5 text-xs bg-slate-900/80 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-500 ${focusRing}`}
           />
         </div>
       </header>
@@ -84,10 +84,10 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ version, onOpenGallery
         </div>
       ) : (
         visible.map((group) => (
-          <section key={group.gameId} className="bg-steam-panel/80 border border-black/30 rounded-sm">
+          <section key={group.gameId} className="bg-steam-panel border border-slate-800 rounded-lg overflow-hidden">
             <button
               onClick={() => onOpenGallery(group.gameId)}
-              className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left border-b border-black/30 hover:bg-black/20 ${focusRing}`}
+              className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left border-b border-slate-800 hover:bg-slate-800/40 ${focusRing}`}
             >
               <span className="text-sm text-slate-100 truncate">{group.title}</span>
               <span className="flex items-center gap-1 flex-shrink-0 text-xs text-indigo-300">
@@ -100,7 +100,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ version, onOpenGallery
                   key={shot.id}
                   onClick={() => onOpenGallery(group.gameId, shot)}
                   title={new Date(shot.takenAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
-                  className={`aspect-video rounded-sm overflow-hidden bg-slate-800 hover:brightness-110 ${focusRing}`}
+                  className={`aspect-video rounded-md overflow-hidden bg-slate-800 hover:brightness-110 ${focusRing}`}
                 >
                   <img src={shot.thumbUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
                 </button>

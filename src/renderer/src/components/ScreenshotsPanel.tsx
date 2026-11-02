@@ -110,7 +110,7 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-6" onClick={onClose}>
       <div
-        className="w-full max-w-5xl h-[85vh] flex flex-col rounded-lg bg-[#0e1426] border border-slate-800 shadow-lg"
+        className="w-full max-w-5xl h-[85vh] flex flex-col rounded-lg bg-steam-bg border border-slate-800 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
@@ -179,15 +179,15 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
               {confirmDeleteId === current.id ? (
                 <>
                   <span className="text-amber-300">Enviar para a Lixeira?</span>
-                  <button onClick={() => handleDelete(current)} className={`px-2.5 py-1.5 rounded-sm bg-red-600 hover:bg-red-500 text-white font-semibold ${focusRing}`}>
+                  <button onClick={() => handleDelete(current)} className={`px-2.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold ${focusRing}`}>
                     Apagar
                   </button>
-                  <button onClick={() => setConfirmDeleteId(null)} className={`px-2.5 py-1.5 rounded-sm bg-slate-800 hover:bg-slate-700 ${focusRing}`}>
+                  <button onClick={() => setConfirmDeleteId(null)} className={`px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 ${focusRing}`}>
                     Cancelar
                   </button>
                 </>
               ) : (
-                <button onClick={() => setConfirmDeleteId(current.id)} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm bg-slate-800 hover:bg-red-500/20 hover:text-red-300 ${focusRing}`}>
+                <button onClick={() => setConfirmDeleteId(current.id)} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 hover:text-red-300 ${focusRing}`}>
                   <Trash2 className="w-3.5 h-3.5" /> Apagar
                 </button>
               )}
