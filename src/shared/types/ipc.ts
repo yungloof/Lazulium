@@ -77,6 +77,7 @@ export interface GameLaunchStatus {
   pid?: number;
   startTime?: string;               // ISO timestamp da detecção do processo
   sessionSeconds?: number;          // Duração da sessão encerrada (0 se descartada por ser curta)
+  idleSeconds?: number;             // Tempo ausente descontado da sessão
   game?: Game;                      // Registro atualizado (playtime) ao encerrar
   error?: string;
 }

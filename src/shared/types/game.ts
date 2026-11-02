@@ -60,6 +60,7 @@ export interface PlaytimeSession {
   startedAt: string;                // ISO timestamp
   endedAt: string;                  // ISO timestamp
   durationSeconds: number;
+  idleSeconds?: number;             // Tempo ausente detectado e descontado
 }
 
 export interface EmulatorProfile {

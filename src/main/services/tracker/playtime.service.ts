@@ -1,6 +1,7 @@
 import { execFile } from 'child_process';
 import { randomUUID } from 'crypto';
 import { dirname } from 'path';
+import { powerMonitor } from 'electron';
 import { Game } from '@shared/types/game';
 import { GameLaunchState, GameLaunchStatus } from '@shared/types/ipc';
 import { db } from '../../database/db';
@@ -19,6 +20,17 @@ interface ActiveGame {
   state: Exclude<GameLaunchState, 'stopped'>;
   startedAt?: number;
   lastPersistAt: number;
+  lastPollAt: number;
+  idleSeconds: number;               // segundos ausentes acumulados acima do limite
+}
+
+// Limite configurado pelo usuário para considerar ausente (em segundos)
+function getIdleThresholdSeconds(): number {
+  const settings = db.getSettings();
+  if (settings.discountIdleTime === 'false') return 0;
+  const mins = Number(settings.idleThresholdMinutes ?? '15');
+  if (isNaN(mins) || mins <= 0) return 0;
+  return mins * 60;
 }
 
 // Pastas cujos executáveis representam o jogo. Emuladores ficam de fora: a pasta
@@ -40,16 +52,42 @@ class PlaytimeService {
       entry.state = 'running';
       entry.startedAt = firstSeenAt;
       entry.lastPersistAt = Date.now();
-      db.setActiveSession({ gameId: id, startedAt: firstSeenAt, lastSeenAt: firstSeenAt });
+      entry.lastPollAt = Date.now();
+      entry.idleSeconds = 0;
+      db.setActiveSession({ gameId: id, startedAt: firstSeenAt, lastSeenAt: firstSeenAt, idleSeconds: 0 });
       console.log(`[Playtime] ${id} em execução (PID ${pid})`);
       this.emit({ gameId: id, state: 'running', isRunning: true, pid, startTime: new Date(firstSeenAt).toISOString() });
     },
 
     onHeartbeat: (id, lastSeenAt) => {
       const entry = this.active.get(id);
-      if (!entry?.startedAt || lastSeenAt - entry.lastPersistAt < HEARTBEAT_PERSIST_MS) return;
+      if (!entry?.startedAt) return;
+
+      const thresholdSeconds = getIdleThresholdSeconds();
+      const now = Date.now();
+      const dt = Math.min(Math.max(0, (now - (entry.lastPollAt || now)) / 1000), 10);
+      entry.lastPollAt = now;
+
+      // Se passou do limite de inatividade (sem teclado/mouse), acumula tempo ausente
+      if (thresholdSeconds > 0) {
+        try {
+          const systemIdle = powerMonitor.getSystemIdleTime();
+          if (systemIdle > thresholdSeconds) {
+            entry.idleSeconds += dt;
+          }
+        } catch {
+          // powerMonitor pode falhar em ambientes de teste sem display
+        }
+      }
+
+      if (lastSeenAt - entry.lastPersistAt < HEARTBEAT_PERSIST_MS) return;
       entry.lastPersistAt = lastSeenAt;
-      db.setActiveSession({ gameId: id, startedAt: entry.startedAt, lastSeenAt });
+      db.setActiveSession({
+        gameId: id,
+        startedAt: entry.startedAt,
+        lastSeenAt,
+        idleSeconds: Math.round(entry.idleSeconds)
+      });
     },
 
     onEnded: (id, firstSeenAt, lastSeenAt) => this.finish(id, firstSeenAt, lastSeenAt),
@@ -100,7 +138,7 @@ class PlaytimeService {
       return true;
     }
 
-    this.active.set(gameId, { state: 'launching', lastPersistAt: 0 });
+    this.active.set(gameId, { state: 'launching', lastPersistAt: 0, lastPollAt: Date.now(), idleSeconds: 0 });
     this.monitor.watch({
       id: gameId,
       rootPid: handle.pid,
@@ -130,7 +168,7 @@ class PlaytimeService {
   // Sessões que ficaram abertas porque o app fechou/travou durante o jogo
   recoverInterruptedSessions(): void {
     for (const record of db.getActiveSessions()) {
-      this.record(record.gameId, record.startedAt, record.lastSeenAt);
+      this.record(record.gameId, record.startedAt, record.lastSeenAt, record.idleSeconds ?? 0);
       console.log(`[Playtime] Sessão interrompida recuperada: ${record.gameId}`);
     }
   }
@@ -139,38 +177,56 @@ class PlaytimeService {
   shutdown(): void {
     const now = Date.now();
     for (const [id, entry] of this.active) {
-      if (entry.startedAt !== undefined) this.record(id, entry.startedAt, now);
+      if (entry.startedAt !== undefined) {
+        this.record(id, entry.startedAt, now, entry.idleSeconds);
+      }
     }
     this.active.clear();
     this.monitor.stopAll();
   }
 
   private finish(id: string, startedAt: number, endedAt: number): void {
+    const entry = this.active.get(id);
+    const idle = entry?.idleSeconds ?? 0;
     this.active.delete(id);
-    const { seconds, game } = this.record(id, startedAt, endedAt);
-    console.log(`[Playtime] ${id} encerrado após ${seconds}s${seconds < MIN_SESSION_SECONDS ? ' (descartado)' : ''}`);
+    const { seconds, idleDiscounted, game } = this.record(id, startedAt, endedAt, idle);
+    console.log(
+      `[Playtime] ${id} encerrado após ${seconds}s líquidas (${idleDiscounted}s ausente descontados)${
+        seconds < MIN_SESSION_SECONDS ? ' (descartado)' : ''
+      }`
+    );
     this.emit({
       gameId: id,
       state: 'stopped',
       isRunning: false,
       sessionSeconds: seconds >= MIN_SESSION_SECONDS ? seconds : 0,
+      idleSeconds: idleDiscounted > 0 ? idleDiscounted : undefined,
       game: game ?? undefined
     });
   }
 
-  private record(gameId: string, startedAt: number, endedAt: number): { seconds: number; game: Game | null } {
+  private record(
+    gameId: string,
+    startedAt: number,
+    endedAt: number,
+    accumulatedIdle: number = 0
+  ): { seconds: number; idleDiscounted: number; game: Game | null } {
     db.removeActiveSession(gameId);
-    const seconds = Math.max(0, Math.round((endedAt - startedAt) / 1000));
-    if (seconds < MIN_SESSION_SECONDS) return { seconds, game: db.getGameById(gameId) };
+    const wallClockSeconds = Math.max(0, Math.round((endedAt - startedAt) / 1000));
+    const idleDiscounted = Math.min(wallClockSeconds, Math.round(accumulatedIdle));
+    const seconds = Math.max(0, wallClockSeconds - idleDiscounted);
+
+    if (seconds < MIN_SESSION_SECONDS) return { seconds, idleDiscounted, game: db.getGameById(gameId) };
 
     const game = db.addPlaytimeSession({
       id: randomUUID(),
       gameId,
       startedAt: new Date(startedAt).toISOString(),
       endedAt: new Date(endedAt).toISOString(),
-      durationSeconds: seconds
+      durationSeconds: seconds,
+      idleSeconds: idleDiscounted > 0 ? idleDiscounted : undefined
     });
-    return { seconds, game };
+    return { seconds, idleDiscounted, game };
   }
 
   private emit(status: GameLaunchStatus): void {

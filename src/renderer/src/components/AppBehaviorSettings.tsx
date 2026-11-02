@@ -20,6 +20,8 @@ const OPTIONS = [
 
 export const AppBehaviorSettings: React.FC = () => {
   const [values, setValues] = useState<Record<string, boolean>>({});
+  const [discountIdle, setDiscountIdle] = useState(true);
+  const [idleThreshold, setIdleThreshold] = useState('15');
 
   useEffect(() => {
     window.electronAPI?.getSettings().then((settings) => {
@@ -28,12 +30,35 @@ export const AppBehaviorSettings: React.FC = () => {
           OPTIONS.map((o) => [o.key, settings[o.key] === undefined || settings[o.key] === '' ? o.defaultValue : settings[o.key] === 'true'])
         )
       );
+      const isDiscountEnabled =
+        settings.discountIdleTime === undefined || settings.discountIdleTime === ''
+          ? true
+          : settings.discountIdleTime === 'true';
+      setDiscountIdle(isDiscountEnabled);
+      setIdleThreshold(settings.idleThresholdMinutes || '15');
     });
   }, []);
 
   const toggle = async (key: string, value: boolean) => {
     setValues((prev) => ({ ...prev, [key]: value }));
     await window.electronAPI?.setSetting(key, String(value));
+  };
+
+  const handleDiscountIdleChange = async (checked: boolean) => {
+    setDiscountIdle(checked);
+    await window.electronAPI?.setSetting('discountIdleTime', String(checked));
+  };
+
+  const handleIdleThresholdChange = async (val: string) => {
+    setIdleThreshold(val);
+    await window.electronAPI?.setSetting('idleThresholdMinutes', val);
+    if (val === '0') {
+      setDiscountIdle(false);
+      await window.electronAPI?.setSetting('discountIdleTime', 'false');
+    } else if (!discountIdle) {
+      setDiscountIdle(true);
+      await window.electronAPI?.setSetting('discountIdleTime', 'true');
+    }
   };
 
   return (
@@ -55,6 +80,39 @@ export const AppBehaviorSettings: React.FC = () => {
           </span>
         </label>
       ))}
+
+      <div className="pt-2 border-t border-slate-800/60 space-y-2">
+        <label className="flex items-start gap-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={discountIdle}
+            onChange={(e) => handleDiscountIdleChange(e.target.checked)}
+            className={`mt-0.5 w-4 h-4 accent-indigo-500 rounded ${focusRing}`}
+          />
+          <span className="flex-1">
+            <span className="block text-xs text-slate-200">Descontar tempo ausente</span>
+            <span className="block text-[11px] text-slate-500">
+              Pausa o contador de horas e desconta da sessão se você se afastar do PC com o jogo aberto.
+            </span>
+          </span>
+        </label>
+
+        {discountIdle && (
+          <div className="ml-7 flex items-center gap-2 text-xs text-slate-400">
+            <span>Considerar ausente após:</span>
+            <select
+              value={idleThreshold}
+              onChange={(e) => handleIdleThresholdChange(e.target.value)}
+              className={`px-2.5 py-1 text-xs bg-slate-900 border border-slate-700 rounded-lg text-slate-200 ${focusRing}`}
+            >
+              <option value="10">10 minutos</option>
+              <option value="15">15 minutos (padrão)</option>
+              <option value="30">30 minutos</option>
+              <option value="0">Desligado</option>
+            </select>
+          </div>
+        )}
+      </div>
     </section>
   );
 };

@@ -37,7 +37,7 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [x] Cálculo preciso de tempo de jogo (`total_playtime_seconds`), com filtro de sessões < 15s.
 - [x] Registro histórico de sessões (data, hora de início, término, duração).
 - [x] Fechamento inesperado do jogo/launcher (tolerância de handoff) e do próprio Lazulium (recuperação via heartbeat).
-- [ ] Tratamento de idle (jogador AFK com o jogo aberto).
+- [x] Tratamento de idle (jogador AFK com o jogo aberto).
 - [x] Indicadores em tempo real na UI (Iniciando / Em execução / cronômetro / Parar).
 - [x] Cards de estatísticas na UI (última vez jogado, gráficos de tempo semanal).
 
@@ -117,7 +117,7 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 ## 🔭 Depois da 0.1.0
 - [ ] Testes de distribuição para amigos (instalador e versão portátil em outros PCs).
 - [ ] Client OAuth do Google no `.env` do build oficial, para o "Entrar com Google" funcionar para todos.
-- [ ] Tratamento de idle (jogador AFK com o jogo aberto).
+- [x] Tratamento de idle (jogador AFK com o jogo aberto).
 - [ ] Hospedar a página web do perfil e atualizá-la a partir do app.
 - [ ] Scanners de outros lançadores (Battle.net, EA app, Ubisoft Connect) quando houver jogos instalados para validar.
 - [ ] Assinatura digital do instalador (evita o aviso do SmartScreen).

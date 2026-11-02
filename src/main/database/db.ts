@@ -58,6 +58,7 @@ export interface ActiveSessionRecord {
   gameId: string;
   startedAt: number;                // epoch ms
   lastSeenAt: number;               // epoch ms
+  idleSeconds?: number;             // segundos ausentes acumulados
 }
 
 export interface DatabaseSchema {
@@ -92,6 +93,8 @@ const DEFAULT_DATA: DatabaseSchema = {
     googleClientId: '',
     googleClientSecret: '',
     googleDriveRefreshToken: '',
+    discountIdleTime: 'true',
+    idleThresholdMinutes: '15',
     theme: 'dark-oled'
   }
 };

@@ -152,7 +152,9 @@ export const App: React.FC = () => {
         setLaunchNotice({ text: `${title}: ${status.error}`, tone: 'warn' });
       } else if (status.sessionSeconds) {
         const minutes = Math.max(1, Math.round(status.sessionSeconds / 60));
-        setLaunchNotice({ text: `${title}: sessão de ${minutes} min registrada.`, tone: 'ok' });
+        const idleMin = status.idleSeconds ? Math.round(status.idleSeconds / 60) : 0;
+        const idleText = idleMin > 0 ? ` (${idleMin} min ausente descontados)` : '';
+        setLaunchNotice({ text: `${title}: sessão de ${minutes} min registrada${idleText}.`, tone: 'ok' });
       } else {
         setLaunchNotice({ text: `${title}: sessão menor que 15 s, não contabilizada.`, tone: 'warn' });
       }
