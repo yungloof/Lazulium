@@ -203,13 +203,14 @@ async function scanShortcuts(accountDirs: string[], localStats: Map<string, Stea
   return [...games.values()];
 }
 
-function manifestToGame(manifest: VdfObject, libraryPath: string, steamExe: string): DetectedGame | null {
+function manifestToGame(manifest: VdfObject, libraryPath: string, steamExe: string, activeSteamId?: string): DetectedGame | null {
   const appState = vdfGetObject(manifest, 'AppState');
   const appId = vdfGetString(appState, 'appid');
   const name = vdfGetString(appState, 'name');
   const installDir = vdfGetString(appState, 'installdir');
   const stateFlags = Number(vdfGetString(appState, 'StateFlags') ?? '0');
   const lastPlayedSec = Number(vdfGetString(appState, 'LastPlayed') ?? '0');
+  const lastOwner = vdfGetString(appState, 'LastOwner');
 
   if (!appId || !name) return null;
   if (IGNORED_APP_IDS.has(appId) || IGNORED_NAME_PATTERN.test(name)) return null;
@@ -229,6 +230,8 @@ function manifestToGame(manifest: VdfObject, libraryPath: string, steamExe: stri
     workingDirectory: installPath,
     installPath,
     lastPlayedAt,
+    // Sem conta definida ou sem dono no arquivo, não dá para saber: fica o que já se sabia
+    ...(activeSteamId && lastOwner && lastOwner !== '0' ? { familyShared: lastOwner !== activeSteamId } : {}),
     media: {
       coverUrl: `${STEAM_CDN}/${appId}/library_600x900.jpg`,
       heroUrl: `${STEAM_CDN}/${appId}/library_hero.jpg`,
@@ -251,6 +254,8 @@ export const steamScanner: PlatformScanner = {
     const libraries = await getLibraryFolders(steamPath);
     const accountDirs = await getAccountDirs(steamPath);
     const localStats = await getSteamLocalPlaytimes(accountDirs);
+    const accountFolder = accountDirs.length === 1 ? basename(accountDirs[0]) : undefined;
+    const activeSteamId = accountFolder ? (BigInt(accountFolder) + STEAMID64_BASE).toString() : undefined;
     const games = new Map<string, DetectedGame>();
 
     for (const library of libraries) {
@@ -267,7 +272,7 @@ export const steamScanner: PlatformScanner = {
         if (!/^appmanifest_\d+\.acf$/i.test(file)) continue;
         try {
           const manifest = parseVdf(await readFile(join(steamapps, file), 'utf-8'));
-          const game = manifestToGame(manifest, library, steamExe);
+          const game = manifestToGame(manifest, library, steamExe, activeSteamId);
           if (game) {
             const stats = game.platformGameId ? localStats.get(game.platformGameId) : undefined;
             if (stats) {

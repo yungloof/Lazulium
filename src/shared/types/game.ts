@@ -42,6 +42,7 @@ export interface Game {
   launchUri?: string;               // Protocolo do launcher (ex: steam://rungameid/123)
   installPath?: string;             // Pasta de instalação detectada pelo scanner
   isInstalled?: boolean;            // false: desinstalado, histórico preservado (ausente = instalado)
+  familyShared?: boolean;           // Steam: o dono é outra conta (Família Steam). Só se sabe com o jogo instalado.
   manualEntry?: boolean;            // Registrado à mão no Diário (ex: jogo de console); não é iniciado pelo app
   manualPlatform?: string;          // Onde jogou, em texto livre (ex: PS5, Switch)
   log?: GameLog;

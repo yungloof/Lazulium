@@ -71,6 +71,7 @@ const JournalRow: React.FC<{
         <span className="block mt-0.5 text-xs text-slate-400 truncate">
           {game.manualPlatform ?? PLATFORM_LABEL[game.platform]}
           {game.id.startsWith('steam-shortcut-') && ' · atalho da Steam'}
+          {game.familyShared && ' · Família Steam'}
           {removed && !game.manualEntry && ' · não instalado'}
         </span>
         {game.log?.review && (

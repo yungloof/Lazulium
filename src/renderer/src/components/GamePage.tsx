@@ -349,6 +349,7 @@ export const GamePage: React.FC<GamePageProps> = ({
                   {game.platform === 'emulator' ? `Emulador · ${game.emulatorId ?? ''}` : PLATFORM_LABEL[game.platform]}
                   {game.manualPlatform && ` · ${game.manualPlatform}`}
                   {game.id.startsWith('steam-shortcut-') && ' (atalho da Steam)'}
+                  {game.familyShared && ' · Família Steam'}
                   {game.isInstalled === false && !game.manualEntry && ' · não instalado'}
                 </dd>
               </div>
