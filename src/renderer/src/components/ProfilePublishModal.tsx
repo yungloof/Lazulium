@@ -10,7 +10,7 @@ interface ProfilePublishModalProps {
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
-const secondary = `flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`;
+const secondary = `flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`;
 
 export const ProfilePublishModal: React.FC<ProfilePublishModalProps> = ({ status, onClose, onChanged }) => {
   const [repoUrl, setRepoUrl] = useState(status.repoUrl ?? '');
@@ -53,16 +53,16 @@ export const ProfilePublishModal: React.FC<ProfilePublishModalProps> = ({ status
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" onClick={() => !publishing && onClose()}>
-      <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-md bg-steam-bg border border-black/40 shadow-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-black/30 flex-shrink-0">
+      <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-lg bg-steam-panel border border-slate-800 shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
           <h2 className="text-base text-white">Publicar perfil na web</h2>
-          <button onClick={onClose} disabled={publishing} aria-label="Fechar" className={`p-1.5 rounded-sm text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-50 ${focusRing}`}>
+          <button onClick={onClose} disabled={publishing} aria-label="Fechar" className={`p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-50 ${focusRing}`}>
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-6 overflow-y-auto space-y-5 text-sm text-slate-300">
-          <div className="p-3 rounded-sm bg-amber-950/40 border border-amber-500/30 text-xs leading-relaxed text-amber-100">
+          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs leading-relaxed text-amber-200">
             <p className="font-semibold">A página fica pública, e o histórico do repositório também.</p>
             <p className="mt-1">Vai para lá: nome, avatar, bio, nível, horas, jogos, conquistas, fundo e vitrine.</p>
             <p className="mt-1">Fica de fora: nome real, país, resenhas e anotações do Diário, capturas e caminhos do seu PC. Imagens e vídeos escolhidos do seu PC também não vão: a página usa os da Steam ou fica sem eles.</p>
@@ -90,7 +90,7 @@ export const ProfilePublishModal: React.FC<ProfilePublishModalProps> = ({ status
               value={repoUrl}
               onChange={(e) => setRepoUrl(e.target.value)}
               placeholder="https://github.com/seu-usuario/lazulium-perfil"
-              className={`w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-sm text-slate-100 placeholder-slate-600 ${focusRing}`}
+              className={`w-full px-3 py-2 text-sm bg-slate-900/80 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-600 ${focusRing}`}
             />
           </div>
 
@@ -119,19 +119,19 @@ export const ProfilePublishModal: React.FC<ProfilePublishModalProps> = ({ status
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-black/30 flex-shrink-0">
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-slate-800 flex-shrink-0">
           {status.repoUrl ? (
-            <button onClick={disconnect} disabled={publishing} className={`text-xs text-slate-400 hover:text-white rounded-sm disabled:opacity-50 ${focusRing}`} title="O app para de publicar. O que já está no GitHub continua lá até você apagar o repositório.">
+            <button onClick={disconnect} disabled={publishing} className={`text-xs text-slate-400 hover:text-white rounded-lg disabled:opacity-50 ${focusRing}`} title="O app para de publicar. O que já está no GitHub continua lá até você apagar o repositório.">
               Desconectar repositório
             </button>
           ) : (
             <span />
           )}
           <div className="flex gap-2">
-            <button onClick={onClose} disabled={publishing} className={`px-3 py-2 text-xs rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-50 ${focusRing}`}>
+            <button onClick={onClose} disabled={publishing} className={`px-3 py-2 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-50 ${focusRing}`}>
               Fechar
             </button>
-            <button onClick={publish} disabled={publishing || !repoUrl.trim()} className={`flex items-center gap-1.5 px-5 py-2 text-xs font-semibold rounded-sm bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 ${focusRing}`}>
+            <button onClick={publish} disabled={publishing || !repoUrl.trim()} className={`flex items-center gap-1.5 px-5 py-2 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 ${focusRing}`}>
               {publishing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               {publishing ? 'Publicando...' : 'Publicar'}
             </button>

@@ -11,7 +11,7 @@ interface ProfileEditModalProps {
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
-const inputClass = `w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-sm text-slate-100 placeholder-slate-600 ${focusRing}`;
+const inputClass = `w-full px-3 py-2 text-sm bg-slate-900/80 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-600 ${focusRing}`;
 const labelClass = 'block text-xs font-semibold text-slate-300 mb-1.5';
 const MAX_FEATURED = 12;
 
@@ -109,10 +109,10 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" onClick={onClose}>
-      <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-md bg-steam-bg border border-black/40 shadow-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-black/30 flex-shrink-0">
+      <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-lg bg-steam-panel border border-slate-800 shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
           <h2 className="text-base text-white">Editar perfil</h2>
-          <button onClick={onClose} aria-label="Fechar" className={`p-1.5 rounded-sm text-slate-400 hover:text-white hover:bg-slate-800 ${focusRing}`}>
+          <button onClick={onClose} aria-label="Fechar" className={`p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 ${focusRing}`}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -120,14 +120,14 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
         <div className="p-6 overflow-y-auto space-y-6">
           <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-5">
             <div className="space-y-2">
-              <div className="w-24 h-24 rounded-sm bg-slate-800 overflow-hidden">
+              <div className="w-24 h-24 rounded-lg bg-slate-800 border border-slate-700/80 overflow-hidden">
                 {(form.avatarUrl || profile.avatarUrl) && <img src={form.avatarUrl || profile.avatarUrl} alt="" className="w-full h-full object-cover" />}
               </div>
-              <button onClick={() => pickMedia('avatar')} className={`w-full flex items-center justify-center gap-1 py-1 text-[11px] rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+              <button onClick={() => pickMedia('avatar')} className={`w-full flex items-center justify-center gap-1 py-1.5 text-[11px] font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
                 <ImagePlus className="w-3 h-3" /> Trocar
               </button>
               {form.avatarUrl && (
-                <button onClick={() => update({ avatarUrl: undefined })} className={`w-full text-[11px] text-slate-400 hover:text-white rounded-sm ${focusRing}`}>
+                <button onClick={() => update({ avatarUrl: undefined })} className={`w-full py-1 text-[11px] text-slate-400 hover:text-white rounded-lg ${focusRing}`}>
                   Usar o da Steam
                 </button>
               )}
@@ -181,7 +181,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
             )}
             {backgroundMode === 'file' && (
               <div className="flex items-center gap-3">
-                <button onClick={() => pickMedia('background')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+                <button onClick={() => pickMedia('background')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
                   <ImagePlus className="w-3.5 h-3.5" /> Escolher arquivo
                 </button>
                 <span className="text-[11px] text-slate-500">{form.backgroundUrl ? 'Arquivo escolhido.' : 'PNG, JPG, WEBP, GIF, WEBM ou MP4 (vídeo até 200 MB).'}</span>
@@ -192,17 +192,17 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
           <div>
             <p className={labelClass}>Arte em destaque</p>
             <div className="flex items-start gap-3">
-              <div className="w-40 aspect-video flex-shrink-0 bg-slate-900 overflow-hidden">
+              <div className="w-40 aspect-video flex-shrink-0 rounded-lg bg-slate-900 border border-slate-800 overflow-hidden">
                 {previewArt && <img src={previewArt} alt="" className="w-full h-full object-contain" />}
               </div>
               <div className="flex-1 min-w-0 space-y-2">
                 <input aria-label="Legenda da arte" value={form.artworkCaption ?? ''} onChange={(e) => update({ artworkCaption: e.target.value })} placeholder={form.artworkUrl ? 'Legenda (opcional)' : steam?.showcaseArt?.title || 'Legenda (opcional)'} maxLength={120} className={inputClass} />
                 <div className="flex items-center gap-3">
-                  <button onClick={() => pickMedia('artwork')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+                  <button onClick={() => pickMedia('artwork')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
                     <ImagePlus className="w-3.5 h-3.5" /> Escolher imagem
                   </button>
                   {form.artworkUrl && (
-                    <button onClick={() => update({ artworkUrl: undefined })} className={`text-[11px] text-slate-400 hover:text-white rounded-sm ${focusRing}`}>
+                    <button onClick={() => update({ artworkUrl: undefined })} className={`text-[11px] text-slate-400 hover:text-white rounded-lg ${focusRing}`}>
                       {steam?.showcaseArt ? 'Usar a da Steam' : 'Remover'}
                     </button>
                   )}
@@ -213,7 +213,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
 
           <div>
             <p className={labelClass}>Seções do perfil</p>
-            <ul className="border border-black/30 rounded-sm divide-y divide-black/30">
+            <ul className="border border-slate-800 rounded-lg divide-y divide-slate-800 overflow-hidden">
               {[...sections, ...ALL_SECTIONS.filter((s) => !sections.includes(s))].map((id) => {
                 const on = sections.includes(id);
                 return (
@@ -223,14 +223,14 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
                         type="checkbox"
                         checked={on}
                         onChange={() => update({ sections: on ? sections.filter((s) => s !== id) : [...sections, id] })}
-                        className={`w-4 h-4 accent-indigo-500 ${focusRing}`}
+                        className={`w-4 h-4 accent-indigo-500 rounded ${focusRing}`}
                       />
                       {SECTION_LABEL[id]}
                     </label>
-                    <button onClick={() => moveSection(id, -1)} disabled={!on} aria-label={`Subir ${SECTION_LABEL[id]}`} className={`p-1 rounded-sm text-slate-400 hover:text-white disabled:opacity-30 ${focusRing}`}>
+                    <button onClick={() => moveSection(id, -1)} disabled={!on} aria-label={`Subir ${SECTION_LABEL[id]}`} className={`p-1 rounded-md text-slate-400 hover:text-white disabled:opacity-30 ${focusRing}`}>
                       <ArrowUp className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => moveSection(id, 1)} disabled={!on} aria-label={`Descer ${SECTION_LABEL[id]}`} className={`p-1 rounded-sm text-slate-400 hover:text-white disabled:opacity-30 ${focusRing}`}>
+                    <button onClick={() => moveSection(id, 1)} disabled={!on} aria-label={`Descer ${SECTION_LABEL[id]}`} className={`p-1 rounded-md text-slate-400 hover:text-white disabled:opacity-30 ${focusRing}`}>
                       <ArrowDown className="w-3.5 h-3.5" />
                     </button>
                   </li>
@@ -254,10 +254,10 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
                     onClick={() => setForm((f) => ({ ...f, featuredGameIds: toggleIn(f.featuredGameIds ?? [], g.id) }))}
                     aria-pressed={on}
                     title={g.title}
-                    className={`relative aspect-[2/3] rounded-sm overflow-hidden bg-slate-800 ${on ? 'ring-2 ring-indigo-400' : 'opacity-75 hover:opacity-100'} ${focusRing}`}
+                    className={`relative aspect-[2/3] rounded-lg overflow-hidden bg-slate-800 ${on ? 'ring-2 ring-indigo-400' : 'opacity-75 hover:opacity-100'} ${focusRing}`}
                   >
                     {g.media?.coverUrl ? <img src={g.media.coverUrl} alt={g.title} loading="lazy" className="w-full h-full object-cover" /> : <span className="block p-1 text-[9px] text-slate-400">{g.title}</span>}
-                    {on && <Check className="absolute top-1 right-1 w-4 h-4 p-0.5 rounded-sm bg-indigo-500 text-white" />}
+                    {on && <Check className="absolute top-1 right-1 w-4 h-4 p-0.5 rounded-md bg-indigo-500 text-white" />}
                   </button>
                 );
               })}
@@ -274,7 +274,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
                   <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
                   <input value={achievementQuery} onChange={(e) => setAchievementQuery(e.target.value)} placeholder="Buscar conquista ou jogo" className={`${inputClass} pl-8 py-1.5 text-xs`} />
                 </div>
-                <ul className="max-h-56 overflow-y-auto border border-black/30 rounded-sm divide-y divide-black/30">
+                <ul className="max-h-56 overflow-y-auto border border-slate-800 rounded-lg divide-y divide-slate-800 overflow-hidden">
                   {achievementList.map((a) => {
                     const on = featuredAch.includes(a.key);
                     return (
@@ -282,9 +282,9 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
                         <button
                           onClick={() => setForm((f) => ({ ...f, featuredAchievementKeys: toggleIn(f.featuredAchievementKeys ?? [], a.key) }))}
                           aria-pressed={on}
-                          className={`w-full flex items-center gap-2.5 px-2 py-1.5 text-left hover:bg-black/20 ${on ? 'bg-indigo-500/15' : ''} ${focusRing}`}
+                          className={`w-full flex items-center gap-2.5 px-2 py-1.5 text-left hover:bg-slate-800/40 ${on ? 'bg-indigo-500/15' : ''} ${focusRing}`}
                         >
-                          {a.iconUrl && <img src={a.iconUrl} alt="" loading="lazy" className="w-8 h-8 rounded-sm flex-shrink-0" />}
+                          {a.iconUrl && <img src={a.iconUrl} alt="" loading="lazy" className="w-8 h-8 rounded-md flex-shrink-0" />}
                           <span className="min-w-0 flex-1">
                             <span className="block text-xs text-slate-100 truncate">{a.name}</span>
                             <span className="block text-[11px] text-slate-500 truncate">{a.gameTitle}</span>
@@ -301,7 +301,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-black/30 flex-shrink-0">
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-slate-800 flex-shrink-0">
           <span className="text-xs text-amber-300 flex items-center gap-1.5">
             {error && (
               <>
@@ -310,10 +310,10 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
             )}
           </span>
           <div className="flex gap-2">
-            <button onClick={onClose} className={`px-3 py-2 text-xs rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+            <button onClick={onClose} className={`px-3 py-2 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
               Cancelar
             </button>
-            <button onClick={save} disabled={saving} className={`px-5 py-2 text-xs font-semibold rounded-sm bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 ${focusRing}`}>
+            <button onClick={save} disabled={saving} className={`px-5 py-2 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 ${focusRing}`}>
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Salvar perfil'}
             </button>
           </div>
