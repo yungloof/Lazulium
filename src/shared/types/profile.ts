@@ -38,7 +38,7 @@ export type ProfileBackgroundMode = 'steam' | 'game' | 'file' | 'none';
 export type ProfileMediaKind = 'avatar' | 'background' | 'artwork';
 
 // Página pública do perfil (GitHub Pages)
-export type ProfileWebLink = 'new-repo' | 'pages-settings' | 'page';
+export type ProfileWebLink = 'new-repo' | 'pages-settings' | 'page' | 'steam-privacy';
 export interface ProfileWebStatus {
   repoUrl?: string;
   pageUrl?: string;
@@ -61,6 +61,7 @@ export interface SteamProfileIdentity {
   fetchedAt: number;
   personaName?: string;
   avatarUrl?: string;
+  isPrivate?: boolean;              // Perfil privado ou só para amigos: a Steam esconde quase tudo
   realName?: string;
   location?: string;
   flagUrl?: string;

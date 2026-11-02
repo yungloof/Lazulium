@@ -63,6 +63,8 @@ const assetOrUndefined = (url?: string) => (url && isAllowedAsset(url) ? url : u
 // ?xml=1: identidade pública e horas das últimas 2 semanas por jogo
 export function parseSteamProfileXml(xml: string): Partial<SteamProfileIdentity> {
   const state = xml.match(/<onlineState>(.*?)<\/onlineState>/)?.[1];
+  const privacy = xml.match(/<privacyState>(.*?)<\/privacyState>/)?.[1];
+  const summary = cdata(xml, 'summary');
   const recentByAppId: Record<string, number> = {};
   for (const [, block] of xml.matchAll(/<mostPlayedGame>([\s\S]*?)<\/mostPlayedGame>/g)) {
     const appId = block.match(/steamcommunity\.com\/app\/(\d+)/)?.[1];
@@ -71,10 +73,12 @@ export function parseSteamProfileXml(xml: string): Partial<SteamProfileIdentity>
   }
   return {
     personaName: cdata(xml, 'steamID'),
+    isPrivate: privacy ? privacy !== 'public' : undefined,
     avatarUrl: assetOrUndefined(cdata(xml, 'avatarFull') ?? cdata(xml, 'avatarMedium')),
     realName: cdata(xml, 'realname'),
     location: cdata(xml, 'location'),
-    summary: cdata(xml, 'summary'),
+    // Texto padrão da Steam para quem nunca escreveu uma bio
+    summary: summary === 'No information given.' ? undefined : summary,
     memberSince: xml.match(/<memberSince>(.*?)<\/memberSince>/)?.[1],
     state: state === 'in-game' || state === 'online' || state === 'offline' ? state : undefined,
     recentByAppId
@@ -156,7 +160,8 @@ class SteamProfileService {
   async get(steamId: string): Promise<SteamProfileIdentity | undefined> {
     const cached = db.getSteamProfileCache();
     const usable = cached?.steamId === steamId ? cached : undefined;
-    if (usable && Date.now() - usable.fetchedAt < REFRESH_AFTER_MS) return this.withLocalAssets(usable);
+    // Perfil privado consulta sempre: quando o jogador liberar na Steam, aparece assim que ele reabrir a tela
+    if (usable && !usable.isPrivate && Date.now() - usable.fetchedAt < REFRESH_AFTER_MS) return this.withLocalAssets(usable);
 
     this.refreshing ??= this.refresh(steamId, usable).finally(() => {
       this.refreshing = undefined;

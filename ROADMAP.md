@@ -144,6 +144,7 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [ ] Client OAuth do Google no `.env` do build oficial, para o "Entrar com Google" funcionar para todos.
 - [x] Tratamento de idle (jogador AFK com o jogo aberto).
 - [x] Publicar a página web do perfil a partir do app (Perfil → Publicar na web, GitHub Pages pelo login do Git, sem chave de API).
+- [x] Perfil para quem abre pela primeira vez: conexão da Steam em um clique na própria tela e aviso de como liberar um perfil privado.
 - [ ] Primeira publicação real no GitHub: conferir login do Git, ativação do Pages e a página no ar.
 - [ ] Scanners de outros lançadores (Battle.net, EA app, Ubisoft Connect) quando houver jogos instalados para validar.
 - [ ] Assinatura digital do instalador (evita o aviso do SmartScreen).

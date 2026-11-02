@@ -28,6 +28,8 @@
     h1, h2, p, dl, dd, figure { margin: 0; }
     #backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: #000; }
     #backdrop img, #backdrop video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    #backdrop::after { content: ''; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); }
+    #backdrop.moving::after { background: rgba(0, 0, 0, 0.2); }
     #page {
       display: grid;
       grid-template-columns: minmax(0, 1fr) 280px;
@@ -180,6 +182,7 @@
         node.autoplay = true;
         node.addEventListener('error', () => node.remove());
         box.append(node);
+        box.classList.add('moving');
         document.addEventListener('visibilitychange', () => (document.hidden ? node.pause() : node.play().catch(() => {})));
       }
     }

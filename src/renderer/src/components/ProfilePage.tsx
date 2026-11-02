@@ -6,6 +6,7 @@ import { useLibraryStore } from '../stores/useLibraryStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { ALL_SECTIONS, ProfileEditModal, SECTION_LABEL } from './ProfileEditModal';
 import { ProfilePublishModal } from './ProfilePublishModal';
+import { ProfileSteamNotice } from './ProfileSteamNotice';
 
 interface ProfilePageProps {
   onOpenSettings: () => void;
@@ -94,6 +95,7 @@ const ProfileBackdrop: React.FC<{ imageUrl?: string; videoUrl?: string; gameRunn
             className="absolute inset-0 w-full h-full object-cover"
           />
         )}
+        <div className={`absolute inset-0 ${showVideo ? 'bg-black/20' : 'bg-black/55'}`} />
       </div>
     </div>
   );
@@ -359,6 +361,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
       <ProfileBackdrop imageUrl={profile.background?.imageUrl} videoUrl={profile.background?.videoUrl} gameRunning={!!playingId} />
 
       <div className="relative z-10 max-w-[1040px] mx-auto px-6 pt-8 grid grid-cols-[minmax(0,1fr)_280px] gap-x-6 gap-y-7 items-start">
+        <ProfileSteamNotice isPrivate={!!steam?.isPrivate} hasAchievements={t.gamesWithAchievementData > 0} onChanged={load} onOpenSettings={onOpenSettings} />
+
         {/* Identidade */}
         <header className={`${panel} p-5 flex items-start gap-5 min-w-0`}>
           <div className="relative w-[148px] h-[148px] flex-shrink-0">

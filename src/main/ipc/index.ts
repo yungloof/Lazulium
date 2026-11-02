@@ -344,7 +344,9 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   ipcMain.handle(IPC_CHANNELS.PROFILE_WEB_OPEN, async (_event, link: ProfileWebLink) => {
     const { repoUrl, pageUrl } = profileWebService.getStatus();
     const target =
-      link === 'new-repo'
+      link === 'steam-privacy'
+        ? 'https://steamcommunity.com/my/edit/settings'
+        : link === 'new-repo'
         ? 'https://github.com/new?name=lazulium-perfil&visibility=public'
         : link === 'pages-settings' && repoUrl
           ? `${repoUrl}/settings/pages`
