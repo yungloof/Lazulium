@@ -291,7 +291,8 @@ class ProfileService {
         for (const game of candidates) {
           try {
             const result = await achievementsService.getAchievements(game.id, false);
-            if (result && result.total > 0) synced++;
+            if (result?.retryable) failed++;
+            else if (result && result.total > 0) synced++;
           } catch {
             failed++;
           }

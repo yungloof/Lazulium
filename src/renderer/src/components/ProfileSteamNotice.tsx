@@ -35,7 +35,8 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
   const setIsSyncingAchievements = useLibraryStore((s) => s.setIsSyncingAchievements);
   const achievementsSyncError = useLibraryStore((s) => s.achievementsSyncError);
   const setAchievementsSyncError = useLibraryStore((s) => s.setAchievementsSyncError);
-  const [synced, setSynced] = useState(false);
+  const synced = useLibraryStore((s) => s.achievementsSyncDone);
+  const setSynced = useLibraryStore((s) => s.setAchievementsSyncDone);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,8 +60,14 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
     setIsSyncingAchievements(true);
     setAchievementsSyncError(null);
     try {
-      await window.electronAPI?.syncAllAchievements();
-      await onChanged();
+      const result = await window.electronAPI?.syncAllAchievements();
+      if (result?.failed) {
+        setAchievementsSyncError(
+          result.synced
+            ? `Conquistas de ${result.failed} jogo(s) não vieram. Confira a internet e tente de novo.`
+            : 'Não foi possível falar com a Steam. Confira a internet e tente de novo.'
+        );
+      }
     } catch (err) {
       setAchievementsSyncError(`Não foi possível buscar as conquistas: ${ipcErrorMessage(err)}. Tente de novo.`);
     } finally {
@@ -76,11 +83,9 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
       await action();
       const nowConnected = (await window.electronAPI?.getAccountsStatus())?.steam.connected ?? false;
       setConnected(nowConnected);
-      if (nowConnected) {
-        void syncAchievements();
-      } else {
-        await onChanged();
-      }
+      // A busca pode levar minutos: nome, avatar e fundo aparecem já, sem esperar por ela
+      if (nowConnected) void syncAchievements();
+      await onChanged();
     } catch (err) {
       setError(`Não foi possível conectar: ${ipcErrorMessage(err)}. Tente de novo ou use Contas e configurações.`);
     } finally {
@@ -115,7 +120,7 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
     );
   }
 
-  if (achievementsSyncError) {
+  if (achievementsSyncError && !(connected === true && isPrivate)) {
     return (
       <div className={box} role="status">
         <p className="text-xs text-amber-300">{achievementsSyncError}</p>

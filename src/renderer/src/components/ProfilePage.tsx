@@ -217,7 +217,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
       setIsSyncingAchievements(true);
       try {
         const result = await window.electronAPI?.syncAllAchievements();
-        await load();
         return {
           tone: result?.failed ? 'warn' : 'ok',
           text: `Conquistas atualizadas em ${result?.synced ?? 0} jogo(s)${result?.failed ? `; ${result.failed} falharam. Confira a internet e clique em Atualizar de novo.` : '.'}`

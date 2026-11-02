@@ -19,4 +19,5 @@ export interface GameAchievements {
   items: Achievement[];
   syncedAt: string;                 // Timestamp ISO da última sincronização com a API
   warning?: string;                 // Aviso amigável (perfil privado, sem suporte, etc.)
+  retryable?: boolean;              // Falha passageira (rede, limite da API): não é resposta definitiva
 }

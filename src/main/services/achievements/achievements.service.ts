@@ -22,7 +22,8 @@ export class AchievementsService {
 
     // Verifica o cache persistido no JSON
     const cached = db.getGameAchievements(gameId);
-    if (!force && cached && cached.syncedAt) {
+    // Falha passageira nunca vale como cache: a próxima tentativa consulta de novo
+    if (!force && cached && cached.syncedAt && !cached.retryable) {
       const age = Date.now() - new Date(cached.syncedAt).getTime();
       if (age < CACHE_TTL_MS) {
         return cached;
@@ -50,6 +51,7 @@ export class AchievementsService {
     if (result.items.length === 0 && result.warning && cached?.items.length) {
       return {
         ...cached,
+        retryable: result.retryable,
         warning: `Não foi possível atualizar agora (${result.warning}). Exibindo a última sincronização.`
       };
     }

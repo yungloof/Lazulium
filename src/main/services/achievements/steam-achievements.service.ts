@@ -89,9 +89,11 @@ export class SteamAchievementsService {
         `https://steamcommunity.com/profiles/${encodeURIComponent(steamId)}/stats/${encodeURIComponent(appId)}/achievements/?xml=1&l=brazilian`,
         { signal: AbortSignal.timeout(15_000) }
       );
+      // Limite de pedidos ou Steam fora do ar não pode virar "este jogo não possui conquistas"
+      if (!res.ok) return { ...base, total: 0, unlocked: 0, items: [], retryable: true, warning: `A Steam não respondeu agora (HTTP ${res.status}).` };
       xml = await res.text();
     } catch (err) {
-      return { ...base, total: 0, unlocked: 0, items: [], warning: `Sem conexão com a Steam (${(err as Error).message}).` };
+      return { ...base, total: 0, unlocked: 0, items: [], retryable: true, warning: `Sem conexão com a Steam (${(err as Error).message}).` };
     }
 
     const cdata = (block: string, tag: string) =>
@@ -304,6 +306,7 @@ export class SteamAchievementsService {
         unlocked: 0,
         items: [],
         syncedAt: now,
+        retryable: true,
         warning: `Falha na sincronização com a Steam: ${(err as Error).message}`
       };
     }

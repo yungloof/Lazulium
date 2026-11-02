@@ -248,6 +248,7 @@ export class RetroAchievementsService {
           unlocked: 0,
           items: [],
           syncedAt: now,
+          retryable: true,
           warning: `RetroAchievements retornou HTTP ${res.status}.`
         };
       }
@@ -311,6 +312,7 @@ export class RetroAchievementsService {
         unlocked: 0,
         items: [],
         syncedAt: now,
+        retryable: true,
         warning: `Falha ao carregar conquistas do RetroAchievements: ${(err as Error).message}`
       };
     }

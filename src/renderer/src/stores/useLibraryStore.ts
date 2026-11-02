@@ -10,6 +10,7 @@ interface LibraryState {
   isScanning: boolean;
   isSyncingAchievements: boolean;
   achievementsSyncError: string | null;
+  achievementsSyncDone: boolean;    // Já buscou nesta execução: quem não tem conquistas não recebe o convite de novo
   launchStatuses: Record<string, GameLaunchStatus>; // Apenas jogos iniciando/rodando
   
   // Actions
@@ -20,6 +21,7 @@ interface LibraryState {
   setIsScanning: (scanning: boolean) => void;
   setIsSyncingAchievements: (syncing: boolean) => void;
   setAchievementsSyncError: (error: string | null) => void;
+  setAchievementsSyncDone: (done: boolean) => void;
   toggleFavoriteLocal: (id: string) => void;
   applyGameStatus: (status: GameLaunchStatus) => void;
   upsertGameLocal: (game: Game) => void;
@@ -34,6 +36,7 @@ export const useLibraryStore = create<LibraryState>((set) => ({
   isScanning: false,
   isSyncingAchievements: false,
   achievementsSyncError: null,
+  achievementsSyncDone: false,
   launchStatuses: {},
 
   setGames: (games) => set({ games }),
@@ -43,6 +46,7 @@ export const useLibraryStore = create<LibraryState>((set) => ({
   setIsScanning: (isScanning) => set({ isScanning }),
   setIsSyncingAchievements: (isSyncingAchievements) => set({ isSyncingAchievements }),
   setAchievementsSyncError: (achievementsSyncError) => set({ achievementsSyncError }),
+  setAchievementsSyncDone: (achievementsSyncDone) => set({ achievementsSyncDone }),
   toggleFavoriteLocal: (id) =>
     set((state) => ({
       games: state.games.map((g) => (g.id === id ? { ...g, isFavorite: !g.isFavorite } : g))
