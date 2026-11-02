@@ -192,7 +192,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-6" onClick={onClose}>
       <div
-        className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-lg bg-[#0e1426] border border-slate-800 shadow-lg"
+        className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-lg bg-steam-bg border border-slate-800 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

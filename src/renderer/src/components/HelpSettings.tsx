@@ -33,7 +33,7 @@ export const HelpSettings: React.FC = () => {
         </p>
         <button
           onClick={openLogs}
-          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}
+          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}
         >
           <FileText className="w-3.5 h-3.5" /> Abrir pasta de logs
         </button>

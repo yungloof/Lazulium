@@ -95,13 +95,13 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ game, onCl
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-6" onClick={onClose}>
       <div
-        className="w-full max-w-4xl h-[85vh] flex flex-col rounded-lg bg-[#0e1426] border border-slate-800 shadow-lg overflow-hidden"
+        className="w-full max-w-4xl h-[85vh] flex flex-col rounded-lg bg-steam-bg border border-slate-800 shadow-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
           <div className="flex items-center gap-3 truncate pr-4">
-            <div className="p-2 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400">
+            <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">
               <Trophy className="w-5 h-5" />
             </div>
             <div className="truncate">
@@ -166,7 +166,7 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ game, onCl
 
         {/* Warning Banner (se houver aviso ou erro leve) */}
         {data?.warning && (
-          <div className="mx-6 mt-4 flex items-center justify-between gap-3 px-4 py-2.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex-shrink-0">
+          <div className="mx-6 mt-4 flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex-shrink-0">
             <div className="flex items-start gap-2 min-w-0">
               <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-400" />
               <span className="break-words">{data.warning}</span>
@@ -224,7 +224,7 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ game, onCl
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar conquista..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-900/80 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+              className={`w-full pl-8 pr-3 py-1.5 text-xs bg-slate-900/80 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-600 ${focusRing}`}
             />
           </div>
         </div>
@@ -264,7 +264,7 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ game, onCl
                   <div
                     key={item.id}
                     tabIndex={0}
-                    className={`flex items-start gap-3 p-3 rounded-md border transition-all ${focusRing} ${
+                    className={`flex items-start gap-3 p-3 rounded-lg border transition-all ${focusRing} ${
                       item.unlocked
                         ? 'bg-slate-900/60 border-slate-800 hover:border-amber-500/40 hover:bg-slate-900'
                         : 'bg-slate-950/40 border-slate-800/50 hover:border-slate-700 opacity-75'

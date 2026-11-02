@@ -80,7 +80,7 @@ export const ArtworkPicker: React.FC<ArtworkPickerProps> = ({ game, onClose, onO
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-6" onClick={onClose}>
       <div
-        className="w-full max-w-5xl h-[85vh] flex flex-col rounded-lg bg-[#0e1426] border border-slate-800 shadow-lg"
+        className="w-full max-w-5xl h-[85vh] flex flex-col rounded-lg bg-steam-bg border border-slate-800 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -108,7 +108,7 @@ export const ArtworkPicker: React.FC<ArtworkPickerProps> = ({ game, onClose, onO
                 value={searchTitle}
                 onChange={(e) => setSearchTitle(e.target.value)}
                 placeholder="Buscar outro título no SteamGridDB"
-                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-900/80 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                className={`w-full pl-8 pr-3 py-1.5 text-xs bg-slate-900/80 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-600 ${focusRing}`}
               />
             </div>
             <button
