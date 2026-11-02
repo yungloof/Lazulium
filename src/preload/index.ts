@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { ElectronAPI, FetchAssetsOptions, GameLaunchStatus, MediaAssetType } from '@shared/types/ipc';
 import { EmulatorConfig, Game, GamePlatform } from '@shared/types/game';
+import { BackupEvent, GameSaveConfig } from '@shared/types/cloudsync';
 
 const electronAPI: ElectronAPI = {
   // Library & Scanners
@@ -56,10 +57,23 @@ const electronAPI: ElectronAPI = {
   testRetroAchievementsCredentials: (username: string, apiKey: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.ACHIEVEMENTS_TEST_RETRO, username, apiKey),
 
-  // Cloud Sync
-  getCloudSyncStatus: (gameId?: string) => ipcRenderer.invoke(IPC_CHANNELS.CLOUDSYNC_STATUS, gameId),
-  backupSaveToCloud: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.CLOUDSYNC_BACKUP, gameId),
-  restoreSaveFromCloud: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.CLOUDSYNC_RESTORE, gameId),
+  // Backup de Saves & Google Drive
+  getDriveStatus: () => ipcRenderer.invoke(IPC_CHANNELS.CLOUDSYNC_STATUS),
+  connectDrive: () => ipcRenderer.invoke(IPC_CHANNELS.CLOUDSYNC_AUTH),
+  disconnectDrive: () => ipcRenderer.invoke(IPC_CHANNELS.CLOUDSYNC_DISCONNECT),
+  getSaveConfig: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.CLOUDSYNC_GET_SAVE_CONFIG, gameId),
+  setSaveConfig: (gameId: string, config: GameSaveConfig) =>
+    ipcRenderer.invoke(IPC_CHANNELS.CLOUDSYNC_SET_SAVE_CONFIG, gameId, config),
+  detectSaveLocations: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.CLOUDSYNC_DETECT_SAVES, gameId),
+  backupSaves: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.CLOUDSYNC_BACKUP, gameId),
+  listSaveBackups: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.CLOUDSYNC_LIST_BACKUPS, gameId),
+  restoreSaveBackup: (gameId: string, backupId: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.CLOUDSYNC_RESTORE, gameId, backupId),
+  onBackupEvent: (callback: (event: BackupEvent) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, event: BackupEvent) => callback(event);
+    ipcRenderer.on(IPC_CHANNELS.CLOUDSYNC_BACKUP_EVENT, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.CLOUDSYNC_BACKUP_EVENT, subscription);
+  },
 
   // Configurações
   getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET_ALL),

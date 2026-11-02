@@ -12,6 +12,7 @@ import {
   Trophy,
   Gamepad2
 } from 'lucide-react';
+import { GoogleDriveSettings } from './GoogleDriveSettings';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -380,7 +381,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           </section>
 
           {/* Seção 3: RetroAchievements */}
-          <section className="space-y-3">
+          <section className="space-y-3 pb-5 border-b border-slate-800/80">
             <h3 className="flex items-center gap-2 text-xs font-semibold text-slate-300 uppercase tracking-wider">
               <Gamepad2 className="w-3.5 h-3.5 text-emerald-400" /> RetroAchievements (Emuladores)
             </h3>
@@ -470,6 +471,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               </div>
             )}
           </section>
+
+          {/* Seção 4: Google Drive */}
+          <GoogleDriveSettings />
         </div>
       </div>
     </div>

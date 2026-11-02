@@ -14,7 +14,7 @@ const IGNORED_NAME_PATTERN = /^(Proton\b|Steam Linux Runtime|Steamworks Common R
 // StateFlags bit 4 = StateFullyInstalled
 const STATE_FULLY_INSTALLED = 4;
 
-async function findSteamPath(): Promise<string | undefined> {
+export async function findSteamPath(): Promise<string | undefined> {
   const candidates = [
     await readRegistryValue('HKCU\\Software\\Valve\\Steam', 'SteamPath'),
     await readRegistryValue('HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam', 'InstallPath'),

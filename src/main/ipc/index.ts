@@ -9,11 +9,26 @@ import { artworkService } from '../services/metadata/artwork.service';
 import { achievementsService } from '../services/achievements/achievements.service';
 import { removeGameMedia } from '../services/metadata/media-cache.service';
 import { FetchAssetsOptions, MediaAssetType } from '@shared/types/ipc';
+import { GameSaveConfig } from '@shared/types/cloudsync';
+import { backupService } from '../services/cloudsync/backup.service';
+import { DRIVE_SETTING_KEYS, googleDriveService } from '../services/cloudsync/google-drive.service';
+
+// Gerenciadas só pelo main: o renderer nunca lê nem grava o token do Google
+const PRIVATE_SETTING_KEYS: string[] = [
+  DRIVE_SETTING_KEYS.refreshToken,
+  DRIVE_SETTING_KEYS.email,
+  DRIVE_SETTING_KEYS.folderId
+];
 
 export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): void {
   // Eventos de execução (main -> renderer)
   playtimeService.setStatusListener((status) => {
     getMainWindow()?.webContents.send(IPC_CHANNELS.GAME_STATUS_CHANGED, status);
+    // Sessão contabilizada (>= 15s): backup automático dos saves
+    if (status.state === 'stopped' && (status.sessionSeconds ?? 0) > 0) backupService.onSessionEnded(status.gameId);
+  });
+  backupService.setBackupListener((event) => {
+    getMainWindow()?.webContents.send(IPC_CHANNELS.CLOUDSYNC_BACKUP_EVENT, event);
   });
   artworkService.setGameUpdatedListener((game) => {
     getMainWindow()?.webContents.send(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
@@ -153,25 +168,57 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     await artworkService.reportBroken(gameId, assetType);
   });
 
-  // Cloud Sync Handlers
+  // Backup de Saves & Google Drive Handlers
   ipcMain.handle(IPC_CHANNELS.CLOUDSYNC_STATUS, async () => {
-    return { authenticated: false };
+    return googleDriveService.getStatus();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CLOUDSYNC_AUTH, async () => {
+    const status = await googleDriveService.connect();
+    getMainWindow()?.focus();
+    return status;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CLOUDSYNC_DISCONNECT, async () => {
+    return googleDriveService.disconnect();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CLOUDSYNC_GET_SAVE_CONFIG, async (_event, gameId: string) => {
+    return backupService.getConfig(gameId);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CLOUDSYNC_SET_SAVE_CONFIG, async (_event, gameId: string, config: GameSaveConfig) => {
+    return backupService.setConfig(gameId, config);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CLOUDSYNC_DETECT_SAVES, async (_event, gameId: string) => {
+    return backupService.detect(gameId);
   });
 
   ipcMain.handle(IPC_CHANNELS.CLOUDSYNC_BACKUP, async (_event, gameId: string) => {
-    return { success: false, message: 'Google Drive sync não configurado ainda.' };
+    return backupService.backupNow(gameId, 'manual');
   });
 
-  ipcMain.handle(IPC_CHANNELS.CLOUDSYNC_RESTORE, async (_event, gameId: string) => {
-    return { success: false, message: 'Google Drive sync não configurado ainda.' };
+  ipcMain.handle(IPC_CHANNELS.CLOUDSYNC_LIST_BACKUPS, async (_event, gameId: string) => {
+    return backupService.listBackups(gameId);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CLOUDSYNC_RESTORE, async (_event, gameId: string, backupId: string) => {
+    if (playtimeService.getState(gameId) !== 'stopped') {
+      throw new Error('Feche o jogo antes de restaurar um save.');
+    }
+    return backupService.restore(gameId, backupId);
   });
 
   // Settings Handlers
   ipcMain.handle(IPC_CHANNELS.SETTINGS_GET_ALL, async () => {
-    return db.getSettings();
+    const settings = db.getSettings();
+    for (const key of PRIVATE_SETTING_KEYS) delete settings[key];
+    return settings;
   });
 
   ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, async (_event, key: string, value: string) => {
+    if (PRIVATE_SETTING_KEYS.includes(key)) throw new Error(`Configuração somente leitura: ${key}`);
     db.setSetting(key, value);
     if (key === 'steamGridDbApiKey' && value.trim()) artworkService.enqueueMissing();
   });

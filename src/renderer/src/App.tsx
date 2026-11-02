@@ -9,6 +9,7 @@ import { GameStats } from './components/GameStats';
 import { SettingsModal } from './components/SettingsModal';
 import { ArtworkPicker } from './components/ArtworkPicker';
 import { AchievementsPanel } from './components/AchievementsPanel';
+import { SaveBackupPanel } from './components/SaveBackupPanel';
 import { useLibraryStore } from './stores/useLibraryStore';
 import { useGamepadStore } from './stores/useGamepadStore';
 import { useGamepad } from './hooks/useGamepad';
@@ -28,7 +29,8 @@ import {
   Sparkles,
   Flame,
   Settings,
-  ImageIcon
+  ImageIcon,
+  Save
 } from 'lucide-react';
 
 const FILTERS: { id: 'all' | GamePlatform | 'favorites'; label: string }[] = [
@@ -65,6 +67,7 @@ export const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showArtworkPicker, setShowArtworkPicker] = useState(false);
   const [showAchievementsModal, setShowAchievementsModal] = useState(false);
+  const [showSavesModal, setShowSavesModal] = useState(false);
   const [heroAchievements, setHeroAchievements] = useState<GameAchievements | null>(null);
   const [brokenLogoUrl, setBrokenLogoUrl] = useState<string | null>(null);
   const [launchNotice, setLaunchNotice] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
@@ -103,6 +106,23 @@ export const App: React.FC = () => {
     });
     return () => unsubscribe?.();
   }, [applyGameStatus]);
+
+  // Backup automático de saves ao encerrar a sessão
+  useEffect(() => {
+    const unsubscribe = window.electronAPI?.onBackupEvent((event) => {
+      const title = useLibraryStore.getState().games.find((g) => g.id === event.gameId)?.title ?? 'Jogo';
+      if (event.state === 'error') {
+        setLaunchNotice({ text: `${title}: backup dos saves falhou (${event.message})`, tone: 'warn' });
+      } else if (event.state === 'done' && event.record) {
+        const where = event.record.driveFileId ? 'neste PC e no Google Drive' : 'neste PC';
+        setLaunchNotice({
+          text: `${title}: saves salvos ${where}.${event.record.driveError ? ' (envio ao Drive falhou)' : ''}`,
+          tone: event.record.driveError ? 'warn' : 'ok'
+        });
+      }
+    });
+    return () => unsubscribe?.();
+  }, []);
 
   // Artes baixadas em segundo plano (SteamGridDB) chegam jogo a jogo
   useEffect(() => {
@@ -425,6 +445,14 @@ export const App: React.FC = () => {
                     <span>Artes</span>
                   </button>
                   <button
+                    onClick={() => setShowSavesModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                    title="Backup e restauração de saves"
+                  >
+                    <Save className="w-4 h-4 text-sky-400" />
+                    <span>Saves</span>
+                  </button>
+                  <button
                     onClick={() => setShowAchievementsModal(true)}
                     className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
                     title="Ver conquistas do jogo"
@@ -528,6 +556,17 @@ export const App: React.FC = () => {
           }}
           onOpenSettings={() => {
             setShowAchievementsModal(false);
+            setShowSettings(true);
+          }}
+        />
+      )}
+
+      {showSavesModal && selectedGame && (
+        <SaveBackupPanel
+          game={selectedGame}
+          onClose={() => setShowSavesModal(false)}
+          onOpenSettings={() => {
+            setShowSavesModal(false);
             setShowSettings(true);
           }}
         />

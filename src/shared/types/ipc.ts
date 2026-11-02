@@ -1,5 +1,14 @@
 import { EmulatorConfig, Game, GamePlatform, PlaytimeSession } from './game';
 import { Achievement, GameAchievements } from './achievements';
+import {
+  BackupEvent,
+  BackupListResult,
+  BackupRecord,
+  DriveStatus,
+  GameSaveConfig,
+  RestoreResult,
+  SaveLocationSuggestion
+} from './cloudsync';
 
 export interface ScanResult {
   added: number;
@@ -105,10 +114,17 @@ export interface ElectronAPI {
   testSteamCredentials: (apiKey: string, steamId: string) => Promise<ApiKeyTestResult>;
   testRetroAchievementsCredentials: (username: string, apiKey: string) => Promise<ApiKeyTestResult>;
 
-  // Cloud Sync
-  getCloudSyncStatus: (gameId?: string) => Promise<{ authenticated: boolean; lastBackupAt?: string }>;
-  backupSaveToCloud: (gameId: string) => Promise<{ success: boolean; message: string }>;
-  restoreSaveFromCloud: (gameId: string) => Promise<{ success: boolean; message: string }>;
+  // Backup de Saves & Google Drive
+  getDriveStatus: () => Promise<DriveStatus>;
+  connectDrive: () => Promise<DriveStatus>;                   // Abre o navegador para o OAuth
+  disconnectDrive: () => Promise<DriveStatus>;
+  getSaveConfig: (gameId: string) => Promise<GameSaveConfig | null>;
+  setSaveConfig: (gameId: string, config: GameSaveConfig) => Promise<GameSaveConfig>;
+  detectSaveLocations: (gameId: string) => Promise<SaveLocationSuggestion[]>;
+  backupSaves: (gameId: string) => Promise<BackupRecord>;
+  listSaveBackups: (gameId: string) => Promise<BackupListResult>;
+  restoreSaveBackup: (gameId: string, backupId: string) => Promise<RestoreResult>;
+  onBackupEvent: (callback: (event: BackupEvent) => void) => () => void;
 
   // Configurações
   getSettings: () => Promise<Record<string, string>>;

@@ -135,13 +135,21 @@ Unifica conquistas de plataformas de PC e retroemulação:
 ---
 
 ### 3.5 Módulo 5: Backup Automático de Saves no Google Drive (`services/cloudsync/`)
-* **Localizador de Saves:**
-  * Mapeamento de diretórios comuns de saves (`%USERPROFILE%\Saved Games`, `%APPDATA%`, `%LOCALAPPDATA%`, pastas de emuladores como `User/nand` ou `memcards`).
-* **Sincronização:**
-  * Autenticação OAuth2 simples via Google Drive API.
-  * Pasta dedicada no Google Drive do usuário: `Lazulium_CloudSaves/`.
-  * Criação de arquivo `.zip` com timestamp e hash MD5 para evitar uploads duplicados.
-  * Backup disparado automaticamente assim que o jogo é fechado (com notificação de conclusão).
+* **Localizador de Saves (`save-locator.service.ts`):**
+  * Steam Cloud local (`<Steam>/userdata/<conta>/<appid>/remote`) e saves do RetroArch filtrados pelo nome da ROM têm confiança alta e são adotados automaticamente no primeiro backup.
+  * Pastas com o nome do jogo (ou da pasta de instalação) em Documentos, `My Games`, `Saved Games` e `AppData` (Roaming/Local/LocalLow), direto ou abaixo da publicadora: confiança média, o usuário confirma no painel.
+  * Pastas conhecidas dos emuladores (memcards do PCSX2/DuckStation, `GC`/`Wii/title` do Dolphin, `bis/user/save` do Ryujinx, etc.).
+* **Arquivo (`save-archive.service.ts`):**
+  * `.zip` (fflate) com `lazulium-manifest.json`: pastas de origem com tokens (`{DOCUMENTS}`, `{APPDATA}`, `{LOCALAPPDATA}`, `{USERPROFILE}`) para restaurar em outro PC/usuário, SHA-256 de cada arquivo e `contentHash` dos saves.
+  * A restauração valida o hash de cada arquivo, o jogo do manifesto e bloqueia caminhos fora da pasta de destino antes de gravar.
+* **Google Drive (`google-drive.service.ts`):**
+  * OAuth2 para app desktop: navegador do sistema, redirecionamento loopback `127.0.0.1` e PKCE. Client ID/Secret informados pelo usuário nas Configurações.
+  * Escopo `drive.file` (só arquivos criados pelo app), pasta `Lazulium Backups/`, upload resumível e `appProperties` (`lazuliumGameId`, `lazuliumBackupId`, `sha256`).
+  * O refresh token fica cifrado com `safeStorage` e nunca é exposto ao renderer.
+* **Orquestração (`backup.service.ts`):**
+  * Backups ficam sempre em `userData/backups/<jogo>/` e, com o Drive conectado, também na nuvem. Retenção de 10 por jogo (local e Drive).
+  * Disparado ao fim de cada sessão contabilizada (via listener do tracker em `ipc/`), ignorado quando o `contentHash` não mudou.
+  * Restaurar exige o jogo fechado e faz antes um backup `pre-restore` dos saves atuais. Arquivos extras na pasta de destino são mantidos.
 
 ---
 

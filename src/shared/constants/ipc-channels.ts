@@ -38,10 +38,16 @@ export const IPC_CHANNELS = {
   ACHIEVEMENTS_TEST_RETRO: 'achievements:test-retro',
 
   // Cloud Sync (Google Drive)
-  CLOUDSYNC_AUTH: 'cloudsync:auth',
-  CLOUDSYNC_BACKUP: 'cloudsync:backup',
-  CLOUDSYNC_RESTORE: 'cloudsync:restore',
   CLOUDSYNC_STATUS: 'cloudsync:status',
+  CLOUDSYNC_AUTH: 'cloudsync:auth',
+  CLOUDSYNC_DISCONNECT: 'cloudsync:disconnect',
+  CLOUDSYNC_GET_SAVE_CONFIG: 'cloudsync:get-save-config',
+  CLOUDSYNC_SET_SAVE_CONFIG: 'cloudsync:set-save-config',
+  CLOUDSYNC_DETECT_SAVES: 'cloudsync:detect-saves',
+  CLOUDSYNC_BACKUP: 'cloudsync:backup',
+  CLOUDSYNC_LIST_BACKUPS: 'cloudsync:list-backups',
+  CLOUDSYNC_RESTORE: 'cloudsync:restore',
+  CLOUDSYNC_BACKUP_EVENT: 'cloudsync:backup-event',
 
   // Settings & Configuration
   SETTINGS_GET_ALL: 'settings:get-all',

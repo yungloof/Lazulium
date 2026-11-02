@@ -70,11 +70,11 @@ Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints m
 ---
 
 ## ☁️ Fase 6: Backup Automático de Saves (Google Drive)
-- [ ] Mapeador de diretórios de saves (jogos de PC e pastas de saves de emuladores).
-- [ ] Fluxo de autenticação OAuth2 com Google Drive.
-- [ ] Compactação automática em `.zip` e geração de hash de integridade.
-- [ ] Disparo automático de backup ao encerrar a sessão de jogo.
-- [ ] Histórico de backups e botão de "Restaurar Save" na interface.
+- [x] Mapeador de diretórios de saves: Steam Cloud local (`userdata/<conta>/<appid>/remote`), pastas com o nome do jogo em Documentos/My Games/Jogos Salvos/AppData e pastas dos emuladores (RetroArch por ROM, PCSX2, DuckStation, Dolphin, Ryujinx, Cemu, RPCS3), além de pastas escolhidas manualmente.
+- [x] Fluxo de autenticação OAuth2 com Google Drive (app desktop: navegador + loopback + PKCE, escopo `drive.file`, refresh token cifrado com `safeStorage`).
+- [x] Compactação automática em `.zip` com manifesto, SHA-256 por arquivo e do `.zip` inteiro (validados antes de restaurar).
+- [x] Disparo automático de backup ao encerrar a sessão de jogo (pula quando os saves não mudaram; na primeira vez adota só pastas de alta confiança).
+- [x] Histórico de backups (locais + somente-Drive, 10 por jogo) e botão de "Restaurar Save" com cópia de segurança dos saves atuais.
 
 ---
 

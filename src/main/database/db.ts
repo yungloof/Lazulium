@@ -3,12 +3,15 @@ import { join } from 'path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { EmulatorConfig, EmulatorType, Game, PlaytimeSession } from '@shared/types/game';
 import { Achievement, GameAchievements } from '@shared/types/achievements';
+import { BackupRecord, GameSaveConfig } from '@shared/types/cloudsync';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
 
 const SECRET_SETTING_KEYS = [
   'steamGridDbApiKey',
   'steamWebApiKey',
-  'retroAchievementsApiKey'
+  'retroAchievementsApiKey',
+  'googleClientSecret',
+  'googleDriveRefreshToken'
 ] as const;
 
 function decryptSecret(value?: string): string {
@@ -65,6 +68,8 @@ export interface DatabaseSchema {
   emulatorConfigs: EmulatorConfig[];
   standaloneDirectories: string[];
   activeSessions: ActiveSessionRecord[];
+  saveConfigs?: Record<string, GameSaveConfig>;
+  saveBackups?: BackupRecord[];
   settings: Record<string, string>;
 }
 
@@ -76,12 +81,17 @@ const DEFAULT_DATA: DatabaseSchema = {
   emulatorConfigs: [],
   standaloneDirectories: [],
   activeSessions: [],
+  saveConfigs: {},
+  saveBackups: [],
   settings: {
     steamGridDbApiKey: '',
     steamWebApiKey: '',
     steamUserId: '',
     retroAchievementsUser: '',
     retroAchievementsApiKey: '',
+    googleClientId: '',
+    googleClientSecret: '',
+    googleDriveRefreshToken: '',
     uiMode: 'desktop', // 'desktop' | 'big-picture'
     theme: 'dark-oled'
   }
@@ -255,6 +265,36 @@ class DatabaseService {
 
   getAchievements(gameId: string): Achievement[] {
     return this.data.gameAchievements?.[gameId]?.items ?? [];
+  }
+
+  // Backup de saves
+  getSaveConfig(gameId: string): GameSaveConfig | null {
+    return this.data.saveConfigs?.[gameId] ?? null;
+  }
+
+  setSaveConfig(gameId: string, config: GameSaveConfig): GameSaveConfig {
+    this.data.saveConfigs = { ...this.data.saveConfigs, [gameId]: config };
+    this.persist();
+    return config;
+  }
+
+  // Mais recente primeiro
+  getSaveBackups(gameId: string): BackupRecord[] {
+    return (this.data.saveBackups ?? [])
+      .filter((b) => b.gameId === gameId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  upsertSaveBackup(record: BackupRecord): void {
+    this.data.saveBackups = [...(this.data.saveBackups ?? []).filter((b) => b.id !== record.id), record];
+    this.persist();
+  }
+
+  removeSaveBackups(ids: string[]): void {
+    if (ids.length === 0) return;
+    const remove = new Set(ids);
+    this.data.saveBackups = (this.data.saveBackups ?? []).filter((b) => !remove.has(b.id));
+    this.persist();
   }
 
   // Emulator Configs (sempre retorna um item por perfil conhecido)
