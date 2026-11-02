@@ -2,7 +2,7 @@ import { EmulatorConfig, Game, GameLog, GamePlatform, PlaytimeSession } from './
 import { Achievement, GameAchievements } from './achievements';
 import { AccountService, AccountsStatus, SteamLocalAccount } from './accounts';
 import { GameScreenshots, Screenshot } from './screenshots';
-import { AchievementsSyncResult, PlayerProfile, ProfileCustom, ProfileMediaKind } from './profile';
+import { AchievementsSyncResult, PlayerProfile, ProfileCustom, ProfileMediaKind, ProfileWebLink, ProfileWebStatus } from './profile';
 import {
   BackupEvent,
   BackupListResult,
@@ -158,6 +158,10 @@ export interface ElectronAPI {
   syncAllAchievements: () => Promise<AchievementsSyncResult>;
   saveProfileCustom: (custom: ProfileCustom) => Promise<ProfileCustom>;
   pickProfileMedia: (kind: ProfileMediaKind) => Promise<string | null>; // URL do arquivo copiado (null se cancelado)
+  getProfileWebStatus: () => Promise<ProfileWebStatus>;
+  publishProfileWeb: (repoUrl: string) => Promise<ProfileWebStatus>;
+  disconnectProfileWeb: () => Promise<ProfileWebStatus>;
+  openProfileWebLink: (link: ProfileWebLink) => Promise<void>;
   exportPlayerProfile: () => Promise<string | null>;           // Caminho salvo (null se cancelado)
 
   // Contas (login sem chave de API)

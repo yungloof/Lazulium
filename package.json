@@ -54,6 +54,13 @@
     ],
     "extraResources": [
       {
+        "from": "web/profile",
+        "to": "web-profile",
+        "filter": [
+          "index.html"
+        ]
+      },
+      {
         "from": "resources",
         "to": ".",
         "filter": [

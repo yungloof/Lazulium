@@ -77,6 +77,7 @@ export interface DatabaseSchema {
   saveBackups?: BackupRecord[];
   profileCustom?: ProfileCustom;
   steamProfileCache?: SteamProfileIdentity;
+  profileWeb?: { repoUrl: string; lastPublishedAt?: string };
   settings: Record<string, string>;
 }
 
@@ -264,6 +265,15 @@ class DatabaseService {
     const game = this.data.games.find((g) => g.id === id);
     if (!game) return;
     game.media = media;
+    this.persist();
+  }
+
+  getProfileWeb(): { repoUrl: string; lastPublishedAt?: string } | undefined {
+    return this.data.profileWeb;
+  }
+
+  setProfileWeb(value: { repoUrl: string; lastPublishedAt?: string } | undefined): void {
+    this.data.profileWeb = value;
     this.persist();
   }
 

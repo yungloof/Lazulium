@@ -98,7 +98,7 @@ Sem o `.env`, o resto do app funciona normalmente e os backups ficam só no PC.
 
 ### Página web do perfil
 
-No app, **Perfil → Exportar** gera `lazulium-perfil.json`. Coloque-o em `web/profile/` (o arquivo é ignorado pelo git por conter seus dados) e sirva a pasta em qualquer hospedagem estática. Sem ele, a página mostra `lazulium-perfil.exemplo.json`.
+No app, **Perfil → Publicar na web** envia a página e os dados a um repositório seu no GitHub (GitHub Pages), usando o login do Git, sem chave de API. O envio só acontece quando você clica. Para outra hospedagem, **Perfil → Exportar** gera `lazulium-perfil.json`: coloque-o em `web/profile/` (o arquivo é ignorado pelo git por conter seus dados) e sirva a pasta. Sem ele, a página mostra `lazulium-perfil.exemplo.json`.
 
 ### Tecnologias
 

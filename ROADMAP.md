@@ -143,6 +143,7 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [ ] Testes de distribuição para amigos (instalador e versão portátil em outros PCs).
 - [ ] Client OAuth do Google no `.env` do build oficial, para o "Entrar com Google" funcionar para todos.
 - [x] Tratamento de idle (jogador AFK com o jogo aberto).
-- [ ] Hospedar a página web do perfil e atualizá-la a partir do app.
+- [x] Publicar a página web do perfil a partir do app (Perfil → Publicar na web, GitHub Pages pelo login do Git, sem chave de API).
+- [ ] Primeira publicação real no GitHub: conferir login do Git, ativação do Pages e a página no ar.
 - [ ] Scanners de outros lançadores (Battle.net, EA app, Ubisoft Connect) quando houver jogos instalados para validar.
 - [ ] Assinatura digital do instalador (evita o aviso do SmartScreen).

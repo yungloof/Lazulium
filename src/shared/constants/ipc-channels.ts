@@ -67,6 +67,10 @@ export const IPC_CHANNELS = {
   PROFILE_EXPORT: 'profile:export',
   PROFILE_SAVE_CUSTOM: 'profile:save-custom',
   PROFILE_PICK_MEDIA: 'profile:pick-media',
+  PROFILE_WEB_STATUS: 'profile:web-status',
+  PROFILE_WEB_PUBLISH: 'profile:web-publish',
+  PROFILE_WEB_DISCONNECT: 'profile:web-disconnect',
+  PROFILE_WEB_OPEN: 'profile:web-open',
 
   // Contas (login sem chave de API)
   ACCOUNTS_GET_STATUS: 'accounts:get-status',

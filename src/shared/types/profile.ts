@@ -37,6 +37,24 @@ export type ProfileSectionId = 'artwork' | 'featured' | 'achievements' | 'activi
 export type ProfileBackgroundMode = 'steam' | 'game' | 'file' | 'none';
 export type ProfileMediaKind = 'avatar' | 'background' | 'artwork';
 
+// Página pública do perfil (GitHub Pages)
+export type ProfileWebLink = 'new-repo' | 'pages-settings' | 'page';
+export interface ProfileWebStatus {
+  repoUrl?: string;
+  pageUrl?: string;
+  lastPublishedAt?: string;
+}
+
+// Só na exportação: o que a página pública mostra além das estatísticas. Sempre URLs públicas.
+export interface ProfileWebExtras {
+  bio?: string;
+  background?: { imageUrl?: string; videoUrl?: string };
+  avatarFrameUrl?: string;
+  showcaseArt?: { title?: string; imageUrl: string };
+  favoriteBadge?: { name: string; detail: string; iconUrl: string };
+  badges?: { name: string; iconUrl: string }[];
+}
+
 // Perfil público da Steam (sem chave de API); os arquivos ficam guardados para funcionar offline
 export interface SteamProfileIdentity {
   steamId: string;
@@ -97,6 +115,7 @@ export interface PlayerProfile {
   custom: ProfileCustom;
   steam?: SteamProfileIdentity;
   background?: { imageUrl?: string; videoUrl?: string };
+  web?: ProfileWebExtras;           // Só na exportação
   featuredGames: ProfileGame[];
   featuredAchievements: ProfileUnlockedAchievement[];
   achievementChoices: ProfileUnlockedAchievement[]; // Mais raras primeiro, para o editor

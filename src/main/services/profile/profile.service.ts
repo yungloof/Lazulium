@@ -307,12 +307,26 @@ class ProfileService {
   toExportable(profile: PlayerProfile): PlayerProfile {
     const publicUrl = (url?: string) => (url && /^https:\/\//.test(url) ? url : undefined);
     const mapGame = (g: ProfileGame) => ({ ...g, coverUrl: publicUrl(g.coverUrl), heroUrl: publicUrl(g.heroUrl) });
+    // Arquivos do perfil Steam pelo endereço original (na tela do app são as cópias locais).
+    // Nome real, país e o steamId ficam de fora de propósito.
+    const { custom } = profile;
+    const steam = profile.steam && db.getSteamProfileCache();
+    const mode = custom.backgroundMode ?? (steam?.background ? 'steam' : 'game');
+    const gameBackground = publicUrl(custom.bannerGameId ? db.getGameById(custom.bannerGameId)?.media?.heroUrl : undefined) ?? profile.recentGames.map((g) => publicUrl(g.heroUrl)).find(Boolean);
     return {
       ...profile,
-      avatarUrl: publicUrl(profile.avatarUrl),
+      avatarUrl: publicUrl(profile.avatarUrl) ?? steam?.avatarUrl,
       steam: undefined,
       background: undefined,
-      custom: { bio: profile.custom.bio },
+      custom: { bio: custom.bio },
+      web: {
+        bio: custom.bio || steam?.summary,
+        background: mode === 'steam' ? steam?.background : mode === 'game' && gameBackground ? { imageUrl: gameBackground } : undefined,
+        avatarFrameUrl: custom.hideAvatarFrame ? undefined : steam?.avatarFrameUrl,
+        showcaseArt: !custom.artworkUrl && steam?.showcaseArt ? { ...steam.showcaseArt, title: custom.artworkCaption || steam.showcaseArt.title } : undefined,
+        favoriteBadge: steam?.favoriteBadge,
+        badges: steam?.badges
+      },
       achievementChoices: [],
       featuredGames: profile.featuredGames.map(mapGame),
       featuredAchievements: profile.featuredAchievements.map((a) => ({ ...a, iconUrl: publicUrl(a.iconUrl) ?? '' })),

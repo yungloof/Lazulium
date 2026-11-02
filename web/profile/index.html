@@ -1,1072 +1,323 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Perfil do Jogador · Lazulium</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src https:; media-src https://*.steamstatic.com; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Perfil Lazulium</title>
   <style>
     :root {
-      --steam-bg: #1b2838;
-      --steam-panel: #16202d;
-      --steam-panel-sub: #0e141d;
-      --steam-header: #171a21;
-      --steam-border: #2a475e;
-      --steam-border-dark: rgba(0, 0, 0, 0.4);
-      --steam-accent: #66c0f4;
-      --steam-accent-dark: #4f94bc;
-      --steam-green: #a3cf06;
-      --steam-online: #57cbde;
-      --steam-text: #c7d5e0;
-      --steam-text-light: #ffffff;
-      --steam-text-muted: #8f98a0;
-      --steam-text-dark: #67727e;
+      --panel: rgba(0, 0, 0, 0.68);
+      --line: rgba(255, 255, 255, 0.1);
+      --text: #e6edf3;
+      --muted: #9fb0c0;
+      --faint: #76879a;
+      --accent: #66c0f4;
+      --gold: #e6c869;
     }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
     body {
-      background-color: var(--steam-bg);
-      color: var(--steam-text);
-      font-family: "Segoe UI", "Motiva Sans", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      line-height: 1.5;
-      overflow-x: hidden;
+      background: #000;
+      color: var(--text);
+      font: 14px/1.45 "Segoe UI", "Motiva Sans", Arial, sans-serif;
     }
-
-    /* Top navigation header */
-    header.site-header {
-      background: var(--steam-header);
-      border-bottom: 1px solid var(--steam-border-dark);
-      position: sticky;
-      top: 0;
-      z-index: 40;
-    }
-
-    .nav-container {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 0.6rem 1.25rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      font-size: 0.95rem;
-      color: var(--steam-text-light);
-    }
-
-    .brand-badge {
-      font-size: 0.65rem;
-      color: var(--steam-accent);
-      background: rgba(102, 192, 244, 0.12);
-      border: 1px solid rgba(102, 192, 244, 0.25);
-      padding: 0.15rem 0.45rem;
-      border-radius: 2px;
-      text-transform: uppercase;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-    }
-
-    #generated-date {
-      font-size: 0.75rem;
-      color: var(--steam-text-muted);
-    }
-
-    /* Hero / Profile Header */
-    .profile-header-wrap {
-      position: relative;
-      background: #141c24;
-      border-bottom: 1px solid var(--steam-border-dark);
-      overflow: hidden;
-    }
-
-    .profile-backdrop {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0.22;
-      filter: blur(8px);
-      transform: scale(1.1);
-      pointer-events: none;
-    }
-
-    .profile-gradient-overlay {
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(180deg, rgba(20, 28, 36, 0.5) 0%, rgba(20, 28, 36, 0.95) 100%);
-      pointer-events: none;
-    }
-
-    .profile-header-content {
-      position: relative;
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 2rem 1.25rem;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 1.5rem;
-    }
-
-    .avatar-wrapper {
-      position: relative;
-      width: 120px;
-      height: 120px;
-      flex-shrink: 0;
-      padding: 3px;
-      background: linear-gradient(180deg, #4f94bc 0%, #2a475e 100%);
-      border-radius: 3px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
-    }
-
-    .avatar-img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-      border-radius: 2px;
-    }
-
-    .avatar-fallback {
-      width: 100%;
-      height: 100%;
-      background: var(--steam-panel);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 2.75rem;
-      font-weight: 800;
-      color: var(--steam-text-muted);
-      border-radius: 2px;
-    }
-
-    .profile-info {
-      flex: 1;
-      min-width: 220px;
-    }
-
-    .profile-name {
-      font-size: 1.65rem;
-      font-weight: 700;
-      color: var(--steam-text-light);
-      line-height: 1.2;
-    }
-
-    .profile-status {
-      margin-top: 0.35rem;
-      font-size: 0.85rem;
-      color: var(--steam-online);
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-
-    .profile-status.in-game {
-      color: var(--steam-green);
-    }
-
-    .profile-headline {
-      margin-top: 0.6rem;
-      font-size: 0.8rem;
-      color: var(--steam-text-muted);
-    }
-
-    .profile-level-badge {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      color: var(--steam-text-light);
-      font-size: 1rem;
-      font-weight: 600;
-    }
-
-    .level-ring {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      border: 2px solid var(--steam-accent);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: var(--steam-text-light);
-      background: rgba(0, 0, 0, 0.3);
-    }
-
-    /* Main Container */
-    main {
-      flex: 1;
-      max-width: 1120px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 1.5rem 1.25rem 3rem;
-    }
-
-    /* Notification banner */
-    #fallback-banner {
-      display: none;
-      background: rgba(245, 158, 11, 0.1);
-      border: 1px solid rgba(245, 158, 11, 0.25);
-      color: #fde68a;
-      border-radius: 3px;
-      padding: 0.85rem 1rem;
-      margin-bottom: 1.5rem;
-      font-size: 0.82rem;
-    }
-
-    #fallback-banner input[type="file"] {
-      display: block;
-      margin-top: 0.5rem;
-      font-size: 0.75rem;
-      color: var(--steam-text);
-    }
-
-    /* Layout Grid */
-    .profile-layout {
+    img { display: block; max-width: 100%; }
+    h1, h2, p, dl, dd, figure { margin: 0; }
+    #backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: #000; }
+    #backdrop img, #backdrop video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    #page {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 1.25rem;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 28px 24px;
       align-items: start;
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 32px 24px 48px;
     }
-
-    @media (min-width: 960px) {
-      .profile-layout {
-        grid-template-columns: minmax(0, 1fr) 300px;
-      }
-    }
-
-    /* Box / Steam panel */
-    .box {
-      background: rgba(22, 32, 45, 0.85);
-      border: 1px solid rgba(0, 0, 0, 0.35);
-      border-radius: 3px;
-      margin-bottom: 1.25rem;
-      overflow: hidden;
-    }
-
-    .box-header {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 0.75rem;
-      padding: 0.65rem 1rem;
-      background: rgba(0, 0, 0, 0.2);
-      border-bottom: 1px solid rgba(0, 0, 0, 0.35);
-    }
-
-    .box-title {
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: var(--steam-text-light);
-      letter-spacing: 0.02em;
-    }
-
-    .box-extra {
-      font-size: 0.75rem;
-      color: var(--steam-text-muted);
-    }
-
-    .box-content {
-      padding: 0.85rem 1rem;
-    }
-
-    /* Activity Rows (Recent & Most Played) */
-    .activity-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .activity-row {
-      display: flex;
-      gap: 0.85rem;
-      padding: 0.55rem;
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 2px;
-      border: 1px solid rgba(255, 255, 255, 0.03);
-      transition: background 0.15s;
-    }
-
-    .activity-row:hover {
-      background: rgba(0, 0, 0, 0.35);
-    }
-
-    .activity-thumb {
-      width: 140px;
-      aspect-ratio: 184 / 69;
-      flex-shrink: 0;
-      border-radius: 2px;
-      overflow: hidden;
-      background: #111822;
-    }
-
-    @media (min-width: 640px) {
-      .activity-thumb {
-        width: 184px;
-      }
-    }
-
-    .activity-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    .activity-info {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 0.35rem;
-    }
-
-    .activity-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 0.75rem;
-    }
-
-    .activity-title {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--steam-text-light);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .activity-time {
-      text-align: right;
-      font-size: 0.75rem;
-      color: var(--steam-text-muted);
-      flex-shrink: 0;
-      line-height: 1.35;
-    }
-
-    .activity-time .recent-hours {
-      color: var(--steam-accent);
-      font-weight: 600;
-    }
-
-    .activity-time .last-played {
-      color: var(--steam-text-dark);
-      font-size: 0.7rem;
-    }
-
-    /* Achievement progress bar */
-    .achievement-bar-wrap {
-      display: flex;
-      align-items: center;
-      gap: 0.65rem;
-      font-size: 0.7rem;
-      color: var(--steam-text-muted);
-      margin-top: 0.25rem;
-    }
-
-    .achievement-progress-track {
-      flex: 1;
-      height: 6px;
-      background: rgba(0, 0, 0, 0.4);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-
-    .achievement-progress-fill {
-      height: 100%;
-      background: var(--steam-accent-dark);
-      border-radius: 2px;
-    }
-
-    /* Summary definition list */
-    .summary-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.45rem;
-      font-size: 0.8rem;
-    }
-
-    .summary-item {
-      display: flex;
-      justify-content: space-between;
-      gap: 0.75rem;
-      padding-bottom: 0.35rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-    }
-
-    .summary-item:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
-    }
-
-    .summary-label {
-      color: var(--steam-text-muted);
-    }
-
-    .summary-value {
-      color: var(--steam-text-light);
-      font-weight: 600;
-    }
-
-    /* Recent Achievements Grid */
-    .recent-achievements-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 0.35rem;
-    }
-
-    .recent-achievement-icon {
-      aspect-ratio: 1 / 1;
-      border-radius: 2px;
-      background: #10161f;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      overflow: hidden;
-    }
-
-    .recent-achievement-icon img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    /* Rare Achievements List */
-    .rare-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .rare-item {
-      display: flex;
-      align-items: center;
-      gap: 0.65rem;
-      padding: 0.35rem;
-      border-radius: 2px;
-      background: rgba(0, 0, 0, 0.2);
-    }
-
-    .rare-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 2px;
-      object-fit: cover;
-      flex-shrink: 0;
-      background: #111822;
-    }
-
-    .rare-info {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .rare-name {
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--steam-text-light);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .rare-game {
-      font-size: 0.7rem;
-      color: var(--steam-text-dark);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .rare-percent {
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: var(--steam-accent);
-      flex-shrink: 0;
-      background: rgba(102, 192, 244, 0.1);
-      padding: 0.15rem 0.4rem;
-      border-radius: 2px;
-      border: 1px solid rgba(102, 192, 244, 0.2);
-    }
-
-    /* Platforms List */
-    .platform-bars {
-      display: flex;
-      flex-direction: column;
-      gap: 0.55rem;
-    }
-
-    .platform-bar-row {
-      font-size: 0.75rem;
-    }
-
-    .platform-bar-header {
-      display: flex;
-      justify-content: space-between;
-      color: var(--steam-text);
-      margin-bottom: 0.2rem;
-    }
-
-    .platform-bar-header .meta {
-      color: var(--steam-text-muted);
-    }
-
-    .platform-bar-track {
-      height: 4px;
-      background: rgba(0, 0, 0, 0.4);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-
-    .platform-bar-fill {
-      height: 100%;
-      background: var(--steam-accent-dark);
-    }
-
-    /* Favorites Grid */
-    .favorites-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.35rem;
-    }
-
-    .favorite-cover {
-      aspect-ratio: 2 / 3;
-      border-radius: 2px;
-      overflow: hidden;
-      background: #111822;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .favorite-cover img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    /* Screenshots showcase */
-    .screenshots-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 0.5rem;
-    }
-
-    @media (min-width: 640px) {
-      .screenshots-grid {
-        grid-template-columns: repeat(4, 1fr);
-      }
-    }
-
-    .screenshot-thumb {
-      aspect-ratio: 16 / 9;
-      border-radius: 2px;
-      overflow: hidden;
-      background: #111822;
-      position: relative;
-    }
-
-    .screenshot-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    /* Footer */
-    footer {
-      text-align: center;
-      padding: 2rem 1.25rem;
-      border-top: 1px solid var(--steam-border-dark);
-      color: var(--steam-text-dark);
-      font-size: 0.75rem;
-      background: var(--steam-header);
+    .panel { background: var(--panel); }
+    #identity { display: flex; gap: 20px; padding: 20px; min-width: 0; }
+    #avatar { position: relative; flex: none; width: 148px; height: 148px; background: #1b2838; }
+    #avatar > .photo { width: 100%; height: 100%; object-fit: cover; }
+    #avatar > .frame { position: absolute; inset: -7%; width: 114%; height: 114%; max-width: none; pointer-events: none; }
+    #avatar > .letter { display: flex; height: 100%; align-items: center; justify-content: center; font-size: 56px; color: var(--faint); }
+    #identity .text { min-width: 0; padding-top: 4px; }
+    h1 { font-size: 28px; font-weight: 400; line-height: 1.2; overflow-wrap: anywhere; }
+    #bio { margin-top: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #side { grid-row: span 2; padding: 20px; display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+    #content { display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+    .level { display: flex; align-items: center; gap: 10px; font-size: 20px; }
+    .level span { display: flex; width: 36px; height: 36px; align-items: center; justify-content: center; border: 2px solid #9b9b9b; border-radius: 50%; font-size: 14px; }
+    .favorite { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 12px; }
+    .favorite img { width: 56px; height: 56px; }
+    .favorite b { display: block; font-weight: 600; }
+    .favorite small { color: var(--muted); font-size: 12px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; }
+    .badges img { width: 48px; height: 48px; object-fit: contain; }
+    .count { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; }
+    .count dd { color: var(--muted); font-size: 20px; font-weight: 300; }
+    .side-title { margin-bottom: 8px; font-size: 14px; font-weight: 400; }
+    .bar-row { margin-top: 8px; font-size: 12px; color: var(--muted); }
+    .bar-row .head { display: flex; justify-content: space-between; gap: 8px; }
+    .bar { height: 4px; margin-top: 4px; background: rgba(0, 0, 0, 0.6); overflow: hidden; }
+    .bar i { display: block; height: 100%; background: var(--accent); }
+    .icons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .icons img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #1b2838; }
+    .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .section-head h2 { font-size: 18px; font-weight: 400; }
+    .section-head span { color: var(--muted); }
+    figure img { max-height: 420px; object-fit: contain; }
+    figcaption { margin-top: 8px; color: var(--muted); }
+    .stack { display: flex; flex-direction: column; gap: 6px; }
+    .game { padding: 12px; }
+    .game .top { display: flex; align-items: flex-start; gap: 12px; }
+    .game .capsule { flex: none; width: 184px; aspect-ratio: 184 / 69; object-fit: cover; background: #1b2838; }
+    .game .title { flex: 1; min-width: 0; color: #fff; overflow-wrap: anywhere; }
+    .game .time { flex: none; text-align: right; font-size: 12px; color: var(--muted); line-height: 1.6; }
+    .game .ach { display: flex; align-items: center; gap: 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+    .game .ach > div:first-child { flex: 1; min-width: 0; }
+    .game .ach .row { display: flex; flex: none; gap: 4px; }
+    .game .ach .row img { width: 32px; height: 32px; }
+    .covers { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; padding: 12px; }
+    .cover img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #1b2838; }
+    .cover b { display: block; margin-top: 6px; font-size: 12px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cover small { color: var(--muted); font-size: 11px; }
+    .rare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    .rare { display: flex; align-items: center; gap: 12px; padding: 8px; min-width: 0; }
+    .rare img { flex: none; width: 44px; height: 44px; }
+    .rare div { flex: 1; min-width: 0; }
+    .rare b, .rare small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 400; }
+    .rare small { color: var(--faint); font-size: 11px; }
+    .rare em { flex: none; font-style: normal; font-size: 12px; color: var(--gold); }
+    #notice { grid-column: 1 / -1; padding: 12px 16px; font-size: 13px; }
+    #notice code { color: var(--accent); }
+    footer { grid-column: 1 / -1; color: var(--faint); font-size: 12px; text-align: center; }
+    [hidden] { display: none !important; }
+    @media (max-width: 820px) {
+      #page { grid-template-columns: minmax(0, 1fr); padding: 16px 16px 40px; }
+      #side { grid-row: auto; order: 2; }
+      #content { order: 3; }
+      footer { order: 4; }
+      #identity { flex-direction: column; align-items: flex-start; }
+      .game .top { flex-wrap: wrap; }
+      .game .capsule { width: 100%; }
+      .game .time { text-align: left; }
+      .game .ach { flex-wrap: wrap; }
+      .covers { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .rare-grid { grid-template-columns: minmax(0, 1fr); }
     }
   </style>
 </head>
 <body>
-  <!-- Header de Navegação Superior -->
-  <header class="site-header">
-    <div class="nav-container">
-      <div class="brand">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#66c0f4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="6" x2="10" y1="12" y2="12"></line>
-          <line x1="8" x2="8" y1="10" y2="14"></line>
-          <line x1="15" x2="15.01" y1="13" y2="13"></line>
-          <line x1="18" x2="18.01" y1="11" y2="11"></line>
-          <rect width="20" height="12" x="2" y="6" rx="3"></rect>
-        </svg>
-        <span>LAZULIUM</span>
-        <span class="brand-badge">Perfil Público</span>
+  <div id="backdrop" aria-hidden="true"></div>
+  <div id="page">
+    <p id="notice" class="panel" hidden>
+      Mostrando dados de exemplo. No Lazulium, use <code>Perfil → Publicar na web</code>, ou coloque <code>lazulium-perfil.json</code> nesta pasta.
+    </p>
+    <header id="identity" class="panel">
+      <div id="avatar"></div>
+      <div class="text">
+        <h1 id="name">Carregando...</h1>
+        <p id="bio" hidden></p>
       </div>
-      <div id="generated-date"></div>
-    </div>
-  </header>
-
-  <!-- Banner do Perfil (Estilo Steam) -->
-  <div class="profile-header-wrap">
-    <img id="profile-backdrop" class="profile-backdrop" src="" alt="" style="display: none;">
-    <div class="profile-gradient-overlay"></div>
-    <div class="profile-header-content">
-      <div class="avatar-wrapper" id="avatar-container">
-        <div class="avatar-fallback" id="avatar-fallback">L</div>
-      </div>
-      <div class="profile-info">
-        <h1 class="profile-name" id="display-name">Carregando perfil...</h1>
-        <div class="profile-status" id="profile-status">
-          <span>●</span> <span id="status-text">Online</span>
-        </div>
-        <p class="profile-headline" id="profile-headline">Estatísticas unificadas da biblioteca</p>
-      </div>
-      <div id="level-container" style="display: none;">
-        <div class="profile-level-badge">
-          <span>Nível</span>
-          <span class="level-ring" id="steam-level-ring" title="Nível da sua conta Steam">0</span>
-        </div>
-      </div>
-    </div>
+    </header>
+    <aside id="side" class="panel"></aside>
+    <main id="content"></main>
+    <footer id="footer"></footer>
   </div>
 
-  <main>
-    <div id="fallback-banner">
-      <strong>Mostrando dados de exemplo.</strong> No Lazulium, abra <em>Perfil → Exportar perfil</em> e salve como <code>lazulium-perfil.json</code> nesta pasta, ou selecione o arquivo exportado aqui:
-      <input type="file" id="json-file-input" accept=".json">
-    </div>
-
-    <div class="profile-layout">
-      <!-- Coluna Principal (Esquerda) -->
-      <div class="main-column">
-        <!-- Atividade Recente (recentGames) -->
-        <section class="box" id="recent-activity-section" style="display: none;">
-          <header class="box-header">
-            <h2 class="box-title">Atividade recente</h2>
-            <span class="box-extra" id="recent-playtime-header"></span>
-          </header>
-          <div class="box-content">
-            <div class="activity-list" id="recent-activity-list"></div>
-          </div>
-        </section>
-
-        <!-- Vitrine de Capturas (screenshots) -->
-        <section class="box" id="screenshots-section" style="display: none;">
-          <header class="box-header">
-            <h2 class="box-title">Vitrine de capturas</h2>
-          </header>
-          <div class="box-content">
-            <div class="screenshots-grid" id="screenshots-list"></div>
-          </div>
-        </section>
-
-        <!-- Mais Jogados (mostPlayed) -->
-        <section class="box" id="most-played-section" style="display: none;">
-          <header class="box-header">
-            <h2 class="box-title">Mais jogados</h2>
-          </header>
-          <div class="box-content">
-            <div class="activity-list" id="most-played-list"></div>
-          </div>
-        </section>
-      </div>
-
-      <!-- Barra Lateral (Direita) -->
-      <aside class="sidebar-column">
-        <!-- Resumo Global -->
-        <section class="box">
-          <header class="box-header">
-            <h2 class="box-title">Resumo</h2>
-          </header>
-          <div class="box-content">
-            <dl class="summary-list">
-              <div class="summary-item">
-                <dt class="summary-label">Jogos</dt>
-                <dd class="summary-value" id="stat-games">0</dd>
-              </div>
-              <div class="summary-item">
-                <dt class="summary-label">Horas jogadas</dt>
-                <dd class="summary-value" id="stat-hours">0 h</dd>
-              </div>
-              <div class="summary-item">
-                <dt class="summary-label">Conquistas</dt>
-                <dd class="summary-value" id="stat-achievements">—</dd>
-              </div>
-              <div class="summary-item">
-                <dt class="summary-label">Jogos 100%</dt>
-                <dd class="summary-value" id="stat-perfect">0</dd>
-              </div>
-              <div class="summary-item">
-                <dt class="summary-label">Favoritos</dt>
-                <dd class="summary-value" id="stat-favorites">0</dd>
-              </div>
-            </dl>
-          </div>
-        </section>
-
-        <!-- Conquistas Recentes -->
-        <section class="box" id="recent-achievements-section" style="display: none;">
-          <header class="box-header">
-            <h2 class="box-title">Conquistas recentes</h2>
-          </header>
-          <div class="box-content">
-            <div class="recent-achievements-grid" id="recent-achievements-list"></div>
-          </div>
-        </section>
-
-        <!-- Conquistas Mais Raras -->
-        <section class="box" id="rarest-achievements-section" style="display: none;">
-          <header class="box-header">
-            <h2 class="box-title">Conquistas mais raras</h2>
-          </header>
-          <div class="box-content">
-            <div class="rare-list" id="rarest-achievements-list"></div>
-          </div>
-        </section>
-
-        <!-- Plataformas -->
-        <section class="box" id="platforms-section" style="display: none;">
-          <header class="box-header">
-            <h2 class="box-title">Plataformas</h2>
-          </header>
-          <div class="box-content">
-            <div class="platform-bars" id="platforms-list"></div>
-          </div>
-        </section>
-
-        <!-- Favoritos -->
-        <section class="box" id="favorites-section" style="display: none;">
-          <header class="box-header">
-            <h2 class="box-title">Favoritos</h2>
-          </header>
-          <div class="box-content">
-            <div class="favorites-grid" id="favorites-list"></div>
-          </div>
-        </section>
-      </aside>
-    </div>
-  </main>
-
-  <footer>
-    Lazulium · Hub Universal de Jogos, Conquistas e Saves
-  </footer>
-
   <script>
-    const LEVEL_COLORS = [
-      '#9b9b9b', '#c02942', '#d95b43', '#fecc23', '#467a3c',
-      '#4e8ddb', '#7652c9', '#c252c9', '#542437', '#997c52'
-    ];
+    const LEVEL_COLORS = ['#9b9b9b', '#c02942', '#d95b43', '#fecc23', '#467a3c', '#4e8ddb', '#7652c9', '#c252c9', '#542437', '#997c52'];
+    const PLATFORM_LABEL = { steam: 'Steam', epic: 'Epic Games', gog: 'GOG', riot: 'Riot Games', xbox: 'Xbox', emulator: 'Emuladores', standalone: 'Outros PC' };
 
-    const PLATFORM_LABEL = {
-      steam: 'Steam',
-      epic: 'Epic Games',
-      gog: 'GOG',
-      riot: 'Riot Games',
-      xbox: 'Xbox',
-      emulator: 'Emuladores',
-      standalone: 'Outros PC'
-    };
-
-    function formatHours(seconds) {
+    const hours = (seconds) => {
       if (!seconds || seconds <= 0) return '0 h';
       const h = seconds / 3600;
-      if (h < 1) {
-        return Math.max(1, Math.round(seconds / 60)) + ' min';
+      if (h < 1) return Math.max(1, Math.round(seconds / 60)) + ' min';
+      return h >= 100 ? Math.round(h).toLocaleString('pt-BR') + ' h' : h.toFixed(1).replace('.', ',') + ' h';
+    };
+    const shortDate = (iso) => {
+      const date = iso ? new Date(iso) : null;
+      return date && !isNaN(date) ? date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }).replace('.', '') : '';
+    };
+    const https = (url) => (typeof url === 'string' && /^https:\/\//i.test(url) ? url : '');
+
+    // Tudo do JSON entra por textContent e atributos: nada é interpretado como HTML
+    function el(tag, props, ...children) {
+      const node = document.createElement(tag);
+      for (const [key, value] of Object.entries(props || {})) {
+        if (value === undefined || value === null || value === '') continue;
+        if (key === 'class') node.className = value;
+        else if (key === 'style') node.style.cssText = value;
+        else node.setAttribute(key, value);
       }
-      return h.toFixed(1).replace('.', ',') + ' h';
+      for (const child of children.flat()) {
+        if (child !== null && child !== undefined && child !== false) node.append(child);
+      }
+      return node;
     }
+    const image = (url, alt, className) => {
+      const src = https(url);
+      if (!src) return null;
+      const node = el('img', { src, alt: alt || '', class: className, loading: 'lazy', referrerpolicy: 'no-referrer' });
+      node.addEventListener('error', () => node.remove());
+      return node;
+    };
+    const section = (title, extra, ...children) =>
+      el('section', null, el('div', { class: 'section-head' }, el('h2', null, title), extra ? el('span', null, extra) : null), children);
 
-    function formatShortDate(isoStr) {
-      if (!isoStr) return '';
-      try {
-        const d = new Date(isoStr);
-        if (isNaN(d.getTime())) return '';
-        return d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
-      } catch {
-        return '';
+    function setBackdrop(background) {
+      const box = document.getElementById('backdrop');
+      box.replaceChildren();
+      const poster = https(background && background.imageUrl);
+      const video = https(background && background.videoUrl);
+      if (poster) box.append(el('img', { src: poster, alt: '', referrerpolicy: 'no-referrer' }));
+      if (video && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const node = el('video', { src: video, poster, loop: '', playsinline: '', preload: 'auto' });
+        node.muted = true;
+        node.autoplay = true;
+        node.addEventListener('error', () => node.remove());
+        box.append(node);
+        document.addEventListener('visibilitychange', () => (document.hidden ? node.pause() : node.play().catch(() => {})));
       }
     }
 
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    function gameRow(game) {
+      const total = Number(game.achievementsTotal) || 0;
+      const unlocked = Number(game.achievementsUnlocked) || 0;
+      return el('div', { class: 'game panel' },
+        el('div', { class: 'top' },
+          image(game.heroUrl || game.coverUrl, '', 'capsule') || el('div', { class: 'capsule' }),
+          el('div', { class: 'title' }, game.title),
+          el('div', { class: 'time' },
+            el('div', null, hours(game.playtimeSeconds) + ' registradas'),
+            game.lastPlayedAt ? el('div', null, 'jogado por último em ' + shortDate(game.lastPlayedAt)) : null,
+            game.recentSeconds > 0 ? el('div', null, hours(game.recentSeconds) + ' nas últimas 2 semanas') : null)),
+        total > 0
+          ? el('div', { class: 'ach' },
+              el('div', null, unlocked + ' / ' + total + ' conquistas',
+                el('div', { class: 'bar' }, el('i', { style: 'width:' + Math.min(100, Math.round((unlocked / total) * 100)) + '%' }))),
+              el('div', { class: 'row' }, (game.recentAchievementIcons || []).map((a) => image(a.iconUrl, a.name))))
+          : null);
     }
 
-    function safeUrl(url) {
-      return typeof url === 'string' && /^https:\/\//i.test(url) ? escapeHtml(url) : '';
-    }
-
-    function renderGameRow(game, showRecent) {
-      const row = document.createElement('div');
-      row.className = 'activity-row';
-
-      const thumbUrl = safeUrl(game.heroUrl || game.coverUrl);
-      const hasRecent = showRecent && Number(game.recentSeconds) > 0;
-      const recentText = hasRecent ? `<span class="recent-hours">${formatHours(game.recentSeconds)} nas últimas 2 semanas</span><br>` : '';
-      const totalText = `${formatHours(game.playtimeSeconds)} no total`;
-      const dateText = game.lastPlayedAt ? `<br><span class="last-played">jogado em ${formatShortDate(game.lastPlayedAt)}</span>` : '';
-
-      let achievementBarHtml = '';
-      if (game.achievementsTotal && Number(game.achievementsTotal) > 0) {
-        const unlocked = Number(game.achievementsUnlocked || 0);
-        const total = Number(game.achievementsTotal);
-        const pct = Math.min(100, Math.round((unlocked / total) * 100));
-        achievementBarHtml = `
-          <div class="achievement-bar-wrap">
-            <span>Conquistas ${unlocked} de ${total}</span>
-            <div class="achievement-progress-track">
-              <div class="achievement-progress-fill" style="width: ${pct}%;"></div>
-            </div>
-          </div>
-        `;
+    function renderSide(profile, web) {
+      const side = document.getElementById('side');
+      side.replaceChildren();
+      const t = profile.totals || {};
+      const top = el('div');
+      if (typeof profile.steamLevel === 'number') {
+        const ring = el('span', { style: 'border-color:' + LEVEL_COLORS[Math.floor(profile.steamLevel / 10) % 10] }, String(profile.steamLevel));
+        top.append(el('div', { class: 'level' }, 'Nível', ring));
       }
+      if (web.favoriteBadge && https(web.favoriteBadge.iconUrl)) {
+        top.append(el('div', { class: 'favorite' }, image(web.favoriteBadge.iconUrl), el('div', null, el('b', null, web.favoriteBadge.name), el('small', null, web.favoriteBadge.detail))));
+      }
+      if (top.children.length) side.append(top);
+      if (Array.isArray(web.badges) && web.badges.length) {
+        side.append(el('div', { class: 'badges' }, web.badges.map((b) => { const i = image(b.iconUrl, b.name); if (i) i.title = b.name; return i; })));
+      }
+      const count = (label, value) => el('div', { class: 'count' }, el('dt', null, label), el('dd', null, String(value)));
+      side.append(el('dl', null,
+        count('Jogos jogados', (t.playedGames || 0).toLocaleString('pt-BR')),
+        count('Horas jogadas', hours(t.playtimeSeconds)),
+        count('Conquistas', (t.achievementsUnlocked || 0).toLocaleString('pt-BR')),
+        t.perfectGames > 0 ? count('Jogos 100%', t.perfectGames) : null));
 
-      row.innerHTML = `
-        <div class="activity-thumb">
-          ${thumbUrl ? `<img src="${thumbUrl}" alt="" loading="lazy" onerror="this.parentElement.style.display='none'">` : ''}
-        </div>
-        <div class="activity-info">
-          <div class="activity-top">
-            <span class="activity-title" title="${escapeHtml(game.title)}">${escapeHtml(game.title)}</span>
-            <div class="activity-time">
-              ${recentText}
-              ${totalText}
-              ${dateText}
-            </div>
-          </div>
-          ${achievementBarHtml}
-        </div>
-      `;
-      return row;
+      const platforms = (profile.byPlatform || []).filter((p) => p.playtimeSeconds > 0);
+      if (platforms.length) {
+        const max = Math.max(1, ...platforms.map((p) => p.playtimeSeconds));
+        side.append(el('div', null, el('h2', { class: 'side-title' }, 'Plataformas'), platforms.map((p) =>
+          el('div', { class: 'bar-row' },
+            el('div', { class: 'head' }, el('span', null, PLATFORM_LABEL[p.platform] || p.platform), el('span', null, hours(p.playtimeSeconds))),
+            el('div', { class: 'bar' }, el('i', { style: 'width:' + (p.playtimeSeconds / max) * 100 + '%' }))))));
+      }
+      const recent = (profile.recentAchievements || []).filter((a) => https(a.iconUrl)).slice(0, 10);
+      if (recent.length) {
+        side.append(el('div', null, el('h2', { class: 'side-title' }, 'Últimas conquistas'),
+          el('div', { class: 'icons' }, recent.map((a) => { const i = image(a.iconUrl, a.name); if (i) i.title = a.name + ' — ' + a.gameTitle; return i; }))));
+      }
+    }
+
+    function renderContent(profile, web) {
+      const content = document.getElementById('content');
+      content.replaceChildren();
+      const parts = {
+        artwork: () => (web.showcaseArt && https(web.showcaseArt.imageUrl)
+          ? el('figure', null, image(web.showcaseArt.imageUrl, web.showcaseArt.title), web.showcaseArt.title ? el('figcaption', null, web.showcaseArt.title) : null)
+          : null),
+        activity: () => ((profile.recentGames || []).length
+          ? section('Atividade recente', profile.recentPlaytimeSeconds ? hours(profile.recentPlaytimeSeconds) + ' nas últimas 2 semanas' : '',
+              el('div', { class: 'stack' }, profile.recentGames.slice(0, 5).map(gameRow)))
+          : null),
+        featured: () => ((profile.featuredGames || []).length
+          ? section('Jogos em destaque', '', el('div', { class: 'covers panel' }, profile.featuredGames.map((g) =>
+              el('div', { class: 'cover' }, image(g.coverUrl, g.title) || el('img', { alt: '' }), el('b', { title: g.title }, g.title), el('small', null, hours(g.playtimeSeconds))))))
+          : null),
+        achievements: () => {
+          const chosen = (profile.featuredAchievements || []).length ? profile.featuredAchievements : profile.rarestAchievements || [];
+          if (!chosen.length) return null;
+          return section('Vitrine de conquistas', (profile.featuredAchievements || []).length ? '' : 'as mais raras',
+            el('div', { class: 'rare-grid' }, chosen.map((a) => el('div', { class: 'rare panel' }, image(a.iconUrl),
+              el('div', null, el('b', { title: a.name }, a.name), el('small', null, a.gameTitle)),
+              typeof a.globalPercent === 'number' ? el('em', null, a.globalPercent.toFixed(1).replace('.', ',') + '%') : null))));
+        },
+        mostPlayed: () => ((profile.mostPlayed || []).length
+          ? section('Mais jogados', '', el('div', { class: 'stack' }, profile.mostPlayed.map(gameRow)))
+          : null)
+      };
+      const order = (profile.custom && profile.custom.sections) || Object.keys(parts);
+      for (const id of order) {
+        const part = parts[id] ? parts[id]() : null;
+        if (part) content.append(part);
+      }
     }
 
     function renderProfile(profile) {
-      // 1. Header & Avatar
-      const displayName = profile.displayName || 'Jogador';
-      document.getElementById('display-name').textContent = displayName;
+      const web = profile.web || {};
+      const name = profile.displayName || 'Jogador';
+      document.title = name + ' · Perfil Lazulium';
+      document.getElementById('name').textContent = name;
 
-      if (safeUrl(profile.avatarUrl)) {
-        document.getElementById('avatar-container').innerHTML = `<img src="${safeUrl(profile.avatarUrl)}" alt="${escapeHtml(displayName)}" class="avatar-img">`;
-      } else {
-        document.getElementById('avatar-fallback').textContent = displayName.charAt(0).toUpperCase();
-      }
+      const avatar = document.getElementById('avatar');
+      avatar.replaceChildren(image(profile.avatarUrl, name, 'photo') || el('div', { class: 'letter' }, name.charAt(0).toUpperCase()));
+      const frame = image(web.avatarFrameUrl, '', 'frame');
+      if (frame) avatar.append(frame);
 
-      if (profile.generatedAt) {
-        document.getElementById('generated-date').textContent = 'Atualizado em ' + formatShortDate(profile.generatedAt);
-      }
+      const bio = document.getElementById('bio');
+      bio.textContent = web.bio || (profile.custom && profile.custom.bio) || '';
+      bio.hidden = !bio.textContent;
 
-      // Backdrop hero
-      const backdrop = profile.recentGames?.[0]?.heroUrl || profile.mostPlayed?.[0]?.heroUrl;
-      if (safeUrl(backdrop)) {
-        const bgImg = document.getElementById('profile-backdrop');
-        bgImg.src = safeUrl(backdrop);
-        bgImg.style.display = 'block';
-      }
-
-      // Steam Level
-      if (typeof profile.steamLevel === 'number') {
-        const levelRing = document.getElementById('steam-level-ring');
-        levelRing.textContent = profile.steamLevel;
-        const colorIdx = Math.min(9, Math.floor(profile.steamLevel / 10) % 10);
-        levelRing.style.borderColor = LEVEL_COLORS[colorIdx];
-        document.getElementById('level-container').style.display = 'block';
-      }
-
-      // 2. Totals Summary
-      const t = profile.totals || {};
-      document.getElementById('stat-games').textContent = t.games || 0;
-      document.getElementById('stat-hours').textContent = formatHours(t.playtimeSeconds);
-      document.getElementById('stat-achievements').textContent = t.achievementsTotal
-        ? `${t.achievementsUnlocked || 0} de ${t.achievementsTotal}`
-        : '—';
-      document.getElementById('stat-perfect').textContent = t.perfectGames || 0;
-      document.getElementById('stat-favorites').textContent = t.favorites || 0;
-
-      document.getElementById('profile-headline').textContent =
-        `${formatHours(t.playtimeSeconds)} jogadas em ${t.playedGames || 0} de ${t.games || 0} jogos`;
-
-      // 3. Atividade recente (recentGames)
-      if (Array.isArray(profile.recentGames) && profile.recentGames.length > 0) {
-        const container = document.getElementById('recent-activity-list');
-        container.innerHTML = '';
-        profile.recentGames.slice(0, 6).forEach(g => {
-          container.appendChild(renderGameRow(g, true));
-        });
-
-        if (profile.recentPlaytimeSeconds) {
-          document.getElementById('recent-playtime-header').textContent =
-            `${formatHours(profile.recentPlaytimeSeconds)} nas últimas 2 semanas`;
-        }
-        document.getElementById('recent-activity-section').style.display = 'block';
-      }
-
-      // 4. Vitrine de Capturas (screenshots) - ESCONDE SE VAZIO
-      if (Array.isArray(profile.screenshots) && profile.screenshots.length > 0) {
-        const container = document.getElementById('screenshots-list');
-        container.innerHTML = '';
-        profile.screenshots.forEach(s => {
-          const thumb = safeUrl(s.thumbUrl || s.url);
-          if (!thumb) return;
-          const el = document.createElement('div');
-          el.className = 'screenshot-thumb';
-          el.title = `${escapeHtml(s.gameTitle)} · ${formatShortDate(s.takenAt)}`;
-          el.innerHTML = `<img src="${thumb}" alt="" loading="lazy">`;
-          container.appendChild(el);
-        });
-        if (container.children.length > 0) {
-          document.getElementById('screenshots-section').style.display = 'block';
-        }
-      }
-
-      // 5. Mais Jogados (mostPlayed)
-      if (Array.isArray(profile.mostPlayed) && profile.mostPlayed.length > 0) {
-        const container = document.getElementById('most-played-list');
-        container.innerHTML = '';
-        profile.mostPlayed.slice(0, 5).forEach(g => {
-          container.appendChild(renderGameRow(g, false));
-        });
-        document.getElementById('most-played-section').style.display = 'block';
-      }
-
-      // 6. Conquistas Recentes (recentAchievements)
-      if (Array.isArray(profile.recentAchievements) && profile.recentAchievements.length > 0) {
-        const container = document.getElementById('recent-achievements-list');
-        container.innerHTML = '';
-        profile.recentAchievements.slice(0, 10).forEach(a => {
-          const icon = safeUrl(a.iconUrl);
-          if (!icon) return;
-          const el = document.createElement('div');
-          el.className = 'recent-achievement-icon';
-          el.title = `${escapeHtml(a.name)} — ${escapeHtml(a.gameTitle)}${a.unlockedAt ? ' (' + formatShortDate(a.unlockedAt) + ')' : ''}`;
-          el.innerHTML = `<img src="${icon}" alt="${escapeHtml(a.name)}" loading="lazy">`;
-          container.appendChild(el);
-        });
-        if (container.children.length > 0) {
-          document.getElementById('recent-achievements-section').style.display = 'block';
-        }
-      }
-
-      // 7. Conquistas Mais Raras (rarestAchievements)
-      if (Array.isArray(profile.rarestAchievements) && profile.rarestAchievements.length > 0) {
-        const container = document.getElementById('rarest-achievements-list');
-        container.innerHTML = '';
-        profile.rarestAchievements.slice(0, 4).forEach(a => {
-          const icon = safeUrl(a.iconUrl);
-          const el = document.createElement('div');
-          el.className = 'rare-item';
-          const pct = typeof a.globalPercent === 'number' ? a.globalPercent.toFixed(1).replace('.', ',') + '%' : 'Rara';
-          el.innerHTML = `
-            ${icon ? `<img src="${icon}" alt="" class="rare-icon" loading="lazy">` : '<div class="rare-icon"></div>'}
-            <div class="rare-info">
-              <div class="rare-name" title="${escapeHtml(a.name)}">${escapeHtml(a.name)}</div>
-              <div class="rare-game" title="${escapeHtml(a.gameTitle)}">${escapeHtml(a.gameTitle)}</div>
-            </div>
-            <div class="rare-percent">${pct}</div>
-          `;
-          container.appendChild(el);
-        });
-        document.getElementById('rarest-achievements-section').style.display = 'block';
-      }
-
-      // 8. Plataformas (byPlatform)
-      if (Array.isArray(profile.byPlatform) && profile.byPlatform.length > 0) {
-        const container = document.getElementById('platforms-list');
-        container.innerHTML = '';
-        const maxTime = Math.max(1, ...profile.byPlatform.map(p => p.playtimeSeconds || 0));
-        profile.byPlatform.forEach(p => {
-          const label = PLATFORM_LABEL[p.platform] || p.platform;
-          const pct = Math.min(100, Math.round(((p.playtimeSeconds || 0) / maxTime) * 100));
-          const el = document.createElement('div');
-          el.className = 'platform-bar-row';
-          el.innerHTML = `
-            <div class="platform-bar-header">
-              <span>${escapeHtml(label)}</span>
-              <span class="meta">${p.games || 0} jogos · ${formatHours(p.playtimeSeconds)}</span>
-            </div>
-            <div class="platform-bar-track">
-              <div class="platform-bar-fill" style="width: ${pct}%;"></div>
-            </div>
-          `;
-          container.appendChild(el);
-        });
-        document.getElementById('platforms-section').style.display = 'block';
-      }
-
-      // 9. Favoritos (favorites)
-      if (Array.isArray(profile.favorites) && profile.favorites.length > 0) {
-        const container = document.getElementById('favorites-list');
-        container.innerHTML = '';
-        profile.favorites.slice(0, 8).forEach(g => {
-          const cover = safeUrl(g.coverUrl);
-          const el = document.createElement('div');
-          el.className = 'favorite-cover';
-          el.title = escapeHtml(g.title);
-          el.innerHTML = cover ? `<img src="${cover}" alt="${escapeHtml(g.title)}" loading="lazy">` : '';
-          container.appendChild(el);
-        });
-        document.getElementById('favorites-section').style.display = 'block';
-      }
+      setBackdrop(web.background || (profile.recentGames && profile.recentGames[0] && { imageUrl: profile.recentGames[0].heroUrl }));
+      renderSide(profile, web);
+      renderContent(profile, web);
+      document.getElementById('footer').textContent = 'Feito com o Lazulium' + (profile.generatedAt ? ' · atualizado em ' + shortDate(profile.generatedAt) : '');
     }
 
     async function loadJson(path) {
       const res = await fetch(path, { cache: 'no-store' });
-      if (!res.ok) throw new Error('Status HTTP ' + res.status);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       return res.json();
     }
 
-    async function init() {
+    (async () => {
       try {
         renderProfile(await loadJson('./lazulium-perfil.json'));
         return;
-      } catch (err) {
-        // Sem perfil exportado ainda: exibe banner e carrega o exemplo
+      } catch {
+        // Sem perfil publicado: tenta o exemplo, que só existe no código do projeto
       }
-      document.getElementById('fallback-banner').style.display = 'block';
       try {
         renderProfile(await loadJson('./lazulium-perfil.exemplo.json'));
-      } catch (err) {
-        console.warn('Falha ao carregar lazulium-perfil.exemplo.json:', err);
+        document.getElementById('notice').hidden = false;
+      } catch {
+        document.getElementById('name').textContent = 'Perfil indisponível';
+        document.getElementById('bio').textContent = 'Publique de novo pelo Lazulium: Perfil → Publicar na web.';
+        document.getElementById('bio').hidden = false;
       }
-    }
-
-    // Suporte a carregamento de arquivo manual se aberto via file://
-    document.getElementById('json-file-input').addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const data = JSON.parse(event.target.result);
-          renderProfile(data);
-          document.getElementById('fallback-banner').style.display = 'none';
-        } catch (jsonErr) {
-          alert('Erro ao ler o arquivo JSON: ' + jsonErr.message);
-        }
-      };
-      reader.readAsText(file);
-    });
-
-    init();
+    })();
   </script>
 </body>
 </html>

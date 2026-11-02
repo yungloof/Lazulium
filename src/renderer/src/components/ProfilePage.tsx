@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Download, Loader2, Pencil, RefreshCw, UserRound } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, Globe, Loader2, Pencil, RefreshCw, UserRound } from 'lucide-react';
 import { GamePlatform } from '@shared/types/game';
-import { PlayerProfile, ProfileGame, ProfileSectionId } from '@shared/types/profile';
+import { PlayerProfile, ProfileGame, ProfileSectionId, ProfileWebStatus } from '@shared/types/profile';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { ALL_SECTIONS, ProfileEditModal, SECTION_LABEL } from './ProfileEditModal';
+import { ProfilePublishModal } from './ProfilePublishModal';
 
 interface ProfilePageProps {
   onOpenSettings: () => void;
@@ -166,6 +167,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
   const [busy, setBusy] = useState<'sync' | 'export' | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [editing, setEditing] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [webStatus, setWebStatus] = useState<ProfileWebStatus>({});
   const games = useLibraryStore((s) => s.games);
   const launchStatuses = useLibraryStore((s) => s.launchStatuses);
   const playingId = Object.values(launchStatuses).find((s) => s.state === 'running')?.gameId;
@@ -182,6 +185,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
 
   useEffect(() => {
     load();
+    window.electronAPI?.getProfileWebStatus().then(setWebStatus).catch(() => undefined);
   }, [load]);
 
   const run = async (kind: 'sync' | 'export', task: () => Promise<Feedback>) => {
@@ -410,6 +414,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
                   {busy === 'export' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} Exportar
                 </button>
               </div>
+              <button onClick={() => setPublishing(true)} disabled={busy !== null} className={`${button} w-full`}>
+                <Globe className="w-3.5 h-3.5" /> {webStatus.repoUrl ? 'Atualizar página na web' : 'Publicar na web'}
+              </button>
             </div>
             {feedback && (
               <p className={`mt-2 flex items-start gap-1.5 text-[11px] break-words ${feedback.tone === 'ok' ? 'text-emerald-300' : 'text-amber-300'}`}>
@@ -493,6 +500,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
       </div>
 
       {editing && <ProfileEditModal profile={profile} onClose={() => setEditing(false)} onSaved={load} />}
+      {publishing && <ProfilePublishModal status={webStatus} onClose={() => setPublishing(false)} onChanged={setWebStatus} />}
     </div>
   );
 };

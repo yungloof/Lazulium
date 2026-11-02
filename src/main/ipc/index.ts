@@ -14,13 +14,14 @@ import { FetchAssetsOptions, JournalEntryInput, MediaAssetType } from '@shared/t
 import { addJournalEntry, journalToCsv, journalToJson, setGameLog, setManualPlaytime } from '../services/profile/journal.service';
 import { steamNamesService } from '../services/scanners/steam-names.service';
 import { GameSaveConfig } from '@shared/types/cloudsync';
-import { ProfileCustom, ProfileMediaKind } from '@shared/types/profile';
+import { ProfileCustom, ProfileMediaKind, ProfileWebLink } from '@shared/types/profile';
 import { backupService } from '../services/cloudsync/backup.service';
 import { DRIVE_SETTING_KEYS, googleDriveService } from '../services/cloudsync/google-drive.service';
 import { applyLoginItem, markRendererReady, notify } from '../app-shell';
 import { accountsService } from '../services/accounts/accounts.service';
 import { screenshotsService } from '../services/metadata/screenshots.service';
 import { profileService } from '../services/profile/profile.service';
+import { profileWebService } from '../services/profile/profile-web.service';
 import { AccountService } from '@shared/types/accounts';
 
 // Gerenciadas só pelo main: o renderer nunca lê nem grava o token do Google
@@ -325,6 +326,33 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     };
     const res = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
     return res.canceled ? null : profileService.importMedia(kind, res.filePaths[0]);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.PROFILE_WEB_STATUS, async () => {
+    return profileWebService.getStatus();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.PROFILE_WEB_PUBLISH, async (_event, repoUrl: string) => {
+    return profileWebService.publish(repoUrl);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.PROFILE_WEB_DISCONNECT, async () => {
+    return profileWebService.disconnect();
+  });
+
+  // Destinos fixos: o renderer só escolhe qual deles abrir
+  ipcMain.handle(IPC_CHANNELS.PROFILE_WEB_OPEN, async (_event, link: ProfileWebLink) => {
+    const { repoUrl, pageUrl } = profileWebService.getStatus();
+    const target =
+      link === 'new-repo'
+        ? 'https://github.com/new?name=lazulium-perfil&visibility=public'
+        : link === 'pages-settings' && repoUrl
+          ? `${repoUrl}/settings/pages`
+          : link === 'page'
+            ? pageUrl
+            : undefined;
+    if (!target) throw new Error('Publique o perfil primeiro.');
+    await shell.openExternal(target);
   });
 
   ipcMain.handle(IPC_CHANNELS.PROFILE_EXPORT, async () => {

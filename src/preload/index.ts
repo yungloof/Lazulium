@@ -4,7 +4,7 @@ import { ElectronAPI, JournalEntryInput, FetchAssetsOptions, GameLaunchStatus, M
 import { EmulatorConfig, Game, GameLog, GamePlatform } from '@shared/types/game';
 import { BackupEvent, GameSaveConfig } from '@shared/types/cloudsync';
 import { AccountService } from '@shared/types/accounts';
-import { ProfileCustom, ProfileMediaKind } from '@shared/types/profile';
+import { ProfileCustom, ProfileMediaKind, ProfileWebLink } from '@shared/types/profile';
 
 const electronAPI: ElectronAPI = {
   // Library & Scanners
@@ -97,6 +97,10 @@ const electronAPI: ElectronAPI = {
   syncAllAchievements: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SYNC_ACHIEVEMENTS),
   saveProfileCustom: (custom: ProfileCustom) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SAVE_CUSTOM, custom),
   pickProfileMedia: (kind: ProfileMediaKind) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_PICK_MEDIA, kind),
+  getProfileWebStatus: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_WEB_STATUS),
+  publishProfileWeb: (repoUrl: string) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_WEB_PUBLISH, repoUrl),
+  disconnectProfileWeb: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_WEB_DISCONNECT),
+  openProfileWebLink: (link: ProfileWebLink) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_WEB_OPEN, link),
   exportPlayerProfile: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_EXPORT),
 
   // Contas
