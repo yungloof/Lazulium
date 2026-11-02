@@ -164,6 +164,8 @@ const CountRow: React.FC<{ label: string; value: string | number; title?: string
 );
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSelectGame }) => {
+  const isSyncingAchievements = useLibraryStore((s) => s.isSyncingAchievements);
+  const setIsSyncingAchievements = useLibraryStore((s) => s.setIsSyncingAchievements);
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<'sync' | 'export' | null>(null);
@@ -204,12 +206,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
 
   const handleSync = () =>
     run('sync', async () => {
-      const result = await window.electronAPI?.syncAllAchievements();
-      await load();
-      return {
-        tone: result?.failed ? 'warn' : 'ok',
-        text: `Conquistas atualizadas em ${result?.synced ?? 0} jogo(s)${result?.failed ? `; ${result.failed} falharam. Confira a internet e clique em Atualizar de novo.` : '.'}`
-      };
+      setIsSyncingAchievements(true);
+      try {
+        const result = await window.electronAPI?.syncAllAchievements();
+        await load();
+        return {
+          tone: result?.failed ? 'warn' : 'ok',
+          text: `Conquistas atualizadas em ${result?.synced ?? 0} jogo(s)${result?.failed ? `; ${result.failed} falharam. Confira a internet e clique em Atualizar de novo.` : '.'}`
+        };
+      } finally {
+        setIsSyncingAchievements(false);
+      }
     });
 
   const handleExport = () =>
@@ -415,8 +422,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
                 <Pencil className="w-3.5 h-3.5" /> Editar perfil
               </button>
               <div className="grid grid-cols-2 gap-1.5">
-                <button onClick={handleSync} disabled={busy !== null} className={button} title="Buscar as conquistas de todos os jogos">
-                  {busy === 'sync' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Atualizar
+                <button onClick={handleSync} disabled={busy !== null || isSyncingAchievements} className={button} title="Buscar as conquistas de todos os jogos">
+                  {busy === 'sync' || isSyncingAchievements ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Atualizar
                 </button>
                 <button onClick={handleExport} disabled={busy !== null} className={button}>
                   {busy === 'export' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} Exportar

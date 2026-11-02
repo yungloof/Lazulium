@@ -48,7 +48,7 @@ function steamStatsKey(game: Game): string | undefined {
 }
 
 class ProfileService {
-  private syncing = false;
+  private syncingPromise?: Promise<AchievementsSyncResult>;
 
   private trackedSeconds(game: Game, since: number): number {
     return db
@@ -280,27 +280,29 @@ class ProfileService {
 
   // Busca conquistas de todos os jogos já jogados (respeita o cache de 6h de cada jogo)
   async syncAllAchievements(): Promise<AchievementsSyncResult> {
-    if (this.syncing) throw new Error('A sincronização de conquistas já está em andamento.');
-    this.syncing = true;
-    let synced = 0;
-    let failed = 0;
-    try {
-      const candidates = db
-        .getGames()
-        .filter((g) => (g.platform === 'steam' || g.platform === 'emulator') && (g.totalPlaytimeSeconds ?? 0) > 0);
-      for (const game of candidates) {
-        try {
-          const result = await achievementsService.getAchievements(game.id, false);
-          if (result && result.total > 0) synced++;
-        } catch {
-          failed++;
+    if (this.syncingPromise) return this.syncingPromise;
+    this.syncingPromise = (async () => {
+      let synced = 0;
+      let failed = 0;
+      try {
+        const candidates = db
+          .getGames()
+          .filter((g) => (g.platform === 'steam' || g.platform === 'emulator') && (g.totalPlaytimeSeconds ?? 0) > 0);
+        for (const game of candidates) {
+          try {
+            const result = await achievementsService.getAchievements(game.id, false);
+            if (result && result.total > 0) synced++;
+          } catch {
+            failed++;
+          }
+          await sleep(SYNC_DELAY_MS);
         }
-        await sleep(SYNC_DELAY_MS);
+      } finally {
+        this.syncingPromise = undefined;
       }
-    } finally {
-      this.syncing = false;
-    }
-    return { synced, failed };
+      return { synced, failed };
+    })();
+    return this.syncingPromise;
   }
 
   // Para a página web: só URLs públicas (artes e capturas locais não existem fora deste PC)

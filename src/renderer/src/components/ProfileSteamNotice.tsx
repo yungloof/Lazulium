@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, ExternalLink, Loader2, LogIn, RefreshCw, X } from 'lucide-react';
 import { SteamLocalAccount } from '@shared/types/accounts';
+import { useLibraryStore } from '../stores/useLibraryStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 
 interface ProfileSteamNoticeProps {
@@ -30,7 +31,10 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
   const [accounts, setAccounts] = useState<SteamLocalAccount[]>([]);
   const [dismissed, setDismissed] = useState(wasDismissed);
   const [busy, setBusy] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const isSyncingAchievements = useLibraryStore((s) => s.isSyncingAchievements);
+  const setIsSyncingAchievements = useLibraryStore((s) => s.setIsSyncingAchievements);
+  const achievementsSyncError = useLibraryStore((s) => s.achievementsSyncError);
+  const setAchievementsSyncError = useLibraryStore((s) => s.setAchievementsSyncError);
   const [synced, setSynced] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,15 +56,15 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
 
   // Conectar apaga as conquistas de antes: quem acabou de entrar não deveria ter que saber do botão Atualizar
   const syncAchievements = async () => {
-    setSyncing(true);
-    setError(null);
+    setIsSyncingAchievements(true);
+    setAchievementsSyncError(null);
     try {
       await window.electronAPI?.syncAllAchievements();
       await onChanged();
     } catch (err) {
-      setError(`Não foi possível buscar as conquistas: ${ipcErrorMessage(err)}. Tente de novo.`);
+      setAchievementsSyncError(`Não foi possível buscar as conquistas: ${ipcErrorMessage(err)}. Tente de novo.`);
     } finally {
-      setSyncing(false);
+      setIsSyncingAchievements(false);
       setSynced(true);
     }
   };
@@ -121,7 +125,7 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
   }
 
   if (connected === true) {
-    if (syncing) {
+    if (isSyncingAchievements) {
       return (
         <div className={box} role="status">
           <p className="flex items-center gap-2 text-xs text-slate-200">
@@ -130,10 +134,10 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
         </div>
       );
     }
-    if (error && synced) {
+    if (achievementsSyncError) {
       return (
         <div className={box} role="status">
-          <p className="text-xs text-amber-300">{error}</p>
+          <p className="text-xs text-amber-300">{achievementsSyncError}</p>
           <button onClick={syncAchievements} className={`${secondary} mt-2`}>
             <RefreshCw className="w-3.5 h-3.5" /> Tentar de novo
           </button>
