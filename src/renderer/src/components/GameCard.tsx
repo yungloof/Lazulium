@@ -18,13 +18,15 @@ interface GameCardProps {
   isFocused?: boolean;
   onSelect: (game: Game) => void;
   onToggleFavorite: (id: string) => void;
+  onContextMenu?: (game: Game, e: React.MouseEvent) => void;
 }
 
 export const GameCard: React.FC<GameCardProps> = ({
   game,
   isFocused = false,
   onSelect,
-  onToggleFavorite
+  onToggleFavorite,
+  onContextMenu
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   // Nem todo AppID tem capa vertical na CDN: cai no placeholder em vez de imagem quebrada
@@ -52,6 +54,12 @@ export const GameCard: React.FC<GameCardProps> = ({
     <div
       ref={cardRef}
       onClick={() => onSelect(game)}
+      onContextMenu={(e) => {
+        if (onContextMenu) {
+          e.preventDefault();
+          onContextMenu(game, e);
+        }
+      }}
       title={game.title}
       className={`group relative aspect-[2/3] rounded-lg overflow-hidden bg-slate-900/90 border transition-all duration-200 cursor-pointer ${
         isFocused

@@ -13,6 +13,7 @@ import { PlaytimeEditor } from './components/PlaytimeEditor';
 import { LibraryFilter, LibrarySidebar } from './components/LibrarySidebar';
 import { LibraryHome } from './components/LibraryHome';
 import { GamePage } from './components/GamePage';
+import { GameContextMenu } from './components/GameContextMenu';
 import { useLibraryStore } from './stores/useLibraryStore';
 import { useGamepadStore } from './stores/useGamepadStore';
 import { useGamepad } from './hooks/useGamepad';
@@ -72,7 +73,13 @@ export const App: React.FC = () => {
   const [showProfile, setShowProfile] = useState(false);
   const [screenshotsVersion, setScreenshotsVersion] = useState(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [contextMenu, setContextMenu] = useState<{ game: Game; x: number; y: number } | null>(null);
   const scanRef = useRef<() => Promise<void>>(async () => {});
+
+  const handleOpenContextMenu = useCallback((game: Game, e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ game, x: e.clientX, y: e.clientY });
+  }, []);
 
   const openGame = useCallback((game: Game) => {
     setSelectedGame(game);
@@ -235,7 +242,8 @@ export const App: React.FC = () => {
     showProfile ||
     showEmulatorSettings ||
     showAddGameModal ||
-    showPlaytimeEditor;
+    showPlaytimeEditor ||
+    !!contextMenu;
 
   // Controle e teclado: na grade do início navega pelos jogos; na página do jogo, A = jogar e B = voltar
   useGamepad({
@@ -250,7 +258,8 @@ export const App: React.FC = () => {
       if (target) openGame(target);
     },
     onBack: () => {
-      if (showSettings) setShowSettings(false);
+      if (contextMenu) setContextMenu(null);
+      else if (showSettings) setShowSettings(false);
       else if (showArtworkPicker) setShowArtworkPicker(false);
       else if (showAchievementsModal) setShowAchievementsModal(false);
       else if (showSavesModal) setShowSavesModal(false);
@@ -403,6 +412,7 @@ export const App: React.FC = () => {
           onHome={goHome}
           onOpenGame={openGame}
           onLaunchGame={handleLaunchGame}
+          onContextMenu={handleOpenContextMenu}
         />
 
         <main ref={mainRef} className="flex-1 min-w-0 overflow-y-auto relative">
@@ -470,6 +480,7 @@ export const App: React.FC = () => {
               onOpenGame={openGame}
               onToggleFavorite={handleToggleFavorite}
               onColumnsChange={setGridColumns}
+              onContextMenu={handleOpenContextMenu}
             />
           )}
         </main>
@@ -542,6 +553,31 @@ export const App: React.FC = () => {
             openGame(newGame);
           }}
           onScanComplete={(updatedGames) => setGames(updatedGames)}
+        />
+      )}
+
+      {contextMenu && (
+        <GameContextMenu
+          game={contextMenu.game}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onLaunch={handleLaunchGame}
+          onStop={(g) => window.electronAPI?.stopGame(g.id)}
+          onOpenPage={openGame}
+          onToggleFavorite={handleToggleFavorite}
+          onOpenArtwork={(g) => {
+            setSelectedGame(g);
+            setShowArtworkPicker(true);
+          }}
+          onOpenSaves={(g) => {
+            setSelectedGame(g);
+            setShowSavesModal(true);
+          }}
+          onOpenScreenshots={(g) => {
+            setSelectedGame(g);
+            setShowScreenshots(true);
+          }}
         />
       )}
     </div>

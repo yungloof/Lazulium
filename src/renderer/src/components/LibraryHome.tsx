@@ -11,6 +11,7 @@ interface LibraryHomeProps {
   onOpenGame: (game: Game) => void;
   onToggleFavorite: (id: string) => void;
   onColumnsChange: (columns: number) => void;
+  onContextMenu?: (game: Game, e: React.MouseEvent) => void;
 }
 
 // Largura mínima de cada capa por densidade: a grade preenche a linha com quantas couberem
@@ -41,7 +42,8 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
   onFocusIndex,
   onOpenGame,
   onToggleFavorite,
-  onColumnsChange
+  onColumnsChange,
+  onContextMenu
 }) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [density, setDensity] = useState<GridDensity>(loadDensity);
@@ -88,6 +90,12 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
               <button
                 key={game.id}
                 onClick={() => onOpenGame(game)}
+                onContextMenu={(e) => {
+                  if (onContextMenu) {
+                    e.preventDefault();
+                    onContextMenu(game, e);
+                  }
+                }}
                 className={`group relative flex-shrink-0 w-[300px] aspect-[96/31] rounded-lg overflow-hidden bg-slate-900 border border-slate-800 hover:border-indigo-400 transition-colors text-left ${focusRing}`}
                 title={game.title}
               >
@@ -152,6 +160,7 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
                   onOpenGame(g);
                 }}
                 onToggleFavorite={onToggleFavorite}
+                onContextMenu={onContextMenu}
               />
             ))}
           </div>

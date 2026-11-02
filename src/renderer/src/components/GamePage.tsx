@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Camera, Clock, FolderOpen, Image as ImageIcon, Info, Pencil, Save, Star, Trophy, BarChart2, CalendarClock } from 'lucide-react';
 import { Game } from '@shared/types/game';
 import { GameAchievements } from '@shared/types/achievements';
 import { Screenshot } from '@shared/types/screenshots';
 import { PlayButton } from './PlayButton';
 import { GameStats } from './GameStats';
+import { useLibraryStore } from '../stores/useLibraryStore';
 
 interface GamePageProps {
   game: Game;
@@ -110,6 +111,22 @@ export const GamePage: React.FC<GamePageProps> = ({
   // Conquistas vêm da Steam e do RetroAchievements; outras plataformas não têm de onde buscar
   const supportsAchievements = game.platform === 'steam' || game.platform === 'emulator';
 
+  const launchStatus = useLibraryStore((s) => s.launchStatuses[game.id]);
+  const isRunning = launchStatus?.state === 'running';
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!isRunning) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [isRunning]);
+
+  const runningMinutes = useMemo(() => {
+    if (!isRunning) return 0;
+    const start = launchStatus?.startTime ? new Date(launchStatus.startTime).getTime() : now;
+    return Math.max(1, Math.floor((now - start) / 60000));
+  }, [isRunning, launchStatus?.startTime, now]);
+
   return (
     <div className="min-h-full">
       {/* Banner (hero) com logo */}
@@ -148,7 +165,15 @@ export const GamePage: React.FC<GamePageProps> = ({
 
       {/* Barra de ação (estilo Steam) */}
       <div className="sticky top-0 z-20 flex flex-wrap items-center gap-x-8 gap-y-3 px-8 py-3 bg-[#0e111a]/95 backdrop-blur-md border-y border-slate-800/80">
-        <PlayButton game={game} onLaunch={onLaunch} />
+        <div className="flex items-center gap-3">
+          <PlayButton game={game} onLaunch={onLaunch} />
+          {isRunning && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Jogando há {runningMinutes} min</span>
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center gap-2.5">
           <CalendarClock className="w-5 h-5 text-slate-500" />

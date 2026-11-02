@@ -18,10 +18,15 @@ interface LibrarySidebarProps {
   onHome: () => void;
   onOpenGame: (game: Game) => void;
   onLaunchGame: (game: Game) => void;
+  onContextMenu?: (game: Game, e: React.MouseEvent) => void;
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400';
 const COLLAPSED_STORAGE_KEY = 'lazulium.sidebarCollapsed';
+const SIDEBAR_WIDTH_KEY = 'lazulium.sidebarWidth';
+const DEFAULT_WIDTH = 288;
+const MIN_WIDTH = 220;
+const MAX_WIDTH = 420;
 
 const GROUP_LABEL: Record<GamePlatform, string> = {
   steam: 'Steam',
@@ -40,6 +45,16 @@ function loadCollapsed(): Record<string, boolean> {
   } catch {
     return {};
   }
+}
+
+function loadWidth(): number {
+  try {
+    const saved = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+    if (!isNaN(saved) && saved >= MIN_WIDTH && saved <= MAX_WIDTH) return saved;
+  } catch {
+    // ignore
+  }
+  return DEFAULT_WIDTH;
 }
 
 const GameIcon: React.FC<{ game: Game }> = ({ game }) => {
@@ -68,19 +83,34 @@ const GameRow: React.FC<{
   selected: boolean;
   onOpen: () => void;
   onLaunch: () => void;
-}> = ({ game, selected, onOpen, onLaunch }) => {
+  onContextMenu?: (e: React.MouseEvent) => void;
+}> = ({ game, selected, onOpen, onLaunch, onContextMenu }) => {
   const state = useLibraryStore((s) => s.launchStatuses[game.id]?.state);
+  const hasPlaytime = (game.totalPlaytimeSeconds ?? 0) >= 60;
+
   return (
     <button
       onClick={onOpen}
       onDoubleClick={onLaunch}
-      title={`${game.title} — clique duplo para jogar`}
+      onContextMenu={(e) => {
+        if (onContextMenu) {
+          e.preventDefault();
+          onContextMenu(e);
+        }
+      }}
+      title={`${game.title} — clique duplo para jogar, botão direito para opções`}
       className={`w-full flex items-center gap-2.5 pl-5 pr-3 py-1 text-left text-[13px] transition-colors ${focusRing} ${
-        selected ? 'bg-indigo-500/25 text-white' : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+        selected
+          ? 'bg-indigo-500/25 text-white'
+          : state === 'running'
+            ? 'text-emerald-300 hover:bg-slate-800/70'
+            : hasPlaytime
+              ? 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+              : 'text-slate-500 hover:bg-slate-800/70 hover:text-slate-300'
       }`}
     >
       <GameIcon game={game} />
-      <span className={`truncate flex-1 ${state === 'running' ? 'text-emerald-300' : ''}`}>{game.title}</span>
+      <span className="truncate flex-1">{game.title}</span>
       {state === 'running' && <span className="text-[10px] font-semibold text-emerald-400 flex-shrink-0">Jogando</span>}
       {state === 'launching' && <span className="text-[10px] text-slate-400 flex-shrink-0">Iniciando</span>}
     </button>
@@ -99,9 +129,38 @@ export const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
   isHome,
   onHome,
   onOpenGame,
-  onLaunchGame
+  onLaunchGame,
+  onContextMenu
 }) => {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
+  const [width, setWidth] = useState<number>(loadWidth);
+
+  const handleResizeStart = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = width;
+
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      const delta = moveEvent.clientX - startX;
+      const nextWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + delta));
+      setWidth(nextWidth);
+    };
+
+    const onPointerUp = (upEvent: PointerEvent) => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      const finalDelta = upEvent.clientX - startX;
+      const finalWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + finalDelta));
+      try {
+        localStorage.setItem(SIDEBAR_WIDTH_KEY, String(finalWidth));
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
 
   const toggleGroup = (key: string) =>
     setCollapsed((prev) => {
@@ -130,7 +189,17 @@ export const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
   }, [games, activeFilter]);
 
   return (
-    <aside className="w-72 flex-shrink-0 flex flex-col bg-[#0b0d14] border-r border-slate-800/80 min-h-0">
+    <aside
+      style={{ width: `${width}px` }}
+      className="relative flex-shrink-0 flex flex-col bg-[#0b0d14] border-r border-slate-800/80 min-h-0 select-none"
+    >
+      {/* Alça de redimensionamento da lista lateral (220px a 420px) */}
+      <div
+        onPointerDown={handleResizeStart}
+        className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-indigo-500/50 active:bg-indigo-500 transition-colors z-20"
+        title="Arrastar para redimensionar lista lateral"
+      />
+
       <div className="p-2.5 space-y-2 border-b border-slate-800/80">
         <button
           onClick={onHome}
@@ -189,6 +258,7 @@ export const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
                     selected={!isHome && game.id === selectedGameId}
                     onOpen={() => onOpenGame(game)}
                     onLaunch={() => onLaunchGame(game)}
+                    onContextMenu={(e) => onContextMenu?.(game, e)}
                   />
                 ))}
             </section>
