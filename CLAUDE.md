@@ -16,7 +16,7 @@ Este documento define padrões de engenharia, arquitetura e convenções de cód
      - `services/profile/`: Perfil do jogador (estatísticas e exportação).
      - `services/accounts/`: Login nas contas (Steam local/OpenID, janelas de login do SteamGridDB/RetroAchievements, Google).
      - `services/cloudsync/`: Compacta saves e comunica com Google Drive.
-     - `services/database/`: Consultas preparadas e migrações SQLite.
+     - `database/` (`src/main/database/db.ts`): Banco de dados JSON (`lazulium_db.json`), gravação atômica, histórico de 14 dias de backups e recuperação contra corrupção.
 
 2. **Tipagem Estrita (Zero `any` desnecessário):**
    - Todos os tipos compartilhados entre o `main` e o `renderer` **devem** residir em `src/shared/types/`.
@@ -41,7 +41,7 @@ Lazulium/
 │   │   ├── index.ts             # Inicialização da janela e ciclo de vida
 │   │   ├── ipc/                 # Handlers IPC registrados
 │   │   ├── services/            # Serviços de negócio (Scanners, Tracker, etc.)
-│   │   └── database/            # Conexão SQLite e queries
+│   │   └── database/            # Banco de dados JSON (lazulium_db.json, db.ts) e persistência atômica
 │   ├── preload/                 # Ponte de segurança (ContextBridge)
 │   │   ├── index.ts             # Expõe electronAPI tipada
 │   │   └── index.d.ts           # Extensão do objeto global Window

@@ -71,6 +71,8 @@ Os executáveis não são assinados digitalmente; na primeira execução o Windo
 
 Os dados ficam em `%APPDATA%\Lazulium` (biblioteca, artes em cache e backups de saves) e são mantidos ao desinstalar.
 
+> 🧪 **Vai testar o app?** Confira o nosso [Guia de Teste para Amigos](docs/guia-de-teste.md) com o passo a passo do que testar, instruções para o aviso do SmartScreen e como nos enviar relatos ou logs.
+
 ---
 
 ## 🛠️ Desenvolvimento
@@ -105,4 +107,4 @@ No app, **Perfil → Exportar** gera `lazulium-perfil.json`. Coloque-o em `web/p
 - **Dados locais:** banco JSON (`lazulium_db.json`) com segredos cifrados pelo `safeStorage` do Electron
 - **Empacotamento:** electron-builder (NSIS + portátil)
 
-Detalhes em [`ARCHITECTURE.md`](./ARCHITECTURE.md), diretrizes para desenvolvedores e agentes de IA em [`CLAUDE.md`](./CLAUDE.md) e o histórico de fases em [`ROADMAP.md`](./ROADMAP.md).
+Detalhes em [`ARCHITECTURE.md`](./ARCHITECTURE.md), diretrizes para desenvolvedores e agentes de IA em [`CLAUDE.md`](./CLAUDE.md), o histórico de fases em [`ROADMAP.md`](./ROADMAP.md) e o roteiro para testadores em [`docs/guia-de-teste.md`](./docs/guia-de-teste.md).

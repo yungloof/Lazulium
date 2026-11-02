@@ -17,7 +17,7 @@
 | **Frontend UI** | **React 19 + TypeScript** | Ecossistema maduro, componentes declarativos, tipagem estrita de ponta a ponta. |
 | **Estilização** | **Tailwind CSS + Lucide Icons** | Design moderno no estilo "Steam Deck / Xbox Dashboard", animações fluidas e suporte a temas escuros profundos (OLED dark). |
 | **Gerenciamento de Estado** | **Zustand** | Leve, desacoplado, sem boilerplate desnecessário, ideal para gerenciar estado da biblioteca, foco de controle e download de artes. |
-| **Banco de Dados Local** | **SQLite (`better-sqlite3` ou `sqlite3`)** | Armazenamento local rápido e confiável para catálogo de jogos, histórico de sessões de jogatina, conquistas em cache e metadados. |
+| **Banco de Dados Local** | **JSON Store (`lazulium_db.json`)** | Armazenamento local em arquivo JSON estruturado em `userData/storage/lazulium_db.json`, com gravação atômica, histórico de 14 dias de backups e recuperação automática de corrupção. Credenciais cifradas via `safeStorage`. |
 | **Navegação de Controle** | **HTML5 Gamepad API + Spatial Navigation Engine** | Suporte nativo e sem dependências extras para controles Xbox, PlayStation (DualShock/DualSense), Switch Pro e genéricos DirectInput/XInput. |
 
 ---
@@ -50,7 +50,7 @@ graph TD
             MetadataService[SteamGridDB Client & Image Cache]
             AchievementsService[Unified Achievements: Steam Web + RetroAchievements]
             CloudSyncService[Cloud Sync: Google Drive API + Save Auto-Detect]
-            DatabaseService[SQLite Database: Games, Playtime, Achievements, Config]
+            DatabaseService[JSON Database: Games, Playtime, Achievements, Journal, Config]
         end
         
         IPCDispatcher --> ScannerService
@@ -99,7 +99,7 @@ Responsável por identificar jogos instalados no PC e extrair executáveis, argu
 * **Detecção Confiável:**
   * Quando um jogo ou emulador é iniciado pelo launcher, o PID é registrado.
   * O serviço monitora o encerramento do processo (e subprocessos gerados) via polling inteligente de processos no Windows.
-* **Métricas Registradas no SQLite:**
+* **Métricas Registradas no Banco de Dados (`lazulium_db.json`):**
   * `total_playtime_seconds`: Tempo total acumulado.
   * `session_history`: Histórico de cada sessão (data/hora de início, fim, duração exata).
   * `last_played_at`: Timestamp da última vez que o jogo foi executado.
@@ -167,6 +167,24 @@ Unifica conquistas de plataformas de PC e retroemulação:
 
 ---
 
+### 3.5.3 Diário de Jogos e Proteção do Banco (`src/main/database/db.ts`, `services/profile/journal.service.ts`)
+* **Registro Permanente:**
+  * Desinstalar um jogo **nunca** apaga seus dados. O jogo permanece no banco com `isInstalled: false`, preservando tempo total acumulado, sessões, conquistas, notas e anotações.
+  * Se o jogo for reinstalado posteriormente (mesmo em outro disco ou pasta), o scanner preserva todo o histórico anterior e reassocia os registros.
+* **Histórico da Steam e Nomes:**
+  * Recupera o tempo histórico da Steam a partir de `localconfig.vdf` (mesmo para jogos não instalados no momento).
+  * Resolve os nomes dos jogos prioritariamente pelo cache local da Steam (`appinfo.vdf`) e recorre à loja da Steam (`steam-names.service.ts`) para títulos pendentes.
+* **Horas Manuais e Ajustes:**
+  * Jogos fora da Steam permitem edição direta do tempo total jogado e da última sessão.
+  * Para atalhos não-Steam importados da Steam, o Lazulium armazena um `playtimeAdjustmentSeconds` somado ao tempo reportado pela Steam (`sourcePlaytimeSeconds`). Ao sincronizar a biblioteca, o valor resultante é `max(atual, fonte + ajuste)`, sobrevivendo aos novos scans da Steam.
+* **Integridade e Proteção contra Falhas:**
+  * **Gravação Atômica:** Toda persistência escreve primeiro em um arquivo temporário (`lazulium_db.json.tmp`) e executa uma substituição atômica (`renameSync`). Quedas de energia ou travamentos do sistema no meio da gravação nunca corrompem o banco principal.
+  * **Backups Diários Automáticos:** Antes da primeira alteração de cada dia, uma cópia completa é salva em `userData/storage/backups/lazulium_db-YYYY-MM-DD.json`, mantendo automaticamente os últimos 14 dias de histórico.
+  * **Recuperação Automática de Corrupção (`loadWithRecovery`):** Se o arquivo JSON for danificado ou inválido, ele é renomeado para `lazulium_db.json.corrupt-<timestamp>` e o Lazulium restaura automaticamente a cópia de segurança diária válida mais recente.
+  * **Cifragem de Credenciais:** Tokens sensíveis (chaves de API, segredos OAuth) são cifrados pelo `safeStorage` do Electron no disco (prefixo `enc:`) e decifrados apenas em memória.
+
+---
+
 ### 3.6 Módulo 6: Navegação por Controle (Gamepad Spatial Navigation)
 * **Compatibilidade:** Controles Xbox (XInput), PlayStation 4/5 (DirectInput / DualSense), Nintendo Switch Pro Controller e teclado.
 * **Navegação Espacial (2D Grid):**
@@ -221,61 +239,48 @@ export const IPC_CHANNELS = {
 
 ---
 
-## 5. Esquema do Banco de Dados SQLite (`schema.sql`)
+## 5. Estrutura do Banco de Dados Local (JSON - `lazulium_db.json`)
 
-```sql
-CREATE TABLE IF NOT EXISTS games (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    platform TEXT NOT NULL, -- 'steam', 'epic', 'gog', 'emulator', 'standalone'
-    platform_game_id TEXT,  -- Steam AppID, Epic AppName, etc.
-    executable_path TEXT NOT NULL,
-    launch_arguments TEXT,
-    working_directory TEXT,
-    emulator_id TEXT,       -- Ex: 'dolphin', 'ryujinx' (se platform == 'emulator')
-    rom_path TEXT,
-    
-    -- Metadados visuais
-    cover_url TEXT,
-    hero_url TEXT,
-    logo_url TEXT,
-    icon_url TEXT,
-    is_favorite INTEGER DEFAULT 0,
-    is_hidden INTEGER DEFAULT 0,
-    tags TEXT,              -- JSON array: ["RPG", "Zelda", "Nintendo"]
-    
-    -- Estatísticas
-    total_playtime_seconds INTEGER DEFAULT 0,
-    last_played_at DATETIME,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+O banco de dados do Lazulium é armazenado em um arquivo JSON único em `userData/storage/lazulium_db.json`, gerenciado centralmente por `src/main/database/db.ts`.
 
-CREATE TABLE IF NOT EXISTS playtime_sessions (
-    id TEXT PRIMARY KEY,
-    game_id TEXT NOT NULL,
-    started_at DATETIME NOT NULL,
-    ended_at DATETIME NOT NULL,
-    duration_seconds INTEGER NOT NULL,
-    FOREIGN KEY(game_id) REFERENCES games(id) ON DELETE CASCADE
-);
+A tipagem completa do schema principal segue a interface `DatabaseSchema`:
 
-CREATE TABLE IF NOT EXISTS achievements (
-    id TEXT PRIMARY KEY,
-    game_id TEXT NOT NULL,
-    api_name TEXT NOT NULL,
-    title TEXT NOT NULL,
-    description TEXT,
-    icon_url TEXT,
-    icon_gray_url TEXT,
-    is_unlocked INTEGER DEFAULT 0,
-    unlocked_at DATETIME,
-    source TEXT NOT NULL,   -- 'steam', 'retroachievements'
-    FOREIGN KEY(game_id) REFERENCES games(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-);
+```typescript
+export interface DatabaseSchema {
+  games: Game[];
+  playtimeSessions: PlaytimeSession[];
+  achievements: Achievement[];
+  gameAchievements?: Record<string, GameAchievements>;
+  emulatorConfigs: EmulatorConfig[];
+  standaloneDirectories: string[];
+  activeSessions: ActiveSessionRecord[];
+  saveConfigs?: Record<string, GameSaveConfig>;
+  saveBackups?: BackupRecord[];
+  settings: Record<string, string>;
+}
 ```
+
+### 5.1 Principais Modelos de Dados
+
+- **`Game` (`src/shared/types/game.ts`):**
+  - **Identificação:** `id`, `title`, `platform` (`'steam' | 'epic' | 'gog' | 'emulator' | 'standalone' | 'riot' | 'xbox'`), `platformGameId`.
+  - **Execução:** `executablePath`, `launchArguments`, `workingDirectory`, `emulatorId`, `romPath`, `opensViaLauncher`.
+  - **Instalação e Estado:** `isInstalled` (preserva histórico de jogos desinstalados), `isFavorite`, `isHidden`, `tags`.
+  - **Metadados Visuais:** `coverUrl`, `heroUrl`, `logoUrl`, `iconUrl`, `steamGridDbId`.
+  - **Estatísticas de Tempo:** `totalPlaytimeSeconds`, `sourcePlaytimeSeconds`, `playtimeAdjustmentSeconds` (ajuste sobre fonte externa), `lastPlayedAt`.
+  - **Diário de Jogos:** `userStatus` (`'playing' | 'completed' | 'mastered' | 'paused' | 'abandoned' | 'backlog'`), `userRating` (1 a 10), `userNotes`, `startedAt`, `completedAt`, `isManualEntry`.
+
+- **`PlaytimeSession` (`src/shared/types/game.ts`):**
+  - Histórico de sessões individuais: `id`, `gameId`, `startedAt`, `endedAt`, `durationSeconds`.
+
+- **`ActiveSessionRecord` (`src/main/database/db.ts`):**
+  - Heartbeat periódico para monitoramento em tempo real: `gameId`, `startedAt`, `lastSeenAt`, `idleSeconds`. Permite recuperação automática de sessões não finalizadas após queda do app ou do sistema.
+
+- **`Achievement` & `GameAchievements` (`src/shared/types/achievements.ts`):**
+  - Cache de conquistas por jogo: `id`, `gameId`, `apiName`, `title`, `description`, `iconUrl`, `iconGrayUrl`, `isUnlocked`, `unlockedAt`, `source` (`'steam' | 'retroachievements'`), além de métricas agregadas (`unlockedCount`, `totalCount`, `percentage`).
+
+- **`GameSaveConfig` & `BackupRecord` (`src/shared/types/cloudsync.ts`):**
+  - Configuração de localização de saves detectados/confirmados e histórico de versões compactadas (local e Google Drive) com hashes SHA-256 de integridade.
+
+- **`Settings`:**
+  - Chave-valor para configurações da aplicação. Credenciais e tokens sensíveis são cifrados no disco com prefixo `enc:` usando `safeStorage` do Electron.
