@@ -44,7 +44,20 @@ export default defineConfig({
     },
     plugins: [
       react(),
-      tailwindcss()
+      tailwindcss(),
+      {
+        name: 'vite-plugin-dev-csp',
+        apply: 'serve',
+        transformIndexHtml(html) {
+          return html.replace(
+            /<meta[\s\S]*?http-equiv=["']Content-Security-Policy["'][\s\S]*?>/i,
+            (meta) =>
+              meta
+                .replace("script-src 'self'", "script-src 'self' 'unsafe-inline'")
+                .replace("connect-src 'self' https:", "connect-src 'self' https: ws:")
+          );
+        }
+      }
     ],
     build: {
       rollupOptions: {
