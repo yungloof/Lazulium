@@ -88,7 +88,11 @@ Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints m
 ---
 
 ## 📦 Fase 8: Polimento, Otimizações & Instalador .exe
-- [ ] Empacotamento com `electron-builder` gerando instalador Windows (`.exe` NSIS) e versão portátil.
-- [ ] Configuração de ícone do aplicativo e metadados de versão.
-- [ ] Modo de inicialização minimizado na bandeja do sistema (System Tray) para rodar com consumo mínimo de RAM.
+- [x] Empacotamento com `electron-builder` gerando instalador Windows (`dist/Lazulium-Setup-<versão>.exe`, NSIS por usuário) e versão portátil (`dist/Lazulium-Portable-<versão>.exe`) via `npm run build:win`.
+- [x] Configuração de ícone do aplicativo (`resources/`, gerado por `npm run icons`) e metadados de versão (`productName`, `appId`, autor, copyright).
+- [x] Bandeja do sistema (System Tray) com "Abrir Lazulium", "Escanear Biblioteca" e "Sair"; minimizar para a bandeja ao fechar, instância única e opção "Iniciar com o Windows" direto na bandeja. Janela escondida é destruída após 60 s para liberar a RAM do renderer.
+- [x] Notificações nativas do Windows quando um backup de save termina em segundo plano.
+- [x] Funcionamento offline: aviso de "sem conexão", cache de conquistas preservado, fila de artes pausada e reenvio automático ao Drive dos backups que falharam.
+- [x] Ajuste manual do tempo jogado para jogos que não são da Steam.
+- [x] Polling do controle só roda com um gamepad conectado.
 - [ ] Testes de distribuição para amigos.

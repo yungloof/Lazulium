@@ -285,6 +285,10 @@ class DatabaseService {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
+  getAllSaveBackups(): BackupRecord[] {
+    return [...(this.data.saveBackups ?? [])];
+  }
+
   upsertSaveBackup(record: BackupRecord): void {
     this.data.saveBackups = [...(this.data.saveBackups ?? []).filter((b) => b.id !== record.id), record];
     this.persist();

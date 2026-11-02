@@ -33,8 +33,13 @@ export function useGamepad({
 
   // 1. Monitoramento do Gamepad
   useEffect(() => {
+    let animationFrameId = 0;
+    let polling = false;
+    let startPolling = () => {};
+
     const handleConnected = (e: GamepadEvent) => {
       console.log('[Gamepad] Conectado:', e.gamepad.id);
+      startPolling();
       setGamepad({
         index: e.gamepad.index,
         id: e.gamepad.id,
@@ -64,8 +69,6 @@ export function useGamepad({
         break;
       }
     }
-
-    let animationFrameId: number;
 
     const poll = (time: number) => {
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -193,10 +196,17 @@ export function useGamepad({
         }
       }
 
-      animationFrameId = requestAnimationFrame(poll);
+      // Sem controle conectado o loop para (evita 60 leituras/s à toa); volta no gamepadconnected
+      if (Array.from(gamepads).some(Boolean)) animationFrameId = requestAnimationFrame(poll);
+      else polling = false;
     };
 
-    animationFrameId = requestAnimationFrame(poll);
+    startPolling = () => {
+      if (polling) return;
+      polling = true;
+      animationFrameId = requestAnimationFrame(poll);
+    };
+    if (Array.from(pads).some(Boolean)) startPolling();
 
     return () => {
       window.removeEventListener('gamepadconnected', handleConnected);

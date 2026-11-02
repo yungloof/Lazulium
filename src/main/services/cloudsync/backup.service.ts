@@ -40,6 +40,7 @@ export class NoSaveFilesError extends Error {}
 class BackupService {
   private listener: BackupListener = () => {};
   private locks = new Map<string, Promise<unknown>>();
+  private retrying = false;
 
   setBackupListener(listener: BackupListener): void {
     this.listener = listener;
@@ -130,31 +131,60 @@ class BackupService {
       localPath
     };
 
-    if (googleDriveService.isConnected()) {
-      try {
-        record.driveFileId = await googleDriveService.uploadFile(
-          `${game.title.replace(/[\\/:*?"<>|]/g, '')} - ${fileStamp(createdAt)}.zip`,
-          archive.data,
-          {
-            [DRIVE_PROPS.gameId]: gameId,
-            [DRIVE_PROPS.backupId]: id,
-            sha256: archive.sha256,
-            contentHash: archive.contentHash,
-            fileCount: String(archive.fileCount),
-            reason,
-            createdAt
-          }
-        );
-      } catch (err) {
-        record.driveError = (err as Error).message;
-        console.warn(`[Backup] ${game.title}: envio ao Drive falhou: ${record.driveError}`);
-      }
-    }
+    if (googleDriveService.isConnected()) await this.uploadRecord(record, archive.data);
 
     db.upsertSaveBackup(record);
     console.log(`[Backup] ${game.title}: ${record.fileCount} arquivo(s), ${record.sizeBytes} bytes${record.driveFileId ? ' (+Drive)' : ''}`);
     await this.applyRetention(gameId);
     return record;
+  }
+
+  // Preenche driveFileId ou driveError no próprio registro
+  private async uploadRecord(record: BackupRecord, data: Uint8Array): Promise<void> {
+    try {
+      record.driveFileId = await googleDriveService.uploadFile(
+        `${record.gameTitle.replace(/[\\/:*?"<>|]/g, '')} - ${fileStamp(record.createdAt)}.zip`,
+        data,
+        {
+          [DRIVE_PROPS.gameId]: record.gameId,
+          [DRIVE_PROPS.backupId]: record.id,
+          sha256: record.sha256,
+          contentHash: record.contentHash,
+          fileCount: String(record.fileCount),
+          reason: record.reason,
+          createdAt: record.createdAt
+        }
+      );
+      record.driveError = undefined;
+    } catch (err) {
+      record.driveError = (err as Error).message;
+      console.warn(`[Backup] ${record.gameTitle}: envio ao Drive falhou: ${record.driveError}`);
+    }
+  }
+
+  // Reenvia ao Drive backups locais cujo upload falhou (ex: feitos sem internet)
+  async retryPendingUploads(): Promise<number> {
+    if (this.retrying || !googleDriveService.isConnected()) return 0;
+    this.retrying = true;
+    let sent = 0;
+    try {
+      const pending = db
+        .getAllSaveBackups()
+        .filter((r) => r.driveError && !r.driveFileId && r.localPath && existsSync(r.localPath));
+      for (const record of pending) {
+        await this.withLock(record.gameId, async () => {
+          await this.uploadRecord(record, await readFile(record.localPath!));
+          db.upsertSaveBackup(record);
+          if (record.driveFileId) sent++;
+        });
+        // Continua sem conexão: tenta de novo numa próxima oportunidade
+        if (record.driveError?.startsWith('Sem conexão')) break;
+      }
+    } finally {
+      this.retrying = false;
+    }
+    if (sent > 0) console.log(`[Backup] ${sent} backup(s) pendente(s) enviados ao Drive`);
+    return sent;
   }
 
   private async applyRetention(gameId: string): Promise<void> {

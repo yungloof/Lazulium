@@ -1,16 +1,21 @@
 {
   "name": "lazulium",
   "version": "0.1.0",
-  "description": "Lazulium (Steam 2) - Hub Universal de Jogos para PC, Emuladores e Conquistas",
+  "description": "Lazulium - Hub universal de jogos para PC e emuladores, com horas jogadas, conquistas e backup de saves",
   "main": "./out/main/index.js",
-  "author": "Lazulium Team",
+  "author": {
+    "name": "Lazuli Fool",
+    "email": "yungloof06@gmail.com"
+  },
   "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev --watch",
     "build": "electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:win": "npm run build && electron-builder --win --x64",
-    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "build:portable": "npm run build && electron-builder --win portable --x64",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -33,5 +38,62 @@
     "tailwindcss": "^4.0.7",
     "typescript": "^5.7.3",
     "vite": "^6.1.0"
+  },
+  "productName": "Lazulium",
+  "build": {
+    "appId": "com.lazulium.app",
+    "productName": "Lazulium",
+    "copyright": "Copyright © 2026 Lazuli Fool",
+    "directories": {
+      "buildResources": "resources",
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": ".",
+        "filter": [
+          "icon.ico",
+          "icon.png",
+          "tray.ico"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "resources/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Lazulium",
+      "uninstallDisplayName": "Lazulium",
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Lazulium-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Lazulium-Portable-${version}.${ext}"
+    }
   }
 }

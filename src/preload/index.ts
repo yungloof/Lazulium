@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
-import { ElectronAPI, FetchAssetsOptions, GameLaunchStatus, MediaAssetType } from '@shared/types/ipc';
+import { ElectronAPI, FetchAssetsOptions, GameLaunchStatus, MediaAssetType, TrayAction } from '@shared/types/ipc';
 import { EmulatorConfig, Game, GamePlatform } from '@shared/types/game';
 import { BackupEvent, GameSaveConfig } from '@shared/types/cloudsync';
 
@@ -28,6 +28,8 @@ const electronAPI: ElectronAPI = {
   launchGame: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_LAUNCH, gameId),
   stopGame: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_STOP, gameId),
   getPlaytimeSessions: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_GET_PLAYTIME_SESSIONS, gameId),
+  setPlaytime: (gameId: string, totalSeconds: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GAME_SET_PLAYTIME, gameId, totalSeconds),
   onGameStatusChanged: (callback: (status: GameLaunchStatus) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, status: GameLaunchStatus) => callback(status);
     ipcRenderer.on(IPC_CHANNELS.GAME_STATUS_CHANGED, subscription);
@@ -85,7 +87,14 @@ const electronAPI: ElectronAPI = {
   closeWindow: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_CLOSE),
   isMaximized: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_IS_MAXIMIZED),
   selectFile: (filters) => ipcRenderer.invoke(IPC_CHANNELS.APP_SELECT_FILE, filters),
-  selectDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.APP_SELECT_DIRECTORY)
+  selectDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.APP_SELECT_DIRECTORY),
+  rendererReady: () => ipcRenderer.invoke(IPC_CHANNELS.APP_RENDERER_READY),
+  onTrayAction: (callback: (action: TrayAction) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, action: TrayAction) => callback(action);
+    ipcRenderer.on(IPC_CHANNELS.APP_TRAY_ACTION, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.APP_TRAY_ACTION, subscription);
+  },
+  notifyNetworkOnline: () => ipcRenderer.invoke(IPC_CHANNELS.APP_NETWORK_ONLINE)
 };
 
 if (process.contextIsolated) {

@@ -13,6 +13,7 @@ import {
   Gamepad2
 } from 'lucide-react';
 import { GoogleDriveSettings } from './GoogleDriveSettings';
+import { AppBehaviorSettings } from './AppBehaviorSettings';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -204,6 +205,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
         {/* Body com Scroll */}
         <div className="p-6 overflow-y-auto space-y-6">
+          <AppBehaviorSettings />
+
           {/* Seção 1: SteamGridDB */}
           <section className="space-y-3 pb-5 border-b border-slate-800/80">
             <div className="flex items-center justify-between">

@@ -135,8 +135,9 @@ class ArtworkService {
           await this.fillMissing(gameId);
         } catch (err) {
           console.warn(`[Artwork] ${gameId}: ${(err as Error).message}`);
-          // Chave inválida ou limite atingido: não adianta continuar a fila
-          if (err instanceof SteamGridDbError && [401, 403, 429].includes(err.status ?? 0)) {
+          // Chave inválida, limite atingido ou sem conexão (status ausente): não adianta continuar a fila.
+          // A fila volta a rodar no próximo scan ou quando o renderer avisa que a conexão voltou.
+          if (err instanceof SteamGridDbError && (err.status === undefined || [401, 403, 429].includes(err.status))) {
             this.queue.clear();
           }
         }

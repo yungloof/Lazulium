@@ -46,6 +46,14 @@ export class AchievementsService {
       );
     }
 
+    // Falha na API (ex: sem conexão) não apaga a última sincronização boa
+    if (result.items.length === 0 && result.warning && cached?.items.length) {
+      return {
+        ...cached,
+        warning: `Não foi possível atualizar agora (${result.warning}). Exibindo a última sincronização.`
+      };
+    }
+
     // Persiste no banco de dados para caching local
     db.saveGameAchievements(result);
 

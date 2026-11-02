@@ -12,6 +12,7 @@ import { FetchAssetsOptions, MediaAssetType } from '@shared/types/ipc';
 import { GameSaveConfig } from '@shared/types/cloudsync';
 import { backupService } from '../services/cloudsync/backup.service';
 import { DRIVE_SETTING_KEYS, googleDriveService } from '../services/cloudsync/google-drive.service';
+import { applyLoginItem, markRendererReady, notify } from '../app-shell';
 
 // Gerenciadas só pelo main: o renderer nunca lê nem grava o token do Google
 const PRIVATE_SETTING_KEYS: string[] = [
@@ -29,6 +30,12 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   });
   backupService.setBackupListener((event) => {
     getMainWindow()?.webContents.send(IPC_CHANNELS.CLOUDSYNC_BACKUP_EVENT, event);
+    const title = db.getGameById(event.gameId)?.title ?? 'Jogo';
+    if (event.state === 'done' && event.record) {
+      notify(`Saves de ${title} salvos`, event.record.driveFileId ? 'Backup feito neste PC e no Google Drive.' : 'Backup feito neste PC.');
+    } else if (event.state === 'error') {
+      notify(`Backup de ${title} falhou`, event.message ?? 'Erro desconhecido.');
+    }
   });
   artworkService.setGameUpdatedListener((game) => {
     getMainWindow()?.webContents.send(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
@@ -126,6 +133,17 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     return playtimeService.stop(gameId);
   });
 
+  ipcMain.handle(IPC_CHANNELS.GAME_SET_PLAYTIME, async (_event, gameId: string, totalSeconds: number) => {
+    const game = db.getGameById(gameId);
+    if (!game) throw new Error('Jogo não encontrado.');
+    // Steam reimporta as horas do localconfig.vdf a cada scan; o ajuste manual seria sobrescrito
+    if (game.platform === 'steam') throw new Error('O tempo de jogos da Steam é importado automaticamente.');
+    if (!Number.isFinite(totalSeconds) || totalSeconds < 0 || totalSeconds > 100_000 * 3600) {
+      throw new Error('Tempo inválido.');
+    }
+    return db.upsertGame({ ...game, totalPlaytimeSeconds: Math.round(totalSeconds) });
+  });
+
   ipcMain.handle(IPC_CHANNELS.GAME_GET_PLAYTIME_SESSIONS, async (_event, gameId: string) => {
     return db.getPlaytimeSessions(gameId);
   });
@@ -221,6 +239,7 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     if (PRIVATE_SETTING_KEYS.includes(key)) throw new Error(`Configuração somente leitura: ${key}`);
     db.setSetting(key, value);
     if (key === 'steamGridDbApiKey' && value.trim()) artworkService.enqueueMissing();
+    if (key === 'startWithWindows') applyLoginItem(value === 'true');
   });
 
   // Window Controls
@@ -264,5 +283,15 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
       properties: ['openDirectory']
     });
     return res.canceled ? null : res.filePaths[0];
+  });
+
+  // Ciclo de vida do renderer / bandeja / rede
+  ipcMain.handle(IPC_CHANNELS.APP_RENDERER_READY, async () => {
+    markRendererReady();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.APP_NETWORK_ONLINE, async () => {
+    artworkService.enqueueMissing();
+    await backupService.retryPendingUploads();
   });
 }

@@ -30,8 +30,11 @@ import {
   Flame,
   Settings,
   ImageIcon,
-  Save
+  Save,
+  Pencil,
+  WifiOff
 } from 'lucide-react';
+import { PlaytimeEditor } from './components/PlaytimeEditor';
 
 const FILTERS: { id: 'all' | GamePlatform | 'favorites'; label: string }[] = [
   { id: 'all', label: 'Todos os Jogos' },
@@ -73,6 +76,33 @@ export const App: React.FC = () => {
   const [heroAchievements, setHeroAchievements] = useState<GameAchievements | null>(null);
   const [brokenLogoUrl, setBrokenLogoUrl] = useState<string | null>(null);
   const [launchNotice, setLaunchNotice] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
+  const [showPlaytimeEditor, setShowPlaytimeEditor] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const scanRef = useRef<() => Promise<void>>(async () => {});
+
+  // Sem internet: tudo local segue funcionando; serviços online voltam sozinhos
+  useEffect(() => {
+    const goOnline = () => {
+      setIsOnline(true);
+      window.electronAPI?.notifyNetworkOnline();
+    };
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
+  // Menu da bandeja do sistema (a janela pode ter sido recriada só para executar a ação)
+  useEffect(() => {
+    const unsubscribe = window.electronAPI?.onTrayAction((action) => {
+      if (action === 'scan') void scanRef.current();
+    });
+    window.electronAPI?.rendererReady();
+    return () => unsubscribe?.();
+  }, []);
 
   // Mantém o jogo do hero sincronizado com o store (playtime, favorito, execução)
   useEffect(() => {
@@ -266,6 +296,8 @@ export const App: React.FC = () => {
     }
   };
 
+  scanRef.current = handleScanLibraries;
+
   const formatHours = (seconds: number) => {
     if (!seconds) return '0 hrs';
     return `${(seconds / 3600).toFixed(1)} hrs`;
@@ -436,10 +468,22 @@ export const App: React.FC = () => {
                       <h2 className="text-xl font-extrabold text-white tracking-tight">{selectedGame.title}</h2>
                     )}
                     <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                        {formatHours(selectedGame.totalPlaytimeSeconds)} jogadas
-                      </span>
+                      {selectedGame.platform === 'steam' ? (
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-indigo-400" />
+                          {formatHours(selectedGame.totalPlaytimeSeconds)} jogadas
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setShowPlaytimeEditor(true)}
+                          className="group flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-100 transition-colors rounded px-1.5 py-0.5 -ml-1.5 hover:bg-slate-800/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                          title="Ajustar tempo jogado"
+                        >
+                          <Clock className="w-3.5 h-3.5 text-indigo-400" />
+                          {formatHours(selectedGame.totalPlaytimeSeconds)} jogadas
+                          <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
+                        </button>
+                      )}
                       <button
                         onClick={() => setShowAchievementsModal(true)}
                         className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-amber-300 transition-colors rounded px-1.5 py-0.5 -ml-1.5 hover:bg-slate-800/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
@@ -488,6 +532,16 @@ export const App: React.FC = () => {
 
               {/* Estatísticas Detalhadas & Gráfico dos Últimos 7 Dias */}
               <GameStats game={selectedGame} />
+            </div>
+          </div>
+        )}
+
+        {!isOnline && (
+          <div className="px-6 z-10">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl border text-xs bg-slate-800/60 border-slate-700 text-slate-300">
+              <WifiOff className="w-3.5 h-3.5 text-amber-400" />
+              Sem conexão. Jogar, rastrear horas e fazer backups locais continua funcionando; artes, conquistas e Google Drive
+              voltam sozinhos quando a internet retornar.
             </div>
           </div>
         )}
@@ -581,6 +635,10 @@ export const App: React.FC = () => {
             setShowSettings(true);
           }}
         />
+      )}
+
+      {showPlaytimeEditor && selectedGame && (
+        <PlaytimeEditor game={selectedGame} onClose={() => setShowPlaytimeEditor(false)} />
       )}
 
       {showSavesModal && selectedGame && (

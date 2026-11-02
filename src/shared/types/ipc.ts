@@ -64,6 +64,9 @@ export interface ApiKeyTestResult {
 // 'stopped':   jogo encerrado (ou nunca detectado, ver `error`)
 export type GameLaunchState = 'launching' | 'running' | 'stopped';
 
+// Ações do menu da bandeja do sistema executadas pelo renderer
+export type TrayAction = 'scan';
+
 export interface GameLaunchStatus {
   gameId: string;
   state: GameLaunchState;
@@ -98,6 +101,7 @@ export interface ElectronAPI {
   launchGame: (gameId: string) => Promise<boolean>;
   stopGame: (gameId: string) => Promise<boolean>;
   getPlaytimeSessions: (gameId: string) => Promise<PlaytimeSession[]>;
+  setPlaytime: (gameId: string, totalSeconds: number) => Promise<Game>;   // Ajuste manual (não-Steam)
   onGameStatusChanged: (callback: (status: GameLaunchStatus) => void) => () => void;
 
   // Metadados & SteamGridDB
@@ -137,6 +141,9 @@ export interface ElectronAPI {
   isMaximized: () => Promise<boolean>;
   selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<string | null>;
   selectDirectory: () => Promise<string | null>;
+  rendererReady: () => Promise<void>;                          // Ouvintes registrados: libera ações pendentes da bandeja
+  onTrayAction: (callback: (action: TrayAction) => void) => () => void;
+  notifyNetworkOnline: () => Promise<void>;                    // Conexão voltou: refaz envios/buscas pendentes
 }
 
 declare global {

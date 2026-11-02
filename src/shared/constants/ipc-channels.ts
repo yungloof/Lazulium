@@ -22,6 +22,7 @@ export const IPC_CHANNELS = {
   GAME_STOP: 'game:stop',
   GAME_STATUS_CHANGED: 'game:status-changed',
   GAME_GET_PLAYTIME_SESSIONS: 'game:get-playtime-sessions',
+  GAME_SET_PLAYTIME: 'game:set-playtime',
 
   // SteamGridDB & Media Metadata
   METADATA_FETCH_ASSETS: 'metadata:fetch-assets',
@@ -59,7 +60,10 @@ export const IPC_CHANNELS = {
   WINDOW_CLOSE: 'window:close',
   WINDOW_IS_MAXIMIZED: 'window:is-maximized',
   APP_SELECT_FILE: 'app:select-file',
-  APP_SELECT_DIRECTORY: 'app:select-directory'
+  APP_SELECT_DIRECTORY: 'app:select-directory',
+  APP_RENDERER_READY: 'app:renderer-ready',
+  APP_TRAY_ACTION: 'app:tray-action',
+  APP_NETWORK_ONLINE: 'app:network-online'
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];
