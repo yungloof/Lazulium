@@ -8,16 +8,36 @@ export interface ProcessInfo {
 }
 
 const END_MARKER = '<<LAZULIUM_END>>';
+const GAMEPAD_PREFIX = 'PAD\t';
 const QUERY_TIMEOUT_MS = 10_000;
 
 // Loop em PowerShell que responde a cada linha recebida no stdin com a lista
 // de processos (pid, ppid, caminho). Manter o processo vivo evita os ~300ms de
 // inicialização do PowerShell a cada consulta (consulta quente ≈ 80ms).
+// A linha PAD traz o contador de pacotes do XInput de cada controle: ele muda a cada
+// botão/analógico, inclusive com o jogo em primeiro plano (o Windows não conta controle
+// como atividade do usuário). Falhar aqui só desliga a detecção de controle.
 const WORKER_SCRIPT = `
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 $ProgressPreference = 'SilentlyContinue'
+try {
+  Add-Type -TypeDefinition @"
+using System.Runtime.InteropServices;
+public static class LazuliumGamepad {
+  [StructLayout(LayoutKind.Sequential)]
+  public struct State { public uint Packet; public ushort Buttons; public byte LT; public byte RT; public short LX; public short LY; public short RX; public short RY; }
+  [DllImport("xinput1_4.dll")] private static extern uint XInputGetState(uint index, out State state);
+  public static string Read() {
+    var result = new string[4];
+    for (uint i = 0; i < 4; i++) { State s; result[i] = XInputGetState(i, out s) == 0 ? s.Packet.ToString() : "-"; }
+    return string.Join(",", result);
+  }
+}
+"@
+} catch {}
 $epoch = [DateTime]::new(1970, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)
 while ($null -ne [Console]::In.ReadLine()) {
+  try { [Console]::Out.WriteLine("${GAMEPAD_PREFIX.trim()}\`t" + [LazuliumGamepad]::Read()) } catch {}
   foreach ($p in Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,ExecutablePath,CreationDate) {
     $created = if ($p.CreationDate) { [long]($p.CreationDate.ToUniversalTime() - $epoch).TotalMilliseconds } else { '' }
     [Console]::Out.WriteLine("$($p.ProcessId)\`t$($p.ParentProcessId)\`t$created\`t$($p.ExecutablePath)")
@@ -37,6 +57,20 @@ class ProcessSnapshotWorker {
   private child: ChildProcessWithoutNullStreams | null = null;
   private buffer = '';
   private pending: PendingQuery[] = [];
+  private gamepadState?: string;
+  private lastGamepadInputAt = 0;
+
+  // epoch ms do último uso de controle XInput visto (0 = nenhum desde que o worker iniciou)
+  getLastGamepadInputAt(): number {
+    return this.lastGamepadInputAt;
+  }
+
+  private onGamepadState(state: string): void {
+    if (this.gamepadState !== undefined && gamepadInputChanged(this.gamepadState, state)) {
+      this.lastGamepadInputAt = Date.now();
+    }
+    this.gamepadState = state;
+  }
 
   private ensureStarted(): ChildProcessWithoutNullStreams {
     if (this.child) return this.child;
@@ -77,6 +111,8 @@ class ProcessSnapshotWorker {
       const query = this.pending.shift();
       if (!query) continue;
       clearTimeout(query.timer);
+      const padLine = block.split(/\r?\n/).find((line) => line.startsWith(GAMEPAD_PREFIX));
+      if (padLine) this.onGamepadState(padLine.slice(GAMEPAD_PREFIX.length).trim());
       query.resolve(parseBlock(block));
     }
   }
@@ -106,12 +142,19 @@ class ProcessSnapshotWorker {
   stop(): void {
     const child = this.child;
     this.child = null;
+    this.gamepadState = undefined;
     if (child) {
       child.stdin.end();
       child.kill();
     }
     this.failAll(new Error('Worker de processos finalizado'));
   }
+}
+
+// Um controle conectado cujo contador mudou (ligar/desligar sozinho não conta como jogar)
+export function gamepadInputChanged(previous: string, current: string): boolean {
+  const before = previous.split(',');
+  return current.split(',').some((packet, i) => packet !== '-' && before[i] !== '-' && before[i] !== undefined && packet !== before[i]);
 }
 
 function parseBlock(block: string): ProcessInfo[] {

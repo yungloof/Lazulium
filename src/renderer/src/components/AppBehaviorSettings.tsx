@@ -92,7 +92,7 @@ export const AppBehaviorSettings: React.FC = () => {
           <span className="flex-1">
             <span className="block text-xs text-slate-200">Descontar tempo ausente</span>
             <span className="block text-[11px] text-slate-500">
-              Pausa o contador de horas e desconta da sessão se você se afastar do PC com o jogo aberto.
+              Desconta da sessão o tempo sem teclado, mouse ou controle Xbox. Outros controles podem não ser detectados: se jogar com eles em jogos fora da Steam, desligue esta opção.
             </span>
           </span>
         </label>

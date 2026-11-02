@@ -117,6 +117,9 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 
 ## 🔭 Depois da 0.1.0
 - [x] Preparação para distribuição: primeira execução testada num perfil limpo; tela de boas-vindas (jogos encontrados + contas), log de diagnóstico em `%APPDATA%\Lazulium\logs\lazulium.log` com botão "Abrir pasta de logs" nas Configurações, scans em fila (sem trabalho dobrado na primeira execução).
+- [x] Revisão pré-release: desconto de ausência considera controle XInput (antes descontava sessões jogadas de controle), `fflate` sem alertas no `npm audit`, executáveis (desempacotado e portátil) testados em modo silencioso num perfil limpo.
+- [ ] Teste manual do instalador NSIS: instalar, atalhos e desinstalar mantendo `%APPDATA%\Lazulium`.
+- [ ] Teste manual de jogo: abrir um atalho não-Steam e o Minecraft pelo Lazulium e conferir a sessão registrada.
 - [ ] Testes de distribuição para amigos (instalador e versão portátil em outros PCs).
 - [ ] Client OAuth do Google no `.env` do build oficial, para o "Entrar com Google" funcionar para todos.
 - [x] Tratamento de idle (jogador AFK com o jogo aberto).

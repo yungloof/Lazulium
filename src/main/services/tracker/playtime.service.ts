@@ -7,6 +7,7 @@ import { GameLaunchState, GameLaunchStatus } from '@shared/types/ipc';
 import { db } from '../../database/db';
 import { launchGame } from './launcher.service';
 import { ProcessMonitor } from './process-monitor.service';
+import { processSnapshot } from './process-snapshot';
 
 const MIN_SESSION_SECONDS = 15;
 const HEARTBEAT_PERSIST_MS = 60_000;
@@ -31,6 +32,12 @@ function getIdleThresholdSeconds(): number {
   const mins = Number(settings.idleThresholdMinutes ?? '15');
   if (isNaN(mins) || mins <= 0) return 0;
   return mins * 60;
+}
+
+// Segundos desde a última atividade: teclado/mouse (Windows) ou controle (XInput).
+export function secondsSinceLastInput(systemIdleSeconds: number, lastGamepadInputAt: number, now: number): number {
+  if (lastGamepadInputAt <= 0) return systemIdleSeconds;
+  return Math.min(systemIdleSeconds, Math.max(0, (now - lastGamepadInputAt) / 1000));
 }
 
 // Pastas cujos executáveis representam o jogo. Emuladores ficam de fora: a pasta
@@ -68,11 +75,11 @@ class PlaytimeService {
       const dt = Math.min(Math.max(0, (now - (entry.lastPollAt || now)) / 1000), 10);
       entry.lastPollAt = now;
 
-      // Se passou do limite de inatividade (sem teclado/mouse), acumula tempo ausente
+      // Se passou do limite sem teclado, mouse ou controle, acumula tempo ausente
       if (thresholdSeconds > 0) {
         try {
-          const systemIdle = powerMonitor.getSystemIdleTime();
-          if (systemIdle > thresholdSeconds) {
+          const idle = secondsSinceLastInput(powerMonitor.getSystemIdleTime(), processSnapshot.getLastGamepadInputAt(), now);
+          if (idle > thresholdSeconds) {
             entry.idleSeconds += dt;
           }
         } catch {
