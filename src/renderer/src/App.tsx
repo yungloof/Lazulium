@@ -62,6 +62,7 @@ export const App: React.FC = () => {
   const [showAddGameModal, setShowAddGameModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showArtworkPicker, setShowArtworkPicker] = useState(false);
+  const [brokenLogoUrl, setBrokenLogoUrl] = useState<string | null>(null);
   const [launchNotice, setLaunchNotice] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
 
   // Mantém o jogo do hero sincronizado com o store (playtime, favorito, execução)
@@ -362,7 +363,21 @@ export const App: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    <h2 className="text-xl font-extrabold text-white tracking-tight">{selectedGame.title}</h2>
+                    {selectedGame.media?.logoUrl && selectedGame.media.logoUrl !== brokenLogoUrl ? (
+                      <h2 className="h-14 flex items-center" title={selectedGame.title}>
+                        <img
+                          src={selectedGame.media.logoUrl}
+                          alt={selectedGame.title}
+                          className="max-h-full max-w-[320px] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+                          onError={() => {
+                            setBrokenLogoUrl(selectedGame.media?.logoUrl ?? null);
+                            window.electronAPI?.reportBrokenArtwork(selectedGame.id, 'logo');
+                          }}
+                        />
+                      </h2>
+                    ) : (
+                      <h2 className="text-xl font-extrabold text-white tracking-tight">{selectedGame.title}</h2>
+                    )}
                     <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
                       <span className="flex items-center gap-1.5">
                         <Clock className="w-3.5 h-3.5 text-indigo-400" />
