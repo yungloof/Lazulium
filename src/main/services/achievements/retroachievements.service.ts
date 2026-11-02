@@ -212,7 +212,7 @@ export class RetroAchievementsService {
         unlocked: 0,
         items: [],
         syncedAt: now,
-        warning: 'Configure seu usuário e Web API Key do RetroAchievements em Configurações.'
+        warning: 'Entre com sua conta do RetroAchievements em Configurações → Contas para ver as conquistas.'
       };
     }
 

@@ -3,6 +3,7 @@ import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { ElectronAPI, FetchAssetsOptions, GameLaunchStatus, MediaAssetType, TrayAction } from '@shared/types/ipc';
 import { EmulatorConfig, Game, GamePlatform } from '@shared/types/game';
 import { BackupEvent, GameSaveConfig } from '@shared/types/cloudsync';
+import { AccountService } from '@shared/types/accounts';
 
 const electronAPI: ElectronAPI = {
   // Library & Scanners
@@ -76,6 +77,16 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.CLOUDSYNC_BACKUP_EVENT, subscription);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.CLOUDSYNC_BACKUP_EVENT, subscription);
   },
+
+  // Contas
+  getAccountsStatus: () => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_GET_STATUS),
+  listLocalSteamAccounts: () => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_STEAM_LOCAL),
+  useLocalSteamAccount: (steamId: string) => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_STEAM_USE_LOCAL, steamId),
+  loginSteam: () => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_STEAM_LOGIN),
+  loginSteamGridDb: () => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_SGDB_LOGIN),
+  loginRetroAchievements: () => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_RETRO_LOGIN),
+  loginGoogle: () => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_GOOGLE_LOGIN),
+  logoutAccount: (service: AccountService) => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_LOGOUT, service),
 
   // Configurações
   getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET_ALL),

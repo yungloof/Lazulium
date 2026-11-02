@@ -1,5 +1,6 @@
 import { EmulatorConfig, Game, GamePlatform, PlaytimeSession } from './game';
 import { Achievement, GameAchievements } from './achievements';
+import { AccountService, AccountsStatus, SteamLocalAccount } from './accounts';
 import {
   BackupEvent,
   BackupListResult,
@@ -129,6 +130,16 @@ export interface ElectronAPI {
   listSaveBackups: (gameId: string) => Promise<BackupListResult>;
   restoreSaveBackup: (gameId: string, backupId: string) => Promise<RestoreResult>;
   onBackupEvent: (callback: (event: BackupEvent) => void) => () => void;
+
+  // Contas (login sem chave de API)
+  getAccountsStatus: () => Promise<AccountsStatus>;
+  listLocalSteamAccounts: () => Promise<SteamLocalAccount[]>;
+  useLocalSteamAccount: (steamId: string) => Promise<AccountsStatus>;
+  loginSteam: () => Promise<AccountsStatus>;                  // OpenID no navegador do sistema
+  loginSteamGridDb: () => Promise<AccountsStatus>;            // Janela de login; captura a chave sozinho
+  loginRetroAchievements: () => Promise<AccountsStatus>;
+  loginGoogle: () => Promise<AccountsStatus>;
+  logoutAccount: (service: AccountService) => Promise<AccountsStatus>;
 
   // Configurações
   getSettings: () => Promise<Record<string, string>>;

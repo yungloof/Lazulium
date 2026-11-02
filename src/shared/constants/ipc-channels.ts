@@ -50,6 +50,16 @@ export const IPC_CHANNELS = {
   CLOUDSYNC_RESTORE: 'cloudsync:restore',
   CLOUDSYNC_BACKUP_EVENT: 'cloudsync:backup-event',
 
+  // Contas (login sem chave de API)
+  ACCOUNTS_GET_STATUS: 'accounts:get-status',
+  ACCOUNTS_STEAM_LOCAL: 'accounts:steam-local',
+  ACCOUNTS_STEAM_USE_LOCAL: 'accounts:steam-use-local',
+  ACCOUNTS_STEAM_LOGIN: 'accounts:steam-login',
+  ACCOUNTS_SGDB_LOGIN: 'accounts:steamgriddb-login',
+  ACCOUNTS_RETRO_LOGIN: 'accounts:retroachievements-login',
+  ACCOUNTS_GOOGLE_LOGIN: 'accounts:google-login',
+  ACCOUNTS_LOGOUT: 'accounts:logout',
+
   // Settings & Configuration
   SETTINGS_GET_ALL: 'settings:get-all',
   SETTINGS_SET: 'settings:set',

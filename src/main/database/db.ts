@@ -2,7 +2,7 @@ import { app, safeStorage } from 'electron';
 import { join } from 'path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { EmulatorConfig, EmulatorType, Game, PlaytimeSession } from '@shared/types/game';
-import { Achievement, GameAchievements } from '@shared/types/achievements';
+import { Achievement, AchievementSource, GameAchievements } from '@shared/types/achievements';
 import { BackupRecord, GameSaveConfig } from '@shared/types/cloudsync';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
 
@@ -260,6 +260,13 @@ class DatabaseService {
       this.data.gameAchievements = {};
     }
     this.data.gameAchievements[achievements.gameId] = achievements;
+    this.persist();
+  }
+
+  // Ao trocar/sair da conta, o cache de conquistas daquela fonte deixa de valer
+  clearGameAchievements(source: AchievementSource): void {
+    const all = this.data.gameAchievements ?? {};
+    this.data.gameAchievements = Object.fromEntries(Object.entries(all).filter(([, a]) => a.source !== source));
     this.persist();
   }
 

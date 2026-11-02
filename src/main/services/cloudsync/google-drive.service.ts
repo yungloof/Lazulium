@@ -56,6 +56,19 @@ function setting(key: string): string {
   return db.getSettings()[key]?.trim() ?? '';
 }
 
+// Client OAuth do próprio app (definido no build via .env) para o usuário só clicar em "Entrar com Google".
+// Em apps desktop o Client Secret não é confidencial (o Google trata como app público + PKCE).
+// Credenciais informadas nas Configurações avançadas têm prioridade.
+function clientCredentials(): { clientId: string; clientSecret: string } {
+  const clientId = setting(DRIVE_SETTING_KEYS.clientId);
+  const clientSecret = setting(DRIVE_SETTING_KEYS.clientSecret);
+  if (clientId && clientSecret) return { clientId, clientSecret };
+  return {
+    clientId: import.meta.env?.MAIN_VITE_GOOGLE_CLIENT_ID?.trim() ?? '',
+    clientSecret: import.meta.env?.MAIN_VITE_GOOGLE_CLIENT_SECRET?.trim() ?? ''
+  };
+}
+
 // O e-mail vem do id_token (JWT) que o próprio Google acabou de devolver pelo canal TLS
 function emailFromIdToken(idToken?: string): string | undefined {
   try {
@@ -76,7 +89,7 @@ class GoogleDriveService {
 
   getStatus(): DriveStatus {
     return {
-      configured: !!(setting(DRIVE_SETTING_KEYS.clientId) && setting(DRIVE_SETTING_KEYS.clientSecret)),
+      configured: !!(clientCredentials().clientId && clientCredentials().clientSecret),
       connected: !!setting(DRIVE_SETTING_KEYS.refreshToken),
       email: setting(DRIVE_SETTING_KEYS.email) || undefined
     };
@@ -88,9 +101,10 @@ class GoogleDriveService {
 
   // OAuth2 para apps desktop: navegador do sistema + redirecionamento loopback + PKCE
   async connect(): Promise<DriveStatus> {
-    const clientId = setting(DRIVE_SETTING_KEYS.clientId);
-    const clientSecret = setting(DRIVE_SETTING_KEYS.clientSecret);
-    if (!clientId || !clientSecret) throw new DriveError('Informe o Client ID e o Client Secret do OAuth antes de conectar.');
+    const { clientId, clientSecret } = clientCredentials();
+    if (!clientId || !clientSecret) {
+      throw new DriveError('Esta versão do Lazulium não tem login do Google configurado. Use as credenciais OAuth nas opções avançadas.');
+    }
 
     this.cancelPendingAuth?.();
     const verifier = base64url(randomBytes(32));
@@ -213,8 +227,8 @@ class GoogleDriveService {
     if (!refreshToken) throw new DriveError('Google Drive não conectado.', 401);
 
     const tokens = await this.tokenRequest({
-      client_id: setting(DRIVE_SETTING_KEYS.clientId),
-      client_secret: setting(DRIVE_SETTING_KEYS.clientSecret),
+      client_id: clientCredentials().clientId,
+      client_secret: clientCredentials().clientSecret,
       refresh_token: refreshToken,
       grant_type: 'refresh_token'
     });

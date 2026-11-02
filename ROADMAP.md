@@ -95,4 +95,5 @@ Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints m
 - [x] Funcionamento offline: aviso de "sem conexão", cache de conquistas preservado, fila de artes pausada e reenvio automático ao Drive dos backups que falharam.
 - [x] Ajuste manual do tempo jogado para jogos que não são da Steam.
 - [x] Polling do controle só roda com um gamepad conectado.
+- [x] Login por conta em vez de chaves de API: Steam (conta do cliente da Steam deste PC ou OpenID no navegador; conquistas pelo perfil público, sem chave), SteamGridDB e RetroAchievements (janela de login que captura e valida a chave sozinha) e Google (client OAuth embutido no build via `.env`). Chaves manuais ficaram em "Avançado".
 - [ ] Testes de distribuição para amigos.

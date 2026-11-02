@@ -64,6 +64,77 @@ export class SteamAchievementsService {
     }
   }
 
+  private async fetchGlobalPercents(appId: string): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    try {
+      const res = await fetch(
+        `https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/?gameid=${encodeURIComponent(appId)}`,
+        { signal: AbortSignal.timeout(10_000) }
+      );
+      const list: SteamGlobalPercent[] = (await res.json())?.achievementpercentages?.achievements ?? [];
+      for (const item of list) map.set(item.name.toLowerCase(), Math.round(Number(item.percent) * 10) / 10);
+    } catch {
+      // Raridade é opcional
+    }
+    return map;
+  }
+
+  // XML público: https://steamcommunity.com/profiles/<id>/stats/<appid>/achievements/?xml=1
+  // closed="1" = desbloqueada; iconClosed é o ícone colorido e iconOpen o cinza.
+  private async fetchFromCommunity(game: Game, appId: string, steamId: string, now: string): Promise<GameAchievements> {
+    const base = { gameId: game.id, source: 'steam' as const, syncedAt: now };
+    let xml: string;
+    try {
+      const res = await fetch(
+        `https://steamcommunity.com/profiles/${encodeURIComponent(steamId)}/stats/${encodeURIComponent(appId)}/achievements/?xml=1&l=brazilian`,
+        { signal: AbortSignal.timeout(15_000) }
+      );
+      xml = await res.text();
+    } catch (err) {
+      return { ...base, total: 0, unlocked: 0, items: [], warning: `Sem conexão com a Steam (${(err as Error).message}).` };
+    }
+
+    const cdata = (block: string, tag: string) =>
+      block.match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>|([^<]*))</${tag}>`))?.slice(1).find((v) => v !== undefined)?.trim() ?? '';
+
+    const blocks = xml.match(/<achievement closed="[01]">[\s\S]*?<\/achievement>/g) ?? [];
+    if (blocks.length === 0) {
+      const privacy = cdata(xml, 'privacyState');
+      const error = cdata(xml, 'error');
+      return {
+        ...base,
+        total: 0,
+        unlocked: 0,
+        items: [],
+        warning:
+          privacy && privacy !== 'public'
+            ? 'Perfil da Steam privado: deixe "Detalhes do jogo" como público na privacidade da Steam para ver as conquistas.'
+            : error
+              ? `Steam: ${error}`
+              : 'Este jogo não possui conquistas na Steam.'
+      };
+    }
+
+    const globalPercent = await this.fetchGlobalPercents(appId);
+    const items: Achievement[] = blocks.map((block) => {
+      const apiName = cdata(block, 'apiname');
+      const unlocked = block.startsWith('<achievement closed="1"');
+      const timestamp = Number(cdata(block, 'unlockTimestamp') || 0);
+      return {
+        id: apiName,
+        name: cdata(block, 'name') || apiName,
+        description: cdata(block, 'description'),
+        iconUrl: cdata(block, 'iconClosed'),
+        iconLockedUrl: cdata(block, 'iconOpen') || cdata(block, 'iconClosed'),
+        unlocked,
+        unlockedAt: unlocked && timestamp > 0 ? new Date(timestamp * 1000).toISOString() : undefined,
+        globalPercent: globalPercent.get(apiName.toLowerCase())
+      };
+    });
+
+    return { ...base, total: items.length, unlocked: items.filter((i) => i.unlocked).length, items };
+  }
+
   /**
    * Busca as conquistas de um jogo Steam combinando:
    * 1. GetSchemaForGame/v2 (nomes, descrições, ícones)
@@ -89,7 +160,7 @@ export class SteamAchievementsService {
     const key = apiKey.trim();
     const id = steamId.trim();
 
-    if (!key || !id) {
+    if (!id) {
       return {
         gameId: game.id,
         source: 'steam',
@@ -97,9 +168,12 @@ export class SteamAchievementsService {
         unlocked: 0,
         items: [],
         syncedAt: now,
-        warning: 'Configure sua Steam Web API Key e SteamID64 em Configurações para carregar conquistas.'
+        warning: 'Entre com sua conta Steam em Configurações → Contas para ver as conquistas.'
       };
     }
+
+    // Sem Web API Key: usa a página pública de conquistas do perfil (só precisa do SteamID)
+    if (!key) return this.fetchFromCommunity(game, appId, id, now);
 
     try {
       // 1. Busca o Schema do jogo (definições de conquistas)

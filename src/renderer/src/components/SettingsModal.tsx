@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { GoogleDriveSettings } from './GoogleDriveSettings';
 import { AppBehaviorSettings } from './AppBehaviorSettings';
+import { AccountsSettings } from './AccountsSettings';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -205,8 +206,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
         {/* Body com Scroll */}
         <div className="p-6 overflow-y-auto space-y-6">
+          <AccountsSettings />
+
           <AppBehaviorSettings />
 
+          {/* Chaves manuais: só para quem prefere não usar o login (ou para depurar) */}
+          <details className="group">
+            <summary className="cursor-pointer select-none text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400">
+              Avançado: chaves de API manuais
+            </summary>
+            <div className="space-y-6 pt-5">
           {/* Seção 1: SteamGridDB */}
           <section className="space-y-3 pb-5 border-b border-slate-800/80">
             <div className="flex items-center justify-between">
@@ -477,6 +486,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
           {/* Seção 4: Google Drive */}
           <GoogleDriveSettings />
+            </div>
+          </details>
         </div>
       </div>
     </div>

@@ -13,6 +13,8 @@ import { GameSaveConfig } from '@shared/types/cloudsync';
 import { backupService } from '../services/cloudsync/backup.service';
 import { DRIVE_SETTING_KEYS, googleDriveService } from '../services/cloudsync/google-drive.service';
 import { applyLoginItem, markRendererReady, notify } from '../app-shell';
+import { accountsService } from '../services/accounts/accounts.service';
+import { AccountService } from '@shared/types/accounts';
 
 // Gerenciadas só pelo main: o renderer nunca lê nem grava o token do Google
 const PRIVATE_SETTING_KEYS: string[] = [
@@ -226,6 +228,43 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
       throw new Error('Feche o jogo antes de restaurar um save.');
     }
     return backupService.restore(gameId, backupId);
+  });
+
+  // Contas Handlers
+  ipcMain.handle(IPC_CHANNELS.ACCOUNTS_GET_STATUS, async () => {
+    return accountsService.getStatus();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.ACCOUNTS_STEAM_LOCAL, async () => {
+    return accountsService.listLocalSteamAccounts();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.ACCOUNTS_STEAM_USE_LOCAL, async (_event, steamId: string) => {
+    return accountsService.useLocalSteamAccount(steamId);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.ACCOUNTS_STEAM_LOGIN, async () => {
+    const status = await accountsService.loginSteamInBrowser();
+    getMainWindow()?.focus();
+    return status;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.ACCOUNTS_SGDB_LOGIN, async () => {
+    return accountsService.loginSteamGridDb(getMainWindow());
+  });
+
+  ipcMain.handle(IPC_CHANNELS.ACCOUNTS_RETRO_LOGIN, async () => {
+    return accountsService.loginRetroAchievements(getMainWindow());
+  });
+
+  ipcMain.handle(IPC_CHANNELS.ACCOUNTS_GOOGLE_LOGIN, async () => {
+    const status = await accountsService.loginGoogle();
+    getMainWindow()?.focus();
+    return status;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.ACCOUNTS_LOGOUT, async (_event, service: AccountService) => {
+    return accountsService.logout(service);
   });
 
   // Settings Handlers
