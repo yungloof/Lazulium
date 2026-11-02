@@ -11,7 +11,7 @@ interface PlaytimeEditorProps {
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 const inputClass =
-  'w-24 px-3 py-2 text-sm text-center bg-slate-900/80 border border-slate-800 rounded-lg text-slate-100 focus:outline-none focus:border-indigo-500';
+  `w-24 px-3 py-2 text-sm text-center bg-slate-900/80 border border-slate-800 rounded-lg text-slate-100 ${focusRing}`;
 
 // Ajuste manual do tempo total (ex: horas jogadas antes de usar o Lazulium)
 export const PlaytimeEditor: React.FC<PlaytimeEditorProps> = ({ game, onClose }) => {
@@ -53,7 +53,7 @@ export const PlaytimeEditor: React.FC<PlaytimeEditorProps> = ({ game, onClose })
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-6" onClick={onClose}>
       <form
         onSubmit={handleSave}
-        className="w-full max-w-sm rounded-lg bg-[#0e1426] border border-slate-800 shadow-lg"
+        className="w-full max-w-sm rounded-lg bg-steam-bg border border-slate-800 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
@@ -104,7 +104,7 @@ export const PlaytimeEditor: React.FC<PlaytimeEditorProps> = ({ game, onClose })
               type="date"
               value={lastPlayedOn}
               onChange={(e) => setLastPlayedOn(e.target.value)}
-              className="mt-1 w-full px-3 py-2 text-xs bg-slate-900/80 border border-slate-800 rounded-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+              className={`mt-1 w-full px-3 py-2 text-xs bg-slate-900/80 border border-slate-800 rounded-lg text-slate-100 ${focusRing}`}
             />
           </label>
 
