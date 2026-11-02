@@ -54,18 +54,76 @@ async function getLibraryFolders(steamPath: string): Promise<string[]> {
   return result;
 }
 
+interface SteamAppStats {
+  playtimeSeconds?: number;
+  lastPlayedAt?: string;
+}
+
+// Extrai histórico de horas jogadas e última sessão de jogos Steam a partir dos arquivos localconfig.vdf
+async function getSteamLocalPlaytimes(steamPath: string): Promise<Map<string, SteamAppStats>> {
+  const statsMap = new Map<string, SteamAppStats>();
+  const userdataPath = join(steamPath, 'userdata');
+  if (!existsSync(userdataPath)) return statsMap;
+
+  try {
+    const userDirs = await readdir(userdataPath);
+    for (const userDir of userDirs) {
+      const localConfigPath = join(userdataPath, userDir, 'config', 'localconfig.vdf');
+      if (!existsSync(localConfigPath)) continue;
+
+      const content = await readFile(localConfigPath, 'utf-8');
+      const blockRegex = /"(\d+)"\s*\{([^}]+)\}/g;
+      let match: RegExpExecArray | null;
+      while ((match = blockRegex.exec(content)) !== null) {
+        const appId = match[1];
+        const block = match[2];
+        const playtimeMatch = block.match(/"playtime"\s*"(\d+)"/i);
+        const lastPlayedMatch = block.match(/"lastplayed"\s*"(\d+)"/i);
+
+        if (playtimeMatch) {
+          const minutes = parseInt(playtimeMatch[1], 10);
+          if (!isNaN(minutes) && minutes > 0) {
+            const seconds = minutes * 60;
+            let lastPlayedIso: string | undefined;
+            if (lastPlayedMatch) {
+              const timestampSec = parseInt(lastPlayedMatch[1], 10);
+              if (!isNaN(timestampSec) && timestampSec > 0) {
+                lastPlayedIso = new Date(timestampSec * 1000).toISOString();
+              }
+            }
+
+            const existing = statsMap.get(appId);
+            if (!existing || (existing.playtimeSeconds ?? 0) < seconds) {
+              statsMap.set(appId, {
+                playtimeSeconds: seconds,
+                lastPlayedAt: lastPlayedIso ?? existing?.lastPlayedAt
+              });
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Scanner:Steam] Não foi possível ler localconfig.vdf:', err);
+  }
+
+  return statsMap;
+}
+
 function manifestToGame(manifest: VdfObject, libraryPath: string, steamExe: string): DetectedGame | null {
   const appState = vdfGetObject(manifest, 'AppState');
   const appId = vdfGetString(appState, 'appid');
   const name = vdfGetString(appState, 'name');
   const installDir = vdfGetString(appState, 'installdir');
   const stateFlags = Number(vdfGetString(appState, 'StateFlags') ?? '0');
+  const lastPlayedSec = Number(vdfGetString(appState, 'LastPlayed') ?? '0');
 
   if (!appId || !name) return null;
   if (IGNORED_APP_IDS.has(appId) || IGNORED_NAME_PATTERN.test(name)) return null;
   if ((stateFlags & STATE_FULLY_INSTALLED) === 0) return null;
 
   const installPath = installDir ? join(libraryPath, 'steamapps', 'common', installDir) : undefined;
+  const lastPlayedAt = lastPlayedSec > 0 ? new Date(lastPlayedSec * 1000).toISOString() : undefined;
 
   return {
     id: `steam-${appId}`,
@@ -77,6 +135,7 @@ function manifestToGame(manifest: VdfObject, libraryPath: string, steamExe: stri
     launchUri: `steam://rungameid/${appId}`,
     workingDirectory: installPath,
     installPath,
+    lastPlayedAt,
     media: {
       coverUrl: `${STEAM_CDN}/${appId}/library_600x900.jpg`,
       heroUrl: `${STEAM_CDN}/${appId}/library_hero.jpg`,
@@ -97,6 +156,7 @@ export const steamScanner: PlatformScanner = {
 
     const steamExe = join(steamPath, 'steam.exe');
     const libraries = await getLibraryFolders(steamPath);
+    const localStats = await getSteamLocalPlaytimes(steamPath);
     const games = new Map<string, DetectedGame>();
 
     for (const library of libraries) {
@@ -114,14 +174,21 @@ export const steamScanner: PlatformScanner = {
         try {
           const manifest = parseVdf(await readFile(join(steamapps, file), 'utf-8'));
           const game = manifestToGame(manifest, library, steamExe);
-          if (game) games.set(game.id, game);
+          if (game) {
+            const stats = game.platformGameId ? localStats.get(game.platformGameId) : undefined;
+            if (stats) {
+              game.initialPlaytimeSeconds = stats.playtimeSeconds;
+              if (stats.lastPlayedAt) game.lastPlayedAt = stats.lastPlayedAt;
+            }
+            games.set(game.id, game);
+          }
         } catch (err) {
           warnings.push(`Steam: falha ao ler ${file} (${(err as Error).message})`);
         }
       }
     }
 
-    console.log(`[Scanner:Steam] ${games.size} jogos em ${libraries.length} biblioteca(s)`);
+    console.log(`[Scanner:Steam] ${games.size} jogos em ${libraries.length} biblioteca(s) (com importação de horas locais)`);
     return { games: [...games.values()], warnings };
   }
 };

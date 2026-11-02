@@ -27,7 +27,8 @@ function mergeGame(detected: DetectedGame, existing: Game | null): Game {
       isFavorite: false,
       isHidden: false,
       tags: [],
-      totalPlaytimeSeconds: 0,
+      totalPlaytimeSeconds: detected.initialPlaytimeSeconds ?? 0,
+      lastPlayedAt: detected.lastPlayedAt,
       createdAt: now,
       updatedAt: now
     };
@@ -35,6 +36,11 @@ function mergeGame(detected: DetectedGame, existing: Game | null): Game {
   return {
     ...existing,
     ...detected,
+    totalPlaytimeSeconds:
+      existing.totalPlaytimeSeconds && existing.totalPlaytimeSeconds > 0
+        ? Math.max(existing.totalPlaytimeSeconds, detected.initialPlaytimeSeconds ?? 0)
+        : (detected.initialPlaytimeSeconds ?? existing.totalPlaytimeSeconds ?? 0),
+    lastPlayedAt: existing.lastPlayedAt ?? detected.lastPlayedAt,
     media: { ...detected.media, ...existing.media },
     updatedAt: existing.updatedAt
   };

@@ -17,6 +17,8 @@ export type DetectedGame = Pick<
   | 'romPath'
 > & {
   media?: Game['media'];            // Artes padrão sugeridas pela plataforma (ex: CDN da Steam)
+  initialPlaytimeSeconds?: number;   // Horas já acumuladas no launcher de origem (ex: Steam localconfig)
+  lastPlayedAt?: string;             // Data da última sessão jogada registrada no launcher
 };
 
 export interface PlatformScanResult {
