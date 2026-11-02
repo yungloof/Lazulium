@@ -58,8 +58,10 @@ function loadWidth(): number {
 }
 
 const GameIcon: React.FC<{ game: Game }> = ({ game }) => {
-  const [failed, setFailed] = useState(false);
   const src = game.media?.iconUrl || game.media?.coverUrl;
+  // Guarda qual URL falhou: trocar a arte (nova URL) volta a mostrar a imagem
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const failed = !!src && failedSrc === src;
   if (!src || failed) {
     return (
       <span className="w-5 h-5 rounded-sm bg-slate-800 flex items-center justify-center flex-shrink-0">
@@ -72,7 +74,7 @@ const GameIcon: React.FC<{ game: Game }> = ({ game }) => {
       src={src}
       alt=""
       loading="lazy"
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(src)}
       className={`w-5 h-5 rounded-sm flex-shrink-0 ${game.media?.iconUrl ? 'object-contain' : 'object-cover object-top'}`}
     />
   );
@@ -191,7 +193,7 @@ export const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
   return (
     <aside
       style={{ width: `${width}px` }}
-      className="relative flex-shrink-0 flex flex-col bg-[#0b0d14] border-r border-slate-800/80 min-h-0 select-none"
+      className="relative flex-shrink-0 flex flex-col bg-[#171d25] border-r border-slate-800/80 min-h-0 select-none"
     >
       {/* Alça de redimensionamento da lista lateral (220px a 420px) */}
       <div

@@ -19,11 +19,11 @@ export const TitleBar: React.FC = () => {
   const handleClose = () => window.electronAPI?.closeWindow();
 
   return (
-    <header className="titlebar-drag-region h-11 bg-[#0d0f17] border-b border-slate-800/80 flex items-center justify-between px-3 select-none z-50">
+    <header className="titlebar-drag-region h-11 bg-steam-header flex items-center justify-between px-3 select-none z-50">
       {/* Left: Brand / Logo */}
       <div className="flex items-center gap-2.5">
-        <div className="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-          <Gamepad2 className="w-3.5 h-3.5 text-white" />
+        <div className="w-6 h-6 rounded-sm bg-indigo-800 flex items-center justify-center">
+          <Gamepad2 className="w-3.5 h-3.5 text-indigo-400" />
         </div>
         <span className="text-sm font-extrabold tracking-wider text-slate-200">
           LAZULIUM

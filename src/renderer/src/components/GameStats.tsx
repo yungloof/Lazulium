@@ -162,7 +162,7 @@ export const GameStats: React.FC<GameStatsProps> = ({ game, collapsible = true }
           {/* 4 Cards de Indicadores */}
           <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
             {/* 1. Tempo total */}
-            <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
+            <div className="p-2.5 rounded-md bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
                 <Clock className="w-3 h-3 text-indigo-400" />
                 <span>Tempo total</span>
@@ -173,7 +173,7 @@ export const GameStats: React.FC<GameStatsProps> = ({ game, collapsible = true }
             </div>
 
             {/* 2. Última vez jogado */}
-            <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
+            <div className="p-2.5 rounded-md bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
                 <Calendar className="w-3 h-3 text-indigo-400" />
                 <span>Última vez</span>
@@ -184,7 +184,7 @@ export const GameStats: React.FC<GameStatsProps> = ({ game, collapsible = true }
             </div>
 
             {/* 3. Quantidade de Sessões */}
-            <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
+            <div className="p-2.5 rounded-md bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
                 <Gamepad2 className="w-3 h-3 text-indigo-400" />
                 <span>Sessões</span>
@@ -195,7 +195,7 @@ export const GameStats: React.FC<GameStatsProps> = ({ game, collapsible = true }
             </div>
 
             {/* 4. Média por Sessão */}
-            <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
+            <div className="p-2.5 rounded-md bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
                 <Timer className="w-3 h-3 text-indigo-400" />
                 <span>Média / sessão</span>
@@ -207,7 +207,7 @@ export const GameStats: React.FC<GameStatsProps> = ({ game, collapsible = true }
           </div>
 
           {/* Gráfico de Barras - Últimos 7 Dias */}
-          <div className="w-full lg:w-72 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
+          <div className="w-full lg:w-72 p-2.5 rounded-md bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
             <div className="flex items-center justify-between text-[11px] font-medium text-slate-400 mb-1.5">
               <span>Últimos 7 dias</span>
               <span className="text-[10px] text-slate-500">
@@ -243,7 +243,7 @@ export const GameStats: React.FC<GameStatsProps> = ({ game, collapsible = true }
                           style={{ height: `${heightPercent}%` }}
                           className={`w-full rounded-sm transition-all duration-300 ${
                             isToday
-                              ? 'bg-gradient-to-t from-indigo-600 to-indigo-400 shadow-sm shadow-indigo-500/30'
+                              ? 'bg-gradient-to-t from-indigo-600 to-indigo-400 shadow-sm'
                               : 'bg-indigo-500/80 hover:bg-indigo-400'
                           }`}
                         />

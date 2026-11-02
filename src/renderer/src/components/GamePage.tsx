@@ -56,7 +56,7 @@ const Card: React.FC<{ title: string; icon: React.ReactNode; action?: React.Reac
   action,
   children
 }) => (
-  <section className="rounded-xl bg-slate-900/60 border border-slate-800/80">
+  <section className="rounded-md bg-slate-900/60 border border-slate-800/80">
     <header className="flex items-center justify-between px-4 pt-3 pb-2">
       <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
         {icon} {title}
@@ -144,7 +144,7 @@ export const GamePage: React.FC<GamePageProps> = ({
         ) : game.media?.coverUrl ? (
           <img src={game.media.coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-50" />
         ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#090a0f] via-[#090a0f]/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1b2838] via-[#1b2838]/30 to-transparent" />
         <div className="absolute left-8 bottom-6 right-8">
           {logoUrl ? (
             <img
@@ -164,7 +164,7 @@ export const GamePage: React.FC<GamePageProps> = ({
       </div>
 
       {/* Barra de ação (estilo Steam) */}
-      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-x-8 gap-y-3 px-8 py-3 bg-[#0e111a]/95 backdrop-blur-md border-y border-slate-800/80">
+      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-x-8 gap-y-3 px-8 py-3 bg-[#121a24]/95 backdrop-blur-md border-y border-slate-800/80">
         <div className="flex items-center gap-3">
           <PlayButton game={game} onLaunch={onLaunch} />
           {isRunning && (

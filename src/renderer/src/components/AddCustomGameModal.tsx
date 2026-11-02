@@ -189,7 +189,7 @@ export const AddCustomGameModal: React.FC<AddCustomGameModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xl flex flex-col rounded-2xl bg-[#0d0f17] border border-slate-800 shadow-2xl"
+        className="w-full max-w-xl flex flex-col rounded-lg bg-[#1b2838] border border-slate-800 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -325,14 +325,14 @@ export const AddCustomGameModal: React.FC<AddCustomGameModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className={`px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 font-medium ${focusRing}`}
+                className={`px-4 py-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 font-medium ${focusRing}`}
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting || !title.trim() || !executablePath.trim()}
-                className={`flex items-center gap-1.5 px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold shadow-lg shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed ${focusRing}`}
+                className={`flex items-center gap-1.5 px-5 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed ${focusRing}`}
               >
                 {isSubmitting ? 'Salvando...' : 'Adicionar Jogo'}
               </button>
@@ -383,7 +383,7 @@ export const AddCustomGameModal: React.FC<AddCustomGameModalProps> = ({
                   ))}
                 </div>
               ) : (
-                <div className="p-4 rounded-xl bg-slate-900/50 border border-dashed border-slate-800 text-center text-slate-500">
+                <div className="p-4 rounded-md bg-slate-900/50 border border-dashed border-slate-800 text-center text-slate-500">
                   Nenhuma pasta adicionada ainda. Clique em "Adicionar Pasta" acima para incluir uma pasta como <code className="text-slate-400">F:\Games</code>.
                 </div>
               )}
@@ -407,7 +407,7 @@ export const AddCustomGameModal: React.FC<AddCustomGameModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className={`px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 font-medium ${focusRing}`}
+                  className={`px-4 py-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 font-medium ${focusRing}`}
                 >
                   Fechar
                 </button>
@@ -415,7 +415,7 @@ export const AddCustomGameModal: React.FC<AddCustomGameModalProps> = ({
                   type="button"
                   disabled={isScanningFolders || directories.length === 0}
                   onClick={handleScanStandaloneFolders}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed ${focusRing}`}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${focusRing}`}
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isScanningFolders ? 'animate-spin' : ''}`} />
                   <span>{isScanningFolders ? 'Varrendo...' : 'Escanear Pastas Agora'}</span>

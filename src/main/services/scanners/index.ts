@@ -54,7 +54,7 @@ function mergeGame(detected: DetectedGame, existing: Game | null): Game {
 export async function scanLibraries(platforms?: GamePlatform[]): Promise<ScanResult> {
   const scanners = platforms ? SCANNERS.filter((s) => platforms.includes(s.platform)) : SCANNERS;
   const warnings: string[] = [];
-  const merged: Game[] = [];
+  const detectedGames: DetectedGame[] = [];
   let added = 0;
   let updated = 0;
 
@@ -62,14 +62,7 @@ export async function scanLibraries(platforms?: GamePlatform[]): Promise<ScanRes
     try {
       const result = await scanner.scan();
       warnings.push(...result.warnings);
-
-      for (const detected of result.games) {
-        const existing = db.getGameById(detected.id);
-        const game = mergeGame(detected, existing);
-        if (!existing) added++;
-        else if (JSON.stringify(existing) !== JSON.stringify(game)) updated++;
-        merged.push(game);
-      }
+      detectedGames.push(...result.games);
     } catch (err) {
       const message = `${scanner.platform}: falha no scanner (${(err as Error).message})`;
       console.warn(`[Scanner] ${message}`);
@@ -77,6 +70,17 @@ export async function scanLibraries(platforms?: GamePlatform[]): Promise<ScanRes
     }
   }
 
+  // Junta com o banco só depois de todos os scanners (alguns levam segundos): assim artes trocadas,
+  // favoritos e sessões registradas durante o scan não são sobrescritos por uma leitura antiga.
+  // Daqui até o upsert não há await, então nada muda no meio.
+  const merged: Game[] = [];
+  for (const detected of detectedGames) {
+    const existing = db.getGameById(detected.id);
+    const game = mergeGame(detected, existing);
+    if (!existing) added++;
+    else if (JSON.stringify(existing) !== JSON.stringify(game)) updated++;
+    merged.push(game);
+  }
   db.upsertGames(merged);
   for (const w of warnings) console.warn(`[Scanner] ${w}`);
 

@@ -189,7 +189,7 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-6" onClick={onClose}>
       <div
-        className="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-2xl bg-[#0d0f17] border border-slate-800 shadow-2xl"
+        className="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-lg bg-[#1b2838] border border-slate-800 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

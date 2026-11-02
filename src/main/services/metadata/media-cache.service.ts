@@ -116,7 +116,9 @@ export async function cacheRemoteAsset(gameId: string, type: MediaAssetType, rem
     }
   }
 
-  return `${MEDIA_SCHEME}://${MEDIA_HOST}/${encodeURIComponent(dirName)}/${encodeURIComponent(fileName)}`;
+  // ?v=: a URL muda a cada aplicação, então o Chromium nunca reaproveita a imagem anterior em cache
+  // (o protocolo ignora a query ao achar o arquivo)
+  return `${MEDIA_SCHEME}://${MEDIA_HOST}/${encodeURIComponent(dirName)}/${encodeURIComponent(fileName)}?v=${Date.now().toString(36)}`;
 }
 
 export async function removeGameMedia(gameId: string): Promise<void> {

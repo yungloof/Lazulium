@@ -18,7 +18,7 @@ interface RowProps {
 }
 
 const AccountRow: React.FC<RowProps> = ({ icon, name, purpose, connectedLabel, busyLabel, error, children }) => (
-  <div className="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+  <div className="px-4 py-3 rounded-md bg-slate-900/60 border border-slate-800 space-y-2">
     <div className="flex items-center gap-3">
       <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">{icon}</div>
       <div className="min-w-0 flex-1">

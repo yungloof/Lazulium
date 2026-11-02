@@ -57,8 +57,9 @@ async function getLibraryFolders(steamPath: string): Promise<string[]> {
   return result;
 }
 
-interface SteamAppStats {
+export interface SteamAppStats {
   playtimeSeconds?: number;
+  recentSeconds?: number;            // Playtime2wks: últimas 2 semanas
   lastPlayedAt?: string;
 }
 
@@ -106,17 +107,19 @@ async function getSteamLocalPlaytimes(accountDirs: string[]): Promise<Map<string
         root
       );
     } catch (err) {
-      console.warn(`[Scanner:Steam] Não foi possível ler ${accountDir}\config\localconfig.vdf:`, (err as Error).message);
+      console.warn(`[Scanner:Steam] Não foi possível ler ${join(accountDir, 'config', 'localconfig.vdf')}:`, (err as Error).message);
       continue;
     }
 
     for (const appId of Object.keys(apps ?? {})) {
       const entry = vdfGetObject(apps, appId);
       const minutes = Number(vdfGetString(entry, 'playtime') ?? 0);
+      const recentMinutes = Number(vdfGetString(entry, 'playtime2wks') ?? 0);
       const lastPlayedSec = Number(vdfGetString(entry, 'lastplayed') ?? 0);
       if (!(minutes > 0) && !(lastPlayedSec > 0)) continue;
       const stats: SteamAppStats = {
         playtimeSeconds: minutes > 0 ? minutes * 60 : undefined,
+        recentSeconds: recentMinutes > 0 ? recentMinutes * 60 : undefined,
         lastPlayedAt: lastPlayedSec > 0 ? new Date(lastPlayedSec * 1000).toISOString() : undefined
       };
       const existing = statsMap.get(appId);
@@ -124,6 +127,28 @@ async function getSteamLocalPlaytimes(accountDirs: string[]): Promise<Map<string
     }
   }
   return statsMap;
+}
+
+// Para o perfil: horas recentes de cada app (chaves como no localconfig, atalhos em int32 com sinal)
+// e o nível da conta Steam ativa
+export async function readSteamProfileStats(): Promise<{ stats: Map<string, SteamAppStats>; playerLevel?: number }> {
+  const steamPath = await findSteamPath();
+  if (!steamPath) return { stats: new Map() };
+  const accountDirs = await getAccountDirs(steamPath);
+  const stats = await getSteamLocalPlaytimes(accountDirs);
+  let playerLevel: number | undefined;
+  try {
+    const root = parseVdf(await readFile(join(accountDirs[0], 'config', 'localconfig.vdf'), 'utf-8'));
+    const steam = ['userlocalconfigstore', 'software', 'valve', 'steam'].reduce<VdfObject | undefined>(
+      (node, key) => vdfGetObject(node, key),
+      root
+    );
+    const level = Number(vdfGetString(steam, 'playerlevel'));
+    if (Number.isFinite(level) && level > 0) playerLevel = level;
+  } catch {
+    // Sem nível: o perfil só não mostra a insígnia
+  }
+  return { stats, playerLevel };
 }
 
 function findGridArt(gridDir: string, appId: number, suffixes: string[]): string | undefined {

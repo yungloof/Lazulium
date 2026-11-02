@@ -5,8 +5,12 @@ export interface ProfileGame {
   title: string;
   platform: GamePlatform;
   coverUrl?: string;
+  heroUrl?: string;
   playtimeSeconds: number;
   lastPlayedAt?: string;
+  recentSeconds?: number;           // Últimas 2 semanas (Steam + sessões do Lazulium)
+  achievementsUnlocked?: number;    // Do cache de conquistas, quando sincronizado
+  achievementsTotal?: number;
 }
 
 export interface ProfileAchievement {
@@ -19,11 +23,24 @@ export interface ProfileAchievement {
   unlockedAt?: string;
 }
 
+export interface ProfileScreenshot {
+  gameId: string;
+  gameTitle: string;
+  url: string;                      // lazulium-media:// (só no app; removido na exportação)
+  thumbUrl: string;
+  takenAt: string;
+}
+
 export interface PlayerProfile {
   schema: 'lazulium-profile/1';     // Versão do formato (exportação para web/site)
   generatedAt: string;
   displayName: string;
   avatarUrl?: string;
+  steamLevel?: number;
+  recentPlaytimeSeconds: number;    // Soma das últimas 2 semanas
+  recentGames: ProfileGame[];       // Jogados nas últimas 2 semanas
+  recentAchievements: (Omit<ProfileAchievement, 'globalPercent'> & { globalPercent?: number })[];
+  screenshots: ProfileScreenshot[];
   totals: {
     games: number;
     playedGames: number;

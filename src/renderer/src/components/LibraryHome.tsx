@@ -165,7 +165,7 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
             ))}
           </div>
         ) : (
-          <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-slate-900/40 rounded-2xl border border-slate-800/60">
+          <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-slate-900/40 rounded-lg border border-slate-800/60">
             <Search className="w-10 h-10 text-slate-600 mb-3" />
             <h3 className="text-sm font-semibold text-slate-300">Nenhum jogo encontrado</h3>
             <p className="text-xs text-slate-500 mt-1 max-w-sm">

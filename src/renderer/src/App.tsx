@@ -8,7 +8,7 @@ import { ArtworkPicker } from './components/ArtworkPicker';
 import { AchievementsPanel } from './components/AchievementsPanel';
 import { SaveBackupPanel } from './components/SaveBackupPanel';
 import { ScreenshotsPanel } from './components/ScreenshotsPanel';
-import { ProfilePanel } from './components/ProfilePanel';
+import { ProfilePage } from './components/ProfilePage';
 import { PlaytimeEditor } from './components/PlaytimeEditor';
 import { LibraryFilter, LibrarySidebar } from './components/LibrarySidebar';
 import { LibraryHome } from './components/LibraryHome';
@@ -57,7 +57,7 @@ export const App: React.FC = () => {
   const mainRef = useRef<HTMLDivElement>(null);
   const [gridColumns, setGridColumns] = useState(6);
   // Navegação estilo Steam: início da biblioteca ou a página de um jogo
-  const [view, setView] = useState<'home' | 'game'>('home');
+  const [view, setView] = useState<'home' | 'game' | 'profile'>('home');
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [scanSummary, setScanSummary] = useState<ScanResult | null>(null);
   const [showEmulatorSettings, setShowEmulatorSettings] = useState(false);
@@ -70,7 +70,6 @@ export const App: React.FC = () => {
   const [launchNotice, setLaunchNotice] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
   const [showPlaytimeEditor, setShowPlaytimeEditor] = useState(false);
   const [showScreenshots, setShowScreenshots] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
   const [screenshotsVersion, setScreenshotsVersion] = useState(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [contextMenu, setContextMenu] = useState<{ game: Game; x: number; y: number } | null>(null);
@@ -84,6 +83,11 @@ export const App: React.FC = () => {
   const openGame = useCallback((game: Game) => {
     setSelectedGame(game);
     setView('game');
+    mainRef.current?.scrollTo({ top: 0 });
+  }, []);
+
+  const openProfile = useCallback(() => {
+    setView('profile');
     mainRef.current?.scrollTo({ top: 0 });
   }, []);
 
@@ -239,7 +243,6 @@ export const App: React.FC = () => {
     showAchievementsModal ||
     showSavesModal ||
     showScreenshots ||
-    showProfile ||
     showEmulatorSettings ||
     showAddGameModal ||
     showPlaytimeEditor ||
@@ -264,10 +267,9 @@ export const App: React.FC = () => {
       else if (showAchievementsModal) setShowAchievementsModal(false);
       else if (showSavesModal) setShowSavesModal(false);
       else if (showScreenshots) setShowScreenshots(false);
-      else if (showProfile) setShowProfile(false);
       else if (showEmulatorSettings) setShowEmulatorSettings(false);
       else if (showAddGameModal) setShowAddGameModal(false);
-      else if (view === 'game') goHome();
+      else if (view !== 'home') goHome();
       else if (searchQuery) setSearchQuery('');
     },
     onToggleFavorite: (index) => {
@@ -295,7 +297,7 @@ export const App: React.FC = () => {
 
   // Voltar como num navegador: botão "voltar" do mouse, Alt+← ou Backspace (fora de campos de texto)
   useEffect(() => {
-    if (view !== 'game' || anyModalOpen) return;
+    if (view === 'home' || anyModalOpen) return;
     const onMouseUp = (e: MouseEvent) => {
       if (e.button === 3) goHome();
     };
@@ -355,26 +357,28 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#090a0f] text-slate-100 overflow-hidden">
+    <div className="flex flex-col h-screen w-screen bg-[#1b2838] text-slate-100 overflow-hidden">
       <TitleBar />
 
       {/* Navegação superior (estilo Steam) */}
-      <header className="flex items-center justify-between gap-4 px-4 h-12 flex-shrink-0 bg-[#0b0d14] border-b border-slate-800/80">
+      <header className="flex items-center justify-between gap-4 px-4 h-12 flex-shrink-0 bg-steam-header border-b border-black/40">
         <nav className="flex items-center gap-1" aria-label="Seções">
-          <button
-            onClick={goHome}
-            className={`px-3 py-1.5 rounded-md text-sm font-bold tracking-wide uppercase transition-colors ${focusRing} ${
-              !showProfile ? 'text-indigo-300' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Biblioteca
-          </button>
-          <button
-            onClick={() => setShowProfile(true)}
-            className={`px-3 py-1.5 rounded-md text-sm font-bold tracking-wide uppercase text-slate-400 hover:text-white transition-colors ${focusRing}`}
-          >
-            Perfil
-          </button>
+          {[
+            { label: 'Biblioteca', active: view !== 'profile', onClick: goHome },
+            { label: 'Perfil', active: view === 'profile', onClick: openProfile }
+          ].map((tab) => (
+            <button
+              key={tab.label}
+              onClick={tab.onClick}
+              aria-current={tab.active ? 'page' : undefined}
+              className={`relative px-3 h-12 text-sm font-medium tracking-wider uppercase transition-colors ${focusRing} ${
+                tab.active ? 'text-indigo-400' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              {tab.label}
+              {tab.active && <span className="absolute left-3 right-3 bottom-2 h-0.5 bg-indigo-400" />}
+            </button>
+          ))}
         </nav>
         <div className="flex items-center gap-2">
           <button onClick={handleScanLibraries} disabled={isScanning} className={toolbarButton}>
@@ -396,6 +400,7 @@ export const App: React.FC = () => {
       </header>
 
       <div className="flex-1 flex min-h-0">
+        {view !== 'profile' && (
         <LibrarySidebar
           games={filteredGames}
           filters={visibleFilters}
@@ -414,13 +419,14 @@ export const App: React.FC = () => {
           onLaunchGame={handleLaunchGame}
           onContextMenu={handleOpenContextMenu}
         />
+        )}
 
         <main ref={mainRef} className="flex-1 min-w-0 overflow-y-auto relative">
           {/* Avisos */}
           {(scanSummary || !isOnline || launchNotice) && (
             <div className="sticky top-0 z-30 px-6 pt-3 space-y-2">
               {scanSummary && (
-                <div className="flex items-start justify-between gap-3 px-4 py-2.5 rounded-xl bg-slate-900/95 border border-slate-800 text-xs shadow-lg">
+                <div className="flex items-start justify-between gap-3 px-4 py-2.5 rounded-md bg-slate-900/95 border border-slate-800 text-xs shadow-lg">
                   <div className="space-y-1">
                     <div className="text-slate-300">
                       Scan concluído: <b className="text-emerald-400">{scanSummary.added}</b> novos,{' '}
@@ -438,7 +444,7 @@ export const App: React.FC = () => {
                 </div>
               )}
               {!isOnline && (
-                <div className="flex items-center gap-2 px-4 py-2 rounded-xl border text-xs bg-slate-800/95 border-slate-700 text-slate-300 shadow-lg">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-md border text-xs bg-slate-800/95 border-slate-700 text-slate-300 shadow-lg">
                   <WifiOff className="w-3.5 h-3.5 text-amber-400" />
                   Sem conexão. Jogar, rastrear horas e fazer backups locais continua funcionando; artes, conquistas e Google Drive
                   voltam sozinhos quando a internet retornar.
@@ -446,7 +452,7 @@ export const App: React.FC = () => {
               )}
               {launchNotice && (
                 <div
-                  className={`px-4 py-2 rounded-xl border text-xs shadow-lg ${
+                  className={`px-4 py-2 rounded-md border text-xs shadow-lg ${
                     launchNotice.tone === 'ok'
                       ? 'bg-emerald-950/95 border-emerald-500/30 text-emerald-300'
                       : 'bg-amber-950/95 border-amber-500/30 text-amber-300'
@@ -458,7 +464,15 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {view === 'game' && selectedGame ? (
+          {view === 'profile' ? (
+            <ProfilePage
+              onOpenSettings={() => setShowSettings(true)}
+              onSelectGame={(id) => {
+                const game = games.find((g) => g.id === id);
+                if (game) openGame(game);
+              }}
+            />
+          ) : view === 'game' && selectedGame ? (
             <GamePage
               game={selectedGame}
               achievements={gameAchievements}
@@ -518,17 +532,6 @@ export const App: React.FC = () => {
           onClose={() => {
             setShowScreenshots(false);
             setScreenshotsVersion((v) => v + 1);
-          }}
-        />
-      )}
-
-      {showProfile && (
-        <ProfilePanel
-          onClose={() => setShowProfile(false)}
-          onOpenSettings={openSettingsFrom(() => setShowProfile(false))}
-          onSelectGame={(id) => {
-            const game = games.find((g) => g.id === id);
-            if (game) openGame(game);
           }}
         />
       )}

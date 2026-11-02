@@ -34,7 +34,7 @@ export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch }) => {
     return (
       <button
         disabled
-        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-700 text-slate-200 font-bold text-sm cursor-wait ${focusRing}`}
+        className={`flex items-center gap-2 px-6 py-2.5 rounded-md bg-slate-700 text-slate-200 font-bold text-sm cursor-wait ${focusRing}`}
       >
         <Loader2 className="w-4 h-4 animate-spin" />
         <span>INICIANDO...</span>
@@ -52,7 +52,7 @@ export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch }) => {
         </span>
         <button
           onClick={() => window.electronAPI?.stopGame(game.id)}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600/90 hover:bg-red-500 text-white font-bold text-sm transition-colors ${focusRing}`}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-md bg-red-600/90 hover:bg-red-500 text-white font-bold text-sm transition-colors ${focusRing}`}
         >
           <Square className="w-4 h-4 fill-white" />
           <span>PARAR</span>
@@ -64,7 +64,7 @@ export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch }) => {
   return (
     <button
       onClick={() => onLaunch(game)}
-      className={`flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-sm shadow-xl shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95 ${focusRing}`}
+      className={`flex items-center gap-2 px-6 py-2.5 rounded-sm bg-gradient-to-r from-[#75b022] to-[#588a1b] hover:from-[#8ed629] hover:to-[#6aa621] text-white font-semibold text-sm tracking-wide transition-colors ${focusRing}`}
     >
       <Play className="w-4 h-4 fill-white" />
       <span>JOGAR</span>

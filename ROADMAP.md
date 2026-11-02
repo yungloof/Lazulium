@@ -111,6 +111,7 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [x] Atalhos não-Steam da Steam (`shortcuts.vdf`) importados como jogos, abrindo pela Steam e com as artes personalizadas de `config/grid`.
 - [x] Scanners da Riot (registro de desinstalação, abre pelo Riot Client) e da Xbox/Microsoft Store (pacotes com `MicrosoftGame.config`); jogos abertos por lançador são rastreados pela pasta do jogo.
 - [x] Página web pública do perfil (consumindo o JSON exportado).
+- [x] Perfil como página completa no estilo da Steam (nível da conta, status, atividade das últimas 2 semanas, vitrine de capturas, mais jogados com progresso de conquistas) e visual com a paleta da Steam.
 
 ---
 
