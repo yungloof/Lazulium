@@ -92,7 +92,6 @@ const DEFAULT_DATA: DatabaseSchema = {
     googleClientId: '',
     googleClientSecret: '',
     googleDriveRefreshToken: '',
-    uiMode: 'desktop', // 'desktop' | 'big-picture'
     theme: 'dark-oled'
   }
 };

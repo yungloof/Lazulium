@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Minus, Square, X, Gamepad2, Tv, Monitor } from 'lucide-react';
-import { useLibraryStore } from '../stores/useLibraryStore';
+import { Minus, Square, X, Gamepad2 } from 'lucide-react';
 import { useGamepadStore } from '../stores/useGamepadStore';
 
 export const TitleBar: React.FC = () => {
   const [isMaximized, setIsMaximized] = useState(false);
-  const { uiMode, setUiMode } = useLibraryStore();
   const { gamepad } = useGamepadStore();
 
   useEffect(() => {
@@ -33,7 +31,7 @@ export const TitleBar: React.FC = () => {
         </span>
       </div>
 
-      {/* Center: Controller Status & UI Mode Toggle */}
+      {/* Center: Controller Status */}
       <div className="titlebar-no-drag flex items-center gap-3">
         {gamepad?.connected && (
           <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium animate-pulse">
@@ -41,25 +39,6 @@ export const TitleBar: React.FC = () => {
             <span className="max-w-[140px] truncate">{gamepad.id.split('(')[0] || 'Controle'}</span>
           </div>
         )}
-
-        {/* Toggle Mode: Desktop vs Big Picture */}
-        <button
-          onClick={() => setUiMode(uiMode === 'desktop' ? 'big-picture' : 'desktop')}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-700/80 border border-slate-700/50 transition-colors"
-          title="Alternar entre Modo Desktop e Modo Big Picture"
-        >
-          {uiMode === 'desktop' ? (
-            <>
-              <Tv className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Big Picture</span>
-            </>
-          ) : (
-            <>
-              <Monitor className="w-3.5 h-3.5 text-pink-400" />
-              <span>Desktop</span>
-            </>
-          )}
-        </button>
       </div>
 
       {/* Right: Window Controls */}

@@ -11,7 +11,6 @@ interface UseGamepadOptions {
   onNextTab?: () => void;
   onPrevTab?: () => void;
   onSearch?: () => void;
-  onToggleUiMode?: () => void;
   onMenu?: () => void;
 }
 
@@ -24,7 +23,6 @@ export function useGamepad({
   onNextTab,
   onPrevTab,
   onSearch,
-  onToggleUiMode,
   onMenu
 }: UseGamepadOptions) {
   const { setGamepad, setActiveFocusedIndex, setIsGamepadActive } = useGamepadStore();
@@ -183,12 +181,6 @@ export function useGamepad({
           onNextTab?.();
         }
 
-        // Ação: Select / Back / View (Alternar Big Picture)
-        if (isPressed(8) && canPress(8)) {
-          navAudio.playSelect();
-          onToggleUiMode?.();
-        }
-
         // Ação: Start / Menu (Configurações / Menu)
         if (isPressed(9) && canPress(9)) {
           navAudio.playSelect();
@@ -222,7 +214,6 @@ export function useGamepad({
     onNextTab,
     onPrevTab,
     onSearch,
-    onToggleUiMode,
     onMenu,
     setActiveFocusedIndex,
     setGamepad,
@@ -302,12 +293,6 @@ export function useGamepad({
           onSearch?.();
           break;
 
-        case 'F11':
-          e.preventDefault();
-          navAudio.playSelect();
-          onToggleUiMode?.();
-          break;
-
         default:
           break;
       }
@@ -315,5 +300,5 @@ export function useGamepad({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [itemCount, columns, onSelect, onToggleFavorite, onSearch, onToggleUiMode, setActiveFocusedIndex]);
+  }, [itemCount, columns, onSelect, onToggleFavorite, onSearch, setActiveFocusedIndex]);
 }

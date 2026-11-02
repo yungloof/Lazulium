@@ -56,8 +56,6 @@ export const App: React.FC = () => {
     setSearchQuery,
     isScanning,
     setIsScanning,
-    uiMode,
-    setUiMode,
     toggleFavoriteLocal,
     applyGameStatus,
     upsertGameLocal
@@ -217,7 +215,7 @@ export const App: React.FC = () => {
   // Gamepad navigation hook
   useGamepad({
     itemCount: filteredGames.length,
-    columns: uiMode === 'big-picture' ? 4 : 5,
+    columns: 5,
     onSelect: (index) => {
       const target = filteredGames[index];
       if (target) {
@@ -253,9 +251,6 @@ export const App: React.FC = () => {
     onSearch: () => {
       searchInputRef.current?.focus();
       searchInputRef.current?.select();
-    },
-    onToggleUiMode: () => {
-      setUiMode(uiMode === 'desktop' ? 'big-picture' : 'desktop');
     },
     onMenu: () => {
       setShowSettings((prev) => !prev);
@@ -572,11 +567,7 @@ export const App: React.FC = () => {
 
           {filteredGames.length > 0 ? (
             <div
-              className={`grid gap-5 pb-8 ${
-                uiMode === 'big-picture'
-                  ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'
-                  : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
-              }`}
+              className="grid gap-5 pb-8 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
             >
               {filteredGames.map((game, index) => (
                 <GameCard

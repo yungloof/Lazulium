@@ -8,7 +8,6 @@ interface LibraryState {
   activeFilter: 'all' | GamePlatform | 'favorites';
   searchQuery: string;
   isScanning: boolean;
-  uiMode: 'desktop' | 'big-picture';
   launchStatuses: Record<string, GameLaunchStatus>; // Apenas jogos iniciando/rodando
   
   // Actions
@@ -17,7 +16,6 @@ interface LibraryState {
   setActiveFilter: (filter: 'all' | GamePlatform | 'favorites') => void;
   setSearchQuery: (query: string) => void;
   setIsScanning: (scanning: boolean) => void;
-  setUiMode: (mode: 'desktop' | 'big-picture') => void;
   toggleFavoriteLocal: (id: string) => void;
   applyGameStatus: (status: GameLaunchStatus) => void;
   upsertGameLocal: (game: Game) => void;
@@ -29,7 +27,6 @@ export const useLibraryStore = create<LibraryState>((set) => ({
   activeFilter: 'all',
   searchQuery: '',
   isScanning: false,
-  uiMode: 'desktop',
   launchStatuses: {},
 
   setGames: (games) => set({ games }),
@@ -37,7 +34,6 @@ export const useLibraryStore = create<LibraryState>((set) => ({
   setActiveFilter: (activeFilter) => set({ activeFilter }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setIsScanning: (isScanning) => set({ isScanning }),
-  setUiMode: (uiMode) => set({ uiMode }),
   toggleFavoriteLocal: (id) =>
     set((state) => ({
       games: state.games.map((g) => (g.id === id ? { ...g, isFavorite: !g.isFavorite } : g))

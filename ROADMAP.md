@@ -78,11 +78,11 @@ Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints m
 
 ---
 
-## 🕹️ Fase 7: Navegação por Controle & Big Picture Mode
+## 🕹️ Fase 7: Navegação por Controle
 - [x] Hook de captura de controle `useGamepad` via HTML5 Gamepad API.
 - [x] Engine de navegação espacial (Spatial Navigation 2D Grid) com foco em cartões, botões e abas.
 - [x] Mapeamento padrão de botões (A = Selecionar/Jogar, B = Voltar, X = Favoritar, Y = Buscar, LB/RB = Filtros).
-- [x] Alternância entre "Modo Desktop" e "Modo Big Picture / Console".
+- [x] ~~Modo Big Picture~~ removido a pedido do dono do projeto (a navegação por controle continua no layout único).
 - [x] Efeitos visuais e sonoros sutis de navegação.
 
 ---

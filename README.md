@@ -2,7 +2,7 @@
 
 **Hub Universal de Jogos para PC, Emuladores, Conquistas e Nuvem.**
 
-O **Lazulium** (codinome *Steam 2*) é um lançador e agregador universal de jogos moderno para PC, desenhado para unificar todas as suas plataformas (Steam, Epic Games, GOG, Emuladores e jogos standalone) em uma única interface rápida, bonita e compatível tanto com teclado/mouse quanto com controles de console (Modo Big Picture).
+O **Lazulium** (codinome *Steam 2*) é um lançador e agregador universal de jogos moderno para PC, desenhado para unificar todas as suas plataformas (Steam, Epic Games, GOG, Emuladores e jogos standalone) em uma única interface rápida, bonita e compatível tanto com teclado/mouse quanto com controles de console.
 
 ---
 
@@ -24,10 +24,9 @@ O **Lazulium** (codinome *Steam 2*) é um lançador e agregador universal de jog
 5. **Backup Automático de Saves no Google Drive:**
    - Detecta pastas de saves e emuladores.
    - Realiza backup compactado no Google Drive assim que o jogo é fechado.
-6. **Navegação com Controle (Big Picture):**
+6. **Navegação com Controle:**
    - Suporte nativo a controles Xbox, PlayStation (DualShock / DualSense), Nintendo Switch Pro e genéricos.
    - Navegação espacial fluida (D-Pad e analógico) com atalhos de botões familiares.
-   - Modo Desktop e Modo Console/Big Picture.
 
 ---
 

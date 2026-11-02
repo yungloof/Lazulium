@@ -2,7 +2,7 @@
 
 > **Codinome:** Steam 2  
 > **Nome Provisório/Principal:** Lazulium  
-> **Propósito:** Hub Universal de Jogos para PC (Steam, Epic, GOG, Emuladores e Standalones) com rastreador de horas universal, conquistas unificadas, artes via SteamGridDB, backup em nuvem de saves e suporte total a controles (Big Picture / 10-foot UI).
+> **Propósito:** Hub Universal de Jogos para PC (Steam, Epic, GOG, Emuladores e Standalones) com rastreador de horas universal, conquistas unificadas, artes via SteamGridDB, backup em nuvem de saves e suporte total a controles.
 
 ---
 
@@ -15,7 +15,7 @@
 | **Runtime Desktop** | **Electron** (com `electron-builder`) | Acesso direto a APIs do Windows (WMI, processo via `child_process`/PowerShell, registro do Windows, FileSystem) e geração de instalador `.exe` (NSIS) ou versão Portable com 1 clique. |
 | **Bundler & Build** | **Vite / electron-vite** | Hot Module Replacement (HMR) ultrarrápido, compilação TypeScript instantânea e empacotamento otimizado. |
 | **Frontend UI** | **React 19 + TypeScript** | Ecossistema maduro, componentes declarativos, tipagem estrita de ponta a ponta. |
-| **Estilização** | **Tailwind CSS + Lucide Icons** | Design moderno no estilo "Steam Deck / Big Picture / Xbox Dashboard", animações fluidas e suporte a temas escuros profundos (OLED dark). |
+| **Estilização** | **Tailwind CSS + Lucide Icons** | Design moderno no estilo "Steam Deck / Xbox Dashboard", animações fluidas e suporte a temas escuros profundos (OLED dark). |
 | **Gerenciamento de Estado** | **Zustand** | Leve, desacoplado, sem boilerplate desnecessário, ideal para gerenciar estado da biblioteca, foco de controle e download de artes. |
 | **Banco de Dados Local** | **SQLite (`better-sqlite3` ou `sqlite3`)** | Armazenamento local rápido e confiável para catálogo de jogos, histórico de sessões de jogatina, conquistas em cache e metadados. |
 | **Navegação de Controle** | **HTML5 Gamepad API + Spatial Navigation Engine** | Suporte nativo e sem dependências extras para controles Xbox, PlayStation (DualShock/DualSense), Switch Pro e genéricos DirectInput/XInput. |
@@ -27,7 +27,7 @@
 ```mermaid
 graph TD
     subgraph "Renderer Process (Frontend UI)"
-        UI[React UI - Hub Desktop & Big Picture]
+        UI[React UI - Hub]
         Zustand[Zustand Stores: Library, Gamepad, Achievements, Settings]
         SpatialNav[Spatial Navigation Manager: D-Pad, Thumbstick, Focus Ring]
         GamepadHook[useGamepad Hook: Event Poller]
@@ -170,9 +170,7 @@ Unifica conquistas de plataformas de PC e retroemulação:
   * `X` / `Square`: Favoritar / Ações rápidas.
   * `Y` / `Triangle`: Busca rápida.
   * `LB` / `RB` (ou `L1` / `R1`): Alternar abas / filtros (Todos, Steam, Epic, Emuladores, Favoritos).
-* **Dois Modos de Interface:**
-  1. **Desktop Mode:** Layout otimizado para mouse/teclado com tabelas, filtros laterais e densidade ajustável.
-  2. **Big Picture / Handheld Mode:** Interface cinematográfica estilo console / Steam Deck para TVs e monitores à distância.
+* **Interface única:** o mesmo layout atende mouse/teclado e controle (não há modo Big Picture separado).
 
 ---
 
