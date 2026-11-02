@@ -57,6 +57,10 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
     load();
   }, [load]);
 
+  useEffect(() => {
+    setConfirmDeleteId(null);
+  }, [viewing]);
+
   // Esc fecha o visualizador primeiro; setas navegam entre as capturas
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
