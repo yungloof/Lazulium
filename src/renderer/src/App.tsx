@@ -10,6 +10,7 @@ import { SaveBackupPanel } from './components/SaveBackupPanel';
 import { ScreenshotsPanel } from './components/ScreenshotsPanel';
 import { ProfilePage } from './components/ProfilePage';
 import { JournalPage } from './components/JournalPage';
+import { GalleryPage } from './components/GalleryPage';
 import { WelcomeModal } from './components/WelcomeModal';
 import { PlaytimeEditor } from './components/PlaytimeEditor';
 import { LibraryFilter, LibrarySidebar } from './components/LibrarySidebar';
@@ -59,7 +60,8 @@ export const App: React.FC = () => {
   const mainRef = useRef<HTMLDivElement>(null);
   const [gridColumns, setGridColumns] = useState(6);
   // Navegação estilo Steam: início da biblioteca ou a página de um jogo
-  const [view, setView] = useState<'home' | 'game' | 'profile' | 'journal'>('home');
+  const [view, setView] = useState<'home' | 'game' | 'profile' | 'journal' | 'gallery'>('home');
+  const [screenshotStartId, setScreenshotStartId] = useState<string | undefined>();
   const [showRemoved, setShowRemoved] = useState(() => {
     try {
       return localStorage.getItem('lazulium.showRemoved') === 'true';
@@ -103,6 +105,11 @@ export const App: React.FC = () => {
     e.preventDefault();
     setContextMenu({ game, x: e.clientX, y: e.clientY });
   }, []);
+
+  // Trocar de aba sempre começa do topo
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [view]);
 
   const openGame = useCallback((game: Game) => {
     setSelectedGame(game);
@@ -408,6 +415,7 @@ export const App: React.FC = () => {
           {[
             { label: 'Biblioteca', active: view === 'home' || view === 'game', onClick: goHome },
             { label: 'Diário', active: view === 'journal', onClick: () => setView('journal') },
+            { label: 'Capturas', active: view === 'gallery', onClick: () => setView('gallery') },
             { label: 'Perfil', active: view === 'profile', onClick: openProfile }
           ].map((tab) => (
             <button
@@ -516,7 +524,18 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {view === 'journal' ? (
+          {view === 'gallery' ? (
+            <GalleryPage
+              version={screenshotsVersion}
+              onOpenGallery={(gameId, shot) => {
+                const game = games.find((g) => g.id === gameId);
+                if (!game) return;
+                setSelectedGame(game);
+                setScreenshotStartId(shot?.id);
+                setShowScreenshots(true);
+              }}
+            />
+          ) : view === 'journal' ? (
             <JournalPage
               onOpenGame={openGame}
               onEditPlaytime={(game) => {
@@ -590,9 +609,12 @@ export const App: React.FC = () => {
 
       {showScreenshots && selectedGame && (
         <ScreenshotsPanel
+          key={`${selectedGame.id}-${screenshotStartId ?? ''}`}
           game={selectedGame}
+          initialScreenshotId={screenshotStartId}
           onClose={() => {
             setShowScreenshots(false);
+            setScreenshotStartId(undefined);
             setScreenshotsVersion((v) => v + 1);
           }}
         />

@@ -20,6 +20,10 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
   const [minutes, setMinutes] = useState('');
   const [status, setStatus] = useState<GameLogStatus | undefined>('finished');
   const [rating, setRating] = useState<number | undefined>();
+  const [review, setReview] = useState('');
+  const [notes, setNotes] = useState('');
+  const [startedOn, setStartedOn] = useState('');
+  const [finishedOn, setFinishedOn] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,7 +47,7 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
         title,
         manualPlatform,
         totalPlaytimeSeconds: h * 3600 + m * 60,
-        log: { status, rating }
+        log: { status, rating, review, notes, startedOn: startedOn || undefined, finishedOn: finishedOn || undefined }
       });
       if (game) onAdded(game);
       onClose();
@@ -58,7 +62,7 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
       <form
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-md bg-steam-bg border border-black/40 shadow-lg"
+        className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-md bg-steam-bg border border-black/40 shadow-lg"
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-black/30">
           <h2 className="flex items-center gap-2 text-sm font-bold text-slate-100">
@@ -68,7 +72,7 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-5 space-y-3 text-[11px] text-slate-400">
+        <div className="p-5 space-y-3 text-[11px] text-slate-400 overflow-y-auto">
           <p className="text-xs text-slate-500">Para jogos de console, de outro PC ou que você já zerou há tempos.</p>
           <label className="block">
             Nome do jogo
@@ -92,6 +96,24 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
             <StatusSelect value={status} onChange={setStatus} />
             <StarRating value={rating} onChange={setRating} size="w-5 h-5" />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              Comecei em
+              <input type="date" value={startedOn} onChange={(e) => setStartedOn(e.target.value)} className={`${inputClass} mt-1`} />
+            </label>
+            <label className="block">
+              Terminei em
+              <input type="date" value={finishedOn} onChange={(e) => setFinishedOn(e.target.value)} className={`${inputClass} mt-1`} />
+            </label>
+          </div>
+          <label className="block">
+            Minha resenha
+            <textarea value={review} onChange={(e) => setReview(e.target.value)} rows={5} placeholder="O que achou do jogo? História, gameplay, o que ficou na memória..." className={`${inputClass} mt-1 resize-y leading-relaxed`} />
+          </label>
+          <label className="block">
+            Anotações de progresso
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Onde parou, o que falta fazer, com quem jogou..." className={`${inputClass} mt-1 resize-y leading-relaxed`} />
+          </label>
           {error && (
             <p className="flex items-center gap-1.5 text-xs text-amber-300">
               <AlertTriangle className="w-3.5 h-3.5" /> {error}

@@ -73,6 +73,7 @@ const JournalRow: React.FC<{
           {game.id.startsWith('steam-shortcut-') && ' · atalho da Steam'}
           {removed && !game.manualEntry && <span className="text-slate-500"> · não instalado</span>}
         </span>
+        {game.log?.review && <span className="block text-[11px] text-slate-400 truncate" title={game.log.review}>“{game.log.review}”</span>}
       </span>
       <span className="text-right text-xs text-slate-200">
         {game.platform === 'steam' ? (
@@ -114,7 +115,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
 
   // Só entra quem tem história: horas, sessão, registro ou favorito (e nunca itens ocultos)
   const entries = useMemo(
-    () => games.filter((g) => !g.isHidden && ((g.totalPlaytimeSeconds ?? 0) > 0 || g.lastPlayedAt || g.log?.status || g.log?.rating || g.log?.notes || g.manualEntry || g.isFavorite)),
+    () => games.filter((g) => !g.isHidden && ((g.totalPlaytimeSeconds ?? 0) > 0 || g.lastPlayedAt || g.log?.status || g.log?.rating || g.log?.review || g.log?.notes || g.manualEntry || g.isFavorite)),
     [games]
   );
 

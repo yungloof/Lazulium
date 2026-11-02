@@ -4,6 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameS
 import { EmulatorConfig, EmulatorType, Game, PlaytimeSession } from '@shared/types/game';
 import { Achievement, AchievementSource, GameAchievements } from '@shared/types/achievements';
 import { BackupRecord, GameSaveConfig } from '@shared/types/cloudsync';
+import { ProfileCustom } from '@shared/types/profile';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
 
 const BACKUPS_DIR = 'backups';
@@ -74,6 +75,7 @@ export interface DatabaseSchema {
   activeSessions: ActiveSessionRecord[];
   saveConfigs?: Record<string, GameSaveConfig>;
   saveBackups?: BackupRecord[];
+  profileCustom?: ProfileCustom;
   settings: Record<string, string>;
 }
 
@@ -254,6 +256,22 @@ class DatabaseService {
         this.data.games.push(game);
       }
     }
+    this.persist();
+  }
+
+  replaceGameMedia(id: string, media: Game['media']): void {
+    const game = this.data.games.find((g) => g.id === id);
+    if (!game) return;
+    game.media = media;
+    this.persist();
+  }
+
+  getProfileCustom(): ProfileCustom {
+    return this.data.profileCustom ?? {};
+  }
+
+  setProfileCustom(custom: ProfileCustom): void {
+    this.data.profileCustom = custom;
     this.persist();
   }
 

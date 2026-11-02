@@ -3,6 +3,14 @@
 // 'custom': imagens anexadas pelo usuário no Lazulium
 export type ScreenshotSource = 'steam' | 'gamebar' | 'custom';
 
+export interface GameScreenshots {
+  gameId: string;
+  title: string;
+  count: number;
+  latestAt: string;
+  preview: Screenshot[];            // As mais recentes
+}
+
 export interface Screenshot {
   id: string;                       // Opaco; o main resolve de volta para o arquivo
   source: ScreenshotSource;

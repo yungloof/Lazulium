@@ -1,7 +1,7 @@
 import { Game, GameMedia } from '@shared/types/game';
 import { FetchAssetsOptions, GameAssetsResult, MediaAssetType, SteamGridDBGame } from '@shared/types/ipc';
 import { db } from '../../database/db';
-import { cacheRemoteAsset, isCachedMediaUrl } from './media-cache.service';
+import { cacheRemoteAsset, isCachedFileMissing, isCachedMediaUrl, removeCachedFile } from './media-cache.service';
 import {
   SteamGridDbError,
   getAssets,
@@ -103,9 +103,34 @@ class ArtworkService {
     const localUrl = await cacheRemoteAsset(gameId, type, remoteUrl);
     const game = db.getGameById(gameId);
     if (!game) throw new Error('Jogo não encontrado.');
+    const previous = game.media?.[MEDIA_FIELD[type]];
     const updated: Game = { ...game, media: { ...game.media, [MEDIA_FIELD[type]]: localUrl } };
     db.upsertGame(updated);
+    // Mesma arte aplicada de novo usa o mesmo arquivo: só apaga se for outro
+    if (previous && previous.split('?')[0] !== localUrl.split('?')[0]) await removeCachedFile(previous);
     return updated;
+  }
+
+  // Artes cujo arquivo sumiu (a pasta antiga era limpa pelo Chromium): libera o campo para o scan
+  // devolver a arte da Steam e a fila buscar outra. Retorna os jogos afetados.
+  repairMissingMedia(): string[] {
+    const repaired: string[] = [];
+    for (const game of db.getGames()) {
+      const media = { ...game.media };
+      let changed = false;
+      for (const field of Object.values(MEDIA_FIELD)) {
+        if (isCachedFileMissing(media[field])) {
+          delete media[field];
+          changed = true;
+        }
+      }
+      if (changed) {
+        db.replaceGameMedia(game.id, media);
+        repaired.push(game.id);
+      }
+    }
+    if (repaired.length > 0) console.log(`[Artwork] ${repaired.length} jogo(s) com arte perdida; buscando de novo`);
+    return repaired;
   }
 
   // Sem `gameIds`: jogos sem capa. Com `gameIds`: jogos com qualquer arte faltando.
@@ -183,7 +208,9 @@ class ArtworkService {
     if (!current) return;
     const media = { ...current.media };
     for (const [field, url] of Object.entries(found) as [keyof GameMedia, string][]) {
+      // O usuário escolheu outra arte enquanto esta baixava: a dele fica
       if (!media[field]) media[field] = url;
+      else if (media[field]?.split('?')[0] !== url.split('?')[0]) await removeCachedFile(url);
     }
     const updated = { ...current, media };
     db.upsertGame(updated);

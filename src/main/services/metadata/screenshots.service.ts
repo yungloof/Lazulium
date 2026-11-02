@@ -1,16 +1,17 @@
-import { app } from 'electron';
+import { app, shell } from 'electron';
 import { createHash } from 'crypto';
 import { existsSync } from 'fs';
-import { copyFile, mkdir, readdir, readFile, stat, unlink } from 'fs/promises';
-import { basename, extname, join } from 'path';
+import { copyFile, mkdir, readdir, readFile, stat } from 'fs/promises';
+import { basename, dirname, extname, join } from 'path';
 import { Game } from '@shared/types/game';
-import { Screenshot } from '@shared/types/screenshots';
+import { GameScreenshots, Screenshot } from '@shared/types/screenshots';
 import { findSteamPath } from '../scanners/steam-scanner.service';
 import { STEAM_GRID_HOST, readSteamShortcuts } from '../scanners/steam-shortcuts';
 import { normalizeKey } from '../cloudsync/save-locator.service';
 import { mediaUrl, registerMediaRoot } from './media-cache.service';
 
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif|bmp)$/i;
+const PREVIEW_COUNT = 6;
 const MAX_IMPORT_BYTES = 50 * 1024 * 1024;
 const HOSTS = { steam: 'steam-shot', gamebar: 'gamebar-shot', custom: 'shot' } as const;
 
@@ -40,6 +41,7 @@ export function registerScreenshotRoots(): void {
     allowPath: /^\d+\/config\/grid\/[^/]+\.(png|jpe?g|webp|ico)$/i
   });
   registerMediaRoot(HOSTS.gamebar, { resolveRoot: () => join(app.getPath('videos'), 'Captures'), allowPath: /^[^/]+\.png$/i });
+  registerMediaRoot('profile', { resolveRoot: () => join(app.getPath('userData'), 'profile'), allowPath: /^avatar-[a-z0-9]+\.(png|jpe?g|webp|gif)$/i });
   registerMediaRoot(HOSTS.custom, { resolveRoot: customRoot, allowPath: /^[^/]+\/[^/]+$/ });
 }
 
@@ -171,12 +173,26 @@ class ScreenshotsService {
     return imported;
   }
 
-  // Só capturas anexadas no Lazulium podem ser apagadas (as da Steam/Game Bar são do usuário)
-  async deleteCustom(game: Game, id: string): Promise<void> {
-    if (!id.startsWith('custom:')) throw new Error('Só é possível remover imagens anexadas pelo Lazulium.');
+  // Vai para a Lixeira do Windows (dá para recuperar), junto com a miniatura da Steam
+  async deleteScreenshot(game: Game, id: string): Promise<void> {
     const path = await this.resolvePath(game, id);
     if (!path) throw new Error('Captura não encontrada.');
-    await unlink(path);
+    await shell.trashItem(path);
+    if (id.startsWith('steam:')) {
+      const thumb = join(dirname(path), 'thumbnails', basename(path));
+      if (existsSync(thumb)) await shell.trashItem(thumb).catch(() => undefined);
+    }
+  }
+
+  // Uma entrada por jogo com capturas, do jogo com a captura mais nova para o mais antigo
+  async listByGame(games: Game[]): Promise<GameScreenshots[]> {
+    const groups: GameScreenshots[] = [];
+    for (const game of games) {
+      const list = await this.list(game);
+      if (list.length === 0) continue;
+      groups.push({ gameId: game.id, title: game.title, count: list.length, latestAt: list[0].takenAt, preview: list.slice(0, PREVIEW_COUNT) });
+    }
+    return groups.sort((a, b) => b.latestAt.localeCompare(a.latestAt));
   }
 }
 

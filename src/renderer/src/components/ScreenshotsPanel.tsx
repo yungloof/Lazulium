@@ -8,6 +8,7 @@ interface ScreenshotsPanelProps {
   game: Game;
   onClose: () => void;
   onChanged?: (count: number) => void;
+  initialScreenshotId?: string;     // Abre direto nesta captura
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
@@ -22,10 +23,12 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 }
 
-export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClose, onChanged }) => {
+export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClose, onChanged, initialScreenshotId }) => {
   const [shots, setShots] = useState<Screenshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewing, setViewing] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const initialIdRef = useRef(initialScreenshotId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Ref: o pai pode passar uma função nova a cada render sem recarregar a lista
@@ -37,6 +40,11 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
     try {
       const list = (await window.electronAPI?.listScreenshots(game.id)) ?? [];
       setShots(list);
+      if (initialIdRef.current) {
+        const index = list.findIndex((s) => s.id === initialIdRef.current);
+        if (index >= 0) setViewing(index);
+        initialIdRef.current = undefined;
+      }
       onChangedRef.current?.(list.length);
     } catch (err) {
       setError(ipcErrorMessage(err));
@@ -56,8 +64,10 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
         if (viewing !== null) setViewing(null);
         else onClose();
       } else if (viewing !== null && e.key === 'ArrowRight') {
+        setConfirmDeleteId(null);
         setViewing((v) => (v === null ? v : (v + 1) % shots.length));
       } else if (viewing !== null && e.key === 'ArrowLeft') {
+        setConfirmDeleteId(null);
         setViewing((v) => (v === null ? v : (v - 1 + shots.length) % shots.length));
       }
     };
@@ -82,7 +92,9 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
     setError(null);
     try {
       await window.electronAPI?.deleteScreenshot(game.id, shot.id);
-      setViewing(null);
+      setConfirmDeleteId(null);
+      // No visualizador segue para a próxima captura; sem mais nenhuma, volta para a grade
+      setViewing((v) => (v === null || shots.length <= 1 ? null : Math.min(v, shots.length - 2)));
       await load();
     } catch (err) {
       setError(ipcErrorMessage(err));
@@ -160,9 +172,19 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
               <button onClick={() => window.electronAPI?.showScreenshotInFolder(game.id, current.id)} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 ${focusRing}`}>
                 <FolderOpen className="w-3.5 h-3.5" /> Mostrar na pasta
               </button>
-              {current.source === 'custom' && (
-                <button onClick={() => handleDelete(current)} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 hover:text-red-300 ${focusRing}`}>
-                  <Trash2 className="w-3.5 h-3.5" /> Remover
+              {confirmDeleteId === current.id ? (
+                <>
+                  <span className="text-amber-300">Enviar para a Lixeira?</span>
+                  <button onClick={() => handleDelete(current)} className={`px-2.5 py-1.5 rounded-sm bg-red-600 hover:bg-red-500 text-white font-semibold ${focusRing}`}>
+                    Apagar
+                  </button>
+                  <button onClick={() => setConfirmDeleteId(null)} className={`px-2.5 py-1.5 rounded-sm bg-slate-800 hover:bg-slate-700 ${focusRing}`}>
+                    Cancelar
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => setConfirmDeleteId(current.id)} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm bg-slate-800 hover:bg-red-500/20 hover:text-red-300 ${focusRing}`}>
+                  <Trash2 className="w-3.5 h-3.5" /> Apagar
                 </button>
               )}
               <button onClick={() => setViewing(null)} className={`p-1.5 rounded-lg hover:bg-slate-800 ${focusRing}`}>

@@ -5,7 +5,7 @@ import { db } from '../../database/db';
 
 const STATUS_VALUES: GameLogStatus[] = ['backlog', 'playing', 'paused', 'finished', 'completed', 'dropped'];
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const MAX_NOTES_LENGTH = 20_000;
+const MAX_TEXT_LENGTH = 200_000;
 const MAX_TITLE_LENGTH = 200;
 const MAX_PLAYTIME_SECONDS = 100_000 * 3600;
 
@@ -27,7 +27,8 @@ function sanitizeLog(log: GameLog): GameLog {
     rating: Number.isInteger(rating) && rating >= 1 && rating <= 5 ? rating : undefined,
     startedOn: date(log.startedOn),
     finishedOn: date(log.finishedOn),
-    notes: log.notes?.trim().slice(0, MAX_NOTES_LENGTH) || undefined
+    review: log.review?.trim().slice(0, MAX_TEXT_LENGTH) || undefined,
+    notes: log.notes?.trim().slice(0, MAX_TEXT_LENGTH) || undefined
   };
 }
 
@@ -125,7 +126,7 @@ const csvCell = (value: string | number | undefined) => {
 };
 
 export function journalToCsv(): string {
-  const header = ['Jogo', 'Plataforma', 'Instalado', 'Horas', 'Última sessão', 'Status', 'Nota', 'Início', 'Fim', 'Conquistas', 'Notas'];
+  const header = ['Jogo', 'Plataforma', 'Instalado', 'Horas', 'Última sessão', 'Status', 'Nota', 'Início', 'Fim', 'Conquistas', 'Resenha', 'Anotações'];
   const rows = db
     .getGames()
     .filter((g) => !g.isHidden)
@@ -143,6 +144,7 @@ export function journalToCsv(): string {
         g.log?.startedOn,
         g.log?.finishedOn,
         achievements?.total ? `${achievements.unlocked}/${achievements.total}` : undefined,
+        g.log?.review,
         g.log?.notes
       ];
     });

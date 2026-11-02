@@ -25,7 +25,8 @@ export interface GameLog {
   rating?: number;                  // 1 a 5 estrelas
   startedOn?: string;               // AAAA-MM-DD
   finishedOn?: string;              // AAAA-MM-DD
-  notes?: string;
+  review?: string;                  // Resenha / o que achou
+  notes?: string;                   // Anotações de progresso
 }
 
 export interface Game {

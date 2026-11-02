@@ -31,12 +31,40 @@ export interface ProfileScreenshot {
   takenAt: string;
 }
 
+export type ProfileSectionId = 'featured' | 'achievements' | 'activity' | 'screenshots' | 'mostPlayed';
+
+// O que o jogador escolhe no próprio perfil
+export interface ProfileCustom {
+  displayName?: string;
+  bio?: string;
+  avatarUrl?: string;               // Imagem escolhida (lazulium-media://profile/...)
+  bannerGameId?: string;            // Banner: arte de um jogo à escolha
+  featuredGameIds?: string[];
+  featuredAchievementKeys?: string[]; // "<gameId>|<achievement.id>"
+  sections?: ProfileSectionId[];    // Ordem das seções visíveis (ausente = todas)
+}
+
+export interface ProfileUnlockedAchievement {
+  key: string;
+  gameId: string;
+  gameTitle: string;
+  name: string;
+  description: string;
+  iconUrl: string;
+  globalPercent?: number;
+}
+
 export interface PlayerProfile {
   schema: 'lazulium-profile/1';     // Versão do formato (exportação para web/site)
   generatedAt: string;
   displayName: string;
   avatarUrl?: string;
   steamLevel?: number;
+  custom: ProfileCustom;
+  bannerUrl?: string;
+  featuredGames: ProfileGame[];
+  featuredAchievements: ProfileUnlockedAchievement[];
+  achievementChoices: ProfileUnlockedAchievement[]; // Mais raras primeiro, para o editor
   recentPlaytimeSeconds: number;    // Soma das últimas 2 semanas
   recentGames: ProfileGame[];       // Jogados nas últimas 2 semanas
   recentAchievements: (Omit<ProfileAchievement, 'globalPercent'> & { globalPercent?: number })[];

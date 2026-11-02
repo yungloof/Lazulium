@@ -1,8 +1,8 @@
 import { EmulatorConfig, Game, GameLog, GamePlatform, PlaytimeSession } from './game';
 import { Achievement, GameAchievements } from './achievements';
 import { AccountService, AccountsStatus, SteamLocalAccount } from './accounts';
-import { Screenshot } from './screenshots';
-import { AchievementsSyncResult, PlayerProfile } from './profile';
+import { GameScreenshots, Screenshot } from './screenshots';
+import { AchievementsSyncResult, PlayerProfile, ProfileCustom } from './profile';
 import {
   BackupEvent,
   BackupListResult,
@@ -150,11 +150,14 @@ export interface ElectronAPI {
   listScreenshots: (gameId: string) => Promise<Screenshot[]>;
   importScreenshots: (gameId: string) => Promise<number>;     // Abre o seletor de imagens; retorna quantas entraram
   deleteScreenshot: (gameId: string, screenshotId: string) => Promise<void>;
+  listScreenshotsByGame: () => Promise<GameScreenshots[]>;
   showScreenshotInFolder: (gameId: string, screenshotId: string) => Promise<void>;
 
   // Perfil do jogador
   getPlayerProfile: () => Promise<PlayerProfile>;
   syncAllAchievements: () => Promise<AchievementsSyncResult>;
+  saveProfileCustom: (custom: ProfileCustom) => Promise<ProfileCustom>;
+  pickProfileAvatar: () => Promise<string | null>;
   exportPlayerProfile: () => Promise<string | null>;           // Caminho salvo (null se cancelado)
 
   // Contas (login sem chave de API)

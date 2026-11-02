@@ -1,10 +1,17 @@
+import { app } from 'electron';
+import { copyFile, mkdir } from 'fs/promises';
+import { extname, join } from 'path';
 import { Game } from '@shared/types/game';
+import { mediaUrl } from '../metadata/media-cache.service';
 import {
   AchievementsSyncResult,
   PlayerProfile,
   ProfileAchievement,
+  ProfileCustom,
   ProfileGame,
-  ProfileScreenshot
+  ProfileScreenshot,
+  ProfileSectionId,
+  ProfileUnlockedAchievement
 } from '@shared/types/profile';
 import { db } from '../../database/db';
 import { achievementsService } from '../achievements/achievements.service';
@@ -12,6 +19,10 @@ import { fetchSteamPersona } from '../accounts/steam-account.service';
 import { screenshotsService } from '../metadata/screenshots.service';
 import { readSteamProfileStats, SteamAppStats } from '../scanners/steam-scanner.service';
 
+const MAX_ACHIEVEMENT_CHOICES = 300;
+const MAX_FEATURED_GAMES = 12;
+const MAX_FEATURED_ACHIEVEMENTS = 12;
+const SECTION_IDS: ProfileSectionId[] = ['featured', 'achievements', 'activity', 'screenshots', 'mostPlayed'];
 const TOP_GAMES = 6;
 const TOP_RARE_ACHIEVEMENTS = 8;
 const TOP_RECENT_ACHIEVEMENTS = 10;
@@ -99,6 +110,7 @@ class ProfileService {
     let gamesWithAchievementData = 0;
     const rare: ProfileAchievement[] = [];
     const unlocked: PlayerProfile['recentAchievements'] = [];
+    const choices: ProfileUnlockedAchievement[] = [];
     for (const game of games) {
       const data = db.getGameAchievements(game.id);
       if (!data || data.total === 0) continue;
@@ -109,6 +121,7 @@ class ProfileService {
       for (const a of data.items) {
         if (!a.unlocked) continue;
         const base = { gameId: game.id, gameTitle: game.title, name: a.name, description: a.description, iconUrl: a.iconUrl, unlockedAt: a.unlockedAt };
+        choices.push({ key: `${game.id}|${a.id}`, gameId: game.id, gameTitle: game.title, name: a.name, description: a.description, iconUrl: a.iconUrl, globalPercent: a.globalPercent });
         if (a.unlockedAt) unlocked.push({ ...base, globalPercent: a.globalPercent });
         if (typeof a.globalPercent === 'number') rare.push({ ...base, globalPercent: a.globalPercent });
       }
@@ -140,11 +153,29 @@ class ProfileService {
     const displayName =
       settings.steamPersonaName || (steamId ? await fetchSteamPersona(steamId) : undefined) || settings.retroAchievementsUser || 'Jogador';
 
+    const custom = db.getProfileCustom();
+    const byId = new Map(games.map((g) => [g.id, g]));
+    const choicesByKey = new Map(choices.map((c) => [c.key, c]));
+    const bannerGame = custom.bannerGameId ? byId.get(custom.bannerGameId) : undefined;
+
     return {
       schema: 'lazulium-profile/1',
       generatedAt: new Date().toISOString(),
-      displayName,
-      avatarUrl: steamId ? await this.steamAvatar(steamId) : undefined,
+      displayName: custom.displayName?.trim() || displayName,
+      avatarUrl: custom.avatarUrl || (steamId ? await this.steamAvatar(steamId) : undefined),
+      custom,
+      bannerUrl: bannerGame?.media?.heroUrl ?? bannerGame?.media?.coverUrl,
+      featuredGames: (custom.featuredGameIds ?? []).flatMap((id) => {
+        const game = byId.get(id);
+        return game ? [toProfileGame(game)] : [];
+      }),
+      featuredAchievements: (custom.featuredAchievementKeys ?? []).flatMap((key) => {
+        const item = choicesByKey.get(key);
+        return item ? [item] : [];
+      }),
+      achievementChoices: [...choices]
+        .sort((a, b) => (a.globalPercent ?? 101) - (b.globalPercent ?? 101))
+        .slice(0, MAX_ACHIEVEMENT_CHOICES),
       steamLevel: steamId ? playerLevel : undefined,
       recentPlaytimeSeconds: recentGames.reduce((sum, g) => sum + (g.recentSeconds ?? 0), 0),
       recentGames,
@@ -172,6 +203,35 @@ class ProfileService {
       favorites: games.filter((g) => g.isFavorite).map(toProfileGame),
       rarestAchievements: rare.sort((a, b) => a.globalPercent - b.globalPercent).slice(0, TOP_RARE_ACHIEVEMENTS)
     };
+  }
+
+  saveCustom(input: ProfileCustom): ProfileCustom {
+    const text = (value: string | undefined, max: number) => value?.trim().slice(0, max) || undefined;
+    const current = db.getProfileCustom();
+    const custom: ProfileCustom = {
+      displayName: text(input.displayName, 60),
+      bio: text(input.bio, 2000),
+      // Só a imagem que o próprio app copiou; nada de caminhos vindos do renderer
+      avatarUrl: input.avatarUrl === current.avatarUrl ? current.avatarUrl : undefined,
+      bannerGameId: input.bannerGameId && db.getGameById(input.bannerGameId) ? input.bannerGameId : undefined,
+      featuredGameIds: (input.featuredGameIds ?? []).filter((id) => db.getGameById(id)).slice(0, MAX_FEATURED_GAMES),
+      featuredAchievementKeys: (input.featuredAchievementKeys ?? []).slice(0, MAX_FEATURED_ACHIEVEMENTS),
+      sections: input.sections?.filter((s) => SECTION_IDS.includes(s))
+    };
+    db.setProfileCustom(custom);
+    return custom;
+  }
+
+  async setAvatarFromFile(sourcePath: string): Promise<string> {
+    const ext = extname(sourcePath).toLowerCase();
+    if (!/^\.(png|jpe?g|webp|gif)$/.test(ext)) throw new Error('Escolha uma imagem PNG, JPG, WEBP ou GIF.');
+    const dir = join(app.getPath('userData'), 'profile');
+    await mkdir(dir, { recursive: true });
+    const file = `avatar-${Date.now().toString(36)}${ext}`;
+    await copyFile(sourcePath, join(dir, file));
+    const url = mediaUrl('profile', file);
+    db.setProfileCustom({ ...db.getProfileCustom(), avatarUrl: url });
+    return url;
   }
 
   // Busca conquistas de todos os jogos já jogados (respeita o cache de 6h de cada jogo)
@@ -205,6 +265,12 @@ class ProfileService {
     const mapGame = (g: ProfileGame) => ({ ...g, coverUrl: publicUrl(g.coverUrl), heroUrl: publicUrl(g.heroUrl) });
     return {
       ...profile,
+      avatarUrl: publicUrl(profile.avatarUrl),
+      bannerUrl: publicUrl(profile.bannerUrl),
+      custom: { bio: profile.custom.bio },
+      achievementChoices: [],
+      featuredGames: profile.featuredGames.map(mapGame),
+      featuredAchievements: profile.featuredAchievements.map((a) => ({ ...a, iconUrl: publicUrl(a.iconUrl) ?? '' })),
       recentGames: profile.recentGames.map(mapGame),
       mostPlayed: profile.mostPlayed.map(mapGame),
       recentlyPlayed: profile.recentlyPlayed.map(mapGame),

@@ -3,7 +3,7 @@ import { registerIpcHandlers } from './ipc';
 import { db } from './database/db';
 import { playtimeService } from './services/tracker/playtime.service';
 import { backupService } from './services/cloudsync/backup.service';
-import { registerMediaProtocol, registerMediaScheme } from './services/metadata/media-cache.service';
+import { migrateMediaCache, registerMediaProtocol, registerMediaScheme } from './services/metadata/media-cache.service';
 import { registerScreenshotRoots } from './services/metadata/screenshots.service';
 import { scanLibraries } from './services/scanners';
 import { setupFileLogging } from './logger';
@@ -66,6 +66,8 @@ if (!app.requestSingleInstanceLock()) {
 
     // Initialize local database
     await db.init();
+    migrateMediaCache();
+    const repairedArtwork = artworkService.repairMissingMedia();
     registerMediaProtocol();
     registerScreenshotRoots();
     playtimeService.recoverInterruptedSessions();
@@ -83,6 +85,7 @@ if (!app.requestSingleInstanceLock()) {
           for (const game of result.games) getMainWindow()?.webContents.send(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
           // Jogos novos sem capa (ex: Riot, Xbox) buscam artes no SteamGridDB em segundo plano
           artworkService.enqueueMissing();
+          artworkService.enqueueMissing(repairedArtwork);
         })
         .catch((err) => console.warn('[Startup] Sincronização da Steam falhou:', (err as Error).message));
     }

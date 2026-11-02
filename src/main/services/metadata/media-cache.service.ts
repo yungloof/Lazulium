@@ -1,7 +1,7 @@
 import { app, net, protocol } from 'electron';
 import { createHash } from 'crypto';
-import { existsSync } from 'fs';
-import { mkdir, readdir, rename, rm, unlink, writeFile } from 'fs/promises';
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync } from 'fs';
+import { mkdir, rename, rm, unlink, writeFile } from 'fs/promises';
 import { join, resolve, sep } from 'path';
 import { pathToFileURL } from 'url';
 import { MediaAssetType } from '@shared/types/ipc';
@@ -22,8 +22,48 @@ const EXTENSION_BY_MIME: Record<string, string> = {
   'image/vnd.microsoft.icon': 'ico'
 };
 
+// Fora de "Cache": no Windows, userData/cache é a MESMA pasta do cache do Chromium, que a limpa sozinho
 function getCacheRoot(): string {
-  return join(app.getPath('userData'), 'cache', 'media');
+  return join(app.getPath('userData'), 'artwork');
+}
+
+// Traz as artes que ainda existem na pasta antiga (userData/cache/media)
+export function migrateMediaCache(): void {
+  const oldRoot = join(app.getPath('userData'), 'cache', 'media');
+  if (!existsSync(oldRoot)) return;
+  const root = getCacheRoot();
+  try {
+    for (const dir of readdirSync(oldRoot)) {
+      mkdirSync(join(root, dir), { recursive: true });
+      for (const file of readdirSync(join(oldRoot, dir))) {
+        if (!existsSync(join(root, dir, file))) renameSync(join(oldRoot, dir, file), join(root, dir, file));
+      }
+    }
+    rmSync(oldRoot, { recursive: true, force: true });
+    console.log('[Media] Artes migradas para a pasta artwork');
+  } catch (err) {
+    console.warn('[Media] Falha ao migrar artes:', (err as Error).message);
+  }
+}
+
+// Arquivo em disco de uma URL de arte em cache (undefined se a URL não for do cache)
+function cachedFilePath(url?: string): string | undefined {
+  if (!url?.startsWith(`${MEDIA_SCHEME}://${MEDIA_HOST}/`)) return undefined;
+  const segments = new URL(url).pathname.split('/').filter(Boolean).map(decodeURIComponent);
+  const root = resolve(getCacheRoot());
+  const path = resolve(root, ...segments);
+  return path.startsWith(root + sep) ? path : undefined;
+}
+
+export function isCachedFileMissing(url?: string): boolean {
+  const path = cachedFilePath(url);
+  return !!path && !existsSync(path);
+}
+
+// Só depois de o banco apontar para a arte nova: nunca apaga a arte em uso
+export async function removeCachedFile(url?: string): Promise<void> {
+  const path = cachedFilePath(url);
+  if (path) await unlink(path).catch(() => undefined);
 }
 
 function gameDirName(gameId: string): string {
@@ -81,7 +121,7 @@ export function isCachedMediaUrl(url?: string): boolean {
   return !!url && url.startsWith(`${MEDIA_SCHEME}://`);
 }
 
-// Baixa a arte e substitui a versão anterior do mesmo tipo. Retorna a URL local.
+// Baixa a arte para o cache e retorna a URL local (quem chama remove a arte anterior, se houver).
 export async function cacheRemoteAsset(gameId: string, type: MediaAssetType, remoteUrl: string): Promise<string> {
   const url = new URL(remoteUrl);
   if (url.protocol !== 'https:' || !ALLOWED_HOST.test(url.hostname)) {
@@ -108,13 +148,6 @@ export async function cacheRemoteAsset(gameId: string, type: MediaAssetType, rem
   const tmpPath = join(dir, `${fileName}.tmp`);
   await writeFile(tmpPath, buffer);
   await rename(tmpPath, join(dir, fileName));
-
-  // Remove a arte anterior do mesmo tipo
-  for (const existing of await readdir(dir)) {
-    if (existing.startsWith(`${type}-`) && existing !== fileName) {
-      await unlink(join(dir, existing)).catch(() => undefined);
-    }
-  }
 
   // ?v=: a URL muda a cada aplicação, então o Chromium nunca reaproveita a imagem anterior em cache
   // (o protocolo ignora a query ao achar o arquivo)

@@ -14,6 +14,7 @@ import { FetchAssetsOptions, JournalEntryInput, MediaAssetType } from '@shared/t
 import { addJournalEntry, journalToCsv, journalToJson, setGameLog, setManualPlaytime } from '../services/profile/journal.service';
 import { steamNamesService } from '../services/scanners/steam-names.service';
 import { GameSaveConfig } from '@shared/types/cloudsync';
+import { ProfileCustom } from '@shared/types/profile';
 import { backupService } from '../services/cloudsync/backup.service';
 import { DRIVE_SETTING_KEYS, googleDriveService } from '../services/cloudsync/google-drive.service';
 import { applyLoginItem, markRendererReady, notify } from '../app-shell';
@@ -287,7 +288,11 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   });
 
   ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_DELETE, async (_event, gameId: string, screenshotId: string) => {
-    await screenshotsService.deleteCustom(requireGame(gameId), screenshotId);
+    await screenshotsService.deleteScreenshot(requireGame(gameId), screenshotId);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_BY_GAME, async () => {
+    return screenshotsService.listByGame(db.getGames().filter((g) => !g.isHidden));
   });
 
   ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_SHOW_IN_FOLDER, async (_event, gameId: string, screenshotId: string) => {
@@ -303,6 +308,21 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
 
   ipcMain.handle(IPC_CHANNELS.PROFILE_SYNC_ACHIEVEMENTS, async () => {
     return profileService.syncAllAchievements();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.PROFILE_SAVE_CUSTOM, async (_event, custom: ProfileCustom) => {
+    return profileService.saveCustom(custom);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.PROFILE_PICK_AVATAR, async () => {
+    const win = getMainWindow();
+    const options: Electron.OpenDialogOptions = {
+      title: 'Escolher avatar',
+      properties: ['openFile'],
+      filters: [{ name: 'Imagens', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+    };
+    const res = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    return res.canceled ? null : profileService.setAvatarFromFile(res.filePaths[0]);
   });
 
   ipcMain.handle(IPC_CHANNELS.PROFILE_EXPORT, async () => {

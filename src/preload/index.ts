@@ -4,6 +4,7 @@ import { ElectronAPI, JournalEntryInput, FetchAssetsOptions, GameLaunchStatus, M
 import { EmulatorConfig, Game, GameLog, GamePlatform } from '@shared/types/game';
 import { BackupEvent, GameSaveConfig } from '@shared/types/cloudsync';
 import { AccountService } from '@shared/types/accounts';
+import { ProfileCustom } from '@shared/types/profile';
 
 const electronAPI: ElectronAPI = {
   // Library & Scanners
@@ -87,12 +88,15 @@ const electronAPI: ElectronAPI = {
   importScreenshots: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_IMPORT, gameId),
   deleteScreenshot: (gameId: string, screenshotId: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_DELETE, gameId, screenshotId),
+  listScreenshotsByGame: () => ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_BY_GAME),
   showScreenshotInFolder: (gameId: string, screenshotId: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_SHOW_IN_FOLDER, gameId, screenshotId),
 
   // Perfil do jogador
   getPlayerProfile: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_GET),
   syncAllAchievements: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SYNC_ACHIEVEMENTS),
+  saveProfileCustom: (custom: ProfileCustom) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SAVE_CUSTOM, custom),
+  pickProfileAvatar: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_PICK_AVATAR),
   exportPlayerProfile: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_EXPORT),
 
   // Contas

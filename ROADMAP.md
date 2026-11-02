@@ -47,7 +47,7 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [x] Conexão com a API oficial do SteamGridDB (`v2`), com chave configurável e teste de validade.
 - [x] Chave de API armazenada cifrada (Electron `safeStorage`, prefixo `enc:`) e decifrada apenas em memória.
 - [x] Busca automática de artes para jogos sem capa (após scan, jogo manual ou nova chave) e quando uma arte remota retorna 404.
-- [x] Download e cache local (`userData/cache/media/<jogo>/`, servido via `lazulium-media://`) de:
+- [x] Download e cache local (`userData/artwork/<jogo>/`, servido via `lazulium-media://`) de:
   - **Grids** (Capa vertical 600x900).
   - **Heroes** (Banner 1920x620).
   - **Logos** (PNG transparente com logo do jogo).
@@ -122,6 +122,14 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [x] "Meu registro" na página do jogo: status, nota, datas de início e fim e anotações.
 - [x] Edição de horas e da última sessão em jogos fora da Steam; em atalhos da Steam vira um ajuste sobre o valor da Steam, que sobrevive aos scans e continua somando.
 - [x] Banco protegido: gravação atômica, cópia diária (14 dias) e recuperação automática se o arquivo corromper.
+
+---
+
+## 🎛️ Fase 11: Perfil, Galeria e Artes
+- [x] Artes em `userData/artwork` (antes em `userData/cache`, que no Windows é a pasta do cache do Chromium e era limpa sozinha), com migração e reparo das perdidas.
+- [x] Aba Capturas com as imagens separadas por jogo, "Ver todas" e exclusão pelo app (vai para a Lixeira).
+- [x] Perfil editável: nome, bio, avatar, banner, jogos e conquistas em destaque, seções visíveis e sua ordem; visual reorganizado.
+- [x] Diário com resenha e anotações, salvamento automático e sem limite prático de texto.
 
 ---
 

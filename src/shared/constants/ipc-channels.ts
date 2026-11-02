@@ -58,12 +58,15 @@ export const IPC_CHANNELS = {
   SCREENSHOTS_LIST: 'screenshots:list',
   SCREENSHOTS_IMPORT: 'screenshots:import',
   SCREENSHOTS_DELETE: 'screenshots:delete',
+  SCREENSHOTS_BY_GAME: 'screenshots:by-game',
   SCREENSHOTS_SHOW_IN_FOLDER: 'screenshots:show-in-folder',
 
   // Perfil do jogador
   PROFILE_GET: 'profile:get',
   PROFILE_SYNC_ACHIEVEMENTS: 'profile:sync-achievements',
   PROFILE_EXPORT: 'profile:export',
+  PROFILE_SAVE_CUSTOM: 'profile:save-custom',
+  PROFILE_PICK_AVATAR: 'profile:pick-avatar',
 
   // Contas (login sem chave de API)
   ACCOUNTS_GET_STATUS: 'accounts:get-status',
