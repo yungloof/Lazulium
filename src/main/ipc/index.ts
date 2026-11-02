@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import { scanLibraries } from '../services/scanners';
 import { playtimeService } from '../services/tracker/playtime.service';
 import { artworkService } from '../services/metadata/artwork.service';
+import { achievementsService } from '../services/achievements/achievements.service';
 import { removeGameMedia } from '../services/metadata/media-cache.service';
 import { FetchAssetsOptions, MediaAssetType } from '@shared/types/ipc';
 
@@ -116,12 +117,19 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
 
   // Achievements Handlers
   ipcMain.handle(IPC_CHANNELS.ACHIEVEMENTS_GET, async (_event, gameId: string) => {
-    return db.getAchievements(gameId);
+    return achievementsService.getAchievements(gameId, false);
   });
 
   ipcMain.handle(IPC_CHANNELS.ACHIEVEMENTS_SYNC, async (_event, gameId: string) => {
-    console.log(`[IPC] Syncing achievements for: ${gameId}`);
-    return db.getAchievements(gameId);
+    return achievementsService.getAchievements(gameId, true);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.ACHIEVEMENTS_TEST_STEAM, async (_event, apiKey: string, steamId: string) => {
+    return achievementsService.testSteam(apiKey, steamId);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.ACHIEVEMENTS_TEST_RETRO, async (_event, username: string, apiKey: string) => {
+    return achievementsService.testRetro(username, apiKey);
   });
 
   // Metadata / SteamGridDB Handlers

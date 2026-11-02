@@ -8,10 +8,12 @@ import { PlayButton } from './components/PlayButton';
 import { GameStats } from './components/GameStats';
 import { SettingsModal } from './components/SettingsModal';
 import { ArtworkPicker } from './components/ArtworkPicker';
+import { AchievementsPanel } from './components/AchievementsPanel';
 import { useLibraryStore } from './stores/useLibraryStore';
 import { useGamepadStore } from './stores/useGamepadStore';
 import { useGamepad } from './hooks/useGamepad';
 import { Game, GamePlatform } from '@shared/types/game';
+import { GameAchievements } from '@shared/types/achievements';
 import { ScanResult } from '@shared/types/ipc';
 import {
   Search,
@@ -62,6 +64,8 @@ export const App: React.FC = () => {
   const [showAddGameModal, setShowAddGameModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showArtworkPicker, setShowArtworkPicker] = useState(false);
+  const [showAchievementsModal, setShowAchievementsModal] = useState(false);
+  const [heroAchievements, setHeroAchievements] = useState<GameAchievements | null>(null);
   const [brokenLogoUrl, setBrokenLogoUrl] = useState<string | null>(null);
   const [launchNotice, setLaunchNotice] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
 
@@ -69,6 +73,17 @@ export const App: React.FC = () => {
   useEffect(() => {
     setSelectedGame((current) => (current ? games.find((g) => g.id === current.id) ?? current : current));
   }, [games]);
+
+  // Carrega contagem de conquistas do jogo selecionado para o spotlight do hero
+  useEffect(() => {
+    if (!selectedGame) {
+      setHeroAchievements(null);
+      return;
+    }
+    window.electronAPI?.getAchievements(selectedGame.id)
+      .then((res) => setHeroAchievements(res))
+      .catch(() => setHeroAchievements(null));
+  }, [selectedGame?.id]);
 
   // Eventos de execução vindos do monitor de processos
   useEffect(() => {
@@ -383,10 +398,18 @@ export const App: React.FC = () => {
                         <Clock className="w-3.5 h-3.5 text-indigo-400" />
                         {formatHours(selectedGame.totalPlaytimeSeconds)} jogadas
                       </span>
-                      <span className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setShowAchievementsModal(true)}
+                        className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-amber-300 transition-colors rounded px-1.5 py-0.5 -ml-1.5 hover:bg-slate-800/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                        title="Ver conquistas do jogo"
+                      >
                         <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                        Conquistas integradas
-                      </span>
+                        <span>
+                          {heroAchievements && heroAchievements.total > 0
+                            ? `${heroAchievements.unlocked}/${heroAchievements.total} conquistas`
+                            : 'Conquistas'}
+                        </span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -400,6 +423,14 @@ export const App: React.FC = () => {
                   >
                     <ImageIcon className="w-4 h-4" />
                     <span>Artes</span>
+                  </button>
+                  <button
+                    onClick={() => setShowAchievementsModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                    title="Ver conquistas do jogo"
+                  >
+                    <Trophy className="w-4 h-4 text-amber-400" />
+                    <span>Conquistas</span>
                   </button>
                   <PlayButton game={selectedGame} onLaunch={handleLaunchGame} />
                 </div>
@@ -483,6 +514,20 @@ export const App: React.FC = () => {
           onClose={() => setShowArtworkPicker(false)}
           onOpenSettings={() => {
             setShowArtworkPicker(false);
+            setShowSettings(true);
+          }}
+        />
+      )}
+
+      {showAchievementsModal && selectedGame && (
+        <AchievementsPanel
+          game={selectedGame}
+          onClose={() => {
+            setShowAchievementsModal(false);
+            window.electronAPI?.getAchievements(selectedGame.id).then((res) => setHeroAchievements(res));
+          }}
+          onOpenSettings={() => {
+            setShowAchievementsModal(false);
             setShowSettings(true);
           }}
         />

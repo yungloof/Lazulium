@@ -34,6 +34,8 @@ export const IPC_CHANNELS = {
   // Achievements
   ACHIEVEMENTS_GET: 'achievements:get',
   ACHIEVEMENTS_SYNC: 'achievements:sync',
+  ACHIEVEMENTS_TEST_STEAM: 'achievements:test-steam',
+  ACHIEVEMENTS_TEST_RETRO: 'achievements:test-retro',
 
   // Cloud Sync (Google Drive)
   CLOUDSYNC_AUTH: 'cloudsync:auth',

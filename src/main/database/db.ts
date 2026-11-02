@@ -2,8 +2,14 @@ import { app, safeStorage } from 'electron';
 import { join } from 'path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { EmulatorConfig, EmulatorType, Game, PlaytimeSession } from '@shared/types/game';
-import { Achievement } from '@shared/types/achievements';
+import { Achievement, GameAchievements } from '@shared/types/achievements';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
+
+const SECRET_SETTING_KEYS = [
+  'steamGridDbApiKey',
+  'steamWebApiKey',
+  'retroAchievementsApiKey'
+] as const;
 
 function decryptSecret(value?: string): string {
   if (!value) return '';
@@ -13,14 +19,14 @@ function decryptSecret(value?: string): string {
   }
   const base64Data = value.slice(4);
   if (!safeStorage.isEncryptionAvailable()) {
-    console.warn('[Database] safeStorage não está disponível para decifrar a chave de API.');
+    console.warn('[Database] safeStorage não está disponível para decifrar credenciais.');
     return '';
   }
   try {
     const buffer = Buffer.from(base64Data, 'base64');
     return safeStorage.decryptString(buffer);
   } catch (err) {
-    console.error('[Database] Falha ao decifrar a chave de API:', err);
+    console.error('[Database] Falha ao decifrar segredo:', err);
     return '';
   }
 }
@@ -31,14 +37,14 @@ function encryptSecret(value?: string): string {
     return value;
   }
   if (!safeStorage.isEncryptionAvailable()) {
-    console.warn('[Database] safeStorage não está disponível; mantendo chave em texto puro.');
+    console.warn('[Database] safeStorage não está disponível; mantendo credencial em texto puro.');
     return value;
   }
   try {
     const buffer = safeStorage.encryptString(value);
     return `enc:${buffer.toString('base64')}`;
   } catch (err) {
-    console.error('[Database] Falha ao cifrar a chave de API:', err);
+    console.error('[Database] Falha ao cifrar segredo:', err);
     return value;
   }
 }
@@ -55,6 +61,7 @@ export interface DatabaseSchema {
   games: Game[];
   playtimeSessions: PlaytimeSession[];
   achievements: Achievement[];
+  gameAchievements?: Record<string, GameAchievements>;
   emulatorConfigs: EmulatorConfig[];
   standaloneDirectories: string[];
   activeSessions: ActiveSessionRecord[];
@@ -65,6 +72,7 @@ const DEFAULT_DATA: DatabaseSchema = {
   games: [],
   playtimeSessions: [],
   achievements: [],
+  gameAchievements: {},
   emulatorConfigs: [],
   standaloneDirectories: [],
   activeSessions: [],
@@ -100,8 +108,15 @@ class DatabaseService {
       if (existsSync(this.dataFilePath)) {
         const raw = readFileSync(this.dataFilePath, 'utf-8');
         const parsed: DatabaseSchema = { ...DEFAULT_DATA, ...JSON.parse(raw) };
-        if (parsed.settings?.steamGridDbApiKey) {
-          parsed.settings.steamGridDbApiKey = decryptSecret(parsed.settings.steamGridDbApiKey);
+        if (parsed.settings) {
+          for (const key of SECRET_SETTING_KEYS) {
+            if (parsed.settings[key]) {
+              parsed.settings[key] = decryptSecret(parsed.settings[key]);
+            }
+          }
+        }
+        if (!parsed.gameAchievements) {
+          parsed.gameAchievements = {};
         }
         this.data = parsed;
       } else {
@@ -120,13 +135,19 @@ class DatabaseService {
   private persist(): void {
     try {
       if (!this.dataFilePath) return;
+
+      const encryptedSettings = { ...this.data.settings };
+      for (const key of SECRET_SETTING_KEYS) {
+        if (encryptedSettings[key]) {
+          encryptedSettings[key] = encryptSecret(encryptedSettings[key]);
+        }
+      }
+
       const dataToPersist: DatabaseSchema = {
         ...this.data,
-        settings: {
-          ...this.data.settings,
-          steamGridDbApiKey: encryptSecret(this.data.settings?.steamGridDbApiKey)
-        }
+        settings: encryptedSettings
       };
+
       writeFileSync(this.dataFilePath, JSON.stringify(dataToPersist, null, 2), 'utf-8');
     } catch (err) {
       console.error('[Database] Persist error:', err);
@@ -220,13 +241,20 @@ class DatabaseService {
   }
 
   // Achievements
-  getAchievements(gameId: string): Achievement[] {
-    return this.data.achievements.filter((a) => a.gameId === gameId);
+  getGameAchievements(gameId: string): GameAchievements | null {
+    return this.data.gameAchievements?.[gameId] ?? null;
   }
 
-  saveAchievements(gameId: string, achievements: Achievement[]): void {
-    this.data.achievements = this.data.achievements.filter((a) => a.gameId !== gameId).concat(achievements);
+  saveGameAchievements(achievements: GameAchievements): void {
+    if (!this.data.gameAchievements) {
+      this.data.gameAchievements = {};
+    }
+    this.data.gameAchievements[achievements.gameId] = achievements;
     this.persist();
+  }
+
+  getAchievements(gameId: string): Achievement[] {
+    return this.data.gameAchievements?.[gameId]?.items ?? [];
   }
 
   // Emulator Configs (sempre retorna um item por perfil conhecido)

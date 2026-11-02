@@ -51,6 +51,10 @@ const electronAPI: ElectronAPI = {
   // Conquistas
   getAchievements: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.ACHIEVEMENTS_GET, gameId),
   syncAchievements: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.ACHIEVEMENTS_SYNC, gameId),
+  testSteamCredentials: (apiKey: string, steamId: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ACHIEVEMENTS_TEST_STEAM, apiKey, steamId),
+  testRetroAchievementsCredentials: (username: string, apiKey: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ACHIEVEMENTS_TEST_RETRO, username, apiKey),
 
   // Cloud Sync
   getCloudSyncStatus: (gameId?: string) => ipcRenderer.invoke(IPC_CHANNELS.CLOUDSYNC_STATUS, gameId),

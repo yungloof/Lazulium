@@ -1,24 +1,22 @@
 export type AchievementSource = 'steam' | 'retroachievements';
 
 export interface Achievement {
-  id: string;                       // ID único interno
-  gameId: string;                   // Referência ao jogo no hub
-  apiName: string;                  // Nome da API (ex: 'ACH_WIN_ONE_GAME')
-  title: string;                    // Título da conquista
-  description?: string;             // Descrição de como obter
-  iconUrl?: string;                 // Ícone quando desbloqueada
-  iconGrayUrl?: string;             // Ícone quando bloqueada
-  isUnlocked: boolean;              // Se o jogador já desbloqueou
-  unlockedAt?: string;              // ISO timestamp
-  source: AchievementSource;        // 'steam' ou 'retroachievements'
-  points?: number;                  // Pontos (comum no RetroAchievements)
-  rarityPercentage?: number;        // Porcentagem global de jogadores que possuem
+  id: string;                       // ID / nome único da conquista
+  name: string;                     // Título visível
+  description: string;              // Descrição de como desbloquear
+  iconUrl: string;                  // Ícone desbloqueado (colorido)
+  iconLockedUrl?: string;           // Ícone bloqueado (ou versão em cinza)
+  unlocked: boolean;                // Se o usuário desbloqueou
+  unlockedAt?: string;              // Timestamp ISO da data de conquista
+  globalPercent?: number;           // Porcentagem global de jogadores que conquistaram
 }
 
-export interface AchievementSummary {
+export interface GameAchievements {
   gameId: string;
-  totalAchievements: number;
-  unlockedAchievements: number;
-  completionPercentage: number;
   source: AchievementSource;
+  total: number;
+  unlocked: number;
+  items: Achievement[];
+  syncedAt: string;                 // Timestamp ISO da última sincronização com a API
+  warning?: string;                 // Aviso amigável (perfil privado, sem suporte, etc.)
 }

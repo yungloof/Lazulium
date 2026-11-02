@@ -56,14 +56,16 @@ Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints m
 ---
 
 ## 🏆 Fase 5: Sistema Unificado de Conquistas
-- [ ] **Steam Web API:**
-  - Configuração de chave de API e SteamID64 nas configurações.
-  - Sincronização de conquistas de jogos da Steam (desbloqueadas e bloqueadas com progresso e datas).
-- [ ] **RetroAchievements API:**
-  - Configuração de usuário e Web API Key do RetroAchievements.
-  - Identificação de ROMs por hash MD5 ou título.
-  - Sincronização de badges e conquistas de jogos retrô/emulados.
-- [ ] Visualizador de conquistas na tela de detalhes do jogo com badges, porcentagens e filtros.
+- [x] **Steam Web API:**
+  - Configuração de chave de API e SteamID64 nas configurações com cifragem `safeStorage` (`enc:`).
+  - Sincronização de conquistas de jogos da Steam (desbloqueadas e bloqueadas com progresso, datas e raridade global).
+  - Resiliência contra perfis privados ou dados ocultos da Steam.
+- [x] **RetroAchievements API:**
+  - Configuração de usuário e Web API Key do RetroAchievements com cifragem `safeStorage` (`enc:`).
+  - Identificação de ROMs por hash MD5 do arquivo e fallback por título limpo (`cleanRomTitle`).
+  - Sincronização de badges (coloridas e cinza), pontos e conquistas de jogos retrô/emulados.
+- [x] Visualizador de conquistas (`AchievementsPanel.tsx`) com grade de badges, porcentagens de conclusão, filtros (Todas, Desbloqueadas, Bloqueadas), busca textual e atalho no hero spotlight.
+- [x] Cache persistido no JSON store com TTL de 6 horas e botão de sincronização manual.
 
 ---
 

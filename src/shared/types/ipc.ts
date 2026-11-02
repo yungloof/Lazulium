@@ -1,5 +1,5 @@
 import { EmulatorConfig, Game, GamePlatform, PlaytimeSession } from './game';
-import { Achievement } from './achievements';
+import { Achievement, GameAchievements } from './achievements';
 
 export interface ScanResult {
   added: number;
@@ -31,12 +31,12 @@ export interface SteamGridDBGame {
 }
 
 export interface FetchAssetsOptions {
-  searchTitle?: string;             // Busca manual por outro título
-  sgdbGameId?: number;              // Usuário escolheu explicitamente um jogo do SteamGridDB
+  searchTitle?: string;             // Busca por outro título no SteamGridDB
+  sgdbGameId?: number;              // ID explícito do jogo no SteamGridDB
 }
 
 export interface GameAssetsResult {
-  sgdbGame: SteamGridDBGame | null; // Jogo do SteamGridDB usado para as artes
+  sgdbGame: SteamGridDBGame | null;
   candidates: SteamGridDBGame[];    // Outros resultados da busca (para corrigir o match)
   grids: SteamGridDBAsset[];
   heroes: SteamGridDBAsset[];
@@ -100,8 +100,10 @@ export interface ElectronAPI {
   onGameUpdated: (callback: (game: Game) => void) => () => void;
 
   // Conquistas
-  getAchievements: (gameId: string) => Promise<Achievement[]>;
-  syncAchievements: (gameId: string) => Promise<Achievement[]>;
+  getAchievements: (gameId: string) => Promise<GameAchievements | null>;
+  syncAchievements: (gameId: string) => Promise<GameAchievements>;
+  testSteamCredentials: (apiKey: string, steamId: string) => Promise<ApiKeyTestResult>;
+  testRetroAchievementsCredentials: (username: string, apiKey: string) => Promise<ApiKeyTestResult>;
 
   // Cloud Sync
   getCloudSyncStatus: (gameId?: string) => Promise<{ authenticated: boolean; lastBackupAt?: string }>;
