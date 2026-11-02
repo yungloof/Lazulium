@@ -37,6 +37,7 @@ const TOP_SCREENSHOTS = 8;
 const SCREENSHOT_SOURCE_GAMES = 8;     // Jogos (mais recentes) consultados para a vitrine de capturas
 const RECENT_WINDOW_MS = 14 * 86_400_000;
 const SYNC_DELAY_MS = 400;             // Espaço entre jogos para não estourar limites das APIs
+const MAX_CONSECUTIVE_TRANSIENT_FAILURES = 8; // Sem rede ou com a Steam fora, interrompe cedo em vez de tentar a biblioteca toda
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -284,18 +285,32 @@ class ProfileService {
     this.syncingPromise = (async () => {
       let synced = 0;
       let failed = 0;
+      let consecutiveFailures = 0;
       try {
         const candidates = db
           .getGames()
           .filter((g) => (g.platform === 'steam' || g.platform === 'emulator') && (g.totalPlaytimeSeconds ?? 0) > 0);
-        for (const game of candidates) {
+        for (let i = 0; i < candidates.length; i++) {
+          const game = candidates[i];
           try {
             const result = await achievementsService.getAchievements(game.id, false);
-            if (result?.retryable) failed++;
-            else if (result && result.total > 0) synced++;
+            if (result?.retryable) {
+              failed++;
+              consecutiveFailures++;
+            } else {
+              consecutiveFailures = 0;
+              if (result && result.total > 0) synced++;
+            }
           } catch {
             failed++;
+            consecutiveFailures++;
           }
+
+          if (consecutiveFailures >= MAX_CONSECUTIVE_TRANSIENT_FAILURES) {
+            failed += candidates.length - (i + 1);
+            break;
+          }
+
           await sleep(SYNC_DELAY_MS);
         }
       } finally {
