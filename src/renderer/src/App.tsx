@@ -209,6 +209,20 @@ export const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setGames]);
 
+  // Esconde abas de plataformas sem jogos para não quebrar a barra em 1024px
+  const visibleFilters = useMemo(() => {
+    return FILTERS.filter((f) => {
+      if (f.id === 'all' || f.id === 'favorites') return true;
+      return games.some((g) => g.platform === f.id);
+    });
+  }, [games]);
+
+  useEffect(() => {
+    if (activeFilter !== 'all' && !visibleFilters.some((f) => f.id === activeFilter)) {
+      setActiveFilter('all');
+    }
+  }, [visibleFilters, activeFilter, setActiveFilter]);
+
   // Filter and search computation
   const filteredGames = useMemo(() => {
     return games.filter((game) => {
@@ -262,15 +276,15 @@ export const App: React.FC = () => {
       if (target) handleToggleFavorite(target.id);
     },
     onNextTab: () => {
-      const currentIndex = FILTERS.findIndex((f) => f.id === activeFilter);
-      const nextIndex = (currentIndex + 1) % FILTERS.length;
-      setActiveFilter(FILTERS[nextIndex].id);
+      const currentIndex = visibleFilters.findIndex((f) => f.id === activeFilter);
+      const nextIndex = (currentIndex + 1) % visibleFilters.length;
+      setActiveFilter(visibleFilters[nextIndex].id);
       setActiveFocusedIndex(0);
     },
     onPrevTab: () => {
-      const currentIndex = FILTERS.findIndex((f) => f.id === activeFilter);
-      const prevIndex = (currentIndex - 1 + FILTERS.length) % FILTERS.length;
-      setActiveFilter(FILTERS[prevIndex].id);
+      const currentIndex = visibleFilters.findIndex((f) => f.id === activeFilter);
+      const prevIndex = (currentIndex - 1 + visibleFilters.length) % visibleFilters.length;
+      setActiveFilter(visibleFilters[prevIndex].id);
       setActiveFocusedIndex(0);
     },
     onSearch: () => {
@@ -347,7 +361,7 @@ export const App: React.FC = () => {
         <div className="px-6 pt-4 pb-3 flex flex-wrap items-center justify-between gap-4 z-10">
           {/* Platform Filters */}
           <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-md">
-            {FILTERS.map((f) => {
+            {visibleFilters.map((f) => {
               const active = activeFilter === f.id;
               return (
                 <button

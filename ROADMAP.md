@@ -108,5 +108,5 @@ Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints m
 - [x] Horas da Steam corrigidas: `localconfig.vdf` lido com o parser de VDF (blocos `cloud` antes de `Playtime` faziam jogos aparecerem como "Nunca jogado") e só da conta conectada/mais recente.
 - [x] Atalhos não-Steam da Steam (`shortcuts.vdf`) importados como jogos, abrindo pela Steam e com as artes personalizadas de `config/grid`.
 - [x] Scanners da Riot (registro de desinstalação, abre pelo Riot Client) e da Xbox/Microsoft Store (pacotes com `MicrosoftGame.config`); jogos abertos por lançador são rastreados pela pasta do jogo.
-- [ ] Página web pública do perfil (consumindo o JSON exportado).
+- [x] Página web pública do perfil (consumindo o JSON exportado).
 
