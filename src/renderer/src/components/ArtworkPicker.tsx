@@ -75,7 +75,7 @@ export const ArtworkPicker: React.FC<ArtworkPickerProps> = ({ game, onClose, onO
   const activeTab = TABS.find((t) => t.type === tab)!;
   const assets = result ? result[activeTab.key] : [];
   const layout = GRID_LAYOUT[tab];
-  const needsKey = result?.error?.includes('chave de API');
+  const needsKey = /Contas/.test(result?.error ?? '');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-6" onClick={onClose}>
@@ -180,7 +180,7 @@ export const ArtworkPicker: React.FC<ArtworkPickerProps> = ({ game, onClose, onO
                   onClick={onOpenSettings}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white ${focusRing}`}
                 >
-                  <Settings className="w-3.5 h-3.5" /> Abrir Configurações
+                  <Settings className="w-3.5 h-3.5" /> Abrir Contas
                 </button>
               )}
             </div>

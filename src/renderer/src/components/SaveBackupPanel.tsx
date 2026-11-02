@@ -67,6 +67,7 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
   const [busy, setBusy] = useState<'backup' | 'restore' | null>(null);
   const [confirmRestoreId, setConfirmRestoreId] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   const loadHistory = useCallback(async () => {
@@ -158,6 +159,27 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
     } finally {
       setBusy(null);
       setRestoringId(null);
+    }
+  };
+
+  // Backups salvos aqui que não chegaram ao Drive (sem internet, conexão expirada)
+  const notUploaded = backups.filter((b) => b.driveError && !b.driveFileId && b.localPath).length;
+
+  const handleRetryUploads = async () => {
+    setRetrying(true);
+    setFeedback(null);
+    try {
+      const sent = (await window.electronAPI?.retryDriveUploads()) ?? 0;
+      await loadHistory();
+      setFeedback(
+        sent > 0
+          ? { tone: 'ok', text: `${sent} backup(s) enviado(s) ao Google Drive.` }
+          : { tone: 'warn', text: 'Ainda não foi possível enviar. Verifique a internet ou reconecte o Google Drive.' }
+      );
+    } catch (err) {
+      setFeedback({ tone: 'warn', text: ipcErrorMessage(err) });
+    } finally {
+      setRetrying(false);
     }
   };
 
@@ -335,6 +357,29 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
               <p className="flex items-center gap-1.5 text-[11px] text-amber-300">
                 <AlertTriangle className="w-3 h-3" /> Não foi possível listar os backups do Drive: {driveError}
               </p>
+            )}
+            {notUploaded > 0 && (
+              <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">
+                <span className="flex items-center gap-1.5">
+                  <CloudOff className="w-3.5 h-3.5 flex-shrink-0" /> {notUploaded} backup(s) estão só neste PC (o envio ao Drive falhou).
+                </span>
+                {drive?.connected ? (
+                  <button
+                    onClick={handleRetryUploads}
+                    disabled={retrying}
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-semibold flex-shrink-0 disabled:opacity-50 ${focusRing}`}
+                  >
+                    {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />} Tentar enviar de novo
+                  </button>
+                ) : (
+                  <button
+                    onClick={onOpenSettings}
+                    className={`px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-semibold flex-shrink-0 ${focusRing}`}
+                  >
+                    Reconectar o Drive
+                  </button>
+                )}
+              </div>
             )}
             {loadingHistory ? (
               <div className="flex items-center gap-2 text-xs text-slate-500 py-4">

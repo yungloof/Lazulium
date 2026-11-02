@@ -161,6 +161,12 @@ Unifica conquistas de plataformas de PC e retroemulação:
 
 ---
 
+### 3.5.2 Capturas e Perfil
+* **Capturas (`services/metadata/screenshots.service.ts`):** lista F12 da Steam (inclusive atalhos não-Steam: gameid = `(appid do atalho << 32) | 0x02000000`, lido do `shortcuts.vdf` binário), Xbox Game Bar e imagens anexadas (`userData/screenshots/<jogo>/`). As imagens são servidas pelo protocolo `lazulium-media://` em hosts próprios (`steam-shot`, `gamebar-shot`, `shot`), cada um preso à sua raiz e a um padrão de caminho. O renderer só recebe ids opacos; o main resolve o arquivo relistando.
+* **Perfil (`services/profile/profile.service.ts`):** calculado na hora a partir do banco (jogos + cache de conquistas). A exportação remove URLs `lazulium-media://`, que não existem fora deste PC.
+
+---
+
 ### 3.6 Módulo 6: Navegação por Controle (Gamepad Spatial Navigation)
 * **Compatibilidade:** Controles Xbox (XInput), PlayStation 4/5 (DirectInput / DualSense), Nintendo Switch Pro Controller e teclado.
 * **Navegação Espacial (2D Grid):**

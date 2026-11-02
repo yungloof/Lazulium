@@ -37,15 +37,37 @@ export function registerMediaScheme(): void {
   ]);
 }
 
-// lazulium-media://media/<jogo>/<arquivo> -> arquivo no cache (nunca fora dele)
+interface MediaRoot {
+  resolveRoot: () => string | undefined | Promise<string | undefined>;
+  allowPath?: RegExp;               // Caminho relativo (com '/') que pode ser servido dessa raiz
+}
+
+// Outras pastas servidas pelo mesmo esquema (ex: capturas de tela), cada uma presa à sua raiz
+const extraRoots = new Map<string, MediaRoot>();
+
+export function registerMediaRoot(host: string, root: MediaRoot): void {
+  extraRoots.set(host, root);
+}
+
+export function mediaUrl(host: string, relativePath: string): string {
+  return `${MEDIA_SCHEME}://${host}/${relativePath.split(/[\\/]/).map(encodeURIComponent).join('/')}`;
+}
+
+// lazulium-media://<host>/<caminho> -> arquivo dentro da raiz daquele host (nunca fora dela)
 export function registerMediaProtocol(): void {
-  const root = resolve(getCacheRoot());
-  protocol.handle(MEDIA_SCHEME, (request) => {
+  const cacheRoot = resolve(getCacheRoot());
+  protocol.handle(MEDIA_SCHEME, async (request) => {
     try {
       const url = new URL(request.url);
       const segments = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+      const extra = extraRoots.get(url.host);
+      const rootDir = url.host === MEDIA_HOST ? cacheRoot : extra ? await extra.resolveRoot() : undefined;
+      if (!rootDir || (extra?.allowPath && !extra.allowPath.test(segments.join('/')))) {
+        return new Response('Not found', { status: 404 });
+      }
+      const root = resolve(rootDir);
       const filePath = resolve(root, ...segments);
-      if (url.host !== MEDIA_HOST || !filePath.startsWith(root + sep) || !existsSync(filePath)) {
+      if (!filePath.startsWith(root + sep) || !existsSync(filePath)) {
         return new Response('Not found', { status: 404 });
       }
       return net.fetch(pathToFileURL(filePath).toString());

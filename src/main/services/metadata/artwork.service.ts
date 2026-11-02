@@ -49,6 +49,10 @@ class ArtworkService {
       await testApiKey(apiKey.trim());
       return { ok: true, message: 'Chave válida! Conexão com o SteamGridDB funcionando.' };
     } catch (err) {
+      // Aqui é uma chave digitada à mão: "expirou" não faz sentido, ela só está errada
+      if (err instanceof SteamGridDbError && (err.status === 401 || err.status === 403)) {
+        return { ok: false, message: 'Chave de API do SteamGridDB inválida.' };
+      }
       return { ok: false, message: (err as Error).message };
     }
   }
@@ -75,7 +79,7 @@ class ArtworkService {
 
   async fetchAssets(gameId: string, options: FetchAssetsOptions = {}): Promise<GameAssetsResult> {
     const apiKey = this.getApiKey();
-    if (!apiKey) return emptyResult('Configure sua chave de API do SteamGridDB em Configurações.');
+    if (!apiKey) return emptyResult('Entre na sua conta do SteamGridDB em Configurações → Contas para buscar artes.');
     const game = db.getGameById(gameId);
     if (!game) return emptyResult('Jogo não encontrado.');
 

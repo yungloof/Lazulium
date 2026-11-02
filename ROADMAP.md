@@ -97,3 +97,13 @@ Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints m
 - [x] Polling do controle só roda com um gamepad conectado.
 - [x] Login por conta em vez de chaves de API: Steam (conta do cliente da Steam deste PC ou OpenID no navegador; conquistas pelo perfil público, sem chave), SteamGridDB e RetroAchievements (janela de login que captura e valida a chave sozinha) e Google (client OAuth embutido no build via `.env`). Chaves manuais ficaram em "Avançado".
 - [ ] Testes de distribuição para amigos.
+
+---
+
+## 🖼️ Fase 9: Galeria, Perfil do Jogador & Estabilidade
+- [x] Galeria de capturas por jogo: F12 da Steam (`userdata/<conta>/760/remote/<appid>/screenshots`, com miniaturas), jogos não-Steam adicionados à Steam (via `shortcuts.vdf`), Xbox Game Bar (`Vídeos\Capturas`) e imagens anexadas no Lazulium; visualizador em tela cheia com setas e "Mostrar na pasta".
+- [x] Perfil do jogador unificado: horas somando todas as plataformas, conquistas desbloqueadas e jogos 100%, vitrine das conquistas mais raras, mais jogados, favoritos e jogados recentemente; avatar e nome da Steam.
+- [x] "Atualizar conquistas" de todos os jogos jogados e exportação do perfil em JSON (`lazulium-profile/1`, só URLs públicas) para uma futura página web.
+- [x] Caminhos claros em erros: avisos de conquistas sem corte e com "Abrir Contas", artes com "Abrir Contas" quando o SteamGridDB desconecta, backups com "Tentar enviar de novo"/"Reconectar o Drive", e a sincronização de horas da Steam ao abrir o app atualiza a janela.
+- [ ] Página web pública do perfil (consumindo o JSON exportado).
+

@@ -4,7 +4,9 @@ import { db } from './database/db';
 import { playtimeService } from './services/tracker/playtime.service';
 import { backupService } from './services/cloudsync/backup.service';
 import { registerMediaProtocol, registerMediaScheme } from './services/metadata/media-cache.service';
+import { registerScreenshotRoots } from './services/metadata/screenshots.service';
 import { scanLibraries } from './services/scanners';
+import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import {
   HIDDEN_LAUNCH_ARG,
   destroyTray,
@@ -35,13 +37,19 @@ if (!app.requestSingleInstanceLock()) {
     // Initialize local database
     await db.init();
     registerMediaProtocol();
+    registerScreenshotRoots();
     playtimeService.recoverInterruptedSessions();
 
     // Register all typed IPC channels
     registerIpcHandlers(getMainWindow);
 
     startApp(process.argv.includes(HIDDEN_LAUNCH_ARG));
-    void scanLibraries(['steam']);
+    // Horas da Steam (localconfig.vdf) atualizadas a cada abertura; a janela recebe os jogos atualizados
+    scanLibraries(['steam'])
+      .then((result) => {
+        for (const game of result.games) getMainWindow()?.webContents.send(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
+      })
+      .catch((err) => console.warn('[Startup] Sincronização da Steam falhou:', (err as Error).message));
     setTimeout(() => void backupService.retryPendingUploads(), PENDING_UPLOAD_RETRY_DELAY_MS);
 
     app.on('activate', function () {

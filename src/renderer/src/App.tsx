@@ -32,8 +32,12 @@ import {
   ImageIcon,
   Save,
   Pencil,
-  WifiOff
+  WifiOff,
+  Camera,
+  UserRound
 } from 'lucide-react';
+import { ScreenshotsPanel } from './components/ScreenshotsPanel';
+import { ProfilePanel } from './components/ProfilePanel';
 import { PlaytimeEditor } from './components/PlaytimeEditor';
 
 const FILTERS: { id: 'all' | GamePlatform | 'favorites'; label: string }[] = [
@@ -75,6 +79,23 @@ export const App: React.FC = () => {
   const [brokenLogoUrl, setBrokenLogoUrl] = useState<string | null>(null);
   const [launchNotice, setLaunchNotice] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
   const [showPlaytimeEditor, setShowPlaytimeEditor] = useState(false);
+  const [showScreenshots, setShowScreenshots] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [screenshotCount, setScreenshotCount] = useState(0);
+
+  // Quantidade de capturas do jogo em destaque (Steam F12, Game Bar e anexadas)
+  useEffect(() => {
+    setScreenshotCount(0);
+    if (!selectedGame) return;
+    let cancelled = false;
+    window.electronAPI
+      ?.listScreenshots(selectedGame.id)
+      .then((list) => !cancelled && setScreenshotCount(list.length))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedGame?.id]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const scanRef = useRef<() => Promise<void>>(async () => {});
 
@@ -228,6 +249,8 @@ export const App: React.FC = () => {
       else if (showArtworkPicker) setShowArtworkPicker(false);
       else if (showAchievementsModal) setShowAchievementsModal(false);
       else if (showSavesModal) setShowSavesModal(false);
+      else if (showScreenshots) setShowScreenshots(false);
+      else if (showProfile) setShowProfile(false);
       else if (showEmulatorSettings) setShowEmulatorSettings(false);
       else if (showAddGameModal) setShowAddGameModal(false);
       else if (searchQuery) setSearchQuery('');
@@ -387,6 +410,16 @@ export const App: React.FC = () => {
               <span>Adicionar Jogo</span>
             </button>
 
+            {/* Perfil do Jogador */}
+            <button
+              onClick={() => setShowProfile(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 rounded-lg text-slate-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              title="Seu perfil: horas, conquistas raras e favoritos"
+            >
+              <UserRound className="w-3.5 h-3.5" />
+              <span>Perfil</span>
+            </button>
+
             {/* Settings Button */}
             <button
               onClick={() => setShowSettings(true)}
@@ -504,6 +537,14 @@ export const App: React.FC = () => {
                   >
                     <ImageIcon className="w-4 h-4" />
                     <span>Artes</span>
+                  </button>
+                  <button
+                    onClick={() => setShowScreenshots(true)}
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                    title="Galeria de capturas de tela"
+                  >
+                    <Camera className="w-4 h-4 text-indigo-300" />
+                    <span>Capturas{screenshotCount > 0 ? ` (${screenshotCount})` : ''}</span>
                   </button>
                   <button
                     onClick={() => setShowSavesModal(true)}
@@ -624,6 +665,24 @@ export const App: React.FC = () => {
           onOpenSettings={() => {
             setShowAchievementsModal(false);
             setShowSettings(true);
+          }}
+        />
+      )}
+
+      {showScreenshots && selectedGame && (
+        <ScreenshotsPanel game={selectedGame} onClose={() => setShowScreenshots(false)} onChanged={setScreenshotCount} />
+      )}
+
+      {showProfile && (
+        <ProfilePanel
+          onClose={() => setShowProfile(false)}
+          onOpenSettings={() => {
+            setShowProfile(false);
+            setShowSettings(true);
+          }}
+          onSelectGame={(id) => {
+            const game = games.find((g) => g.id === id);
+            if (game) setSelectedGame(game);
           }}
         />
       )}

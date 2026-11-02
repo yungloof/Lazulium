@@ -49,6 +49,18 @@ export const IPC_CHANNELS = {
   CLOUDSYNC_LIST_BACKUPS: 'cloudsync:list-backups',
   CLOUDSYNC_RESTORE: 'cloudsync:restore',
   CLOUDSYNC_BACKUP_EVENT: 'cloudsync:backup-event',
+  CLOUDSYNC_RETRY_UPLOADS: 'cloudsync:retry-uploads',
+
+  // Capturas de tela
+  SCREENSHOTS_LIST: 'screenshots:list',
+  SCREENSHOTS_IMPORT: 'screenshots:import',
+  SCREENSHOTS_DELETE: 'screenshots:delete',
+  SCREENSHOTS_SHOW_IN_FOLDER: 'screenshots:show-in-folder',
+
+  // Perfil do jogador
+  PROFILE_GET: 'profile:get',
+  PROFILE_SYNC_ACHIEVEMENTS: 'profile:sync-achievements',
+  PROFILE_EXPORT: 'profile:export',
 
   // Contas (login sem chave de API)
   ACCOUNTS_GET_STATUS: 'accounts:get-status',

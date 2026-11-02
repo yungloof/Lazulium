@@ -61,7 +61,7 @@ async function request<T>(apiKey: string, path: string, query?: Record<string, s
   }
 
   if (res.status === 401 || res.status === 403) {
-    throw new SteamGridDbError('Chave de API do SteamGridDB inválida.', res.status);
+    throw new SteamGridDbError('A conexão com o SteamGridDB expirou ou foi revogada. Entre de novo em Configurações → Contas.', res.status);
   }
   if (res.status === 404) throw new SteamGridDbError('Não encontrado no SteamGridDB.', 404);
   if (res.status === 429) {

@@ -20,7 +20,7 @@ const HEURISTIC_MIN_KEY_LENGTH = 4;
 export const MAX_SAVE_FILES = 20_000;
 export const MAX_SAVE_BYTES = 1024 * 1024 * 1024;
 
-function normalizeKey(value: string): string {
+export function normalizeKey(value: string): string {
   return value
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')

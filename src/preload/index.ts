@@ -77,6 +77,20 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.CLOUDSYNC_BACKUP_EVENT, subscription);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.CLOUDSYNC_BACKUP_EVENT, subscription);
   },
+  retryDriveUploads: () => ipcRenderer.invoke(IPC_CHANNELS.CLOUDSYNC_RETRY_UPLOADS),
+
+  // Capturas de tela
+  listScreenshots: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_LIST, gameId),
+  importScreenshots: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_IMPORT, gameId),
+  deleteScreenshot: (gameId: string, screenshotId: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_DELETE, gameId, screenshotId),
+  showScreenshotInFolder: (gameId: string, screenshotId: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_SHOW_IN_FOLDER, gameId, screenshotId),
+
+  // Perfil do jogador
+  getPlayerProfile: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_GET),
+  syncAllAchievements: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SYNC_ACHIEVEMENTS),
+  exportPlayerProfile: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_EXPORT),
 
   // Contas
   getAccountsStatus: () => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_GET_STATUS),

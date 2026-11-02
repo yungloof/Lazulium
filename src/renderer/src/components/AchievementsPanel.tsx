@@ -89,9 +89,8 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ game, onCl
     }
   };
 
-  const isCredentialsWarning =
-    data?.warning?.includes('Configurações') ||
-    data?.warning?.includes('Configure');
+  // Avisos que se resolvem entrando na conta (sem conta, chave revogada)
+  const isCredentialsWarning = /Contas|Configurações|Configure|inválid|revogad/i.test(data?.warning ?? '');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-6" onClick={onClose}>
@@ -168,16 +167,16 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ game, onCl
         {/* Warning Banner (se houver aviso ou erro leve) */}
         {data?.warning && (
           <div className="mx-6 mt-4 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex-shrink-0">
-            <div className="flex items-center gap-2 truncate">
+            <div className="flex items-start gap-2 min-w-0">
               <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-400" />
-              <span className="truncate">{data.warning}</span>
+              <span className="break-words">{data.warning}</span>
             </div>
             {isCredentialsWarning && onOpenSettings && (
               <button
                 onClick={onOpenSettings}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-semibold text-[11px] flex-shrink-0 ${focusRing}`}
               >
-                <Settings className="w-3 h-3" /> Configurações
+                <Settings className="w-3 h-3" /> Abrir Contas
               </button>
             )}
           </div>
@@ -245,12 +244,12 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ game, onCl
                   ? 'Nenhuma conquista encontrada para este jogo.'
                   : 'Nenhuma conquista corresponde ao filtro atual.'}
               </p>
-              {items.length === 0 && onOpenSettings && (
+              {items.length === 0 && isCredentialsWarning && onOpenSettings && (
                 <button
                   onClick={onOpenSettings}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white ${focusRing}`}
                 >
-                  <Settings className="w-3.5 h-3.5" /> Verificar Configurações de API
+                  <Settings className="w-3.5 h-3.5" /> Abrir Contas
                 </button>
               )}
             </div>

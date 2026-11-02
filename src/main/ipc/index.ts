@@ -1,4 +1,5 @@
-import { ipcMain, BrowserWindow, dialog } from 'electron';
+import { ipcMain, BrowserWindow, dialog, shell } from 'electron';
+import { writeFile } from 'fs/promises';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { db } from '../database/db';
 import { EmulatorConfig, Game, GamePlatform } from '@shared/types/game';
@@ -14,6 +15,8 @@ import { backupService } from '../services/cloudsync/backup.service';
 import { DRIVE_SETTING_KEYS, googleDriveService } from '../services/cloudsync/google-drive.service';
 import { applyLoginItem, markRendererReady, notify } from '../app-shell';
 import { accountsService } from '../services/accounts/accounts.service';
+import { screenshotsService } from '../services/metadata/screenshots.service';
+import { profileService } from '../services/profile/profile.service';
 import { AccountService } from '@shared/types/accounts';
 
 // Gerenciadas só pelo main: o renderer nunca lê nem grava o token do Google
@@ -223,11 +226,71 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     return backupService.listBackups(gameId);
   });
 
+  ipcMain.handle(IPC_CHANNELS.CLOUDSYNC_RETRY_UPLOADS, async () => {
+    return backupService.retryPendingUploads();
+  });
+
   ipcMain.handle(IPC_CHANNELS.CLOUDSYNC_RESTORE, async (_event, gameId: string, backupId: string) => {
     if (playtimeService.getState(gameId) !== 'stopped') {
       throw new Error('Feche o jogo antes de restaurar um save.');
     }
     return backupService.restore(gameId, backupId);
+  });
+
+  // Capturas de tela Handlers
+  const requireGame = (gameId: string) => {
+    const game = db.getGameById(gameId);
+    if (!game) throw new Error('Jogo não encontrado.');
+    return game;
+  };
+
+  ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_LIST, async (_event, gameId: string) => {
+    return screenshotsService.list(requireGame(gameId));
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_IMPORT, async (_event, gameId: string) => {
+    const game = requireGame(gameId);
+    const win = getMainWindow();
+    const options: Electron.OpenDialogOptions = {
+      title: `Anexar capturas a ${game.title}`,
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'Imagens', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'] }]
+    };
+    const res = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    return res.canceled ? 0 : screenshotsService.importFiles(game, res.filePaths);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_DELETE, async (_event, gameId: string, screenshotId: string) => {
+    await screenshotsService.deleteCustom(requireGame(gameId), screenshotId);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_SHOW_IN_FOLDER, async (_event, gameId: string, screenshotId: string) => {
+    const path = await screenshotsService.resolvePath(requireGame(gameId), screenshotId);
+    if (!path) throw new Error('Captura não encontrada.');
+    shell.showItemInFolder(path);
+  });
+
+  // Perfil do jogador Handlers
+  ipcMain.handle(IPC_CHANNELS.PROFILE_GET, async () => {
+    return profileService.build();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.PROFILE_SYNC_ACHIEVEMENTS, async () => {
+    return profileService.syncAllAchievements();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.PROFILE_EXPORT, async () => {
+    const win = getMainWindow();
+    const options: Electron.SaveDialogOptions = {
+      title: 'Exportar perfil do jogador',
+      defaultPath: 'lazulium-perfil.json',
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    };
+    const res = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
+    if (res.canceled || !res.filePath) return null;
+    const profile = profileService.toExportable(await profileService.build());
+    await writeFile(res.filePath, JSON.stringify(profile, null, 2), 'utf-8');
+    return res.filePath;
   });
 
   // Contas Handlers
