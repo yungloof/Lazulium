@@ -15,7 +15,7 @@ Você vai receber ou baixar um dos seguintes arquivos da pasta `dist/`:
 | **`Lazulium-Setup-0.1.0.exe`** *(Recomendado)* | Quem quer instalar no PC normalmente | Cria atalhos na Área de Trabalho e no Menu Iniciar. Instala apenas para o seu usuário (não precisa de permissão de administrador). |
 | **`Lazulium-Portable-0.1.0.exe`** | Quem prefere não instalar nada | É um único arquivo executável. Basta dar dois cliques e ele abre direto (pode rodar até de um pendrive). |
 
-> **Nota sobre seus dados:** Pode testar com tranquilidade! Seus dados (tempo jogado, capas baixadas, anotações do diário e backups de saves) ficam guardados com segurança na pasta do seu usuário (`%APPDATA%\Lazulium`) e não são apagados ao trocar de versão ou desinstalar o app.
+> **Nota sobre seus dados:** Pode testar com tranquilidade! Seus dados (banco em `storage`, capas e artes em `artwork`, anotações do diário e backups de saves) ficam guardados com segurança na pasta do seu usuário (`%APPDATA%\Lazulium`) e não são apagados ao trocar de versão ou desinstalar o app.
 
 ---
 

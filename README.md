@@ -69,7 +69,7 @@ Use um dos arquivos gerados em `dist/`:
 
 Os executáveis não são assinados digitalmente; na primeira execução o Windows SmartScreen pode pedir "Mais informações → Executar assim mesmo".
 
-Os dados ficam em `%APPDATA%\Lazulium` (biblioteca, artes em cache e backups de saves) e são mantidos ao desinstalar.
+Os dados ficam em `%APPDATA%\Lazulium` (biblioteca, artes em `artwork` e backups de saves) e são mantidos ao desinstalar.
 
 > 🧪 **Vai testar o app?** Confira o nosso [Guia de Teste para Amigos](docs/guia-de-teste.md) com o passo a passo do que testar, instruções para o aviso do SmartScreen e como nos enviar relatos ou logs.
 
