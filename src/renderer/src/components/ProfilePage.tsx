@@ -14,7 +14,7 @@ interface ProfilePageProps {
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
-const panel = 'bg-black/65';
+const panel = 'bg-black/65 rounded-lg';
 const buttonBase = `flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-medium text-slate-100 disabled:opacity-50 transition-colors ${focusRing}`;
 const button = `${buttonBase} bg-white/10 hover:bg-white/20`;
 
@@ -129,7 +129,7 @@ const GameRow: React.FC<{ game: ProfileGame; onOpen: () => void }> = ({ game, on
   return (
     <div className={`${panel} p-3`}>
       <button onClick={onOpen} className={`w-full flex items-start gap-3 text-left rounded-sm hover:brightness-125 transition ${focusRing}`}>
-        <span className="w-[184px] aspect-[184/69] flex-shrink-0 overflow-hidden bg-slate-900">
+        <span className="w-[184px] aspect-[184/69] flex-shrink-0 rounded-md overflow-hidden bg-slate-900">
           {(game.heroUrl || game.coverUrl) && <img src={game.heroUrl || game.coverUrl} alt="" loading="lazy" className="w-full h-full object-cover" />}
         </span>
         <span className="flex-1 min-w-0 text-sm text-white truncate">{game.title}</span>
@@ -283,7 +283,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
       return (
         <section key={id}>
           <figure className="inline-block max-w-full">
-            <img src={artworkUrl} alt={artworkCaption ?? ''} className="max-w-full max-h-[420px] object-contain" />
+            <img src={artworkUrl} alt={artworkCaption ?? ''} className="max-w-full max-h-[420px] object-contain rounded-lg" />
             {artworkCaption && <figcaption className="mt-2 text-sm text-slate-300">{artworkCaption}</figcaption>}
           </figure>
         </section>
@@ -380,7 +380,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
         {/* Identidade */}
         <header className={`${panel} p-5 flex items-start gap-5 min-w-0`}>
           <div className="relative w-[148px] h-[148px] flex-shrink-0">
-            <div className="w-full h-full overflow-hidden bg-slate-800">
+            <div className="w-full h-full rounded-md overflow-hidden bg-slate-800">
               {profile.avatarUrl ? (
                 <img src={profile.avatarUrl} alt="" className="w-full h-full object-cover" />
               ) : (

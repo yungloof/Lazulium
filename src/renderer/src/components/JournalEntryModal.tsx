@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Loader2, NotebookPen, X } from 'lucide-react';
 import { Game, GameLogStatus } from '@shared/types/game';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
-import { StarRating, StatusSelect } from './GameLogFields';
+import { StarRating, StatusPicker } from './GameLogFields';
 
 interface JournalEntryModalProps {
   onClose: () => void;
@@ -10,7 +10,8 @@ interface JournalEntryModalProps {
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
-const inputClass = `w-full px-3 py-2 text-xs bg-slate-900 border border-slate-700 rounded-sm text-slate-200 placeholder-slate-600 ${focusRing}`;
+const inputClass = `w-full px-3 py-2 text-sm bg-slate-950/60 border border-slate-700/80 rounded-lg text-slate-100 placeholder-slate-500 hover:border-slate-600 focus:border-indigo-400 ${focusRing}`;
+const labelClass = 'block mb-1.5 text-[13px] font-medium text-slate-300';
 
 // Jogos que o app não tem como detectar: console, outro PC, ou jogados há muito tempo
 export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, onAdded }) => {
@@ -62,57 +63,61 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
       <form
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-md bg-steam-bg border border-black/40 shadow-lg"
+        className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-lg bg-steam-bg border border-slate-700/60 shadow-lg"
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-black/30">
-          <h2 className="flex items-center gap-2 text-sm font-bold text-slate-100">
+          <h2 className="flex items-center gap-2 text-base text-white">
             <NotebookPen className="w-4 h-4 text-indigo-400" /> Registrar jogo no Diário
           </h2>
           <button type="button" onClick={onClose} aria-label="Fechar" className={`p-1.5 rounded-sm text-slate-400 hover:text-white hover:bg-slate-800 ${focusRing}`}>
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-5 space-y-3 text-[11px] text-slate-400 overflow-y-auto">
+        <div className="p-5 space-y-4 overflow-y-auto">
           <p className="text-xs text-slate-500">Para jogos de console, de outro PC ou que você já zerou há tempos.</p>
           <label className="block">
-            Nome do jogo
-            <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="The Last of Us" className={`${inputClass} mt-1`} />
+            <span className={labelClass}>Nome do jogo</span>
+            <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="The Last of Us" className={inputClass} />
           </label>
           <label className="block">
-            Onde jogou
-            <input value={manualPlatform} onChange={(e) => setManualPlatform(e.target.value)} placeholder="PS5, Switch, Xbox..." className={`${inputClass} mt-1`} />
+            <span className={labelClass}>Onde jogou</span>
+            <input value={manualPlatform} onChange={(e) => setManualPlatform(e.target.value)} placeholder="PS5, Switch, Xbox..." className={inputClass} />
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              Horas
-              <input type="number" min={0} value={hours} onChange={(e) => setHours(e.target.value)} placeholder="0" className={`${inputClass} mt-1`} />
+              <span className={labelClass}>Horas</span>
+              <input type="number" min={0} value={hours} onChange={(e) => setHours(e.target.value)} placeholder="0" className={inputClass} />
             </label>
             <label className="block">
-              Minutos
-              <input type="number" min={0} max={59} value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="0" className={`${inputClass} mt-1`} />
+              <span className={labelClass}>Minutos</span>
+              <input type="number" min={0} max={59} value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="0" className={inputClass} />
             </label>
           </div>
-          <div className="flex items-center justify-between gap-3 pt-1">
-            <StatusSelect value={status} onChange={setStatus} />
-            <StarRating value={rating} onChange={setRating} size="w-5 h-5" />
+          <div>
+            <p className={labelClass}>Como está esse jogo para você?</p>
+            <StatusPicker value={status} onChange={setStatus} />
+          </div>
+          <div>
+            <p className={labelClass}>Sua nota</p>
+            <StarRating value={rating} onChange={setRating} size="w-6 h-6" showLabel />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              Comecei em
-              <input type="date" value={startedOn} onChange={(e) => setStartedOn(e.target.value)} className={`${inputClass} mt-1`} />
+              <span className={labelClass}>Comecei em</span>
+              <input type="date" value={startedOn} onChange={(e) => setStartedOn(e.target.value)} className={inputClass} />
             </label>
             <label className="block">
-              Terminei em
-              <input type="date" value={finishedOn} onChange={(e) => setFinishedOn(e.target.value)} className={`${inputClass} mt-1`} />
+              <span className={labelClass}>Terminei em</span>
+              <input type="date" value={finishedOn} onChange={(e) => setFinishedOn(e.target.value)} className={inputClass} />
             </label>
           </div>
           <label className="block">
-            Minha resenha
-            <textarea value={review} onChange={(e) => setReview(e.target.value)} rows={5} placeholder="O que achou do jogo? História, gameplay, o que ficou na memória..." className={`${inputClass} mt-1 resize-y leading-relaxed`} />
+            <span className={labelClass}>Minha resenha</span>
+            <textarea value={review} onChange={(e) => setReview(e.target.value)} rows={5} placeholder="O que achou do jogo? História, gameplay, o que ficou na memória..." className={`${inputClass} resize-y leading-relaxed select-text`} />
           </label>
           <label className="block">
-            Anotações de progresso
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Onde parou, o que falta fazer, com quem jogou..." className={`${inputClass} mt-1 resize-y leading-relaxed`} />
+            <span className={labelClass}>Anotações de progresso</span>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Onde parou, o que falta fazer, com quem jogou..." className={`${inputClass} resize-y leading-relaxed select-text`} />
           </label>
           {error && (
             <p className="flex items-center gap-1.5 text-xs text-amber-300">

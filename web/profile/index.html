@@ -14,7 +14,7 @@
       --text: #e6edf3;
       --muted: #9fb0c0;
       --faint: #76879a;
-      --accent: #66c0f4;
+      --accent: #6b9bff;
       --gold: #e6c869;
     }
     * { box-sizing: border-box; }
@@ -39,9 +39,9 @@
       margin: 0 auto;
       padding: 32px 24px 48px;
     }
-    .panel { background: var(--panel); }
+    .panel { background: var(--panel); border-radius: 14px; }
     #identity { display: flex; gap: 20px; padding: 20px; min-width: 0; }
-    #avatar { position: relative; flex: none; width: 148px; height: 148px; background: #1b2838; }
+    #avatar { position: relative; flex: none; width: 148px; height: 148px; background: #151c30; border-radius: 12px; }
     #avatar > .photo { width: 100%; height: 100%; object-fit: cover; }
     #avatar > .frame { position: absolute; inset: -7%; width: 114%; height: 114%; max-width: none; pointer-events: none; }
     #avatar > .letter { display: flex; height: 100%; align-items: center; justify-content: center; font-size: 56px; color: var(--faint); }
@@ -66,16 +66,16 @@
     .bar { height: 4px; margin-top: 4px; background: rgba(0, 0, 0, 0.6); overflow: hidden; }
     .bar i { display: block; height: 100%; background: var(--accent); }
     .icons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-    .icons img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #1b2838; }
+    .icons img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #151c30; border-radius: 8px; }
     .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
     .section-head h2 { font-size: 18px; font-weight: 400; }
     .section-head span { color: var(--muted); }
-    figure img { max-height: 420px; object-fit: contain; }
+    figure img { max-height: 420px; object-fit: contain; border-radius: 14px; }
     figcaption { margin-top: 8px; color: var(--muted); }
     .stack { display: flex; flex-direction: column; gap: 6px; }
     .game { padding: 12px; }
     .game .top { display: flex; align-items: flex-start; gap: 12px; }
-    .game .capsule { flex: none; width: 184px; aspect-ratio: 184 / 69; object-fit: cover; background: #1b2838; }
+    .game .capsule { flex: none; width: 184px; aspect-ratio: 184 / 69; object-fit: cover; background: #151c30; border-radius: 10px; }
     .game .title { flex: 1; min-width: 0; color: #fff; overflow-wrap: anywhere; }
     .game .time { flex: none; text-align: right; font-size: 12px; color: var(--muted); line-height: 1.6; }
     .game .ach { display: flex; align-items: center; gap: 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
@@ -83,7 +83,7 @@
     .game .ach .row { display: flex; flex: none; gap: 4px; }
     .game .ach .row img { width: 32px; height: 32px; }
     .covers { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; padding: 12px; }
-    .cover img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #1b2838; }
+    .cover img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #151c30; border-radius: 10px; }
     .cover b { display: block; margin-top: 6px; font-size: 12px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cover small { color: var(--muted); font-size: 11px; }
     .rare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }

@@ -141,7 +141,7 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
     <div
       ref={menuRef}
       style={{ left: `${posX}px`, top: `${posY}px` }}
-      className="fixed z-50 w-56 rounded-lg bg-[#1b2838] border border-slate-700/80 p-1.5 shadow-lg shadow-black/90 text-xs select-none backdrop-blur-md"
+      className="fixed z-50 w-56 rounded-lg bg-[#0e1426] border border-slate-700/80 p-1.5 shadow-lg shadow-black/90 text-xs select-none backdrop-blur-md"
       onContextMenu={(e) => e.preventDefault()}
     >
       <div className="px-2.5 py-1 text-[11px] font-semibold text-slate-400 truncate border-b border-slate-800/80 mb-1">

@@ -95,7 +95,7 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ game, onCl
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-6" onClick={onClose}>
       <div
-        className="w-full max-w-4xl h-[85vh] flex flex-col rounded-lg bg-[#1b2838] border border-slate-800 shadow-lg overflow-hidden"
+        className="w-full max-w-4xl h-[85vh] flex flex-col rounded-lg bg-[#0e1426] border border-slate-800 shadow-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

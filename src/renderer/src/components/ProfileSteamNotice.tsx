@@ -108,7 +108,7 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
     setBusy(false);
   };
 
-  const box = 'col-span-2 p-4 bg-black/75 border border-white/10 text-sm text-slate-200';
+  const box = 'col-span-2 p-4 rounded-lg bg-black/75 border border-white/10 text-sm text-slate-200';
 
   if (isSyncingAchievements) {
     return (

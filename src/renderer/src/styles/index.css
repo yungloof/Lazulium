@@ -1,38 +1,43 @@
 @import "tailwindcss";
 
-/* Paleta inspirada no cliente da Steam: neutros azul-acinzentados e acento azul.
-   Redefinir slate/indigo deixa todos os componentes coerentes sem trocar classe por classe. */
+/* Paleta do Lazulium: azul-noite profundo e azul vivo, cantos suaves.
+   Redefinir slate/indigo e os raios deixa todos os componentes coerentes sem trocar classe por classe. */
 @theme {
-  --color-slate-50: #eef3f6;
-  --color-slate-100: #dce5ec;
-  --color-slate-200: #c7d5e0;
-  --color-slate-300: #acbac6;
-  --color-slate-400: #8f98a0;
-  --color-slate-500: #67727e;
-  --color-slate-600: #4b5866;
-  --color-slate-700: #34495c;
-  --color-slate-800: #23303e;
-  --color-slate-900: #16202d;
-  --color-slate-950: #0f151d;
+  --color-slate-50: #f1f5fd;
+  --color-slate-100: #e2e9f7;
+  --color-slate-200: #cbd6ec;
+  --color-slate-300: #a7b5d3;
+  --color-slate-400: #8292b5;
+  --color-slate-500: #60708f;
+  --color-slate-600: #44526f;
+  --color-slate-700: #2f3b56;
+  --color-slate-800: #1f2840;
+  --color-slate-900: #151c30;
+  --color-slate-950: #0a0f1d;
 
-  --color-indigo-50: #eaf6fe;
-  --color-indigo-100: #d2ecfc;
-  --color-indigo-200: #b2dffa;
-  --color-indigo-300: #8fd0f7;
-  --color-indigo-400: #66c0f4;
-  --color-indigo-500: #4f94bc;
-  --color-indigo-600: #3d7ba3;
-  --color-indigo-700: #2f6387;
-  --color-indigo-800: #2a475e;
-  --color-indigo-900: #1f3447;
-  --color-indigo-950: #142332;
+  --color-indigo-50: #eef4ff;
+  --color-indigo-100: #dbe7ff;
+  --color-indigo-200: #bfd4ff;
+  --color-indigo-300: #93b6ff;
+  --color-indigo-400: #6b9bff;
+  --color-indigo-500: #4a80ff;
+  --color-indigo-600: #3468f5;
+  --color-indigo-700: #2753d6;
+  --color-indigo-800: #2342a8;
+  --color-indigo-900: #1d3478;
+  --color-indigo-950: #121f4a;
 
-  --color-steam-bg: #1b2838;
-  --color-steam-panel: #16202d;
-  --color-steam-header: #171a21;
-  --color-steam-sidebar: #171d25;
+  --color-steam-bg: #0e1426;
+  --color-steam-panel: #151c30;
+  --color-steam-header: #0a0f1d;
+  --color-steam-sidebar: #0c1222;
   --color-steam-play: #5c7e10;
   --color-steam-play-light: #a4d007;
+
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 0.875rem;
 }
 
 @layer base {
@@ -42,9 +47,15 @@
 
   body {
     font-family: 'Segoe UI', 'Motiva Sans', Arial, sans-serif;
-    background: #1b2838;
-    color: #c7d5e0;
+    background: #0e1426;
+    color: #cbd6ec;
+    color-scheme: dark;
   }
+}
+
+/* A classe rounded simples não acompanha os raios do tema */
+.rounded {
+  border-radius: var(--radius-sm);
 }
 
 /* Custom Scrollbar */
@@ -54,16 +65,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #171d25;
+  background: #0c1222;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3d4b5a;
+  background: #2f3b56;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #56677a;
+  background: #44526f;
 }
 
 /* Electron Window Drag Regions */

@@ -189,7 +189,7 @@ export const AddCustomGameModal: React.FC<AddCustomGameModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xl flex flex-col rounded-lg bg-[#1b2838] border border-slate-800 shadow-lg"
+        className="w-full max-w-xl flex flex-col rounded-lg bg-[#0e1426] border border-slate-800 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

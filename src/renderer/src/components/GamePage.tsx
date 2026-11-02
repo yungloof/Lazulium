@@ -145,7 +145,7 @@ export const GamePage: React.FC<GamePageProps> = ({
         ) : game.media?.coverUrl ? (
           <img src={game.media.coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-50" />
         ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#1b2838] via-[#1b2838]/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0e1426] via-[#0e1426]/30 to-transparent" />
         <div className="absolute left-8 bottom-6 right-8">
           {logoUrl ? (
             <img
@@ -257,6 +257,8 @@ export const GamePage: React.FC<GamePageProps> = ({
       {/* Conteúdo */}
       <div className="px-8 py-6 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-5">
         <div className="space-y-5 min-w-0">
+          <GameLogCard game={game} />
+
           <Card
             title="Capturas de tela"
             icon={<Camera className="w-3.5 h-3.5 text-indigo-400" />}
@@ -338,8 +340,6 @@ export const GamePage: React.FC<GamePageProps> = ({
             )}
           </Card>
           )}
-
-          <GameLogCard game={game} />
 
           <Card title="Informações" icon={<Info className="w-3.5 h-3.5 text-slate-400" />}>
             <dl className="space-y-2 text-xs">
