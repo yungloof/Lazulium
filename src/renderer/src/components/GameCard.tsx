@@ -3,6 +3,16 @@ import { Game } from '@shared/types/game';
 import { Star, Gamepad2 } from 'lucide-react';
 import { useLibraryStore } from '../stores/useLibraryStore';
 
+const PLATFORM_BADGES: Record<Game['platform'], { label: string; className: string }> = {
+  steam: { label: 'Steam', className: 'bg-blue-600/85' },
+  epic: { label: 'Epic', className: 'bg-slate-700/90' },
+  gog: { label: 'GOG', className: 'bg-purple-600/85' },
+  riot: { label: 'Riot', className: 'bg-red-600/85' },
+  xbox: { label: 'Xbox', className: 'bg-emerald-600/85' },
+  emulator: { label: 'Emu', className: 'bg-amber-600/85' },
+  standalone: { label: 'PC', className: 'bg-zinc-700/90' }
+};
+
 interface GameCardProps {
   game: Game;
   isFocused?: boolean;
@@ -31,37 +41,22 @@ export const GameCard: React.FC<GameCardProps> = ({
 
   const formatPlaytime = (seconds: number) => {
     if (!seconds || seconds < 60) return 'Nunca jogado';
-    const hours = (seconds / 3600).toFixed(1);
-    return `${hours} hrs`;
+    const hours = seconds / 3600;
+    return hours < 1 ? `${Math.round(seconds / 60)} min` : `${hours.toFixed(1).replace('.', ',')} h`;
   };
 
-  const getPlatformBadge = () => {
-    switch (game.platform) {
-      case 'steam':
-        return <span className="bg-blue-600/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">STEAM</span>;
-      case 'epic':
-        return <span className="bg-slate-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">EPIC</span>;
-      case 'gog':
-        return <span className="bg-purple-600/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">GOG</span>;
-      case 'emulator':
-        return (
-          <span className="bg-amber-600/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">
-            {game.emulatorId || 'EMU'}
-          </span>
-        );
-      default:
-        return <span className="bg-zinc-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">PC</span>;
-    }
-  };
+  const badge = PLATFORM_BADGES[game.platform];
+  const badgeLabel = game.platform === 'emulator' ? game.emulatorId || 'EMU' : badge.label;
 
   return (
     <div
       ref={cardRef}
       onClick={() => onSelect(game)}
-      className={`group relative aspect-[2/3] rounded-xl overflow-hidden bg-slate-900/90 border transition-all duration-200 cursor-pointer ${
+      title={game.title}
+      className={`group relative aspect-[2/3] rounded-lg overflow-hidden bg-slate-900/90 border transition-all duration-200 cursor-pointer ${
         isFocused
-          ? 'border-indigo-400 ring-4 ring-indigo-500/50 scale-[1.04] shadow-2xl shadow-indigo-500/30 z-20'
-          : 'border-slate-800 hover:border-slate-600 hover:scale-[1.02] hover:shadow-xl'
+          ? 'border-indigo-400 ring-2 ring-indigo-500/70 scale-[1.05] shadow-xl shadow-indigo-500/30 z-20'
+          : 'border-slate-800 hover:border-slate-600 hover:scale-[1.03] hover:shadow-lg'
       }`}
     >
       {/* Cover Image or Fallback */}
@@ -78,38 +73,39 @@ export const GameCard: React.FC<GameCardProps> = ({
           }}
         />
       ) : (
-        <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-slate-800 to-slate-950 text-center">
-          <Gamepad2 className="w-10 h-10 text-slate-600 mb-2" />
-          <span className="text-xs font-semibold text-slate-300 line-clamp-3">{game.title}</span>
+        <div className="w-full h-full flex flex-col items-center justify-center p-2.5 bg-gradient-to-b from-slate-800 to-slate-950 text-center">
+          <Gamepad2 className="w-7 h-7 text-slate-600 mb-1.5" />
+          <span className="text-[11px] leading-tight font-semibold text-slate-300 line-clamp-3">{game.title}</span>
         </div>
       )}
 
       {/* Top Overlay: Platform Badge & Favorite Button */}
-      <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between z-10">
-        <div>{getPlatformBadge()}</div>
+      <div className="absolute top-1.5 inset-x-1.5 flex items-center justify-between z-10">
+        <span className={`${badge.className} text-white text-[9px] font-bold leading-none px-1.5 py-1 rounded uppercase tracking-wide`}>
+          {badgeLabel}
+        </span>
         <button
           onClick={(e) => {
             e.stopPropagation();
             onToggleFavorite(game.id);
           }}
-          className={`p-1.5 rounded-full backdrop-blur-md transition-colors ${
+          title={game.isFavorite ? 'Remover dos favoritos' : 'Favoritar'}
+          className={`p-1 rounded-full backdrop-blur-md transition-all ${
             game.isFavorite
-              ? 'bg-amber-500/20 text-amber-400'
-              : 'bg-black/40 text-slate-400 hover:text-white'
-          }`}
+              ? 'bg-amber-500/25 text-amber-400'
+              : 'bg-black/50 text-slate-300 opacity-0 group-hover:opacity-100 hover:text-white'
+          } ${isFocused ? 'opacity-100' : ''}`}
         >
-          <Star className={`w-3.5 h-3.5 ${game.isFavorite ? 'fill-amber-400' : ''}`} />
+          <Star className={`w-3 h-3 ${game.isFavorite ? 'fill-amber-400' : ''}`} />
         </button>
       </div>
 
       {/* Bottom Gradient Overlay: Title & Playtime */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/80 to-transparent p-3 pt-8 flex flex-col justify-end">
-        <h3 className="text-sm font-bold text-white truncate drop-shadow-md">{game.title}</h3>
-        <div className="flex items-center justify-between mt-1 text-[11px] text-slate-400">
-          <div className="flex items-center gap-1">
-            <span>{isLaunching ? 'Iniciando...' : formatPlaytime(game.totalPlaytimeSeconds)}</span>
-          </div>
-        </div>
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/75 to-transparent px-2 pb-1.5 pt-6">
+        <h3 className="text-xs font-bold leading-tight text-white truncate drop-shadow-md">{game.title}</h3>
+        <p className="mt-0.5 text-[10px] text-slate-400 truncate">
+          {isLaunching ? 'Iniciando...' : formatPlaytime(game.totalPlaytimeSeconds)}
+        </p>
       </div>
     </div>
   );

@@ -138,7 +138,9 @@ function findGridArt(gridDir: string, appId: number, suffixes: string[]): string
 
 // Atalhos não-Steam ("Adicionar jogo" na Steam): emuladores, ports e jogos avulsos.
 // Abrem pela Steam (mantém Steam Input/overlay); artes personalizadas da pasta config/grid.
-async function scanShortcuts(accountDirs: string[]): Promise<DetectedGame[]> {
+// No localconfig.vdf a Steam grava as horas deles com o appid como int32 com sinal
+// (ex: 2712533781 vira "-1582433515").
+async function scanShortcuts(accountDirs: string[], localStats: Map<string, SteamAppStats>): Promise<DetectedGame[]> {
   const games = new Map<string, DetectedGame>();
   for (const accountDir of accountDirs) {
     const account = basename(accountDir);
@@ -149,6 +151,7 @@ async function scanShortcuts(accountDirs: string[]): Promise<DetectedGame[]> {
       const id = `steam-shortcut-${s.appId}`;
       if (s.hidden || games.has(id)) continue;
       const installPath = s.startDir || (s.exe ? dirname(s.exe) : undefined);
+      const stats = localStats.get(String(s.appId | 0)) ?? localStats.get(String(s.appId));
       games.set(id, {
         id,
         title: s.name,
@@ -159,7 +162,8 @@ async function scanShortcuts(accountDirs: string[]): Promise<DetectedGame[]> {
         workingDirectory: installPath,
         installPath,
         launchUri: `steam://rungameid/${s.gameId}`,
-        lastPlayedAt: s.lastPlayedAt,
+        initialPlaytimeSeconds: stats?.playtimeSeconds,
+        lastPlayedAt: [s.lastPlayedAt, stats?.lastPlayedAt].filter(Boolean).sort().pop(),
         media: {
           coverUrl: gridUrl(findGridArt(gridDir, s.appId, ['p', '_p'])),
           heroUrl: gridUrl(findGridArt(gridDir, s.appId, ['_hero'])),
@@ -253,7 +257,7 @@ export const steamScanner: PlatformScanner = {
 
     let shortcuts: DetectedGame[] = [];
     try {
-      shortcuts = await scanShortcuts(accountDirs);
+      shortcuts = await scanShortcuts(accountDirs, localStats);
     } catch (err) {
       warnings.push(`Steam: falha ao ler atalhos não-Steam (${(err as Error).message})`);
     }

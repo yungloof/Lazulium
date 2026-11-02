@@ -8,6 +8,8 @@ import { db } from './database/db';
 const HIDDEN_DESTROY_MS = 60_000;
 export const HIDDEN_LAUNCH_ARG = '--hidden';
 const APP_USER_MODEL_ID = 'com.lazulium.app';
+// Testes automatizados: janela nunca aparece, sem bandeja/notificações (LAZULIUM_SILENT=1)
+export const SILENT_MODE = process.env.LAZULIUM_SILENT === '1';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -46,15 +48,21 @@ function createWindow(show: boolean): BrowserWindow {
     frame: false, // Custom modern titlebar
     backgroundColor: '#090a0f',
     icon: resourcePath('icon.ico'),
+    // Modo silencioso: janela "exibida" (para renderizar e permitir capturas) mas invisível,
+    // fora da tela, sem foco e fora da barra de tarefas
+    ...(SILENT_MODE ? { x: -32000, y: -32000, opacity: 0, focusable: false, skipTaskbar: true } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
-      contextIsolation: true
+      contextIsolation: true,
+      backgroundThrottling: !SILENT_MODE
     }
   });
 
   win.on('ready-to-show', () => {
-    if (show) win.show();
+    if (!show) return;
+    if (SILENT_MODE) win.showInactive();
+    else win.show();
   });
 
   win.on('close', (event) => {
@@ -87,6 +95,7 @@ function createWindow(show: boolean): BrowserWindow {
 export function showMainWindow(): BrowserWindow {
   clearTimeout(destroyTimer);
   if (!mainWindow) return createWindow(true);
+  if (SILENT_MODE) return mainWindow;
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.show();
   mainWindow.focus();
@@ -121,7 +130,7 @@ function sendTrayAction(action: TrayAction): void {
 }
 
 export function createTray(): void {
-  if (tray) return;
+  if (tray || SILENT_MODE) return;
   tray = new Tray(nativeImage.createFromPath(resourcePath('tray.ico')));
   tray.setToolTip('Lazulium');
   tray.setContextMenu(
@@ -143,7 +152,7 @@ export function destroyTray(): void {
 
 // Notificação nativa só quando o usuário não está olhando para o app
 export function notify(title: string, body: string): void {
-  if (!Notification.isSupported()) return;
+  if (SILENT_MODE || !Notification.isSupported()) return;
   if (mainWindow?.isVisible() && mainWindow.isFocused()) return;
   const notification = new Notification({ title, body, icon: resourcePath('icon.png') });
   notification.on('click', () => showMainWindow());

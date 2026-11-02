@@ -22,6 +22,12 @@ import {
 // Envios ao Drive que falharam (ex: sem internet) são refeitos pouco depois de abrir
 const PENDING_UPLOAD_RETRY_DELAY_MS = 20_000;
 
+// Testes silenciosos usam outra pasta de dados: não tocam no banco do usuário e não
+// esbarram na trava de instância única (que traria a janela dele para a frente)
+if (process.env.LAZULIUM_SILENT === '1' && process.env.LAZULIUM_USER_DATA) {
+  app.setPath('userData', process.env.LAZULIUM_USER_DATA);
+}
+
 // Uma instância só: abrir o atalho de novo traz a janela existente (inclusive da bandeja)
 if (!app.requestSingleInstanceLock()) {
   app.quit();

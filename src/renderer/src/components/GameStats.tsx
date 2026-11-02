@@ -54,9 +54,27 @@ interface DayStats {
   minutes: number;
 }
 
+const STATS_COLLAPSED_KEY = 'lazulium.statsCollapsed';
+
 export const GameStats: React.FC<GameStatsProps> = ({ game }) => {
   const [sessions, setSessions] = useState<PlaytimeSession[]>([]);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // Começa recolhido para sobrar espaço para a biblioteca; a escolha do usuário é lembrada
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(STATS_COLLAPSED_KEY) !== 'false';
+    } catch {
+      return true;
+    }
+  });
+  const toggleCollapsed = () =>
+    setIsCollapsed((prev) => {
+      try {
+        localStorage.setItem(STATS_COLLAPSED_KEY, String(!prev));
+      } catch {
+        // Preferência só desta sessão
+      }
+      return !prev;
+    });
 
   // Recarrega sessões ao montar ou quando o tempo total mudar (fim de sessão)
   useEffect(() => {
@@ -127,7 +145,7 @@ export const GameStats: React.FC<GameStatsProps> = ({ game }) => {
           <span>Estatísticas de Jogo</span>
         </div>
         <button
-          onClick={() => setIsCollapsed((prev) => !prev)}
+          onClick={toggleCollapsed}
           className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 transition-colors ${focusRing}`}
           title={isCollapsed ? 'Expandir estatísticas' : 'Recolher estatísticas'}
         >

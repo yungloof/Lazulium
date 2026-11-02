@@ -40,6 +40,24 @@ import { ScreenshotsPanel } from './components/ScreenshotsPanel';
 import { ProfilePanel } from './components/ProfilePanel';
 import { PlaytimeEditor } from './components/PlaytimeEditor';
 
+// Largura mínima de cada capa por densidade: a grade preenche a linha com quantas couberem
+type GridDensity = 'compact' | 'normal' | 'large';
+const GRID_DENSITY: Record<GridDensity, { label: string; minWidth: number; gap: number }> = {
+  compact: { label: 'Compacto', minWidth: 112, gap: 10 },
+  normal: { label: 'Padrão', minWidth: 140, gap: 14 },
+  large: { label: 'Grande', minWidth: 190, gap: 18 }
+};
+const DENSITY_STORAGE_KEY = 'lazulium.gridDensity';
+
+function loadDensity(): GridDensity {
+  try {
+    const saved = localStorage.getItem(DENSITY_STORAGE_KEY);
+    return saved && saved in GRID_DENSITY ? (saved as GridDensity) : 'normal';
+  } catch {
+    return 'normal';
+  }
+}
+
 const FILTERS: { id: 'all' | GamePlatform | 'favorites'; label: string }[] = [
   { id: 'all', label: 'Todos os Jogos' },
   { id: 'favorites', label: 'Favoritos' },
@@ -69,6 +87,30 @@ export const App: React.FC = () => {
 
   const { activeFocusedIndex, setActiveFocusedIndex } = useGamepadStore();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [density, setDensity] = useState<GridDensity>(loadDensity);
+  const [gridColumns, setGridColumns] = useState(6);
+
+  const changeDensity = (next: GridDensity) => {
+    setDensity(next);
+    try {
+      localStorage.setItem(DENSITY_STORAGE_KEY, next);
+    } catch {
+      // Preferência só desta sessão
+    }
+  };
+
+  // Colunas reais da grade (auto-fill): a navegação por controle/setas precisa saber o que fica "abaixo"
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const { minWidth, gap } = GRID_DENSITY[density];
+    const update = () => setGridColumns(Math.max(1, Math.floor((el.clientWidth + gap) / (minWidth + gap))));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [density, games.length, activeFilter, searchQuery]);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [scanSummary, setScanSummary] = useState<ScanResult | null>(null);
   const [showEmulatorSettings, setShowEmulatorSettings] = useState(false);
@@ -254,7 +296,7 @@ export const App: React.FC = () => {
   // Gamepad navigation hook
   useGamepad({
     itemCount: filteredGames.length,
-    columns: 5,
+    columns: gridColumns,
     onSelect: (index) => {
       const target = filteredGames[index];
       if (target) {
@@ -622,11 +664,30 @@ export const App: React.FC = () => {
               <Layers className="w-3.5 h-3.5 text-indigo-400" />
               Biblioteca ({filteredGames.length})
             </span>
+            <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-900/80 border border-slate-800" role="group" aria-label="Tamanho das capas">
+              {(Object.keys(GRID_DENSITY) as GridDensity[]).map((d) => (
+                <button
+                  key={d}
+                  onClick={() => changeDensity(d)}
+                  aria-pressed={density === d}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+                    density === d ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {GRID_DENSITY[d].label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {filteredGames.length > 0 ? (
             <div
-              className="grid gap-5 pb-8 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+              ref={gridRef}
+              className="grid pb-8"
+              style={{
+                gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_DENSITY[density].minWidth}px, 1fr))`,
+                gap: GRID_DENSITY[density].gap
+              }}
             >
               {filteredGames.map((game, index) => (
                 <GameCard
