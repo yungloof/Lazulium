@@ -105,6 +105,27 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
 
   const box = 'col-span-2 p-4 bg-black/75 border border-white/10 text-sm text-slate-200';
 
+  if (isSyncingAchievements) {
+    return (
+      <div className={box} role="status">
+        <p className="flex items-center gap-2 text-xs text-slate-200">
+          <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" /> Buscando suas conquistas na Steam. Pode levar alguns minutos, e você pode continuar usando o app.
+        </p>
+      </div>
+    );
+  }
+
+  if (achievementsSyncError) {
+    return (
+      <div className={box} role="status">
+        <p className="text-xs text-amber-300">{achievementsSyncError}</p>
+        <button onClick={syncAchievements} className={`${secondary} mt-2`}>
+          <RefreshCw className="w-3.5 h-3.5" /> Tentar de novo
+        </button>
+      </div>
+    );
+  }
+
   if (connected === true && isPrivate) {
     return (
       <div className={box} role="status">
@@ -128,25 +149,6 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
   }
 
   if (connected === true) {
-    if (isSyncingAchievements) {
-      return (
-        <div className={box} role="status">
-          <p className="flex items-center gap-2 text-xs text-slate-200">
-            <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" /> Buscando suas conquistas na Steam. Pode levar alguns minutos, e você pode continuar usando o app.
-          </p>
-        </div>
-      );
-    }
-    if (achievementsSyncError) {
-      return (
-        <div className={box} role="status">
-          <p className="text-xs text-amber-300">{achievementsSyncError}</p>
-          <button onClick={syncAchievements} className={`${secondary} mt-2`}>
-            <RefreshCw className="w-3.5 h-3.5" /> Tentar de novo
-          </button>
-        </div>
-      );
-    }
     if (!hasAchievements && !synced) {
       return (
         <div className={box} role="status">

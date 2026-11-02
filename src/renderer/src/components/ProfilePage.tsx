@@ -192,6 +192,14 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
     window.electronAPI?.getProfileWebStatus().then(setWebStatus).catch(() => undefined);
   }, [load]);
 
+  const prevSyncingRef = useRef(isSyncingAchievements);
+  useEffect(() => {
+    if (prevSyncingRef.current && !isSyncingAchievements) {
+      void load();
+    }
+    prevSyncingRef.current = isSyncingAchievements;
+  }, [isSyncingAchievements, load]);
+
   const run = async (kind: 'sync' | 'export', task: () => Promise<Feedback>) => {
     setBusy(kind);
     setFeedback(null);
