@@ -19,6 +19,7 @@ interface LibraryState {
   toggleFavoriteLocal: (id: string) => void;
   applyGameStatus: (status: GameLaunchStatus) => void;
   upsertGameLocal: (game: Game) => void;
+  upsertGamesLocal: (games: Game[]) => void;
 }
 
 export const useLibraryStore = create<LibraryState>((set) => ({
@@ -38,6 +39,18 @@ export const useLibraryStore = create<LibraryState>((set) => ({
     set((state) => ({
       games: state.games.map((g) => (g.id === id ? { ...g, isFavorite: !g.isFavorite } : g))
     })),
+  // Várias atualizações de uma vez (scan): uma única renderização
+  upsertGamesLocal: (updates) =>
+    set((state) => {
+      const byId = new Map(updates.map((g) => [g.id, g]));
+      const games = state.games.map((g) => {
+        const update = byId.get(g.id);
+        if (!update) return g;
+        byId.delete(g.id);
+        return { ...update, isRunning: g.isRunning };
+      });
+      return { games: [...games, ...byId.values()] };
+    }),
   upsertGameLocal: (game) =>
     set((state) => {
       const exists = state.games.some((g) => g.id === game.id);

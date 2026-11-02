@@ -4,6 +4,8 @@ import { basename, dirname, join, normalize } from 'path';
 import { db } from '../../database/db';
 import { mediaUrl } from '../metadata/media-cache.service';
 import { STEAM_GRID_HOST, readSteamShortcuts } from './steam-shortcuts';
+import { readSteamAppInfo } from './steam-appinfo';
+import { steamPlaceholderTitle } from './steam-names.service';
 import { parseVdf, vdfGetObject, vdfGetString, VdfObject } from './vdf-parser';
 import { readRegistryValue } from './registry';
 import { DetectedGame, PlatformScanner, PlatformScanResult } from './scanner.types';
@@ -288,7 +290,33 @@ export const steamScanner: PlatformScanner = {
     }
     for (const game of shortcuts) games.set(game.id, game);
 
-    console.log(`[Scanner:Steam] ${games.size - shortcuts.length} jogos em ${libraries.length} biblioteca(s) + ${shortcuts.length} atalho(s) não-Steam`);
+    // Histórico: jogos que a conta já jogou e não estão instalados (o localconfig guarda as horas)
+    const appInfo = await readSteamAppInfo(steamPath);
+    let historyCount = 0;
+    for (const [appId, stats] of localStats) {
+      if (!/^\d+$/.test(appId) || !stats.playtimeSeconds || IGNORED_APP_IDS.has(appId) || games.has(`steam-${appId}`)) continue;
+      const info = appInfo.get(appId);
+      if (info && (info.type !== 'game' || IGNORED_NAME_PATTERN.test(info.name))) continue;
+      games.set(`steam-${appId}`, {
+        id: `steam-${appId}`,
+        title: info?.name ?? steamPlaceholderTitle(appId),
+        platform: 'steam',
+        platformGameId: appId,
+        executablePath: steamExe,
+        launchUri: `steam://install/${appId}`,
+        isInstalled: false,
+        initialPlaytimeSeconds: stats.playtimeSeconds,
+        lastPlayedAt: stats.lastPlayedAt,
+        media: {
+          coverUrl: `${STEAM_CDN}/${appId}/library_600x900.jpg`,
+          heroUrl: `${STEAM_CDN}/${appId}/library_hero.jpg`,
+          logoUrl: `${STEAM_CDN}/${appId}/logo.png`
+        }
+      });
+      historyCount++;
+    }
+
+    console.log(`[Scanner:Steam] ${games.size - shortcuts.length - historyCount} jogos em ${libraries.length} biblioteca(s) + ${shortcuts.length} atalho(s) não-Steam + ${historyCount} no histórico`);
     return { games: [...games.values()], warnings };
   }
 };

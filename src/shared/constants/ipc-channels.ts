@@ -23,6 +23,9 @@ export const IPC_CHANNELS = {
   GAME_STATUS_CHANGED: 'game:status-changed',
   GAME_GET_PLAYTIME_SESSIONS: 'game:get-playtime-sessions',
   GAME_SET_PLAYTIME: 'game:set-playtime',
+  GAME_SET_LOG: 'game:set-log',
+  JOURNAL_ADD_ENTRY: 'journal:add-entry',
+  JOURNAL_EXPORT: 'journal:export',
 
   // SteamGridDB & Media Metadata
   METADATA_FETCH_ASSETS: 'metadata:fetch-assets',

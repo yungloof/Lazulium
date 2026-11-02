@@ -14,6 +14,7 @@ export type DetectedGame = Pick<
   | 'launchUri'
   | 'installPath'
   | 'opensViaLauncher'
+  | 'isInstalled'
   | 'emulatorId'
   | 'romPath'
 > & {

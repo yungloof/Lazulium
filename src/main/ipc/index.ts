@@ -3,14 +3,16 @@ import { getLogsDir } from '../logger';
 import { writeFile } from 'fs/promises';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { db } from '../database/db';
-import { EmulatorConfig, Game, GamePlatform } from '@shared/types/game';
+import { EmulatorConfig, Game, GameLog, GamePlatform } from '@shared/types/game';
 import { randomUUID } from 'crypto';
 import { scanLibraries } from '../services/scanners';
 import { playtimeService } from '../services/tracker/playtime.service';
 import { artworkService } from '../services/metadata/artwork.service';
 import { achievementsService } from '../services/achievements/achievements.service';
 import { removeGameMedia } from '../services/metadata/media-cache.service';
-import { FetchAssetsOptions, MediaAssetType } from '@shared/types/ipc';
+import { FetchAssetsOptions, JournalEntryInput, MediaAssetType } from '@shared/types/ipc';
+import { addJournalEntry, journalToCsv, journalToJson, setGameLog, setManualPlaytime } from '../services/profile/journal.service';
+import { steamNamesService } from '../services/scanners/steam-names.service';
 import { GameSaveConfig } from '@shared/types/cloudsync';
 import { backupService } from '../services/cloudsync/backup.service';
 import { DRIVE_SETTING_KEYS, googleDriveService } from '../services/cloudsync/google-drive.service';
@@ -33,6 +35,9 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     getMainWindow()?.webContents.send(IPC_CHANNELS.GAME_STATUS_CHANGED, status);
     // Sessão contabilizada (>= 15s): backup automático dos saves
     if (status.state === 'stopped' && (status.sessionSeconds ?? 0) > 0) backupService.onSessionEnded(status.gameId);
+  });
+  steamNamesService.setGameUpdatedListener((game) => {
+    getMainWindow()?.webContents.send(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
   });
   backupService.setBackupListener((event) => {
     getMainWindow()?.webContents.send(IPC_CHANNELS.CLOUDSYNC_BACKUP_EVENT, event);
@@ -139,15 +144,35 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     return playtimeService.stop(gameId);
   });
 
-  ipcMain.handle(IPC_CHANNELS.GAME_SET_PLAYTIME, async (_event, gameId: string, totalSeconds: number) => {
-    const game = db.getGameById(gameId);
-    if (!game) throw new Error('Jogo não encontrado.');
-    // Steam reimporta as horas do localconfig.vdf a cada scan; o ajuste manual seria sobrescrito
-    if (game.platform === 'steam') throw new Error('O tempo de jogos da Steam é importado automaticamente.');
-    if (!Number.isFinite(totalSeconds) || totalSeconds < 0 || totalSeconds > 100_000 * 3600) {
-      throw new Error('Tempo inválido.');
-    }
-    return db.upsertGame({ ...game, totalPlaytimeSeconds: Math.round(totalSeconds) });
+  // Diário
+  ipcMain.handle(IPC_CHANNELS.GAME_SET_LOG, async (_event, gameId: string, log: GameLog) => {
+    return setGameLog(gameId, log);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.JOURNAL_ADD_ENTRY, async (_event, entry: JournalEntryInput) => {
+    const game = addJournalEntry(entry);
+    artworkService.enqueueMissing([game.id]);
+    return game;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.JOURNAL_EXPORT, async () => {
+    const win = getMainWindow();
+    const options: Electron.SaveDialogOptions = {
+      title: 'Exportar diário de jogos',
+      defaultPath: 'lazulium-diario.json',
+      filters: [
+        { name: 'Cópia completa (JSON)', extensions: ['json'] },
+        { name: 'Planilha (CSV)', extensions: ['csv'] }
+      ]
+    };
+    const res = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
+    if (res.canceled || !res.filePath) return null;
+    await writeFile(res.filePath, res.filePath.toLowerCase().endsWith('.csv') ? journalToCsv() : journalToJson(), 'utf-8');
+    return res.filePath;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GAME_SET_PLAYTIME, async (_event, gameId: string, totalSeconds: number, lastPlayedOn?: string) => {
+    return setManualPlaytime(gameId, totalSeconds, lastPlayedOn);
   });
 
   ipcMain.handle(IPC_CHANNELS.GAME_GET_PLAYTIME_SESSIONS, async (_event, gameId: string) => {

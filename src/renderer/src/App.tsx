@@ -9,6 +9,7 @@ import { AchievementsPanel } from './components/AchievementsPanel';
 import { SaveBackupPanel } from './components/SaveBackupPanel';
 import { ScreenshotsPanel } from './components/ScreenshotsPanel';
 import { ProfilePage } from './components/ProfilePage';
+import { JournalPage } from './components/JournalPage';
 import { WelcomeModal } from './components/WelcomeModal';
 import { PlaytimeEditor } from './components/PlaytimeEditor';
 import { LibraryFilter, LibrarySidebar } from './components/LibrarySidebar';
@@ -35,6 +36,7 @@ const FILTERS: { id: LibraryFilter; label: string }[] = [
   { id: 'standalone', label: 'Outros PC' }
 ];
 
+const GAME_UPDATE_BATCH_MS = 120;
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 const toolbarButton = `flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 rounded-lg text-slate-200 transition-colors disabled:opacity-50 ${focusRing}`;
 
@@ -49,8 +51,7 @@ export const App: React.FC = () => {
     isScanning,
     setIsScanning,
     toggleFavoriteLocal,
-    applyGameStatus,
-    upsertGameLocal
+    applyGameStatus
   } = useLibraryStore();
 
   const { activeFocusedIndex, setActiveFocusedIndex } = useGamepadStore();
@@ -58,7 +59,14 @@ export const App: React.FC = () => {
   const mainRef = useRef<HTMLDivElement>(null);
   const [gridColumns, setGridColumns] = useState(6);
   // Navegação estilo Steam: início da biblioteca ou a página de um jogo
-  const [view, setView] = useState<'home' | 'game' | 'profile'>('home');
+  const [view, setView] = useState<'home' | 'game' | 'profile' | 'journal'>('home');
+  const [showRemoved, setShowRemoved] = useState(() => {
+    try {
+      return localStorage.getItem('lazulium.showRemoved') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [scanSummary, setScanSummary] = useState<ScanResult | null>(null);
   const [showEmulatorSettings, setShowEmulatorSettings] = useState(false);
@@ -195,9 +203,22 @@ export const App: React.FC = () => {
 
   // Artes baixadas em segundo plano (SteamGridDB) chegam jogo a jogo
   useEffect(() => {
-    const unsubscribe = window.electronAPI?.onGameUpdated((game) => upsertGameLocal(game));
-    return () => unsubscribe?.();
-  }, [upsertGameLocal]);
+    // O scan da abertura envia a biblioteca inteira: agrupa para renderizar uma vez só
+    const pending = new Map<string, Game>();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = window.electronAPI?.onGameUpdated((game) => {
+      pending.set(game.id, game);
+      timer ??= setTimeout(() => {
+        timer = undefined;
+        useLibraryStore.getState().upsertGamesLocal([...pending.values()]);
+        pending.clear();
+      }, GAME_UPDATE_BATCH_MS);
+    });
+    return () => {
+      clearTimeout(timer);
+      unsubscribe?.();
+    };
+  }, []);
 
   useEffect(() => {
     if (!launchNotice) return;
@@ -236,7 +257,11 @@ export const App: React.FC = () => {
   }, [visibleFilters, activeFilter, setActiveFilter, games.length]);
 
   const filteredGames = useMemo(() => {
+    const searching = !!searchQuery.trim();
     return games.filter((game) => {
+      if (game.isHidden) return false;
+      // Desinstalados saem das listas (seguem no Diário), mas aparecem ao buscar pelo nome
+      if (game.isInstalled === false && !showRemoved && !searching) return false;
       if (activeFilter === 'favorites' && !game.isFavorite) return false;
       if (activeFilter !== 'all' && activeFilter !== 'favorites' && game.platform !== activeFilter) return false;
       if (searchQuery.trim()) {
@@ -245,7 +270,7 @@ export const App: React.FC = () => {
       }
       return true;
     });
-  }, [games, activeFilter, searchQuery]);
+  }, [games, activeFilter, searchQuery, showRemoved]);
 
   // Grade do início em ordem alfabética (a lista lateral agrupa por plataforma)
   const homeGames = useMemo(
@@ -381,7 +406,8 @@ export const App: React.FC = () => {
       <header className="flex items-center justify-between gap-4 px-4 h-12 flex-shrink-0 bg-steam-header border-b border-black/40">
         <nav className="flex items-center gap-1" aria-label="Seções">
           {[
-            { label: 'Biblioteca', active: view !== 'profile', onClick: goHome },
+            { label: 'Biblioteca', active: view === 'home' || view === 'game', onClick: goHome },
+            { label: 'Diário', active: view === 'journal', onClick: () => setView('journal') },
             { label: 'Perfil', active: view === 'profile', onClick: openProfile }
           ].map((tab) => (
             <button
@@ -417,7 +443,7 @@ export const App: React.FC = () => {
       </header>
 
       <div className="flex-1 flex min-h-0">
-        {view !== 'profile' && (
+        {(view === 'home' || view === 'game') && (
         <LibrarySidebar
           games={filteredGames}
           filters={visibleFilters}
@@ -434,6 +460,15 @@ export const App: React.FC = () => {
           onHome={goHome}
           onOpenGame={openGame}
           onLaunchGame={handleLaunchGame}
+          showRemoved={showRemoved}
+          onShowRemovedChange={(show) => {
+            setShowRemoved(show);
+            try {
+              localStorage.setItem('lazulium.showRemoved', String(show));
+            } catch {
+              // Preferência só desta sessão
+            }
+          }}
           onContextMenu={handleOpenContextMenu}
         />
         )}
@@ -481,7 +516,15 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {view === 'profile' ? (
+          {view === 'journal' ? (
+            <JournalPage
+              onOpenGame={openGame}
+              onEditPlaytime={(game) => {
+                setSelectedGame(game);
+                setShowPlaytimeEditor(true);
+              }}
+            />
+          ) : view === 'profile' ? (
             <ProfilePage
               onOpenSettings={() => setShowSettings(true)}
               onSelectGame={(id) => {
@@ -595,6 +638,10 @@ export const App: React.FC = () => {
           onOpenSaves={(g) => {
             setSelectedGame(g);
             setShowSavesModal(true);
+          }}
+          onEditPlaytime={(g) => {
+            setSelectedGame(g);
+            setShowPlaytimeEditor(true);
           }}
           onOpenScreenshots={(g) => {
             setSelectedGame(g);

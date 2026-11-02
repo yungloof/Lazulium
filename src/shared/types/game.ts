@@ -17,6 +17,17 @@ export interface GameMedia {
   iconUrl?: string;  // Ícone de app
 }
 
+export type GameLogStatus = 'backlog' | 'playing' | 'paused' | 'finished' | 'completed' | 'dropped';
+
+// Registro pessoal do jogador: nunca é alterado por scans
+export interface GameLog {
+  status?: GameLogStatus;
+  rating?: number;                  // 1 a 5 estrelas
+  startedOn?: string;               // AAAA-MM-DD
+  finishedOn?: string;              // AAAA-MM-DD
+  notes?: string;
+}
+
 export interface Game {
   id: string;                       // UUID ou platform_id único
   title: string;                    // Nome exibido
@@ -29,6 +40,10 @@ export interface Game {
   workingDirectory?: string;        // Diretório de execução
   launchUri?: string;               // Protocolo do launcher (ex: steam://rungameid/123)
   installPath?: string;             // Pasta de instalação detectada pelo scanner
+  isInstalled?: boolean;            // false: desinstalado, histórico preservado (ausente = instalado)
+  manualEntry?: boolean;            // Registrado à mão no Diário (ex: jogo de console); não é iniciado pelo app
+  manualPlatform?: string;          // Onde jogou, em texto livre (ex: PS5, Switch)
+  log?: GameLog;
   opensViaLauncher?: boolean;       // executablePath é só um lançador (Riot Client, Xbox): rastreia pela pasta do jogo
 
   // Específico para emuladores
@@ -46,6 +61,8 @@ export interface Game {
   
   // Estatísticas de Uso
   totalPlaytimeSeconds: number;     // Segundos acumulados jogados
+  sourcePlaytimeSeconds?: number;   // Último total informado pelo launcher (ex: localconfig da Steam)
+  playtimeAdjustmentSeconds?: number; // Ajuste manual somado ao total do launcher (horas de antes de existir o registro)
   lastPlayedAt?: string;            // ISO timestamp
   createdAt: string;                // ISO timestamp
   updatedAt: string;                // ISO timestamp

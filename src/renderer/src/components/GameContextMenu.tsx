@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Game } from '@shared/types/game';
-import { Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera } from 'lucide-react';
+import { Clock, Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera } from 'lucide-react';
 import { useLibraryStore } from '../stores/useLibraryStore';
 
 export interface GameContextMenuProps {
@@ -15,6 +15,7 @@ export interface GameContextMenuProps {
   onOpenArtwork: (game: Game) => void;
   onOpenSaves: (game: Game) => void;
   onOpenScreenshots: (game: Game) => void;
+  onEditPlaytime: (game: Game) => void;
 }
 
 interface MenuItem {
@@ -36,22 +37,32 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
   onToggleFavorite,
   onOpenArtwork,
   onOpenSaves,
-  onOpenScreenshots
+  onOpenScreenshots,
+  onEditPlaytime
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const isRunning = useLibraryStore((s) => s.launchStatuses[game.id]?.state === 'running');
   const isLaunching = useLibraryStore((s) => s.launchStatuses[game.id]?.state === 'launching');
 
+  const canInstall = game.isInstalled === false && game.platform === 'steam';
+  const canPlay = !game.manualEntry && (game.isInstalled !== false || canInstall);
+
   const items: MenuItem[] = [
-    {
+    ...(!canPlay ? [] : [{
       id: 'play',
-      label: isRunning ? 'Parar jogo' : isLaunching ? 'Iniciando...' : 'Jogar',
+      label: isRunning ? 'Parar jogo' : isLaunching ? 'Iniciando...' : canInstall ? 'Instalar' : 'Jogar',
       icon: isRunning ? <Square className="w-3.5 h-3.5 text-red-400 fill-red-400" /> : <Play className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400" />,
       action: () => {
         if (isRunning) onStop(game);
         else if (!isLaunching) onLaunch(game);
       }
-    },
+    }]),
+    ...(game.platform === 'steam' ? [] : [{
+      id: 'playtime',
+      label: 'Ajustar tempo jogado',
+      icon: <Clock className="w-3.5 h-3.5 text-slate-400" />,
+      action: () => onEditPlaytime(game)
+    }]),
     {
       id: 'open',
       label: 'Abrir página do jogo',

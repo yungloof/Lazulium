@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Game } from '@shared/types/game';
-import { Loader2, Play, Square } from 'lucide-react';
+import { Download, Loader2, Play, Square } from 'lucide-react';
 import { useLibraryStore } from '../stores/useLibraryStore';
 
 interface PlayButtonProps {
@@ -59,6 +59,24 @@ export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch }) => {
         </button>
       </div>
     );
+  }
+
+  if (game.manualEntry) return null;
+
+  // Desinstalado: a Steam reinstala em um clique; nas outras plataformas só avisa
+  if (game.isInstalled === false) {
+    if (game.platform === 'steam') {
+      return (
+        <button
+          onClick={() => onLaunch(game)}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-sm bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm tracking-wide transition-colors ${focusRing}`}
+        >
+          <Download className="w-4 h-4" />
+          <span>INSTALAR</span>
+        </button>
+      );
+    }
+    return <span className="px-4 py-2.5 rounded-sm bg-slate-800 text-slate-400 font-semibold text-sm tracking-wide">NÃO INSTALADO</span>;
   }
 
   return (

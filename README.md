@@ -22,6 +22,12 @@ O **Lazulium** (codinome *Steam 2*) junta a Steam, os jogos que você adicionou 
 - Conta o tempo de **qualquer** jogo aberto pelo Lazulium (inclusive emuladores e jogos que abrem por um lançador, como Riot Client e Xbox), com histórico de sessões e gráfico dos últimos 7 dias.
 - Recupera sessões se o PC ou o app fecharem no meio do jogo; ajuste manual do total para jogos fora da Steam.
 
+### Diário de jogos
+- Registro permanente: desinstalar um jogo nunca apaga horas, conquistas nem anotações, e reinstalar continua de onde parou.
+- Recupera da Steam as horas de todos os jogos que a conta já jogou, inclusive os desinstalados.
+- Status (Jogando, Zerado, 100%, Pausado, Abandonado, Quero jogar), nota, datas e anotações por jogo.
+- Registre à mão jogos de console ou de outro PC, ajuste horas de jogos fora da Steam e exporte tudo em JSON ou CSV.
+
 ### Conquistas
 - **Steam:** pelo seu perfil público, com datas de desbloqueio e raridade global.
 - **RetroAchievements:** para jogos de emulador, identificando a ROM pelo hash.

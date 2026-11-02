@@ -1,4 +1,4 @@
-import { EmulatorConfig, Game, GamePlatform, PlaytimeSession } from './game';
+import { EmulatorConfig, Game, GameLog, GamePlatform, PlaytimeSession } from './game';
 import { Achievement, GameAchievements } from './achievements';
 import { AccountService, AccountsStatus, SteamLocalAccount } from './accounts';
 import { Screenshot } from './screenshots';
@@ -12,6 +12,14 @@ import {
   RestoreResult,
   SaveLocationSuggestion
 } from './cloudsync';
+
+// Jogo registrado à mão no Diário (ex: console, ou jogado antes do Lazulium)
+export interface JournalEntryInput {
+  title: string;
+  manualPlatform?: string;
+  totalPlaytimeSeconds: number;
+  log: GameLog;
+}
 
 export interface ScanResult {
   added: number;
@@ -105,7 +113,10 @@ export interface ElectronAPI {
   launchGame: (gameId: string) => Promise<boolean>;
   stopGame: (gameId: string) => Promise<boolean>;
   getPlaytimeSessions: (gameId: string) => Promise<PlaytimeSession[]>;
-  setPlaytime: (gameId: string, totalSeconds: number) => Promise<Game>;   // Ajuste manual (não-Steam)
+  setGameLog: (gameId: string, log: GameLog) => Promise<Game>;
+  addJournalEntry: (entry: JournalEntryInput) => Promise<Game>;
+  exportJournal: () => Promise<string | null>;                 // Caminho salvo (null se cancelado)
+  setPlaytime: (gameId: string, totalSeconds: number, lastPlayedOn?: string) => Promise<Game>;   // Ajuste manual (não-Steam)
   onGameStatusChanged: (callback: (status: GameLaunchStatus) => void) => () => void;
 
   // Metadados & SteamGridDB

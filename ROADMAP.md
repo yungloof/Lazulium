@@ -115,6 +115,16 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 
 ---
 
+## 📓 Fase 10: Diário de Jogos (registro permanente)
+- [x] Desinstalar nunca apaga: jogos ficam como "não instalados", com horas, conquistas, sessões e registro guardados; reinstalar (mesmo em outra pasta) continua o histórico.
+- [x] Histórico da Steam importado do `localconfig.vdf`, com nomes do cache local `appinfo.vdf` (e da loja da Steam para os que faltam), incluindo jogos desinstalados.
+- [x] Página Diário: todos os jogos com filtros, ordenação, status, nota e tempo; registro de jogos à mão (console, outro PC); exportação em JSON e CSV.
+- [x] "Meu registro" na página do jogo: status, nota, datas de início e fim e anotações.
+- [x] Edição de horas e da última sessão em jogos fora da Steam; em atalhos da Steam vira um ajuste sobre o valor da Steam, que sobrevive aos scans e continua somando.
+- [x] Banco protegido: gravação atômica, cópia diária (14 dias) e recuperação automática se o arquivo corromper.
+
+---
+
 ## 🔭 Depois da 0.1.0
 - [x] Preparação para distribuição: primeira execução testada num perfil limpo; tela de boas-vindas (jogos encontrados + contas), log de diagnóstico em `%APPDATA%\Lazulium\logs\lazulium.log` com botão "Abrir pasta de logs" nas Configurações, scans em fila (sem trabalho dobrado na primeira execução).
 - [x] Revisão pré-release: desconto de ausência considera controle XInput (antes descontava sessões jogadas de controle), `fflate` sem alertas no `npm audit`, executáveis (desempacotado e portátil) testados em modo silencioso num perfil limpo.

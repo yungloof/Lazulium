@@ -18,6 +18,7 @@ export const PlaytimeEditor: React.FC<PlaytimeEditorProps> = ({ game, onClose })
   const upsertGameLocal = useLibraryStore((s) => s.upsertGameLocal);
   const [hours, setHours] = useState(String(Math.floor(game.totalPlaytimeSeconds / 3600)));
   const [minutes, setMinutes] = useState(String(Math.floor((game.totalPlaytimeSeconds % 3600) / 60)));
+  const [lastPlayedOn, setLastPlayedOn] = useState(game.lastPlayedAt?.slice(0, 10) ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hoursRef = useRef<HTMLInputElement>(null);
@@ -39,7 +40,7 @@ export const PlaytimeEditor: React.FC<PlaytimeEditorProps> = ({ game, onClose })
     setSaving(true);
     setError(null);
     try {
-      const updated = await window.electronAPI?.setPlaytime(game.id, h * 3600 + m * 60);
+      const updated = await window.electronAPI?.setPlaytime(game.id, h * 3600 + m * 60, lastPlayedOn || undefined);
       if (updated) upsertGameLocal(updated);
       onClose();
     } catch (err) {
@@ -66,7 +67,10 @@ export const PlaytimeEditor: React.FC<PlaytimeEditorProps> = ({ game, onClose })
 
         <div className="p-5 space-y-4">
           <p className="text-xs text-slate-500">
-            Defina o total de horas, incluindo o que você jogou antes do Lazulium. As próximas sessões continuam somando a partir daqui.
+            Coloque o total real, incluindo o que você jogou antes de o jogo estar aqui. As próximas sessões continuam somando a partir dele.
+            {game.id.startsWith('steam-shortcut-') && (game.sourcePlaytimeSeconds ?? 0) > 0 && (
+              <> A Steam registrou {Math.floor((game.sourcePlaytimeSeconds ?? 0) / 3600)} h {Math.floor(((game.sourcePlaytimeSeconds ?? 0) % 3600) / 60)} min; o que a Steam somar depois também entra.</>
+            )}
           </p>
           <div className="flex items-end justify-center gap-3">
             <label className="flex flex-col items-center gap-1 text-[11px] text-slate-400">
@@ -93,6 +97,16 @@ export const PlaytimeEditor: React.FC<PlaytimeEditorProps> = ({ game, onClose })
               />
             </label>
           </div>
+
+          <label className="block text-[11px] text-slate-400">
+            Última vez que jogou
+            <input
+              type="date"
+              value={lastPlayedOn}
+              onChange={(e) => setLastPlayedOn(e.target.value)}
+              className="mt-1 w-full px-3 py-2 text-xs bg-slate-900/80 border border-slate-800 rounded-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+            />
+          </label>
 
           {error && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">

@@ -23,11 +23,13 @@ const PLATFORM_LABEL: Record<GamePlatform, string> = {
 
 // Primeira execução: mostra o que foi encontrado e oferece conectar as contas antes de começar
 export const WelcomeModal: React.FC<WelcomeModalProps> = ({ games, isScanning, onFinish }) => {
+  const installed = useMemo(() => games.filter((g) => g.isInstalled !== false && !g.isHidden), [games]);
+  const history = games.length - installed.length;
   const summary = useMemo(() => {
     const counts = new Map<GamePlatform, number>();
-    for (const g of games) counts.set(g.platform, (counts.get(g.platform) ?? 0) + 1);
+    for (const g of installed) counts.set(g.platform, (counts.get(g.platform) ?? 0) + 1);
     return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([p, n]) => `${n} ${PLATFORM_LABEL[p]}`);
-  }, [games]);
+  }, [installed]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-6">
@@ -40,10 +42,10 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ games, isScanning, o
             Bem-vindo ao Lazulium
           </h2>
           <p className="mt-2 text-sm text-slate-300">
-            {isScanning && games.length === 0
+            {isScanning && installed.length === 0
               ? 'Procurando os jogos instalados neste PC...'
-              : games.length > 0
-                ? `Encontramos ${games.length} jogos neste PC: ${summary.join(', ')}.`
+              : installed.length > 0
+                ? `Encontramos ${installed.length} jogos neste PC: ${summary.join(', ')}.${history > 0 ? ` E recuperamos o histórico de mais ${history} que você já jogou, no Diário.` : ''}`
                 : 'Nenhum jogo encontrado ainda. Você pode adicionar jogos e pastas a qualquer momento.'}
           </p>
           <p className="mt-1 text-xs text-slate-500">

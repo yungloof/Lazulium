@@ -19,6 +19,8 @@ interface LibrarySidebarProps {
   onOpenGame: (game: Game) => void;
   onLaunchGame: (game: Game) => void;
   onContextMenu?: (game: Game, e: React.MouseEvent) => void;
+  showRemoved: boolean;
+  onShowRemovedChange: (show: boolean) => void;
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400';
@@ -132,7 +134,9 @@ export const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
   onHome,
   onOpenGame,
   onLaunchGame,
-  onContextMenu
+  onContextMenu,
+  showRemoved,
+  onShowRemovedChange
 }) => {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
   const [width, setWidth] = useState<number>(loadWidth);
@@ -223,6 +227,15 @@ export const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
             </option>
           ))}
         </select>
+        <label className="flex items-center gap-2 px-0.5 text-[11px] text-slate-400 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={showRemoved}
+            onChange={(e) => onShowRemovedChange(e.target.checked)}
+            className="w-3.5 h-3.5 accent-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+          />
+          Mostrar não instalados
+        </label>
         <div className="relative">
           <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input

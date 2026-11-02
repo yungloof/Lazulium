@@ -1,7 +1,7 @@
 import { execFile } from 'child_process';
 import { randomUUID } from 'crypto';
 import { dirname } from 'path';
-import { powerMonitor } from 'electron';
+import { powerMonitor, shell } from 'electron';
 import { Game } from '@shared/types/game';
 import { GameLaunchState, GameLaunchStatus } from '@shared/types/ipc';
 import { db } from '../../database/db';
@@ -123,6 +123,23 @@ class PlaytimeService {
     const game = db.getGameById(gameId);
     if (!game) return false;
     if (this.active.has(gameId)) return true;
+
+    // Desinstalado: a Steam oferece a instalação; nos outros casos só informa
+    if (game.isInstalled === false || game.manualEntry) {
+      if (game.platform === 'steam' && game.platformGameId) {
+        await shell.openExternal(`steam://install/${game.platformGameId}`);
+        return true;
+      }
+      this.emit({
+        gameId,
+        state: 'stopped',
+        isRunning: false,
+        error: game.manualEntry
+          ? 'Este jogo foi registrado à mão no Diário e não é aberto pelo Lazulium.'
+          : 'Este jogo não está instalado. Reinstale-o e clique em Escanear: o histórico continua guardado.'
+      });
+      return false;
+    }
 
     let handle;
     try {

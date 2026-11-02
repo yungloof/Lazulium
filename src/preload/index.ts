@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
-import { ElectronAPI, FetchAssetsOptions, GameLaunchStatus, MediaAssetType, TrayAction } from '@shared/types/ipc';
-import { EmulatorConfig, Game, GamePlatform } from '@shared/types/game';
+import { ElectronAPI, JournalEntryInput, FetchAssetsOptions, GameLaunchStatus, MediaAssetType, TrayAction } from '@shared/types/ipc';
+import { EmulatorConfig, Game, GameLog, GamePlatform } from '@shared/types/game';
 import { BackupEvent, GameSaveConfig } from '@shared/types/cloudsync';
 import { AccountService } from '@shared/types/accounts';
 
@@ -29,8 +29,11 @@ const electronAPI: ElectronAPI = {
   launchGame: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_LAUNCH, gameId),
   stopGame: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_STOP, gameId),
   getPlaytimeSessions: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_GET_PLAYTIME_SESSIONS, gameId),
-  setPlaytime: (gameId: string, totalSeconds: number) =>
-    ipcRenderer.invoke(IPC_CHANNELS.GAME_SET_PLAYTIME, gameId, totalSeconds),
+  setGameLog: (gameId: string, log: GameLog) => ipcRenderer.invoke(IPC_CHANNELS.GAME_SET_LOG, gameId, log),
+  addJournalEntry: (entry: JournalEntryInput) => ipcRenderer.invoke(IPC_CHANNELS.JOURNAL_ADD_ENTRY, entry),
+  exportJournal: () => ipcRenderer.invoke(IPC_CHANNELS.JOURNAL_EXPORT),
+  setPlaytime: (gameId: string, totalSeconds: number, lastPlayedOn?: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GAME_SET_PLAYTIME, gameId, totalSeconds, lastPlayedOn),
   onGameStatusChanged: (callback: (status: GameLaunchStatus) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, status: GameLaunchStatus) => callback(status);
     ipcRenderer.on(IPC_CHANNELS.GAME_STATUS_CHANGED, subscription);

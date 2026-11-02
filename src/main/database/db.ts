@@ -1,10 +1,13 @@
 import { app, safeStorage } from 'electron';
-import { join } from 'path';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'fs';
 import { EmulatorConfig, EmulatorType, Game, PlaytimeSession } from '@shared/types/game';
 import { Achievement, AchievementSource, GameAchievements } from '@shared/types/achievements';
 import { BackupRecord, GameSaveConfig } from '@shared/types/cloudsync';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
+
+const BACKUPS_DIR = 'backups';
+const MAX_DAILY_BACKUPS = 14;
 
 const SECRET_SETTING_KEYS = [
   'steamGridDbApiKey',
@@ -118,8 +121,7 @@ class DatabaseService {
       this.dataFilePath = join(storageDir, 'lazulium_db.json');
 
       if (existsSync(this.dataFilePath)) {
-        const raw = readFileSync(this.dataFilePath, 'utf-8');
-        const parsed: DatabaseSchema = { ...DEFAULT_DATA, ...JSON.parse(raw) };
+        const parsed = this.loadWithRecovery(storageDir);
         if (parsed.settings) {
           for (const key of SECRET_SETTING_KEYS) {
             if (parsed.settings[key]) {
@@ -140,7 +142,56 @@ class DatabaseService {
       console.log(`[Database] Initialized at: ${this.dataFilePath}`);
     } catch (err) {
       console.error('[Database] Failed to initialize database:', err);
+      // Sem caminho nada é gravado: uma falha ao abrir nunca pode sobrescrever o histórico com um banco vazio
+      this.dataFilePath = '';
       this.data = { ...DEFAULT_DATA };
+    }
+  }
+
+  private readDataFile(path: string): DatabaseSchema {
+    const parsed = JSON.parse(readFileSync(path, 'utf-8'));
+    if (!parsed || !Array.isArray(parsed.games)) throw new Error('Formato inválido');
+    return { ...DEFAULT_DATA, ...parsed };
+  }
+
+  // Banco corrompido: guarda o arquivo ruim e volta para a cópia diária mais recente que abrir
+  private loadWithRecovery(storageDir: string): DatabaseSchema {
+    try {
+      return this.readDataFile(this.dataFilePath);
+    } catch (err) {
+      console.error('[Database] Banco corrompido, tentando as cópias de segurança:', err);
+    }
+    renameSync(this.dataFilePath, `${this.dataFilePath}.corrupt-${Date.now()}`);
+
+    const backupsDir = join(storageDir, BACKUPS_DIR);
+    const backups = existsSync(backupsDir) ? readdirSync(backupsDir).filter((f) => f.endsWith('.json')).sort().reverse() : [];
+    for (const file of backups) {
+      try {
+        const restored = this.readDataFile(join(backupsDir, file));
+        copyFileSync(join(backupsDir, file), this.dataFilePath);
+        console.warn(`[Database] Biblioteca restaurada da cópia ${file}`);
+        return restored;
+      } catch {
+        // Cópia também ruim: tenta a anterior
+      }
+    }
+    console.error('[Database] Nenhuma cópia de segurança válida; iniciando um banco novo');
+    return { ...DEFAULT_DATA };
+  }
+
+  // Uma cópia por dia antes da primeira gravação do dia, mantendo as últimas MAX_DAILY_BACKUPS
+  private ensureDailyBackup(): void {
+    if (!existsSync(this.dataFilePath)) return;
+    const backupsDir = join(dirname(this.dataFilePath), BACKUPS_DIR);
+    const today = join(backupsDir, `lazulium_db-${new Date().toISOString().slice(0, 10)}.json`);
+    if (existsSync(today)) return;
+    try {
+      mkdirSync(backupsDir, { recursive: true });
+      copyFileSync(this.dataFilePath, today);
+      const old = readdirSync(backupsDir).filter((f) => f.endsWith('.json')).sort().reverse().slice(MAX_DAILY_BACKUPS);
+      for (const file of old) unlinkSync(join(backupsDir, file));
+    } catch (err) {
+      console.warn('[Database] Falha na cópia diária:', err);
     }
   }
 
@@ -160,7 +211,12 @@ class DatabaseService {
         settings: encryptedSettings
       };
 
-      writeFileSync(this.dataFilePath, JSON.stringify(dataToPersist, null, 2), 'utf-8');
+      this.ensureDailyBackup();
+
+      // Grava num temporário e troca de uma vez: queda de energia no meio não estraga o banco
+      const tmpPath = `${this.dataFilePath}.tmp`;
+      writeFileSync(tmpPath, JSON.stringify(dataToPersist, null, 2), 'utf-8');
+      renameSync(tmpPath, this.dataFilePath);
     } catch (err) {
       console.error('[Database] Persist error:', err);
     }
@@ -198,6 +254,26 @@ class DatabaseService {
         this.data.games.push(game);
       }
     }
+    this.persist();
+  }
+
+  // Mesmo jogo com novo ID (ex: reinstalado em outra pasta): leva junto sessões, conquistas e backups
+  moveGameData(oldId: string, newId: string): void {
+    for (const session of this.data.playtimeSessions) {
+      if (session.gameId === oldId) session.gameId = newId;
+    }
+    if (this.data.gameAchievements?.[oldId]) {
+      this.data.gameAchievements[newId] = { ...this.data.gameAchievements[oldId], gameId: newId };
+      delete this.data.gameAchievements[oldId];
+    }
+    if (this.data.saveConfigs?.[oldId]) {
+      this.data.saveConfigs[newId] = this.data.saveConfigs[oldId];
+      delete this.data.saveConfigs[oldId];
+    }
+    for (const backup of this.data.saveBackups ?? []) {
+      if (backup.gameId === oldId) backup.gameId = newId;
+    }
+    this.data.games = this.data.games.filter((g) => g.id !== oldId);
     this.persist();
   }
 

@@ -5,6 +5,7 @@ import { GameAchievements } from '@shared/types/achievements';
 import { Screenshot } from '@shared/types/screenshots';
 import { PlayButton } from './PlayButton';
 import { GameStats } from './GameStats';
+import { GameLogCard } from './GameLogCard';
 import { useLibraryStore } from '../stores/useLibraryStore';
 
 interface GamePageProps {
@@ -193,7 +194,7 @@ export const GamePage: React.FC<GamePageProps> = ({
           <div>
             <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Tempo de jogo
-              {canEditPlaytime && <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />}
+              {canEditPlaytime && <Pencil className="w-2.5 h-2.5 text-indigo-400" />}
             </p>
             <p className="text-xs text-slate-300">{formatHours(game.totalPlaytimeSeconds)}</p>
           </div>
@@ -338,13 +339,17 @@ export const GamePage: React.FC<GamePageProps> = ({
           </Card>
           )}
 
+          <GameLogCard game={game} />
+
           <Card title="Informações" icon={<Info className="w-3.5 h-3.5 text-slate-400" />}>
             <dl className="space-y-2 text-xs">
               <div className="flex justify-between gap-3">
                 <dt className="text-slate-500">Plataforma</dt>
                 <dd className="text-slate-300 text-right">
                   {game.platform === 'emulator' ? `Emulador · ${game.emulatorId ?? ''}` : PLATFORM_LABEL[game.platform]}
+                  {game.manualPlatform && ` · ${game.manualPlatform}`}
                   {game.id.startsWith('steam-shortcut-') && ' (atalho da Steam)'}
+                  {game.isInstalled === false && !game.manualEntry && ' · não instalado'}
                 </dd>
               </div>
               {game.installPath && (
