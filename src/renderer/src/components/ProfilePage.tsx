@@ -338,16 +338,20 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
         </section>
       );
     }
-    return (
-      <section key={id}>
-        <SectionTitle>{SECTION_LABEL[id]}</SectionTitle>
-        <div className="space-y-1.5">
-          {profile.mostPlayed.map((g) => (
-            <GameRow key={g.id} game={g} onOpen={() => onSelectGame(g.id)} />
-          ))}
-        </div>
-      </section>
-    );
+    if (id === 'mostPlayed') {
+      if (profile.mostPlayed.length === 0) return null;
+      return (
+        <section key={id}>
+          <SectionTitle>{SECTION_LABEL[id]}</SectionTitle>
+          <div className="space-y-1.5">
+            {profile.mostPlayed.map((g) => (
+              <GameRow key={g.id} game={g} onOpen={() => onSelectGame(g.id)} />
+            ))}
+          </div>
+        </section>
+      );
+    }
+    return null;
   };
 
   return (
@@ -446,24 +450,26 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
             {t.perfectGames > 0 && <CountRow label="Jogos 100%" value={t.perfectGames} />}
           </div>
 
-          <div>
-            <h2 className="mb-2 text-sm text-slate-200">Plataformas</h2>
-            <div className="space-y-2">
-              {profile.byPlatform
-                .filter((p) => p.playtimeSeconds > 0)
-                .map((p) => (
-                  <div key={p.platform} className="text-xs">
-                    <div className="flex justify-between gap-2 text-slate-300">
-                      <span>{PLATFORM_LABEL[p.platform]}</span>
-                      <span className="text-slate-400">{hours(p.playtimeSeconds)}</span>
+          {profile.byPlatform.some((p) => p.playtimeSeconds > 0) && (
+            <div>
+              <h2 className="mb-2 text-sm text-slate-200">Plataformas</h2>
+              <div className="space-y-2">
+                {profile.byPlatform
+                  .filter((p) => p.playtimeSeconds > 0)
+                  .map((p) => (
+                    <div key={p.platform} className="text-xs">
+                      <div className="flex justify-between gap-2 text-slate-300">
+                        <span>{PLATFORM_LABEL[p.platform]}</span>
+                        <span className="text-slate-400">{hours(p.playtimeSeconds)}</span>
+                      </div>
+                      <div className="mt-1 h-1 bg-black/60 overflow-hidden">
+                        <div className="h-full bg-indigo-400" style={{ width: `${(p.playtimeSeconds / maxPlatform) * 100}%` }} />
+                      </div>
                     </div>
-                    <div className="mt-1 h-1 bg-black/60 overflow-hidden">
-                      <div className="h-full bg-indigo-400" style={{ width: `${(p.playtimeSeconds / maxPlatform) * 100}%` }} />
-                    </div>
-                  </div>
-                ))}
+                  ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {profile.recentAchievements.length > 0 && (
             <div>
