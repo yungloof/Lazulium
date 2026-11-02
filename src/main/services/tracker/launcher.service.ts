@@ -64,6 +64,14 @@ export async function launchGame(game: Game): Promise<LaunchHandle> {
   }
 
   const pid = await spawnDetached(game);
+
+  // O lançador (Riot Client, explorer.exe) segue vivo ou morre logo: o processo dele não é o jogo.
+  // Sem PID raiz, o monitor espera o jogo aparecer na pasta de instalação (como num lançamento por URI).
+  if (game.opensViaLauncher) {
+    console.log(`[Launcher] ${game.title} via lançador (PID ${pid}), rastreando pela pasta do jogo`);
+    return { method: 'uri', launchedAt };
+  }
+
   console.log(`[Launcher] ${game.title} via spawn (PID ${pid})`);
   return { method: 'spawn', pid, launchedAt };
 }

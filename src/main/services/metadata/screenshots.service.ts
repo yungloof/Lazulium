@@ -6,21 +6,13 @@ import { basename, extname, join } from 'path';
 import { Game } from '@shared/types/game';
 import { Screenshot } from '@shared/types/screenshots';
 import { findSteamPath } from '../scanners/steam-scanner.service';
+import { STEAM_GRID_HOST, readSteamShortcuts } from '../scanners/steam-shortcuts';
 import { normalizeKey } from '../cloudsync/save-locator.service';
 import { mediaUrl, registerMediaRoot } from './media-cache.service';
 
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif|bmp)$/i;
 const MAX_IMPORT_BYTES = 50 * 1024 * 1024;
 const HOSTS = { steam: 'steam-shot', gamebar: 'gamebar-shot', custom: 'shot' } as const;
-
-// Jogos não-Steam adicionados à Steam: gameid de 64 bits = (appid do atalho << 32) | 0x02000000
-const SHORTCUT_GAMEID_FLAG = 0x02000000n;
-
-interface ShortcutEntry {
-  name: string;
-  exe: string;
-  gameId: string;
-}
 
 function customRoot(): string {
   return join(app.getPath('userData'), 'screenshots');
@@ -42,50 +34,13 @@ export function registerScreenshotRoots(): void {
     resolveRoot: getSteamUserdata,
     allowPath: /^\d+\/760\/remote\/\d+\/screenshots\/(thumbnails\/)?[^/]+\.(jpe?g|png)$/i
   });
+  // Artes personalizadas da biblioteca da Steam (usadas nos atalhos não-Steam importados)
+  registerMediaRoot(STEAM_GRID_HOST, {
+    resolveRoot: getSteamUserdata,
+    allowPath: /^\d+\/config\/grid\/[^/]+\.(png|jpe?g|webp|ico)$/i
+  });
   registerMediaRoot(HOSTS.gamebar, { resolveRoot: () => join(app.getPath('videos'), 'Captures'), allowPath: /^[^/]+\.png$/i });
   registerMediaRoot(HOSTS.custom, { resolveRoot: customRoot, allowPath: /^[^/]+\/[^/]+$/ });
-}
-
-// shortcuts.vdf é VDF binário: 0x00 = objeto, 0x01 = texto, 0x02 = int32, 0x08 = fim do objeto
-function parseBinaryVdf(buf: Buffer): Record<string, unknown> {
-  let i = 0;
-  const readString = () => {
-    const start = i;
-    while (i < buf.length && buf[i] !== 0) i++;
-    return buf.toString('utf8', start, i++);
-  };
-  const readObject = (): Record<string, unknown> => {
-    const obj: Record<string, unknown> = {};
-    while (i < buf.length) {
-      const type = buf[i++];
-      if (type === 0x08) return obj;
-      const key = readString().toLowerCase();
-      if (type === 0x00) obj[key] = readObject();
-      else if (type === 0x01) obj[key] = readString();
-      else if (type === 0x02) {
-        obj[key] = buf.readUInt32LE(i);
-        i += 4;
-      } else throw new Error(`Tipo VDF binário desconhecido: ${type}`);
-    }
-    return obj;
-  };
-  return readObject();
-}
-
-async function readShortcuts(accountDir: string): Promise<ShortcutEntry[]> {
-  try {
-    const root = parseBinaryVdf(await readFile(join(accountDir, 'config', 'shortcuts.vdf')));
-    const list = Object.values((root.shortcuts as Record<string, Record<string, unknown>>) ?? {});
-    return list
-      .filter((s) => typeof s.appid === 'number')
-      .map((s) => ({
-        name: String(s.appname ?? ''),
-        exe: String(s.exe ?? '').replace(/^"|"$/g, ''),
-        gameId: ((BigInt(s.appid as number) << 32n) | SHORTCUT_GAMEID_FLAG).toString()
-      }));
-  } catch {
-    return [];
-  }
 }
 
 // Nome padrão da Steam: 20231105123045_1.jpg
@@ -115,9 +70,10 @@ async function steamScreenshots(game: Game): Promise<Screenshot[]> {
   for (const account of (await readdir(userdata).catch(() => [])).filter((a) => /^\d+$/.test(a))) {
     const gameIds: string[] = [];
     if (game.platform === 'steam' && game.platformGameId) gameIds.push(game.platformGameId);
+    else if (game.id.startsWith('steam-shortcut-') && game.platformGameId) gameIds.push(game.platformGameId);
     else {
       const exe = game.executablePath?.toLowerCase();
-      for (const s of await readShortcuts(join(userdata, account))) {
+      for (const s of await readSteamShortcuts(join(userdata, account))) {
         if ((titleKey.length >= 3 && normalizeKey(s.name) === titleKey) || (exe && s.exe.toLowerCase() === exe)) gameIds.push(s.gameId);
       }
     }

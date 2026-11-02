@@ -47,6 +47,8 @@ const FILTERS: { id: 'all' | GamePlatform | 'favorites'; label: string }[] = [
   { id: 'epic', label: 'Epic Games' },
   { id: 'gog', label: 'GOG Galaxy' },
   { id: 'emulator', label: 'Emuladores' },
+  { id: 'riot', label: 'Riot' },
+  { id: 'xbox', label: 'Xbox' },
   { id: 'standalone', label: 'Outros PC' }
 ];
 

@@ -1,4 +1,4 @@
-export type GamePlatform = 'steam' | 'epic' | 'gog' | 'emulator' | 'standalone';
+export type GamePlatform = 'steam' | 'epic' | 'gog' | 'riot' | 'xbox' | 'emulator' | 'standalone';
 
 export type EmulatorType = 
   | 'dolphin' 
@@ -29,6 +29,7 @@ export interface Game {
   workingDirectory?: string;        // Diretório de execução
   launchUri?: string;               // Protocolo do launcher (ex: steam://rungameid/123)
   installPath?: string;             // Pasta de instalação detectada pelo scanner
+  opensViaLauncher?: boolean;       // executablePath é só um lançador (Riot Client, Xbox): rastreia pela pasta do jogo
 
   // Específico para emuladores
   emulatorId?: EmulatorType;        // Qual emulador executa este jogo

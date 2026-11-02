@@ -1,6 +1,9 @@
 import { existsSync } from 'fs';
 import { readdir, readFile } from 'fs/promises';
-import { join, normalize } from 'path';
+import { basename, dirname, join, normalize } from 'path';
+import { db } from '../../database/db';
+import { mediaUrl } from '../metadata/media-cache.service';
+import { STEAM_GRID_HOST, readSteamShortcuts } from './steam-shortcuts';
 import { parseVdf, vdfGetObject, vdfGetString, VdfObject } from './vdf-parser';
 import { readRegistryValue } from './registry';
 import { DetectedGame, PlatformScanner, PlatformScanResult } from './scanner.types';
@@ -59,55 +62,114 @@ interface SteamAppStats {
   lastPlayedAt?: string;
 }
 
-// Extrai histórico de horas jogadas e última sessão de jogos Steam a partir dos arquivos localconfig.vdf
-async function getSteamLocalPlaytimes(steamPath: string): Promise<Map<string, SteamAppStats>> {
-  const statsMap = new Map<string, SteamAppStats>();
-  const userdataPath = join(steamPath, 'userdata');
-  if (!existsSync(userdataPath)) return statsMap;
+const STEAMID64_BASE = 76561197960265728n;
+const GRID_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 
-  try {
-    const userDirs = await readdir(userdataPath);
-    for (const userDir of userDirs) {
-      const localConfigPath = join(userdataPath, userDir, 'config', 'localconfig.vdf');
-      if (!existsSync(localConfigPath)) continue;
+// Pastas de userdata a considerar: a conta conectada no Lazulium; senão a mais recente do cliente da Steam.
+// Somar/comparar contas diferentes misturaria horas de outras pessoas que usam o PC.
+async function getAccountDirs(steamPath: string): Promise<string[]> {
+  const userdata = join(steamPath, 'userdata');
+  const all = (await readdir(userdata).catch(() => [] as string[])).filter((d) => /^\d+$/.test(d));
 
-      const content = await readFile(localConfigPath, 'utf-8');
-      const blockRegex = /"(\d+)"\s*\{([^}]+)\}/g;
-      let match: RegExpExecArray | null;
-      while ((match = blockRegex.exec(content)) !== null) {
-        const appId = match[1];
-        const block = match[2];
-        const playtimeMatch = block.match(/"playtime"\s*"(\d+)"/i);
-        const lastPlayedMatch = block.match(/"lastplayed"\s*"(\d+)"/i);
-
-        if (playtimeMatch) {
-          const minutes = parseInt(playtimeMatch[1], 10);
-          if (!isNaN(minutes) && minutes > 0) {
-            const seconds = minutes * 60;
-            let lastPlayedIso: string | undefined;
-            if (lastPlayedMatch) {
-              const timestampSec = parseInt(lastPlayedMatch[1], 10);
-              if (!isNaN(timestampSec) && timestampSec > 0) {
-                lastPlayedIso = new Date(timestampSec * 1000).toISOString();
-              }
-            }
-
-            const existing = statsMap.get(appId);
-            if (!existing || (existing.playtimeSeconds ?? 0) < seconds) {
-              statsMap.set(appId, {
-                playtimeSeconds: seconds,
-                lastPlayedAt: lastPlayedIso ?? existing?.lastPlayedAt
-              });
-            }
-          }
-        }
-      }
+  let steamId64 = db.getSettings().steamUserId;
+  if (!/^7656\d{13}$/.test(steamId64 ?? '')) {
+    try {
+      const users = vdfGetObject(parseVdf(await readFile(join(steamPath, 'config', 'loginusers.vdf'), 'utf-8')), 'users');
+      const ranked = Object.keys(users ?? {})
+        .filter((id) => /^7656\d{13}$/.test(id))
+        .map((id) => ({ id, entry: vdfGetObject(users, id) }))
+        .sort(
+          (a, b) =>
+            Number(vdfGetString(b.entry, 'mostrecent') === '1') - Number(vdfGetString(a.entry, 'mostrecent') === '1') ||
+            Number(vdfGetString(b.entry, 'timestamp') ?? 0) - Number(vdfGetString(a.entry, 'timestamp') ?? 0)
+        );
+      steamId64 = ranked[0]?.id ?? '';
+    } catch {
+      steamId64 = '';
     }
-  } catch (err) {
-    console.warn('[Scanner:Steam] Não foi possível ler localconfig.vdf:', err);
   }
 
+  const active = steamId64 ? (BigInt(steamId64) - STEAMID64_BASE).toString() : undefined;
+  return active && all.includes(active) ? [join(userdata, active)] : all.map((d) => join(userdata, d));
+}
+
+// Horas e última sessão de cada app em localconfig.vdf:
+// UserLocalConfigStore > Software > Valve > Steam > apps > <appid> > Playtime (minutos) / LastPlayed (unix)
+async function getSteamLocalPlaytimes(accountDirs: string[]): Promise<Map<string, SteamAppStats>> {
+  const statsMap = new Map<string, SteamAppStats>();
+  for (const accountDir of accountDirs) {
+    let apps: VdfObject | undefined;
+    try {
+      const root = parseVdf(await readFile(join(accountDir, 'config', 'localconfig.vdf'), 'utf-8'));
+      apps = ['userlocalconfigstore', 'software', 'valve', 'steam', 'apps'].reduce<VdfObject | undefined>(
+        (node, key) => vdfGetObject(node, key),
+        root
+      );
+    } catch (err) {
+      console.warn(`[Scanner:Steam] Não foi possível ler ${accountDir}\config\localconfig.vdf:`, (err as Error).message);
+      continue;
+    }
+
+    for (const appId of Object.keys(apps ?? {})) {
+      const entry = vdfGetObject(apps, appId);
+      const minutes = Number(vdfGetString(entry, 'playtime') ?? 0);
+      const lastPlayedSec = Number(vdfGetString(entry, 'lastplayed') ?? 0);
+      if (!(minutes > 0) && !(lastPlayedSec > 0)) continue;
+      const stats: SteamAppStats = {
+        playtimeSeconds: minutes > 0 ? minutes * 60 : undefined,
+        lastPlayedAt: lastPlayedSec > 0 ? new Date(lastPlayedSec * 1000).toISOString() : undefined
+      };
+      const existing = statsMap.get(appId);
+      if (!existing || (existing.playtimeSeconds ?? 0) < (stats.playtimeSeconds ?? 0)) statsMap.set(appId, stats);
+    }
+  }
   return statsMap;
+}
+
+function findGridArt(gridDir: string, appId: number, suffixes: string[]): string | undefined {
+  for (const suffix of suffixes) {
+    for (const ext of GRID_EXTENSIONS) {
+      const file = `${appId}${suffix}.${ext}`;
+      if (existsSync(join(gridDir, file))) return file;
+    }
+  }
+  return undefined;
+}
+
+// Atalhos não-Steam ("Adicionar jogo" na Steam): emuladores, ports e jogos avulsos.
+// Abrem pela Steam (mantém Steam Input/overlay); artes personalizadas da pasta config/grid.
+async function scanShortcuts(accountDirs: string[]): Promise<DetectedGame[]> {
+  const games = new Map<string, DetectedGame>();
+  for (const accountDir of accountDirs) {
+    const account = basename(accountDir);
+    const gridDir = join(accountDir, 'config', 'grid');
+    const gridUrl = (file?: string) => (file ? mediaUrl(STEAM_GRID_HOST, `${account}/config/grid/${file}`) : undefined);
+
+    for (const s of await readSteamShortcuts(accountDir)) {
+      const id = `steam-shortcut-${s.appId}`;
+      if (s.hidden || games.has(id)) continue;
+      const installPath = s.startDir || (s.exe ? dirname(s.exe) : undefined);
+      games.set(id, {
+        id,
+        title: s.name,
+        platform: 'standalone',
+        platformGameId: s.gameId,
+        executablePath: s.exe,
+        launchArguments: [s.exeArgs, s.launchOptions].filter(Boolean).join(' ') || undefined,
+        workingDirectory: installPath,
+        installPath,
+        launchUri: `steam://rungameid/${s.gameId}`,
+        lastPlayedAt: s.lastPlayedAt,
+        media: {
+          coverUrl: gridUrl(findGridArt(gridDir, s.appId, ['p', '_p'])),
+          heroUrl: gridUrl(findGridArt(gridDir, s.appId, ['_hero'])),
+          logoUrl: gridUrl(findGridArt(gridDir, s.appId, ['_logo'])),
+          iconUrl: gridUrl(findGridArt(gridDir, s.appId, ['_icon']))
+        }
+      });
+    }
+  }
+  return [...games.values()];
 }
 
 function manifestToGame(manifest: VdfObject, libraryPath: string, steamExe: string): DetectedGame | null {
@@ -156,7 +218,8 @@ export const steamScanner: PlatformScanner = {
 
     const steamExe = join(steamPath, 'steam.exe');
     const libraries = await getLibraryFolders(steamPath);
-    const localStats = await getSteamLocalPlaytimes(steamPath);
+    const accountDirs = await getAccountDirs(steamPath);
+    const localStats = await getSteamLocalPlaytimes(accountDirs);
     const games = new Map<string, DetectedGame>();
 
     for (const library of libraries) {
@@ -188,7 +251,15 @@ export const steamScanner: PlatformScanner = {
       }
     }
 
-    console.log(`[Scanner:Steam] ${games.size} jogos em ${libraries.length} biblioteca(s) (com importação de horas locais)`);
+    let shortcuts: DetectedGame[] = [];
+    try {
+      shortcuts = await scanShortcuts(accountDirs);
+    } catch (err) {
+      warnings.push(`Steam: falha ao ler atalhos não-Steam (${(err as Error).message})`);
+    }
+    for (const game of shortcuts) games.set(game.id, game);
+
+    console.log(`[Scanner:Steam] ${games.size - shortcuts.length} jogos em ${libraries.length} biblioteca(s) + ${shortcuts.length} atalho(s) não-Steam`);
     return { games: [...games.values()], warnings };
   }
 };

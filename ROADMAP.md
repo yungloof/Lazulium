@@ -105,5 +105,8 @@ Este roadmap organiza a implementação dos 6 pilares do aplicativo em sprints m
 - [x] Perfil do jogador unificado: horas somando todas as plataformas, conquistas desbloqueadas e jogos 100%, vitrine das conquistas mais raras, mais jogados, favoritos e jogados recentemente; avatar e nome da Steam.
 - [x] "Atualizar conquistas" de todos os jogos jogados e exportação do perfil em JSON (`lazulium-profile/1`, só URLs públicas) para uma futura página web.
 - [x] Caminhos claros em erros: avisos de conquistas sem corte e com "Abrir Contas", artes com "Abrir Contas" quando o SteamGridDB desconecta, backups com "Tentar enviar de novo"/"Reconectar o Drive", e a sincronização de horas da Steam ao abrir o app atualiza a janela.
+- [x] Horas da Steam corrigidas: `localconfig.vdf` lido com o parser de VDF (blocos `cloud` antes de `Playtime` faziam jogos aparecerem como "Nunca jogado") e só da conta conectada/mais recente.
+- [x] Atalhos não-Steam da Steam (`shortcuts.vdf`) importados como jogos, abrindo pela Steam e com as artes personalizadas de `config/grid`.
+- [x] Scanners da Riot (registro de desinstalação, abre pelo Riot Client) e da Xbox/Microsoft Store (pacotes com `MicrosoftGame.config`); jogos abertos por lançador são rastreados pela pasta do jogo.
 - [ ] Página web pública do perfil (consumindo o JSON exportado).
 

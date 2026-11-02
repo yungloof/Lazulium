@@ -16,6 +16,8 @@ const PLATFORM_LABEL: Record<GamePlatform, string> = {
   steam: 'Steam',
   epic: 'Epic Games',
   gog: 'GOG',
+  riot: 'Riot Games',
+  xbox: 'Xbox / Microsoft Store',
   emulator: 'Emuladores',
   standalone: 'Avulsos'
 };

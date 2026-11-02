@@ -4,6 +4,8 @@ import { db } from '../../database/db';
 import { steamScanner } from './steam-scanner.service';
 import { epicScanner } from './epic-scanner.service';
 import { gogScanner } from './gog-scanner.service';
+import { riotScanner } from './riot-scanner.service';
+import { xboxScanner } from './xbox-scanner.service';
 import { createEmulatorScanner } from './emulator-scanner.service';
 import { createStandaloneScanner } from './standalone-scanner.service';
 import { DetectedGame, PlatformScanner } from './scanner.types';
@@ -12,6 +14,8 @@ const SCANNERS: PlatformScanner[] = [
   steamScanner,
   epicScanner,
   gogScanner,
+  riotScanner,
+  xboxScanner,
   createEmulatorScanner(() => db.getEmulatorConfigs()),
   createStandaloneScanner(() => db.getStandaloneDirectories())
 ];
@@ -40,7 +44,8 @@ function mergeGame(detected: DetectedGame, existing: Game | null): Game {
       existing.totalPlaytimeSeconds && existing.totalPlaytimeSeconds > 0
         ? Math.max(existing.totalPlaytimeSeconds, detected.initialPlaytimeSeconds ?? 0)
         : (detected.initialPlaytimeSeconds ?? existing.totalPlaytimeSeconds ?? 0),
-    lastPlayedAt: existing.lastPlayedAt ?? detected.lastPlayedAt,
+    // A data mais recente entre a do Lazulium e a do launcher (jogou pela Steam sem o Lazulium aberto)
+    lastPlayedAt: [existing.lastPlayedAt, detected.lastPlayedAt].filter(Boolean).sort().pop(),
     media: { ...detected.media, ...existing.media },
     updatedAt: existing.updatedAt
   };
