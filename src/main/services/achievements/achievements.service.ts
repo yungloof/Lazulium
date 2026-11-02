@@ -47,13 +47,17 @@ export class AchievementsService {
       );
     }
 
-    // Falha na API (ex: sem conexão) não apaga a última sincronização boa
-    if (result.items.length === 0 && result.warning && cached?.items.length) {
-      return {
+    // Falha na API (ex: sem conexão ou falha temporária do jogador) não apaga a última sincronização boa
+    if ((result.items.length === 0 || result.retryable) && result.warning && cached?.items.length) {
+      const merged: GameAchievements = {
         ...cached,
         retryable: result.retryable,
         warning: `Não foi possível atualizar agora (${result.warning}). Exibindo a última sincronização.`
       };
+      if (result.retryable) {
+        db.saveGameAchievements(merged);
+      }
+      return merged;
     }
 
     // Persiste no banco de dados para caching local

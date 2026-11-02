@@ -200,14 +200,47 @@ export class SteamAchievementsService {
       ]);
 
       // Trata o Schema
+      if (schemaRes.status === 'rejected') {
+        return {
+          gameId: game.id,
+          source: 'steam',
+          total: 0,
+          unlocked: 0,
+          items: [],
+          syncedAt: now,
+          retryable: true,
+          warning: `Sem conexão com a Steam para obter o esquema de conquistas (${(schemaRes.reason as Error)?.message || 'tempo limite'}).`
+        };
+      }
+
+      if (!schemaRes.value.ok) {
+        return {
+          gameId: game.id,
+          source: 'steam',
+          total: 0,
+          unlocked: 0,
+          items: [],
+          syncedAt: now,
+          retryable: true,
+          warning: `A Steam não respondeu ao esquema de conquistas (HTTP ${schemaRes.value.status}).`
+        };
+      }
+
       let schemaList: SteamSchemaAchievement[] = [];
-      if (schemaRes.status === 'fulfilled' && schemaRes.value.ok) {
-        try {
-          const schemaData = await schemaRes.value.json();
-          schemaList = schemaData?.game?.availableGameStats?.achievements ?? [];
-        } catch {
-          schemaList = [];
-        }
+      try {
+        const schemaData = await schemaRes.value.json();
+        schemaList = schemaData?.game?.availableGameStats?.achievements ?? [];
+      } catch {
+        return {
+          gameId: game.id,
+          source: 'steam',
+          total: 0,
+          unlocked: 0,
+          items: [],
+          syncedAt: now,
+          retryable: true,
+          warning: 'Não foi possível ler o esquema de conquistas retornado pela Steam.'
+        };
       }
 
       if (schemaList.length === 0) {
@@ -236,14 +269,21 @@ export class SteamAchievementsService {
         }
       }
 
-      // Trata as conquistas do jogador (resiliência contra perfil privado / 403)
+      // Trata as conquistas do jogador (resiliência contra perfil privado / 403 / 429 / 5xx)
       let playerMap = new Map<string, SteamPlayerAchievement>();
       let warning: string | undefined = undefined;
+      let retryable: boolean | undefined = undefined;
 
       if (playerRes.status === 'fulfilled') {
         const pRes = playerRes.value;
-        if (pRes.status === 403) {
+        if (pRes.status === 401 || pRes.status === 403) {
           warning = 'Perfil da Steam privado ou conquistas ocultas nas configurações de privacidade.';
+        } else if (pRes.status === 429) {
+          warning = 'A Steam limitou pedidos (HTTP 429). Tente de novo mais tarde.';
+          retryable = true;
+        } else if (pRes.status >= 500) {
+          warning = `A Steam retornou HTTP ${pRes.status} para o jogador. Tente de novo mais tarde.`;
+          retryable = true;
         } else if (pRes.ok) {
           try {
             const pData = await pRes.json();
@@ -257,12 +297,14 @@ export class SteamAchievementsService {
             }
           } catch {
             warning = 'Não foi possível ler os dados de desbloqueio do jogador.';
+            retryable = true;
           }
         } else {
           warning = `Steam retornou HTTP ${pRes.status} para o jogador. Verifique a privacidade do perfil.`;
         }
       } else {
         warning = 'Tempo limite ao consultar o perfil do jogador na Steam.';
+        retryable = true;
       }
 
       // Monta os itens finais
@@ -296,6 +338,7 @@ export class SteamAchievementsService {
         unlocked: unlockedCount,
         items,
         syncedAt: now,
+        retryable,
         warning
       };
     } catch (err) {
