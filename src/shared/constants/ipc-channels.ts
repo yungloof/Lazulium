@@ -85,7 +85,9 @@ export const IPC_CHANNELS = {
   APP_SELECT_DIRECTORY: 'app:select-directory',
   APP_RENDERER_READY: 'app:renderer-ready',
   APP_TRAY_ACTION: 'app:tray-action',
-  APP_NETWORK_ONLINE: 'app:network-online'
+  APP_NETWORK_ONLINE: 'app:network-online',
+  APP_GET_INFO: 'app:get-info',
+  APP_OPEN_LOGS: 'app:open-logs'
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

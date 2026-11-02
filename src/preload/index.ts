@@ -119,7 +119,9 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.APP_TRAY_ACTION, subscription);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.APP_TRAY_ACTION, subscription);
   },
-  notifyNetworkOnline: () => ipcRenderer.invoke(IPC_CHANNELS.APP_NETWORK_ONLINE)
+  notifyNetworkOnline: () => ipcRenderer.invoke(IPC_CHANNELS.APP_NETWORK_ONLINE),
+  getAppInfo: () => ipcRenderer.invoke(IPC_CHANNELS.APP_GET_INFO),
+  openLogsFolder: () => ipcRenderer.invoke(IPC_CHANNELS.APP_OPEN_LOGS)
 };
 
 if (process.contextIsolated) {

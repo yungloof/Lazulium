@@ -1,4 +1,5 @@
-import { ipcMain, BrowserWindow, dialog, shell } from 'electron';
+import { app, ipcMain, BrowserWindow, dialog, shell } from 'electron';
+import { getLogsDir } from '../logger';
 import { writeFile } from 'fs/promises';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { db } from '../database/db';
@@ -390,6 +391,15 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   // Ciclo de vida do renderer / bandeja / rede
   ipcMain.handle(IPC_CHANNELS.APP_RENDERER_READY, async () => {
     markRendererReady();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.APP_GET_INFO, async () => {
+    return { version: app.getVersion(), logsDir: getLogsDir() };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.APP_OPEN_LOGS, async () => {
+    const error = await shell.openPath(getLogsDir());
+    if (error) throw new Error(`Não foi possível abrir a pasta de logs: ${error}`);
   });
 
   ipcMain.handle(IPC_CHANNELS.APP_NETWORK_ONLINE, async () => {

@@ -9,6 +9,7 @@ import { AchievementsPanel } from './components/AchievementsPanel';
 import { SaveBackupPanel } from './components/SaveBackupPanel';
 import { ScreenshotsPanel } from './components/ScreenshotsPanel';
 import { ProfilePage } from './components/ProfilePage';
+import { WelcomeModal } from './components/WelcomeModal';
 import { PlaytimeEditor } from './components/PlaytimeEditor';
 import { LibraryFilter, LibrarySidebar } from './components/LibrarySidebar';
 import { LibraryHome } from './components/LibraryHome';
@@ -72,6 +73,21 @@ export const App: React.FC = () => {
   const [showScreenshots, setShowScreenshots] = useState(false);
   const [screenshotsVersion, setScreenshotsVersion] = useState(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  // Primeira execução (sem conta Steam conectada): boas-vindas com as contas
+  useEffect(() => {
+    Promise.all([window.electronAPI?.getSettings(), window.electronAPI?.getAccountsStatus()])
+      .then(([settings, accounts]) => {
+        if (settings?.onboardingDone !== 'true' && !accounts?.steam.connected) setShowWelcome(true);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const finishWelcome = () => {
+    setShowWelcome(false);
+    void window.electronAPI?.setSetting('onboardingDone', 'true');
+  };
   const [contextMenu, setContextMenu] = useState<{ game: Game; x: number; y: number } | null>(null);
   const scanRef = useRef<() => Promise<void>>(async () => {});
 
@@ -246,6 +262,7 @@ export const App: React.FC = () => {
     showEmulatorSettings ||
     showAddGameModal ||
     showPlaytimeEditor ||
+    showWelcome ||
     !!contextMenu;
 
   // Controle e teclado: na grade do início navega pelos jogos; na página do jogo, A = jogar e B = voltar
@@ -502,6 +519,8 @@ export const App: React.FC = () => {
 
       {/* Guia de controles (controle e teclado) */}
       <GamepadGuide />
+
+      {showWelcome && <WelcomeModal games={games} isScanning={isScanning} onFinish={finishWelcome} />}
 
       {showEmulatorSettings && <EmulatorSettings onClose={() => setShowEmulatorSettings(false)} />}
 

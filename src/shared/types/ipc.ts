@@ -169,7 +169,9 @@ export interface ElectronAPI {
   selectDirectory: () => Promise<string | null>;
   rendererReady: () => Promise<void>;                          // Ouvintes registrados: libera ações pendentes da bandeja
   onTrayAction: (callback: (action: TrayAction) => void) => () => void;
-  notifyNetworkOnline: () => Promise<void>;                    // Conexão voltou: refaz envios/buscas pendentes
+  notifyNetworkOnline: () => Promise<void>;
+  getAppInfo: () => Promise<{ version: string; logsDir: string }>;
+  openLogsFolder: () => Promise<void>;                         // Para o usuário enviar o lazulium.log quando algo der errado                    // Conexão voltou: refaz envios/buscas pendentes
 }
 
 declare global {

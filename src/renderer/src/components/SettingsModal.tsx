@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { GoogleDriveSettings } from './GoogleDriveSettings';
 import { AppBehaviorSettings } from './AppBehaviorSettings';
+import { HelpSettings } from './HelpSettings';
 import { AccountsSettings } from './AccountsSettings';
 
 interface SettingsModalProps {
@@ -488,6 +489,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           <GoogleDriveSettings />
             </div>
           </details>
+
+          <HelpSettings />
         </div>
       </div>
     </div>

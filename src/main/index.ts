@@ -6,6 +6,7 @@ import { backupService } from './services/cloudsync/backup.service';
 import { registerMediaProtocol, registerMediaScheme } from './services/metadata/media-cache.service';
 import { registerScreenshotRoots } from './services/metadata/screenshots.service';
 import { scanLibraries } from './services/scanners';
+import { setupFileLogging } from './logger';
 import { artworkService } from './services/metadata/artwork.service';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import {
@@ -27,6 +28,9 @@ const PENDING_UPLOAD_RETRY_DELAY_MS = 20_000;
 if (process.env.LAZULIUM_SILENT === '1' && process.env.LAZULIUM_USER_DATA) {
   app.setPath('userData', process.env.LAZULIUM_USER_DATA);
 }
+
+// Log em arquivo (userData/logs) para diagnóstico: depois de definir a pasta de dados
+setupFileLogging();
 
 // Uma instância só: abrir o atalho de novo traz a janela existente (inclusive da bandeja)
 if (!app.requestSingleInstanceLock()) {
@@ -53,13 +57,16 @@ if (!app.requestSingleInstanceLock()) {
     startApp(process.argv.includes(HIDDEN_LAUNCH_ARG));
     // Horas da Steam (localconfig.vdf) e jogos da Riot/Xbox atualizados a cada abertura (leituras rápidas);
     // a janela recebe os jogos atualizados
-    scanLibraries(['steam', 'riot', 'xbox'])
-      .then((result) => {
-        for (const game of result.games) getMainWindow()?.webContents.send(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
-        // Jogos novos sem capa (ex: Riot, Xbox) buscam artes no SteamGridDB em segundo plano
-        artworkService.enqueueMissing();
-      })
-      .catch((err) => console.warn('[Startup] Sincronização da Steam falhou:', (err as Error).message));
+    // Biblioteca vazia (primeira execução): a interface já faz o scan completo
+    if (db.getGames().length > 0) {
+      scanLibraries(['steam', 'riot', 'xbox'])
+        .then((result) => {
+          for (const game of result.games) getMainWindow()?.webContents.send(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
+          // Jogos novos sem capa (ex: Riot, Xbox) buscam artes no SteamGridDB em segundo plano
+          artworkService.enqueueMissing();
+        })
+        .catch((err) => console.warn('[Startup] Sincronização da Steam falhou:', (err as Error).message));
+    }
     setTimeout(() => void backupService.retryPendingUploads(), PENDING_UPLOAD_RETRY_DELAY_MS);
 
     app.on('activate', function () {

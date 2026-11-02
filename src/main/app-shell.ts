@@ -3,6 +3,7 @@ import { join } from 'path';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { TrayAction } from '@shared/types/ipc';
 import { db } from './database/db';
+import { attachRendererLogging } from './logger';
 
 // Janela escondida na bandeja é destruída depois deste tempo para liberar a RAM do renderer
 const HIDDEN_DESTROY_MS = 60_000;
@@ -58,6 +59,8 @@ function createWindow(show: boolean): BrowserWindow {
       backgroundThrottling: !SILENT_MODE
     }
   });
+
+  attachRendererLogging(win);
 
   win.on('ready-to-show', () => {
     if (!show) return;

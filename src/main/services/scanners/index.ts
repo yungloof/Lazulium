@@ -51,7 +51,17 @@ function mergeGame(detected: DetectedGame, existing: Game | null): Game {
   };
 }
 
-export async function scanLibraries(platforms?: GamePlatform[]): Promise<ScanResult> {
+// Scans rodam em fila: o da abertura do app e o do botão "Escanear" (ou o da primeira execução)
+// não disputam o PowerShell/registro nem gravam o banco ao mesmo tempo
+let scanQueue: Promise<unknown> = Promise.resolve();
+
+export function scanLibraries(platforms?: GamePlatform[]): Promise<ScanResult> {
+  const run = scanQueue.catch(() => undefined).then(() => runScan(platforms));
+  scanQueue = run;
+  return run;
+}
+
+async function runScan(platforms?: GamePlatform[]): Promise<ScanResult> {
   const scanners = platforms ? SCANNERS.filter((s) => platforms.includes(s.platform)) : SCANNERS;
   const warnings: string[] = [];
   const detectedGames: DetectedGame[] = [];
