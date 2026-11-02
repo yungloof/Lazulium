@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Game } from '@shared/types/game';
-import { Star, Play, Clock, Gamepad2, Loader2 } from 'lucide-react';
+import { Star, Gamepad2 } from 'lucide-react';
 import { useLibraryStore } from '../stores/useLibraryStore';
 
 interface GameCardProps {
@@ -16,10 +16,18 @@ export const GameCard: React.FC<GameCardProps> = ({
   onSelect,
   onToggleFavorite
 }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
   // Nem todo AppID tem capa vertical na CDN: cai no placeholder em vez de imagem quebrada
   const [coverFailed, setCoverFailed] = useState(false);
   const isLaunching = useLibraryStore((s) => s.launchStatuses[game.id]?.state === 'launching');
   useEffect(() => setCoverFailed(false), [game.media?.coverUrl]);
+
+  // Garante que o item focado pelo controle ou teclado esteja visível na tela
+  useEffect(() => {
+    if (isFocused && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [isFocused]);
 
   const formatPlaytime = (seconds: number) => {
     if (!seconds || seconds < 60) return 'Nunca jogado';
@@ -48,10 +56,11 @@ export const GameCard: React.FC<GameCardProps> = ({
 
   return (
     <div
+      ref={cardRef}
       onClick={() => onSelect(game)}
       className={`group relative aspect-[2/3] rounded-xl overflow-hidden bg-slate-900/90 border transition-all duration-200 cursor-pointer ${
         isFocused
-          ? 'border-indigo-400 ring-4 ring-indigo-500/40 scale-[1.04] shadow-2xl shadow-indigo-500/30 z-20'
+          ? 'border-indigo-400 ring-4 ring-indigo-500/50 scale-[1.04] shadow-2xl shadow-indigo-500/30 z-20'
           : 'border-slate-800 hover:border-slate-600 hover:scale-[1.02] hover:shadow-xl'
       }`}
     >
@@ -98,18 +107,8 @@ export const GameCard: React.FC<GameCardProps> = ({
         <h3 className="text-sm font-bold text-white truncate drop-shadow-md">{game.title}</h3>
         <div className="flex items-center justify-between mt-1 text-[11px] text-slate-400">
           <div className="flex items-center gap-1">
-            <Clock className="w-3 h-3 text-slate-500" />
-            <span>{formatPlaytime(game.totalPlaytimeSeconds)}</span>
+            <span>{isLaunching ? 'Iniciando...' : formatPlaytime(game.totalPlaytimeSeconds)}</span>
           </div>
-          {game.isRunning ? (
-            <span className="flex items-center gap-1 text-emerald-400 font-semibold animate-pulse">
-              <Play className="w-3 h-3 fill-emerald-400" /> Em execução
-            </span>
-          ) : isLaunching ? (
-            <span className="flex items-center gap-1 text-slate-300 font-semibold">
-              <Loader2 className="w-3 h-3 animate-spin" /> Iniciando
-            </span>
-          ) : null}
         </div>
       </div>
     </div>

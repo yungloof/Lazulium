@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { TitleBar } from './components/TitleBar';
 import { GameCard } from './components/GameCard';
 import { GamepadGuide } from './components/GamepadGuide';
@@ -54,12 +54,14 @@ export const App: React.FC = () => {
     isScanning,
     setIsScanning,
     uiMode,
+    setUiMode,
     toggleFavoriteLocal,
     applyGameStatus,
     upsertGameLocal
   } = useLibraryStore();
 
   const { activeFocusedIndex, setActiveFocusedIndex } = useGamepadStore();
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [scanSummary, setScanSummary] = useState<ScanResult | null>(null);
   const [showEmulatorSettings, setShowEmulatorSettings] = useState(false);
@@ -193,6 +195,15 @@ export const App: React.FC = () => {
         handleLaunchGame(target);
       }
     },
+    onBack: () => {
+      if (showSettings) setShowSettings(false);
+      else if (showArtworkPicker) setShowArtworkPicker(false);
+      else if (showAchievementsModal) setShowAchievementsModal(false);
+      else if (showSavesModal) setShowSavesModal(false);
+      else if (showEmulatorSettings) setShowEmulatorSettings(false);
+      else if (showAddGameModal) setShowAddGameModal(false);
+      else if (searchQuery) setSearchQuery('');
+    },
     onToggleFavorite: (index) => {
       const target = filteredGames[index];
       if (target) handleToggleFavorite(target.id);
@@ -208,6 +219,16 @@ export const App: React.FC = () => {
       const prevIndex = (currentIndex - 1 + FILTERS.length) % FILTERS.length;
       setActiveFilter(FILTERS[prevIndex].id);
       setActiveFocusedIndex(0);
+    },
+    onSearch: () => {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    },
+    onToggleUiMode: () => {
+      setUiMode(uiMode === 'desktop' ? 'big-picture' : 'desktop');
+    },
+    onMenu: () => {
+      setShowSettings((prev) => !prev);
     }
   });
 
@@ -301,6 +322,7 @@ export const App: React.FC = () => {
             <div className="relative">
               <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder="Buscar jogos..."
                 value={searchQuery}

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useGamepadStore } from '../stores/useGamepadStore';
+import { navAudio } from '../utils/navigationAudio';
 
 interface UseGamepadOptions {
   itemCount: number;
@@ -9,6 +10,9 @@ interface UseGamepadOptions {
   onToggleFavorite?: (index: number) => void;
   onNextTab?: () => void;
   onPrevTab?: () => void;
+  onSearch?: () => void;
+  onToggleUiMode?: () => void;
+  onMenu?: () => void;
 }
 
 export function useGamepad({
@@ -18,32 +22,37 @@ export function useGamepad({
   onBack,
   onToggleFavorite,
   onNextTab,
-  onPrevTab
+  onPrevTab,
+  onSearch,
+  onToggleUiMode,
+  onMenu
 }: UseGamepadOptions) {
   const { setGamepad, setActiveFocusedIndex, setIsGamepadActive } = useGamepadStore();
   const lastButtonPress = useRef<{ [key: number]: number }>({});
   const lastAxisPress = useRef<{ [key: string]: number }>({});
 
+  // 1. Monitoramento do Gamepad
   useEffect(() => {
     const handleConnected = (e: GamepadEvent) => {
-      console.log('[Gamepad] Connected:', e.gamepad.id);
+      console.log('[Gamepad] Conectado:', e.gamepad.id);
       setGamepad({
         index: e.gamepad.index,
         id: e.gamepad.id,
         connected: true
       });
       setIsGamepadActive(true);
+      navAudio.playSelect();
     };
 
     const handleDisconnected = (e: GamepadEvent) => {
-      console.log('[Gamepad] Disconnected:', e.gamepad.id);
+      console.log('[Gamepad] Desconectado:', e.gamepad.id);
       setGamepad(null);
     };
 
     window.addEventListener('gamepadconnected', handleConnected);
     window.addEventListener('gamepaddisconnected', handleDisconnected);
 
-    // Initial check
+    // Verificação inicial
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     for (const pad of pads) {
       if (pad) {
@@ -63,7 +72,7 @@ export function useGamepad({
       const gp = gamepads[0];
 
       if (gp && itemCount > 0) {
-        const BUTTON_COOLDOWN = 180; // ms between repeat inputs
+        const BUTTON_COOLDOWN = 180; // ms de intervalo entre repetições
         const AXIS_THRESHOLD = 0.5;
 
         const isPressed = (btnIndex: number) => gp.buttons[btnIndex]?.pressed;
@@ -87,58 +96,100 @@ export function useGamepad({
           return false;
         };
 
-        // Standard Gamepad Mapping:
-        // D-Pad: 12 (Up), 13 (Down), 14 (Left), 15 (Right)
-        // Face Buttons: 0 (A / Cross), 1 (B / Circle), 2 (X / Square), 3 (Y / Triangle)
+        // Mapeamento padrão (W3C Standard Gamepad):
+        // D-Pad: 12 (Cima), 13 (Baixo), 14 (Esquerda), 15 (Direita)
+        // Botões Frontais: 0 (A / Cross), 1 (B / Circle), 2 (X / Square), 3 (Y / Triangle)
         // Bumpers: 4 (LB / L1), 5 (RB / R1)
-        // Left Stick: Axes 0 (X), 1 (Y)
+        // Sistema: 8 (Select / Back / Share), 9 (Start / Menu / Options)
+        // Analógico Esquerdo: Eixos 0 (X), 1 (Y)
 
         const leftStickX = gp.axes[0] || 0;
         const leftStickY = gp.axes[1] || 0;
 
-        // Navigation: Right
+        // Navegação: Direita
         if ((isPressed(15) && canPress(15)) || (leftStickX > AXIS_THRESHOLD && canMoveAxis('stick-right'))) {
-          setActiveFocusedIndex((prev) => Math.min(prev + 1, itemCount - 1));
+          setActiveFocusedIndex((prev) => {
+            const next = Math.min(prev + 1, itemCount - 1);
+            if (next !== prev) navAudio.playMove();
+            return next;
+          });
         }
 
-        // Navigation: Left
+        // Navegação: Esquerda
         if ((isPressed(14) && canPress(14)) || (leftStickX < -AXIS_THRESHOLD && canMoveAxis('stick-left'))) {
-          setActiveFocusedIndex((prev) => Math.max(prev - 1, 0));
+          setActiveFocusedIndex((prev) => {
+            const next = Math.max(prev - 1, 0);
+            if (next !== prev) navAudio.playMove();
+            return next;
+          });
         }
 
-        // Navigation: Down
+        // Navegação: Baixo
         if ((isPressed(13) && canPress(13)) || (leftStickY > AXIS_THRESHOLD && canMoveAxis('stick-down'))) {
-          setActiveFocusedIndex((prev) => Math.min(prev + columns, itemCount - 1));
+          setActiveFocusedIndex((prev) => {
+            const next = Math.min(prev + columns, itemCount - 1);
+            if (next !== prev) navAudio.playMove();
+            return next;
+          });
         }
 
-        // Navigation: Up
+        // Navegação: Cima
         if ((isPressed(12) && canPress(12)) || (leftStickY < -AXIS_THRESHOLD && canMoveAxis('stick-up'))) {
-          setActiveFocusedIndex((prev) => Math.max(prev - columns, 0));
+          setActiveFocusedIndex((prev) => {
+            const next = Math.max(prev - columns, 0);
+            if (next !== prev) navAudio.playMove();
+            return next;
+          });
         }
 
-        // Action: A / Cross (Select / Launch)
+        // Ação: A / Cross (Selecionar / Jogar)
         if (isPressed(0) && canPress(0)) {
           const currentIndex = useGamepadStore.getState().activeFocusedIndex;
+          navAudio.playSelect();
           onSelect?.(currentIndex);
         }
 
-        // Action: B / Circle (Back)
+        // Ação: B / Circle (Voltar / Fechar)
         if (isPressed(1) && canPress(1)) {
+          navAudio.playBack();
           onBack?.();
         }
 
-        // Action: X / Square (Toggle Favorite)
+        // Ação: X / Square (Favoritar)
         if (isPressed(2) && canPress(2)) {
           const currentIndex = useGamepadStore.getState().activeFocusedIndex;
+          navAudio.playFavorite();
           onToggleFavorite?.(currentIndex);
         }
 
-        // Action: LB / RB (Tab Switching)
+        // Ação: Y / Triangle (Busca rápida)
+        if (isPressed(3) && canPress(3)) {
+          navAudio.playSelect();
+          onSearch?.();
+        }
+
+        // Ação: LB / L1 (Filtro Anterior)
         if (isPressed(4) && canPress(4)) {
+          navAudio.playTab();
           onPrevTab?.();
         }
+
+        // Ação: RB / R1 (Próximo Filtro)
         if (isPressed(5) && canPress(5)) {
+          navAudio.playTab();
           onNextTab?.();
+        }
+
+        // Ação: Select / Back / View (Alternar Big Picture)
+        if (isPressed(8) && canPress(8)) {
+          navAudio.playSelect();
+          onToggleUiMode?.();
+        }
+
+        // Ação: Start / Menu (Configurações / Menu)
+        if (isPressed(9) && canPress(9)) {
+          navAudio.playSelect();
+          onMenu?.();
         }
       }
 
@@ -148,9 +199,111 @@ export function useGamepad({
     animationFrameId = requestAnimationFrame(poll);
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
       window.removeEventListener('gamepadconnected', handleConnected);
       window.removeEventListener('gamepaddisconnected', handleDisconnected);
+      cancelAnimationFrame(animationFrameId);
     };
-  }, [itemCount, columns, onSelect, onBack, onToggleFavorite, onNextTab, onPrevTab, setGamepad, setActiveFocusedIndex, setIsGamepadActive]);
+  }, [
+    itemCount,
+    columns,
+    onSelect,
+    onBack,
+    onToggleFavorite,
+    onNextTab,
+    onPrevTab,
+    onSearch,
+    onToggleUiMode,
+    onMenu,
+    setActiveFocusedIndex,
+    setGamepad,
+    setIsGamepadActive
+  ]);
+
+  // 2. Navegação Espacial pelo Teclado (quando usuário usa setas direcionais)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignora atalhos de navegação se o usuário estiver digitando em um input ou textarea
+      const target = e.target as HTMLElement | null;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
+      if (isInput) {
+        if (e.key === 'Escape') {
+          target.blur();
+          navAudio.playBack();
+        }
+        return;
+      }
+
+      if (itemCount === 0) return;
+
+      switch (e.key) {
+        case 'ArrowRight':
+          e.preventDefault();
+          setActiveFocusedIndex((prev) => {
+            const next = Math.min(prev + 1, itemCount - 1);
+            if (next !== prev) navAudio.playMove();
+            return next;
+          });
+          break;
+
+        case 'ArrowLeft':
+          e.preventDefault();
+          setActiveFocusedIndex((prev) => {
+            const next = Math.max(prev - 1, 0);
+            if (next !== prev) navAudio.playMove();
+            return next;
+          });
+          break;
+
+        case 'ArrowDown':
+          e.preventDefault();
+          setActiveFocusedIndex((prev) => {
+            const next = Math.min(prev + columns, itemCount - 1);
+            if (next !== prev) navAudio.playMove();
+            return next;
+          });
+          break;
+
+        case 'ArrowUp':
+          e.preventDefault();
+          setActiveFocusedIndex((prev) => {
+            const next = Math.max(prev - columns, 0);
+            if (next !== prev) navAudio.playMove();
+            return next;
+          });
+          break;
+
+        case 'Enter':
+          e.preventDefault();
+          navAudio.playSelect();
+          onSelect?.(useGamepadStore.getState().activeFocusedIndex);
+          break;
+
+        case 'f':
+        case 'F':
+          e.preventDefault();
+          navAudio.playFavorite();
+          onToggleFavorite?.(useGamepadStore.getState().activeFocusedIndex);
+          break;
+
+        case '/':
+          e.preventDefault();
+          navAudio.playSelect();
+          onSearch?.();
+          break;
+
+        case 'F11':
+          e.preventDefault();
+          navAudio.playSelect();
+          onToggleUiMode?.();
+          break;
+
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [itemCount, columns, onSelect, onToggleFavorite, onSearch, onToggleUiMode, setActiveFocusedIndex]);
 }
