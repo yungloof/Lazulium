@@ -4,6 +4,7 @@ import { db } from './database/db';
 import { playtimeService } from './services/tracker/playtime.service';
 import { backupService } from './services/cloudsync/backup.service';
 import { registerMediaProtocol, registerMediaScheme } from './services/metadata/media-cache.service';
+import { scanLibraries } from './services/scanners';
 import {
   HIDDEN_LAUNCH_ARG,
   destroyTray,
@@ -40,6 +41,7 @@ if (!app.requestSingleInstanceLock()) {
     registerIpcHandlers(getMainWindow);
 
     startApp(process.argv.includes(HIDDEN_LAUNCH_ARG));
+    void scanLibraries(['steam']);
     setTimeout(() => void backupService.retryPendingUploads(), PENDING_UPLOAD_RETRY_DELAY_MS);
 
     app.on('activate', function () {

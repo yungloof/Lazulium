@@ -5,6 +5,7 @@ import { testApiKey } from '../metadata/steamgriddb.service';
 import { artworkService } from '../metadata/artwork.service';
 import { retroAchievementsService } from '../achievements/retroachievements.service';
 import { googleDriveService } from '../cloudsync/google-drive.service';
+import { scanLibraries } from '../scanners';
 import { fetchSteamPersona, listLocalSteamAccounts, loginWithSteamOpenId } from './steam-account.service';
 import { PageContent, findTokens, openWebLogin } from './web-login.service';
 
@@ -62,12 +63,15 @@ class AccountsService {
     const account = (await listLocalSteamAccounts()).find((a) => a.steamId === steamId);
     if (!account) throw new Error('Conta da Steam não encontrada neste PC.');
     this.saveSteam(account.steamId, account.personaName);
+    // Sincroniza horas e jogos da Steam automaticamente
+    void scanLibraries(['steam']);
     return this.getStatus();
   }
 
   async loginSteamInBrowser(): Promise<AccountsStatus> {
     const steamId = await loginWithSteamOpenId();
     this.saveSteam(steamId, await fetchSteamPersona(steamId));
+    void scanLibraries(['steam']);
     return this.getStatus();
   }
 
@@ -102,6 +106,7 @@ class AccountsService {
         title: 'Entre no RetroAchievements — o Lazulium conecta sua conta sozinho depois do login',
         partition: 'persist:login-retroachievements',
         host: /(^|\.)retroachievements\.org$/i,
+        initialUrl: 'https://retroachievements.org/login',
         keyPageUrl: 'https://retroachievements.org/settings',
         skipRedirectPaths: /^\/(login|register|forgot-password|reset-password|verify|createaccount)/i,
         extract: (content) => {

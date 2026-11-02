@@ -9,6 +9,7 @@ export interface WebLoginOptions<T> {
   partition: string;                // Sessão isolada (cookies do site ficam só nela)
   host: RegExp;                     // Domínio do serviço
   keyPageUrl: string;               // Página que mostra a chave depois do login
+  initialUrl?: string;              // URL inicial de login (ex: /login para não cair direto no WAF)
   skipRedirectPaths: RegExp;        // Páginas de login/cadastro em que não interferimos
   extract: (content: PageContent) => T[];
   validate: (candidate: T) => Promise<boolean>;
@@ -45,7 +46,13 @@ export function openWebLogin<T>(options: WebLoginOptions<T>, parent?: BrowserWin
       parent: parent ?? undefined,
       autoHideMenuBar: true,
       backgroundColor: '#ffffff',
-      webPreferences: { partition: options.partition, sandbox: true, contextIsolation: true, nodeIntegration: false }
+      webPreferences: {
+        partition: options.partition,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        disableBlinkFeatures: 'AutomationControlled'
+      }
     });
     activeWindow = win;
     // Sem o token "Electron" no user-agent, para os sites tratarem como um navegador comum
@@ -96,6 +103,11 @@ export function openWebLogin<T>(options: WebLoginOptions<T>, parent?: BrowserWin
       if (checking || settled || win.isDestroyed()) return;
       const url = win.webContents.getURL();
       if (!onServiceHost(url) || new URL(url).pathname !== new URL(options.keyPageUrl).pathname) return;
+
+      // Não roda scripts se estiver na tela de verificação da Cloudflare
+      const title = win.webContents.getTitle();
+      if (/verificação|security|moment|just a moment|cloudflare|turnstile/i.test(title)) return;
+
       checking = true;
       try {
         const content = (await win.webContents.executeJavaScript(READ_PAGE_SCRIPT, true)) as PageContent;
@@ -120,7 +132,7 @@ export function openWebLogin<T>(options: WebLoginOptions<T>, parent?: BrowserWin
     const timeout = setTimeout(() => finish(new Error('Tempo esgotado aguardando o login.')), LOGIN_TIMEOUT_MS);
     win.on('closed', () => finish(new Error('Janela de login fechada antes de concluir.')));
 
-    void win.loadURL(options.keyPageUrl);
+    void win.loadURL(options.initialUrl || options.keyPageUrl);
   });
 }
 
