@@ -64,8 +64,8 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
       if (result?.failed) {
         setAchievementsSyncError(
           result.synced
-            ? `Conquistas de ${result.failed} jogo(s) não vieram. Confira a internet e tente de novo.`
-            : 'Não foi possível falar com a Steam. Confira a internet e tente de novo.'
+            ? `Conquistas de ${result.failed} jogo(s) não vieram. Confira a internet ou espere alguns minutos e tente de novo.`
+            : 'Não foi possível falar com a Steam. Confira a internet ou espere alguns minutos e tente de novo.'
         );
       }
     } catch (err) {

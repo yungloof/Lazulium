@@ -213,7 +213,8 @@ export class SteamAchievementsService {
         };
       }
 
-      if (!schemaRes.value.ok) {
+      // Só limite e queda da Steam passam sozinhos: 400/403 (chave inválida, jogo sem dados) repetiriam para sempre
+      if (schemaRes.value.status === 429 || schemaRes.value.status >= 500) {
         return {
           gameId: game.id,
           source: 'steam',
@@ -227,20 +228,22 @@ export class SteamAchievementsService {
       }
 
       let schemaList: SteamSchemaAchievement[] = [];
-      try {
-        const schemaData = await schemaRes.value.json();
-        schemaList = schemaData?.game?.availableGameStats?.achievements ?? [];
-      } catch {
-        return {
-          gameId: game.id,
-          source: 'steam',
-          total: 0,
-          unlocked: 0,
-          items: [],
-          syncedAt: now,
-          retryable: true,
-          warning: 'Não foi possível ler o esquema de conquistas retornado pela Steam.'
-        };
+      if (schemaRes.value.ok) {
+        try {
+          const schemaData = await schemaRes.value.json();
+          schemaList = schemaData?.game?.availableGameStats?.achievements ?? [];
+        } catch {
+          return {
+            gameId: game.id,
+            source: 'steam',
+            total: 0,
+            unlocked: 0,
+            items: [],
+            syncedAt: now,
+            retryable: true,
+            warning: 'Não foi possível ler o esquema de conquistas retornado pela Steam.'
+          };
+        }
       }
 
       if (schemaList.length === 0) {
