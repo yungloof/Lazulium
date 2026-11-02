@@ -15,7 +15,7 @@ O **Lazulium** (codinome *Steam 2*) junta a Steam, os jogos que você adicionou 
 - Importa os **jogos não-Steam que você adicionou à Steam** (emuladores, ports, jogos avulsos) com as artes personalizadas que você configurou nela; eles continuam abrindo pela Steam (Steam Input e overlay funcionam).
 - Integração com emuladores (**Dolphin, Ryujinx, Cemu, PCSX2, RPCS3, DuckStation, RetroArch**) varrendo as suas pastas de ROMs.
 - Adicione qualquer `.exe` ou pasta de jogos avulsos manualmente.
-- Abas por plataforma (as vazias somem), favoritos e busca.
+- Interface no estilo da Steam: lista de jogos na lateral (favoritos e um grupo por plataforma, clique duplo para jogar), página própria para cada jogo (banner, JOGAR, tempo, conquistas, capturas e atividade) e início com jogados recentemente e a grade de capas em três tamanhos.
 
 ### Horas jogadas
 - Importa o tempo e a última sessão de cada jogo da Steam direto do cliente da Steam.

@@ -72,7 +72,9 @@ export function useGamepad({
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
       const gp = gamepads[0];
 
-      if (gp && itemCount > 0) {
+      // Sem grade visível (ex: página do jogo) os botões de ação continuam valendo; só o direcional depende de itens
+      if (gp) {
+        const hasItems = itemCount > 0;
         const BUTTON_COOLDOWN = 180; // ms de intervalo entre repetições
         const AXIS_THRESHOLD = 0.5;
 
@@ -108,7 +110,7 @@ export function useGamepad({
         const leftStickY = gp.axes[1] || 0;
 
         // Navegação: Direita
-        if ((isPressed(15) && canPress(15)) || (leftStickX > AXIS_THRESHOLD && canMoveAxis('stick-right'))) {
+        if (hasItems && ((isPressed(15) && canPress(15)) || (leftStickX > AXIS_THRESHOLD && canMoveAxis('stick-right')))) {
           setActiveFocusedIndex((prev) => {
             const next = Math.min(prev + 1, itemCount - 1);
             if (next !== prev) navAudio.playMove();
@@ -117,7 +119,7 @@ export function useGamepad({
         }
 
         // Navegação: Esquerda
-        if ((isPressed(14) && canPress(14)) || (leftStickX < -AXIS_THRESHOLD && canMoveAxis('stick-left'))) {
+        if (hasItems && ((isPressed(14) && canPress(14)) || (leftStickX < -AXIS_THRESHOLD && canMoveAxis('stick-left')))) {
           setActiveFocusedIndex((prev) => {
             const next = Math.max(prev - 1, 0);
             if (next !== prev) navAudio.playMove();
@@ -126,7 +128,7 @@ export function useGamepad({
         }
 
         // Navegação: Baixo
-        if ((isPressed(13) && canPress(13)) || (leftStickY > AXIS_THRESHOLD && canMoveAxis('stick-down'))) {
+        if (hasItems && ((isPressed(13) && canPress(13)) || (leftStickY > AXIS_THRESHOLD && canMoveAxis('stick-down')))) {
           setActiveFocusedIndex((prev) => {
             const next = Math.min(prev + columns, itemCount - 1);
             if (next !== prev) navAudio.playMove();
@@ -135,7 +137,7 @@ export function useGamepad({
         }
 
         // Navegação: Cima
-        if ((isPressed(12) && canPress(12)) || (leftStickY < -AXIS_THRESHOLD && canMoveAxis('stick-up'))) {
+        if (hasItems && ((isPressed(12) && canPress(12)) || (leftStickY < -AXIS_THRESHOLD && canMoveAxis('stick-up')))) {
           setActiveFocusedIndex((prev) => {
             const next = Math.max(prev - columns, 0);
             if (next !== prev) navAudio.playMove();

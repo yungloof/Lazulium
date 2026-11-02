@@ -4,6 +4,7 @@ import { Clock, Calendar, Gamepad2, Timer, BarChart2, ChevronDown, ChevronUp } f
 
 interface GameStatsProps {
   game: Game;
+  collapsible?: boolean;            // false na página do jogo: sempre aberto, sem cabeçalho próprio
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
@@ -56,7 +57,7 @@ interface DayStats {
 
 const STATS_COLLAPSED_KEY = 'lazulium.statsCollapsed';
 
-export const GameStats: React.FC<GameStatsProps> = ({ game }) => {
+export const GameStats: React.FC<GameStatsProps> = ({ game, collapsible = true }) => {
   const [sessions, setSessions] = useState<PlaytimeSession[]>([]);
   // Começa recolhido para sobrar espaço para a biblioteca; a escolha do usuário é lembrada
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -137,8 +138,9 @@ export const GameStats: React.FC<GameStatsProps> = ({ game }) => {
   }, [sessions.length, game.totalPlaytimeSeconds]);
 
   return (
-    <div className="mt-3 pt-3 border-t border-slate-800/70 text-slate-200">
+    <div className={collapsible ? 'mt-3 pt-3 border-t border-slate-800/70 text-slate-200' : 'text-slate-200'}>
       {/* Header com botão recolhível */}
+      {collapsible && (
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
           <BarChart2 className="w-3.5 h-3.5 text-indigo-400" />
@@ -153,8 +155,9 @@ export const GameStats: React.FC<GameStatsProps> = ({ game }) => {
           {isCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
         </button>
       </div>
+      )}
 
-      {!isCollapsed && (
+      {(!collapsible || !isCollapsed) && (
         <div className="flex flex-col lg:flex-row items-stretch gap-3">
           {/* 4 Cards de Indicadores */}
           <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
