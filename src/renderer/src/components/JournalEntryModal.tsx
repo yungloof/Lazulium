@@ -65,7 +65,7 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-lg bg-steam-bg border border-slate-700/60 shadow-lg"
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-black/30">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
           <h2 className="flex items-center gap-2 text-base text-white">
             <NotebookPen className="w-4 h-4 text-indigo-400" /> Registrar jogo no Diário
           </h2>
@@ -125,7 +125,7 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
             </p>
           )}
         </div>
-        <div className="flex justify-end gap-2 px-5 py-4 border-t border-black/30">
+        <div className="flex justify-end gap-2 px-5 py-4 border-t border-slate-800">
           <button type="button" onClick={onClose} className={`px-3 py-2 text-xs rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
             Cancelar
           </button>

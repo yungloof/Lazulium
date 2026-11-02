@@ -145,7 +145,7 @@ export const GamePage: React.FC<GamePageProps> = ({
         ) : game.media?.coverUrl ? (
           <img src={game.media.coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-50" />
         ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0e1426] via-[#0e1426]/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-steam-bg via-steam-bg/30 to-transparent" />
         <div className="absolute left-8 bottom-6 right-8">
           {logoUrl ? (
             <img

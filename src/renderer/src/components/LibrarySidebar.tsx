@@ -197,7 +197,7 @@ export const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
   return (
     <aside
       style={{ width: `${width}px` }}
-      className="relative flex-shrink-0 flex flex-col bg-[#171d25] border-r border-slate-800/80 min-h-0 select-none"
+      className="relative flex-shrink-0 flex flex-col bg-steam-sidebar border-r border-slate-800/80 min-h-0 select-none"
     >
       {/* Alça de redimensionamento da lista lateral (220px a 420px) */}
       <div

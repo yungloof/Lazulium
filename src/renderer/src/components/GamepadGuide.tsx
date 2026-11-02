@@ -6,7 +6,7 @@ export const GamepadGuide: React.FC = () => {
   const { gamepad } = useGamepadStore();
 
   return (
-    <footer className="h-9 bg-[#171a21] border-t border-slate-800/80 px-4 flex items-center justify-between text-xs text-slate-400 select-none flex-shrink-0 z-30">
+    <footer className="h-9 bg-steam-header border-t border-slate-800/80 px-4 flex items-center justify-between text-xs text-slate-400 select-none flex-shrink-0 z-30">
       <div className="flex items-center gap-4 overflow-x-auto py-1">
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center font-bold text-[10px]">

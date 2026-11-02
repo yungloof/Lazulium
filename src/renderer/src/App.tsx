@@ -406,7 +406,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#0e1426] text-slate-100 overflow-hidden">
+    <div className="flex flex-col h-screen w-screen bg-steam-bg text-slate-100 overflow-hidden">
       <TitleBar />
 
       {/* Navegação superior (estilo Steam) */}
