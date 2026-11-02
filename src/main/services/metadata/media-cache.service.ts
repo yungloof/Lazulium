@@ -33,13 +33,24 @@ export function migrateMediaCache(): void {
   if (!existsSync(oldRoot)) return;
   const root = getCacheRoot();
   try {
-    for (const dir of readdirSync(oldRoot)) {
-      mkdirSync(join(root, dir), { recursive: true });
-      for (const file of readdirSync(join(oldRoot, dir))) {
-        if (!existsSync(join(root, dir, file))) renameSync(join(oldRoot, dir, file), join(root, dir, file));
+    for (const entry of readdirSync(oldRoot, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        const targetDir = join(root, entry.name);
+        mkdirSync(targetDir, { recursive: true });
+        for (const file of readdirSync(join(oldRoot, entry.name))) {
+          const src = join(oldRoot, entry.name, file);
+          const dst = join(targetDir, file);
+          if (!existsSync(dst)) renameSync(src, dst);
+        }
       }
     }
     rmSync(oldRoot, { recursive: true, force: true });
+    const cacheDir = join(app.getPath('userData'), 'cache');
+    try {
+      if (existsSync(cacheDir) && readdirSync(cacheDir).length === 0) {
+        rmSync(cacheDir, { recursive: true, force: true });
+      }
+    } catch {}
     console.log('[Media] Artes migradas para a pasta artwork');
   } catch (err) {
     console.warn('[Media] Falha ao migrar artes:', (err as Error).message);
