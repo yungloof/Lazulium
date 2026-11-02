@@ -76,8 +76,11 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
       await action();
       const nowConnected = (await window.electronAPI?.getAccountsStatus())?.steam.connected ?? false;
       setConnected(nowConnected);
-      await onChanged();
-      if (nowConnected) void syncAchievements();
+      if (nowConnected) {
+        void syncAchievements();
+      } else {
+        await onChanged();
+      }
     } catch (err) {
       setError(`Não foi possível conectar: ${ipcErrorMessage(err)}. Tente de novo ou use Contas e configurações.`);
     } finally {
