@@ -129,6 +129,8 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [x] Artes em `userData/artwork` (antes em `userData/cache`, que no Windows é a pasta do cache do Chromium e era limpa sozinha), com migração e reparo das perdidas.
 - [x] Aba Capturas com as imagens separadas por jogo, "Ver todas" e exclusão pelo app (vai para a Lixeira).
 - [x] Perfil editável: nome, bio, avatar, banner, jogos e conquistas em destaque, seções visíveis e sua ordem; visual reorganizado.
+- [x] Perfil com a identidade da Steam (fundo animado, moldura, bio, vitrine e insígnias, sem chave de API e guardados para uso offline), tudo substituível no editor.
+- [x] Horas das últimas 2 semanas pela página pública da Steam: `Playtime2wks` do `localconfig.vdf` fica desatualizado e, em atalhos, repete o total.
 - [x] Diário com resenha e anotações, salvamento automático e sem limite prático de texto.
 
 ---

@@ -66,7 +66,7 @@ export const IPC_CHANNELS = {
   PROFILE_SYNC_ACHIEVEMENTS: 'profile:sync-achievements',
   PROFILE_EXPORT: 'profile:export',
   PROFILE_SAVE_CUSTOM: 'profile:save-custom',
-  PROFILE_PICK_AVATAR: 'profile:pick-avatar',
+  PROFILE_PICK_MEDIA: 'profile:pick-media',
 
   // Contas (login sem chave de API)
   ACCOUNTS_GET_STATUS: 'accounts:get-status',

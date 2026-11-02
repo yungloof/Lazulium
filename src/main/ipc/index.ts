@@ -14,7 +14,7 @@ import { FetchAssetsOptions, JournalEntryInput, MediaAssetType } from '@shared/t
 import { addJournalEntry, journalToCsv, journalToJson, setGameLog, setManualPlaytime } from '../services/profile/journal.service';
 import { steamNamesService } from '../services/scanners/steam-names.service';
 import { GameSaveConfig } from '@shared/types/cloudsync';
-import { ProfileCustom } from '@shared/types/profile';
+import { ProfileCustom, ProfileMediaKind } from '@shared/types/profile';
 import { backupService } from '../services/cloudsync/backup.service';
 import { DRIVE_SETTING_KEYS, googleDriveService } from '../services/cloudsync/google-drive.service';
 import { applyLoginItem, markRendererReady, notify } from '../app-shell';
@@ -314,15 +314,17 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     return profileService.saveCustom(custom);
   });
 
-  ipcMain.handle(IPC_CHANNELS.PROFILE_PICK_AVATAR, async () => {
+  ipcMain.handle(IPC_CHANNELS.PROFILE_PICK_MEDIA, async (_event, kind: ProfileMediaKind) => {
+    if (kind !== 'avatar' && kind !== 'background' && kind !== 'artwork') throw new Error('Tipo de arquivo de perfil inválido.');
     const win = getMainWindow();
+    const images = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
     const options: Electron.OpenDialogOptions = {
-      title: 'Escolher avatar',
+      title: { avatar: 'Escolher avatar', background: 'Escolher fundo do perfil', artwork: 'Escolher arte em destaque' }[kind],
       properties: ['openFile'],
-      filters: [{ name: 'Imagens', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+      filters: kind === 'background' ? [{ name: 'Imagens e vídeos', extensions: [...images, 'webm', 'mp4'] }] : [{ name: 'Imagens', extensions: images }]
     };
     const res = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
-    return res.canceled ? null : profileService.setAvatarFromFile(res.filePaths[0]);
+    return res.canceled ? null : profileService.importMedia(kind, res.filePaths[0]);
   });
 
   ipcMain.handle(IPC_CHANNELS.PROFILE_EXPORT, async () => {

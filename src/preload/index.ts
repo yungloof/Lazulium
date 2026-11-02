@@ -4,7 +4,7 @@ import { ElectronAPI, JournalEntryInput, FetchAssetsOptions, GameLaunchStatus, M
 import { EmulatorConfig, Game, GameLog, GamePlatform } from '@shared/types/game';
 import { BackupEvent, GameSaveConfig } from '@shared/types/cloudsync';
 import { AccountService } from '@shared/types/accounts';
-import { ProfileCustom } from '@shared/types/profile';
+import { ProfileCustom, ProfileMediaKind } from '@shared/types/profile';
 
 const electronAPI: ElectronAPI = {
   // Library & Scanners
@@ -96,7 +96,7 @@ const electronAPI: ElectronAPI = {
   getPlayerProfile: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_GET),
   syncAllAchievements: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SYNC_ACHIEVEMENTS),
   saveProfileCustom: (custom: ProfileCustom) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SAVE_CUSTOM, custom),
-  pickProfileAvatar: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_PICK_AVATAR),
+  pickProfileMedia: (kind: ProfileMediaKind) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_PICK_MEDIA, kind),
   exportPlayerProfile: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_EXPORT),
 
   // Contas

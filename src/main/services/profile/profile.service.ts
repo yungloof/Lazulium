@@ -1,5 +1,5 @@
 import { app } from 'electron';
-import { copyFile, mkdir } from 'fs/promises';
+import { copyFile, mkdir, readdir, stat, unlink } from 'fs/promises';
 import { extname, join } from 'path';
 import { Game } from '@shared/types/game';
 import { mediaUrl } from '../metadata/media-cache.service';
@@ -9,21 +9,29 @@ import {
   ProfileAchievement,
   ProfileCustom,
   ProfileGame,
+  ProfileMediaKind,
   ProfileScreenshot,
   ProfileSectionId,
-  ProfileUnlockedAchievement
+  ProfileUnlockedAchievement,
+  SteamProfileIdentity
 } from '@shared/types/profile';
 import { db } from '../../database/db';
 import { achievementsService } from '../achievements/achievements.service';
 import { fetchSteamPersona } from '../accounts/steam-account.service';
 import { screenshotsService } from '../metadata/screenshots.service';
 import { readSteamProfileStats, SteamAppStats } from '../scanners/steam-scanner.service';
+import { steamProfileService } from './steam-profile.service';
 
 const MAX_ACHIEVEMENT_CHOICES = 300;
 const MAX_FEATURED_GAMES = 12;
 const MAX_FEATURED_ACHIEVEMENTS = 12;
-const SECTION_IDS: ProfileSectionId[] = ['featured', 'achievements', 'activity', 'screenshots', 'mostPlayed'];
+const SECTION_IDS: ProfileSectionId[] = ['artwork', 'activity', 'featured', 'achievements', 'screenshots', 'mostPlayed'];
+const SECTIONS_VERSION = 2;             // 2: seção da arte em destaque
+const MAX_BACKGROUND_VIDEO_BYTES = 200 * 1024 * 1024;
+const LOCAL_PROFILE_MEDIA = /^lazulium-media:\/\/profile\/(avatar|background|artwork)-[a-z0-9]+\.(png|jpe?g|webp|gif|webm|mp4)$/;
+const VIDEO_FILE = /\.(webm|mp4)$/i;
 const TOP_GAMES = 6;
+const TOP_GAME_ACHIEVEMENT_ICONS = 6;
 const TOP_RARE_ACHIEVEMENTS = 8;
 const TOP_RECENT_ACHIEVEMENTS = 10;
 const TOP_SCREENSHOTS = 8;
@@ -59,15 +67,33 @@ class ProfileService {
     return url;
   }
 
-  // Horas das últimas 2 semanas: o maior entre o que a Steam registrou e as sessões do Lazulium
-  private recentSeconds(game: Game, steamStats: Map<string, SteamAppStats>, since: number): number {
-    const key = steamStatsKey(game);
-    const steam = key ? steamStats.get(key)?.recentSeconds ?? 0 : 0;
-    const tracked = db
+  private trackedSeconds(game: Game, since: number): number {
+    return db
       .getPlaytimeSessions(game.id)
       .filter((s) => new Date(s.endedAt).getTime() >= since)
       .reduce((sum, s) => sum + s.durationSeconds, 0);
-    return Math.max(steam, tracked);
+  }
+
+  // Horas das últimas 2 semanas. Playtime2wks do localconfig.vdf não é confiável: fica desatualizado em jogos
+  // parados há semanas e, nos atalhos não-Steam, repete o total. Vale a página pública; fora dela, as sessões do app.
+  private recentSeconds(game: Game, steamStats: Map<string, SteamAppStats>, since: number, publicHours?: Record<string, number>): number {
+    const tracked = this.trackedSeconds(game, since);
+    if (game.platform !== 'steam') return tracked;
+    const listed = publicHours?.[game.platformGameId ?? ''];
+    if (listed !== undefined) return Math.max(listed * 3600, tracked);
+    const local = steamStats.get(game.platformGameId ?? '');
+    const inWindow = local?.lastPlayedAt && new Date(local.lastPlayedAt).getTime() >= since ? local.recentSeconds ?? 0 : 0;
+    // A Steam lista os mais jogados: quem ficou de fora jogou no máximo o mesmo que o último da lista
+    const ceiling = publicHours && Object.keys(publicHours).length > 0 ? Math.min(...Object.values(publicHours)) * 3600 : Infinity;
+    return Math.max(Math.min(inWindow, ceiling), tracked);
+  }
+
+  private resolveBackground(custom: ProfileCustom, steam: SteamProfileIdentity | undefined, gameArt?: string): PlayerProfile['background'] {
+    const mode = custom.backgroundMode ?? (steam?.background ? 'steam' : 'game');
+    if (mode === 'none') return undefined;
+    if (mode === 'steam') return steam?.background ?? (gameArt ? { imageUrl: gameArt } : undefined);
+    if (mode === 'file' && custom.backgroundUrl) return VIDEO_FILE.test(custom.backgroundUrl) ? { videoUrl: custom.backgroundUrl } : { imageUrl: custom.backgroundUrl };
+    return gameArt ? { imageUrl: gameArt } : undefined;
   }
 
   async build(): Promise<PlayerProfile> {
@@ -75,6 +101,8 @@ class ProfileService {
     const games = db.getGames().filter((g) => !g.isHidden);
     const played = games.filter((g) => (g.totalPlaytimeSeconds ?? 0) > 0);
     const since = Date.now() - RECENT_WINDOW_MS;
+    const steamId = settings.steamUserId;
+    const steamIdentity = steamId && /^7656\d{13}$/.test(steamId) ? await steamProfileService.get(steamId) : undefined;
     const { stats: steamStats, playerLevel } = await readSteamProfileStats().catch(() => ({
       stats: new Map<string, SteamAppStats>(),
       playerLevel: undefined
@@ -90,9 +118,14 @@ class ProfileService {
         heroUrl: game.media?.heroUrl,
         playtimeSeconds: game.totalPlaytimeSeconds ?? 0,
         lastPlayedAt: game.lastPlayedAt,
-        recentSeconds: this.recentSeconds(game, steamStats, since) || undefined,
+        recentSeconds: this.recentSeconds(game, steamStats, since, steamIdentity?.recentByAppId) || undefined,
         achievementsUnlocked: achievements?.total ? achievements.unlocked : undefined,
-        achievementsTotal: achievements?.total || undefined
+        achievementsTotal: achievements?.total || undefined,
+        recentAchievementIcons: achievements?.items
+          .filter((a) => a.unlocked && a.iconUrl)
+          .sort((a, b) => (b.unlockedAt ?? '').localeCompare(a.unlockedAt ?? ''))
+          .slice(0, TOP_GAME_ACHIEVEMENT_ICONS)
+          .map((a) => ({ name: a.name, iconUrl: a.iconUrl }))
       };
     };
 
@@ -131,7 +164,7 @@ class ProfileService {
     const recentGames = games
       .map(toProfileGame)
       .filter((g) => (g.lastPlayedAt && new Date(g.lastPlayedAt).getTime() >= since) || (g.recentSeconds ?? 0) > 0)
-      .sort((a, b) => (b.recentSeconds ?? 0) - (a.recentSeconds ?? 0) || (b.lastPlayedAt ?? '').localeCompare(a.lastPlayedAt ?? ''));
+      .sort((a, b) => (b.lastPlayedAt ?? '').localeCompare(a.lastPlayedAt ?? '') || (b.recentSeconds ?? 0) - (a.recentSeconds ?? 0));
 
     // Vitrine: capturas mais novas dos jogos jogados por último
     const screenshotSources = [...games]
@@ -149,11 +182,13 @@ class ProfileService {
       }
     }
 
-    const steamId = settings.steamUserId;
     const displayName =
       settings.steamPersonaName || (steamId ? await fetchSteamPersona(steamId) : undefined) || settings.retroAchievementsUser || 'Jogador';
 
-    const custom = db.getProfileCustom();
+    const saved = db.getProfileCustom();
+    // Perfil salvo antes da arte em destaque existir: ela entra no topo, e o editor pode tirar
+    const custom: ProfileCustom =
+      saved.sections && (saved.sectionsVersion ?? 1) < SECTIONS_VERSION ? { ...saved, sections: ['artwork', ...saved.sections.filter((s) => s !== 'artwork')] } : saved;
     const byId = new Map(games.map((g) => [g.id, g]));
     const choicesByKey = new Map(choices.map((c) => [c.key, c]));
     const bannerGame = custom.bannerGameId ? byId.get(custom.bannerGameId) : undefined;
@@ -164,7 +199,8 @@ class ProfileService {
       displayName: custom.displayName?.trim() || displayName,
       avatarUrl: custom.avatarUrl || (steamId ? await this.steamAvatar(steamId) : undefined),
       custom,
-      bannerUrl: bannerGame?.media?.heroUrl ?? bannerGame?.media?.coverUrl,
+      steam: steamIdentity,
+      background: this.resolveBackground(custom, steamIdentity, bannerGame?.media?.heroUrl ?? bannerGame?.media?.coverUrl ?? recentGames.find((g) => g.heroUrl)?.heroUrl),
       featuredGames: (custom.featuredGameIds ?? []).flatMap((id) => {
         const game = byId.get(id);
         return game ? [toProfileGame(game)] : [];
@@ -177,7 +213,10 @@ class ProfileService {
         .sort((a, b) => (a.globalPercent ?? 101) - (b.globalPercent ?? 101))
         .slice(0, MAX_ACHIEVEMENT_CHOICES),
       steamLevel: steamId ? playerLevel : undefined,
-      recentPlaytimeSeconds: recentGames.reduce((sum, g) => sum + (g.recentSeconds ?? 0), 0),
+      recentPlaytimeSeconds:
+        steamIdentity?.recentHours !== undefined
+          ? steamIdentity.recentHours * 3600 + games.filter((g) => g.platform !== 'steam').reduce((sum, g) => sum + this.trackedSeconds(g, since), 0)
+          : recentGames.reduce((sum, g) => sum + (g.recentSeconds ?? 0), 0),
       recentGames,
       recentAchievements: unlocked.sort((a, b) => b.unlockedAt!.localeCompare(a.unlockedAt!)).slice(0, TOP_RECENT_ACHIEVEMENTS),
       screenshots: screenshots.sort((a, b) => b.takenAt.localeCompare(a.takenAt)).slice(0, TOP_SCREENSHOTS),
@@ -207,31 +246,53 @@ class ProfileService {
 
   saveCustom(input: ProfileCustom): ProfileCustom {
     const text = (value: string | undefined, max: number) => value?.trim().slice(0, max) || undefined;
-    const current = db.getProfileCustom();
+    // Só arquivos que o próprio app copiou; nada de caminhos vindos do renderer
+    const localMedia = (url?: string) => (url && LOCAL_PROFILE_MEDIA.test(url) ? url : undefined);
     const custom: ProfileCustom = {
       displayName: text(input.displayName, 60),
+      realName: text(input.realName, 60),
+      location: text(input.location, 60),
       bio: text(input.bio, 2000),
-      // Só a imagem que o próprio app copiou; nada de caminhos vindos do renderer
-      avatarUrl: input.avatarUrl === current.avatarUrl ? current.avatarUrl : undefined,
+      avatarUrl: localMedia(input.avatarUrl),
+      backgroundMode: input.backgroundMode && ['steam', 'game', 'file', 'none'].includes(input.backgroundMode) ? input.backgroundMode : undefined,
+      backgroundUrl: localMedia(input.backgroundUrl),
+      artworkUrl: localMedia(input.artworkUrl),
+      artworkCaption: text(input.artworkCaption, 120),
+      hideAvatarFrame: input.hideAvatarFrame || undefined,
       bannerGameId: input.bannerGameId && db.getGameById(input.bannerGameId) ? input.bannerGameId : undefined,
       featuredGameIds: (input.featuredGameIds ?? []).filter((id) => db.getGameById(id)).slice(0, MAX_FEATURED_GAMES),
       featuredAchievementKeys: (input.featuredAchievementKeys ?? []).slice(0, MAX_FEATURED_ACHIEVEMENTS),
-      sections: input.sections?.filter((s) => SECTION_IDS.includes(s))
+      sections: input.sections?.filter((s) => SECTION_IDS.includes(s)),
+      sectionsVersion: SECTIONS_VERSION
     };
     db.setProfileCustom(custom);
+    void this.removeUnusedMedia(custom);
     return custom;
   }
 
-  async setAvatarFromFile(sourcePath: string): Promise<string> {
+  // Copia o arquivo escolhido; só vale para o perfil quando o jogador salvar
+  async importMedia(kind: ProfileMediaKind, sourcePath: string): Promise<string> {
     const ext = extname(sourcePath).toLowerCase();
-    if (!/^\.(png|jpe?g|webp|gif)$/.test(ext)) throw new Error('Escolha uma imagem PNG, JPG, WEBP ou GIF.');
+    const isVideo = VIDEO_FILE.test(ext);
+    if (isVideo && kind !== 'background') throw new Error('Escolha uma imagem PNG, JPG, WEBP ou GIF.');
+    if (!isVideo && !/^\.(png|jpe?g|webp|gif)$/.test(ext)) {
+      throw new Error(kind === 'background' ? 'Escolha uma imagem (PNG, JPG, WEBP, GIF) ou um vídeo (WEBM, MP4).' : 'Escolha uma imagem PNG, JPG, WEBP ou GIF.');
+    }
+    if (isVideo && (await stat(sourcePath)).size > MAX_BACKGROUND_VIDEO_BYTES) throw new Error('Esse vídeo é grande demais: escolha um de até 200 MB.');
     const dir = join(app.getPath('userData'), 'profile');
     await mkdir(dir, { recursive: true });
-    const file = `avatar-${Date.now().toString(36)}${ext}`;
+    const file = `${kind}-${Date.now().toString(36)}${ext}`;
     await copyFile(sourcePath, join(dir, file));
-    const url = mediaUrl('profile', file);
-    db.setProfileCustom({ ...db.getProfileCustom(), avatarUrl: url });
-    return url;
+    return mediaUrl('profile', file);
+  }
+
+  // Arquivos trocados ou escolhidos e cancelados
+  private async removeUnusedMedia(custom: ProfileCustom): Promise<void> {
+    const dir = join(app.getPath('userData'), 'profile');
+    const used = new Set([custom.avatarUrl, custom.backgroundUrl, custom.artworkUrl]);
+    for (const file of await readdir(dir).catch(() => [] as string[])) {
+      if (/^(avatar|background|artwork)-/.test(file) && !used.has(mediaUrl('profile', file))) await unlink(join(dir, file)).catch(() => undefined);
+    }
   }
 
   // Busca conquistas de todos os jogos já jogados (respeita o cache de 6h de cada jogo)
@@ -266,7 +327,8 @@ class ProfileService {
     return {
       ...profile,
       avatarUrl: publicUrl(profile.avatarUrl),
-      bannerUrl: publicUrl(profile.bannerUrl),
+      steam: undefined,
+      background: undefined,
       custom: { bio: profile.custom.bio },
       achievementChoices: [],
       featuredGames: profile.featuredGames.map(mapGame),

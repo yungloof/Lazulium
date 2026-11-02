@@ -48,8 +48,8 @@ if (!app.requestSingleInstanceLock()) {
     // Content-Security-Policy injetada nos cabeçalhos HTTP (no dev libera HMR/WebSocket e inline do Vite)
     const isDev = !app.isPackaged && !!process.env['ELECTRON_RENDERER_URL'];
     const cspDirectives = isDev
-      ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: lazulium-media:; font-src 'self' data:; connect-src 'self' https: ws:;"
-      : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: lazulium-media:; font-src 'self' data:; connect-src 'self' https:;";
+      ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: lazulium-media:; media-src 'self' https://*.steamstatic.com lazulium-media:; font-src 'self' data:; connect-src 'self' https: ws:;"
+      : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: lazulium-media:; media-src 'self' https://*.steamstatic.com lazulium-media:; font-src 'self' data:; connect-src 'self' https:;";
 
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
       if (details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') {

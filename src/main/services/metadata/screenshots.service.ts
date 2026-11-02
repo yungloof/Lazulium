@@ -41,7 +41,7 @@ export function registerScreenshotRoots(): void {
     allowPath: /^\d+\/config\/grid\/[^/]+\.(png|jpe?g|webp|ico)$/i
   });
   registerMediaRoot(HOSTS.gamebar, { resolveRoot: () => join(app.getPath('videos'), 'Captures'), allowPath: /^[^/]+\.png$/i });
-  registerMediaRoot('profile', { resolveRoot: () => join(app.getPath('userData'), 'profile'), allowPath: /^avatar-[a-z0-9]+\.(png|jpe?g|webp|gif)$/i });
+  registerMediaRoot('profile', { resolveRoot: () => join(app.getPath('userData'), 'profile'), allowPath: /^((avatar|background|artwork)-[a-z0-9]+|steam\/[a-f0-9]{16})\.(png|jpe?g|webp|gif|webm|mp4)$/i });
   registerMediaRoot(HOSTS.custom, { resolveRoot: customRoot, allowPath: /^[^/]+\/[^/]+$/ });
 }
 

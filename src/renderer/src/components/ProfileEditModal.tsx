@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, Check, ImagePlus, Loader2, Search, X } from 'lucide-react';
-import { PlayerProfile, ProfileCustom, ProfileSectionId } from '@shared/types/profile';
+import { PlayerProfile, ProfileBackgroundMode, ProfileCustom, ProfileMediaKind, ProfileSectionId } from '@shared/types/profile';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 
@@ -16,9 +16,10 @@ const labelClass = 'block text-xs font-semibold text-slate-300 mb-1.5';
 const MAX_FEATURED = 12;
 
 export const SECTION_LABEL: Record<ProfileSectionId, string> = {
+  artwork: 'Arte em destaque',
+  activity: 'Atividade recente',
   featured: 'Jogos em destaque',
   achievements: 'Vitrine de conquistas',
-  activity: 'Atividade recente',
   screenshots: 'Capturas',
   mostPlayed: 'Mais jogados'
 };
@@ -71,15 +72,22 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
     update({ sections: next });
   };
 
-  const pickAvatar = async () => {
+  const pickMedia = async (kind: ProfileMediaKind) => {
     setError(null);
     try {
-      const url = await window.electronAPI?.pickProfileAvatar();
-      if (url) update({ avatarUrl: url });
+      const url = await window.electronAPI?.pickProfileMedia(kind);
+      if (!url) return;
+      if (kind === 'avatar') update({ avatarUrl: url });
+      if (kind === 'background') update({ backgroundUrl: url, backgroundMode: 'file' });
+      if (kind === 'artwork') update({ artworkUrl: url });
     } catch (err) {
       setError(ipcErrorMessage(err));
     }
   };
+
+  const steam = profile.steam;
+  const backgroundMode: ProfileBackgroundMode = form.backgroundMode ?? (steam?.background ? 'steam' : 'game');
+  const previewArt = form.artworkUrl || steam?.showcaseArt?.imageUrl;
 
   const save = async () => {
     setSaving(true);
@@ -115,7 +123,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
               <div className="w-24 h-24 rounded-sm bg-slate-800 overflow-hidden">
                 {(form.avatarUrl || profile.avatarUrl) && <img src={form.avatarUrl || profile.avatarUrl} alt="" className="w-full h-full object-cover" />}
               </div>
-              <button onClick={pickAvatar} className={`w-full flex items-center justify-center gap-1 py-1 text-[11px] rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+              <button onClick={() => pickMedia('avatar')} className={`w-full flex items-center justify-center gap-1 py-1 text-[11px] rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
                 <ImagePlus className="w-3 h-3" /> Trocar
               </button>
               {form.avatarUrl && (
@@ -131,21 +139,76 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
               </div>
               <div>
                 <label className={labelClass} htmlFor="profile-bio">Sobre você</label>
-                <textarea id="profile-bio" value={form.bio ?? ''} onChange={(e) => update({ bio: e.target.value })} rows={3} maxLength={2000} placeholder="Do que você gosta de jogar, plataformas, o que está zerando..." className={`${inputClass} resize-y`} />
+                <textarea id="profile-bio" value={form.bio ?? ''} onChange={(e) => update({ bio: e.target.value })} rows={3} maxLength={2000} placeholder={steam?.summary || 'Do que você gosta de jogar, plataformas, o que está zerando...'} className={`${inputClass} resize-y`} />
+                {steam?.summary && !form.bio && <p className="mt-1 text-[11px] text-slate-500">Vazio mostra a bio da Steam.</p>}
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelClass} htmlFor="profile-real-name">Nome real</label>
+                  <input id="profile-real-name" value={form.realName ?? ''} onChange={(e) => update({ realName: e.target.value })} placeholder={steam?.realName} maxLength={60} className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass} htmlFor="profile-location">Local</label>
+                  <input id="profile-location" value={form.location ?? ''} onChange={(e) => update({ location: e.target.value })} placeholder={steam?.location} maxLength={60} className={inputClass} />
+                </div>
+              </div>
+              {steam?.avatarFrameUrl && (
+                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                  <input type="checkbox" checked={!form.hideAvatarFrame} onChange={(e) => update({ hideAvatarFrame: !e.target.checked })} className={`w-4 h-4 accent-indigo-500 ${focusRing}`} />
+                  Mostrar a moldura de avatar da Steam
+                </label>
+              )}
             </div>
           </div>
 
-          <div>
-            <label className={labelClass} htmlFor="profile-banner">Banner</label>
-            <select id="profile-banner" value={form.bannerGameId ?? ''} onChange={(e) => update({ bannerGameId: e.target.value || undefined })} className={inputClass}>
-              <option value="">Automático (jogo mais recente)</option>
-              {banners.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.title}
-                </option>
-              ))}
+          <div className="space-y-2">
+            <label className={labelClass} htmlFor="profile-background">Fundo</label>
+            <select id="profile-background" value={backgroundMode} onChange={(e) => update({ backgroundMode: e.target.value as ProfileBackgroundMode })} className={inputClass}>
+              {steam?.background && <option value="steam">O mesmo da Steam</option>}
+              <option value="game">Arte de um jogo</option>
+              <option value="file">Imagem ou vídeo meu</option>
+              <option value="none">Sem fundo</option>
             </select>
+            {backgroundMode === 'game' && (
+              <select aria-label="Jogo do fundo" value={form.bannerGameId ?? ''} onChange={(e) => update({ bannerGameId: e.target.value || undefined })} className={inputClass}>
+                <option value="">Automático (jogo mais recente)</option>
+                {banners.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.title}
+                  </option>
+                ))}
+              </select>
+            )}
+            {backgroundMode === 'file' && (
+              <div className="flex items-center gap-3">
+                <button onClick={() => pickMedia('background')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+                  <ImagePlus className="w-3.5 h-3.5" /> Escolher arquivo
+                </button>
+                <span className="text-[11px] text-slate-500">{form.backgroundUrl ? 'Arquivo escolhido.' : 'PNG, JPG, WEBP, GIF, WEBM ou MP4 (vídeo até 200 MB).'}</span>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <p className={labelClass}>Arte em destaque</p>
+            <div className="flex items-start gap-3">
+              <div className="w-40 aspect-video flex-shrink-0 bg-slate-900 overflow-hidden">
+                {previewArt && <img src={previewArt} alt="" className="w-full h-full object-contain" />}
+              </div>
+              <div className="flex-1 min-w-0 space-y-2">
+                <input aria-label="Legenda da arte" value={form.artworkCaption ?? ''} onChange={(e) => update({ artworkCaption: e.target.value })} placeholder={form.artworkUrl ? 'Legenda (opcional)' : steam?.showcaseArt?.title || 'Legenda (opcional)'} maxLength={120} className={inputClass} />
+                <div className="flex items-center gap-3">
+                  <button onClick={() => pickMedia('artwork')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+                    <ImagePlus className="w-3.5 h-3.5" /> Escolher imagem
+                  </button>
+                  {form.artworkUrl && (
+                    <button onClick={() => update({ artworkUrl: undefined })} className={`text-[11px] text-slate-400 hover:text-white rounded-sm ${focusRing}`}>
+                      {steam?.showcaseArt ? 'Usar a da Steam' : 'Remover'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
           <div>

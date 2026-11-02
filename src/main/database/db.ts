@@ -4,7 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameS
 import { EmulatorConfig, EmulatorType, Game, PlaytimeSession } from '@shared/types/game';
 import { Achievement, AchievementSource, GameAchievements } from '@shared/types/achievements';
 import { BackupRecord, GameSaveConfig } from '@shared/types/cloudsync';
-import { ProfileCustom } from '@shared/types/profile';
+import { ProfileCustom, SteamProfileIdentity } from '@shared/types/profile';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
 
 const BACKUPS_DIR = 'backups';
@@ -76,6 +76,7 @@ export interface DatabaseSchema {
   saveConfigs?: Record<string, GameSaveConfig>;
   saveBackups?: BackupRecord[];
   profileCustom?: ProfileCustom;
+  steamProfileCache?: SteamProfileIdentity;
   settings: Record<string, string>;
 }
 
@@ -263,6 +264,15 @@ class DatabaseService {
     const game = this.data.games.find((g) => g.id === id);
     if (!game) return;
     game.media = media;
+    this.persist();
+  }
+
+  getSteamProfileCache(): SteamProfileIdentity | undefined {
+    return this.data.steamProfileCache;
+  }
+
+  setSteamProfileCache(identity: SteamProfileIdentity): void {
+    this.data.steamProfileCache = identity;
     this.persist();
   }
 
