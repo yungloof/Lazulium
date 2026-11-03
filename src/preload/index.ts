@@ -20,6 +20,7 @@ const electronAPI: ElectronAPI = {
   // Emuladores
   getEmulatorConfigs: () => ipcRenderer.invoke(IPC_CHANNELS.EMULATORS_GET_CONFIGS),
   saveEmulatorConfig: (config: EmulatorConfig) => ipcRenderer.invoke(IPC_CHANNELS.EMULATORS_SAVE_CONFIG, config),
+  detectEmulators: () => ipcRenderer.invoke(IPC_CHANNELS.EMULATORS_DETECT),
 
   // Jogos Standalone / Pastas de PC
   getStandaloneDirectories: () => ipcRenderer.invoke(IPC_CHANNELS.STANDALONE_GET_DIRECTORIES),
@@ -29,6 +30,7 @@ const electronAPI: ElectronAPI = {
   // Execução & Playtime
   launchGame: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_LAUNCH, gameId),
   stopGame: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_STOP, gameId),
+  openGameFolder: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_OPEN_FOLDER, gameId),
   getPlaytimeSessions: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_GET_PLAYTIME_SESSIONS, gameId),
   setGameLog: (gameId: string, log: GameLog) => ipcRenderer.invoke(IPC_CHANNELS.GAME_SET_LOG, gameId, log),
   addJournalEntry: (entry: JournalEntryInput) => ipcRenderer.invoke(IPC_CHANNELS.JOURNAL_ADD_ENTRY, entry),

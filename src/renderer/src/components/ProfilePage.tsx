@@ -110,9 +110,9 @@ const SectionTitle: React.FC<{ children: React.ReactNode; extra?: React.ReactNod
 
 const Cover: React.FC<{ game: ProfileGame; onOpen: () => void }> = ({ game, onOpen }) => (
   <button onClick={onOpen} title={game.title} className={`group text-left rounded-sm ${focusRing}`}>
-    <span className="block aspect-[2/3] rounded-sm overflow-hidden bg-slate-800">
+    <span className="block aspect-[2/3] overflow-hidden bg-slate-800">
       {game.coverUrl ? (
-        <img src={game.coverUrl} alt="" loading="lazy" className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105" />
+        <img src={game.coverUrl} alt="" loading="lazy" className="w-full h-full object-contain" />
       ) : (
         <span className="h-full flex items-center justify-center p-2 text-center text-[11px] text-slate-400">{game.title}</span>
       )}
@@ -508,7 +508,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
               <div className="grid grid-cols-4 gap-1.5">
                 {profile.favorites.slice(0, 12).map((g) => (
                   <button key={g.id} onClick={() => onSelectGame(g.id)} title={g.title} className={`aspect-[2/3] overflow-hidden bg-slate-800 ${focusRing}`}>
-                    {g.coverUrl && <img src={g.coverUrl} alt={g.title} loading="lazy" className="w-full h-full object-cover" />}
+                    {g.coverUrl && <img src={g.coverUrl} alt={g.title} loading="lazy" className="w-full h-full object-contain" />}
                   </button>
                 ))}
               </div>

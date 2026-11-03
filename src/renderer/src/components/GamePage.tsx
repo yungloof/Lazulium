@@ -19,6 +19,7 @@ interface GamePageProps {
   onOpenSaves: () => void;
   onOpenArtwork: () => void;
   onEditPlaytime: () => void;
+  onOpenFolder: () => void;
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
@@ -80,7 +81,8 @@ export const GamePage: React.FC<GamePageProps> = ({
   onOpenScreenshots,
   onOpenSaves,
   onOpenArtwork,
-  onEditPlaytime
+  onEditPlaytime,
+  onOpenFolder
 }) => {
   const [heroFailed, setHeroFailed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
@@ -227,6 +229,7 @@ export const GamePage: React.FC<GamePageProps> = ({
 
         <div className="ml-auto flex items-center gap-1.5">
           {[
+            ...(game.manualEntry || game.isInstalled === false ? [] : [{ label: 'Abrir pasta do jogo', icon: <FolderOpen className="w-4 h-4" />, onClick: onOpenFolder }]),
             { label: 'Capturas', icon: <Camera className="w-4 h-4" />, onClick: onOpenScreenshots },
             { label: 'Backup de saves', icon: <Save className="w-4 h-4" />, onClick: onOpenSaves },
             { label: 'Trocar artes', icon: <ImageIcon className="w-4 h-4" />, onClick: onOpenArtwork }
@@ -358,8 +361,14 @@ export const GamePage: React.FC<GamePageProps> = ({
                   <dt className="text-slate-500 flex-shrink-0 flex items-center gap-1">
                     <FolderOpen className="w-3 h-3" /> Pasta
                   </dt>
-                  <dd className="text-slate-300 text-right truncate" title={game.installPath}>
-                    {game.installPath}
+                  <dd className="min-w-0">
+                    {game.isInstalled === false ? (
+                      <span className="block text-slate-300 text-right truncate" title={game.installPath}>{game.installPath}</span>
+                    ) : (
+                      <button onClick={onOpenFolder} title={`Abrir ${game.installPath}`} className={`block max-w-full text-slate-300 hover:text-white hover:underline text-right truncate rounded-sm ${focusRing}`}>
+                        {game.installPath}
+                      </button>
+                    )}
                   </dd>
                 </div>
               )}
@@ -378,7 +387,7 @@ export const GamePage: React.FC<GamePageProps> = ({
 
           {game.media?.coverUrl && (
             <div className="hidden xl:flex justify-center">
-              <img src={game.media.coverUrl} alt="" className="w-40 rounded-lg border border-slate-800 shadow-xl" />
+              <img src={game.media.coverUrl} alt="" className="w-40 border border-slate-800 shadow-xl" />
             </div>
           )}
         </div>

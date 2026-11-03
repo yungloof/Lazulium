@@ -254,9 +254,9 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
                     onClick={() => setForm((f) => ({ ...f, featuredGameIds: toggleIn(f.featuredGameIds ?? [], g.id) }))}
                     aria-pressed={on}
                     title={g.title}
-                    className={`relative aspect-[2/3] rounded-lg overflow-hidden bg-slate-800 ${on ? 'ring-2 ring-indigo-400' : 'opacity-75 hover:opacity-100'} ${focusRing}`}
+                    className={`relative aspect-[2/3] overflow-hidden bg-slate-800 ${on ? 'ring-2 ring-indigo-400' : 'opacity-75 hover:opacity-100'} ${focusRing}`}
                   >
-                    {g.media?.coverUrl ? <img src={g.media.coverUrl} alt={g.title} loading="lazy" className="w-full h-full object-cover" /> : <span className="block p-1 text-[9px] text-slate-400">{g.title}</span>}
+                    {g.media?.coverUrl ? <img src={g.media.coverUrl} alt={g.title} loading="lazy" className="w-full h-full object-contain" /> : <span className="block p-1 text-[9px] text-slate-400">{g.title}</span>}
                     {on && <Check className="absolute top-1 right-1 w-4 h-4 p-0.5 rounded-md bg-indigo-500 text-white" />}
                   </button>
                 );

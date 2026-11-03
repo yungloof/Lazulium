@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Game } from '@shared/types/game';
-import { Clock, Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera } from 'lucide-react';
+import { Clock, Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera, FolderOpen } from 'lucide-react';
 import { useLibraryStore } from '../stores/useLibraryStore';
 
 export interface GameContextMenuProps {
@@ -16,6 +16,7 @@ export interface GameContextMenuProps {
   onOpenSaves: (game: Game) => void;
   onOpenScreenshots: (game: Game) => void;
   onEditPlaytime: (game: Game) => void;
+  onOpenFolder: (game: Game) => void;
 }
 
 interface MenuItem {
@@ -38,7 +39,8 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
   onOpenArtwork,
   onOpenSaves,
   onOpenScreenshots,
-  onEditPlaytime
+  onEditPlaytime,
+  onOpenFolder
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const isRunning = useLibraryStore((s) => s.launchStatuses[game.id]?.state === 'running');
@@ -75,6 +77,12 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
       icon: <Star className={`w-3.5 h-3.5 ${game.isFavorite ? 'text-amber-400 fill-amber-400' : 'text-slate-400'}`} />,
       action: () => onToggleFavorite(game.id)
     },
+    ...(game.manualEntry || game.isInstalled === false ? [] : [{
+      id: 'folder',
+      label: 'Abrir pasta do jogo',
+      icon: <FolderOpen className="w-3.5 h-3.5 text-slate-400" />,
+      action: () => onOpenFolder(game)
+    }]),
     {
       id: 'artwork',
       label: 'Trocar artes',
@@ -133,7 +141,7 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
 
   // Posiciona sem vazar para fora da janela
   const MENU_WIDTH = 220;
-  const MENU_HEIGHT = 230;
+  const MENU_HEIGHT = 300;
   const posX = Math.max(8, Math.min(x, window.innerWidth - MENU_WIDTH - 8));
   const posY = Math.max(8, Math.min(y, window.innerHeight - MENU_HEIGHT - 8));
 

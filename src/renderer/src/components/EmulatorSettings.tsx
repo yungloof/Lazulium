@@ -1,16 +1,45 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { EmulatorConfig } from '@shared/types/game';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
-import { FolderPlus, FileCog, Trash2, X, Cpu } from 'lucide-react';
+import { AlertTriangle, FolderPlus, FileCog, Loader2, Search, Trash2, X, Cpu } from 'lucide-react';
+import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 
 interface EmulatorSettingsProps {
   onClose: () => void;
+  onConfigChanged: () => void;     // Ao fechar, se algo mudou: escaneia de novo
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500';
 
-export const EmulatorSettings: React.FC<EmulatorSettingsProps> = ({ onClose }) => {
+export const EmulatorSettings: React.FC<EmulatorSettingsProps> = ({ onClose, onConfigChanged }) => {
   const [configs, setConfigs] = useState<EmulatorConfig[]>([]);
+  const [detecting, setDetecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const changed = useRef(false);
+  const notifyChanged = useRef(onConfigChanged);
+  notifyChanged.current = onConfigChanged;
+
+  useEffect(
+    () => () => {
+      if (changed.current) notifyChanged.current();
+      changed.current = false;
+    },
+    []
+  );
+
+  const detect = async () => {
+    setDetecting(true);
+    setError(null);
+    try {
+      const updated = await window.electronAPI?.detectEmulators();
+      if (updated) setConfigs(updated);
+      changed.current = true;
+    } catch (err) {
+      setError(ipcErrorMessage(err));
+    } finally {
+      setDetecting(false);
+    }
+  };
 
   useEffect(() => {
     window.electronAPI?.getEmulatorConfigs().then(setConfigs);
@@ -23,13 +52,19 @@ export const EmulatorSettings: React.FC<EmulatorSettingsProps> = ({ onClose }) =
   }, [onClose]);
 
   const save = async (config: EmulatorConfig) => {
-    const updated = await window.electronAPI?.saveEmulatorConfig(config);
-    if (updated) setConfigs(updated);
+    setError(null);
+    try {
+      const updated = await window.electronAPI?.saveEmulatorConfig(config);
+      if (updated) setConfigs(updated);
+      changed.current = true;
+    } catch (err) {
+      setError(ipcErrorMessage(err));
+    }
   };
 
   const pickExecutable = async (config: EmulatorConfig) => {
     const path = await window.electronAPI?.selectFile([{ name: 'Executáveis', extensions: ['exe'] }]);
-    if (path) save({ ...config, executablePath: path, enabled: true });
+    if (path) save({ ...config, executablePath: path, autoDetected: false, enabled: true });
   };
 
   const pickCore = async (config: EmulatorConfig) => {
@@ -40,12 +75,12 @@ export const EmulatorSettings: React.FC<EmulatorSettingsProps> = ({ onClose }) =
   const addRomDirectory = async (config: EmulatorConfig) => {
     const dir = await window.electronAPI?.selectDirectory();
     if (dir && !config.romDirectories.includes(dir)) {
-      save({ ...config, romDirectories: [...config.romDirectories, dir], enabled: true });
+      save({ ...config, romDirectories: [...config.romDirectories, dir], dismissedRomDirectories: config.dismissedRomDirectories?.filter((d) => d !== dir), enabled: true });
     }
   };
 
   const removeRomDirectory = (config: EmulatorConfig, dir: string) =>
-    save({ ...config, romDirectories: config.romDirectories.filter((d) => d !== dir) });
+    save({ ...config, romDirectories: config.romDirectories.filter((d) => d !== dir), dismissedRomDirectories: [...(config.dismissedRomDirectories ?? []), dir] });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-6" onClick={onClose}>
@@ -57,12 +92,25 @@ export const EmulatorSettings: React.FC<EmulatorSettingsProps> = ({ onClose }) =
           <h2 className="flex items-center gap-2 text-sm font-bold text-slate-100">
             <Cpu className="w-4 h-4 text-indigo-400" /> Emuladores & Pastas de ROMs
           </h2>
-          <button onClick={onClose} className={`p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 ${focusRing}`}>
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={detect} disabled={detecting} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 ${focusRing}`}>
+              {detecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />} Procurar no PC
+            </button>
+            <button onClick={onClose} aria-label="Fechar" className={`p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 ${focusRing}`}>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-3">
+          <p className="text-xs text-slate-400">
+            O app acha os emuladores sozinho e usa as pastas de jogos configuradas neles. Emuladores sem lista de jogos, como mGBA e melonDS, precisam que você adicione a pasta das ROMs.
+          </p>
+          {error && (
+            <p className="flex items-start gap-1.5 text-xs text-amber-300">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /> <span>{error}</span>
+            </p>
+          )}
           {configs.map((config) => {
             const profile = DEFAULT_EMULATOR_PROFILES[config.emulatorId];
             if (!profile) return null;
@@ -96,8 +144,9 @@ export const EmulatorSettings: React.FC<EmulatorSettingsProps> = ({ onClose }) =
                     <FileCog className="w-3.5 h-3.5" /> Executável
                   </button>
                   <span className="text-slate-400 truncate max-w-md" title={config.executablePath}>
-                    {config.executablePath || `Selecione ${profile.defaultExecutableNames[0]}`}
+                    {config.executablePath || 'Não encontrado neste PC'}
                   </span>
+                  {config.executablePath && config.autoDetected && <span className="text-[11px] text-emerald-400">Achado automaticamente</span>}
                 </div>
 
                 {needsCore && (

@@ -21,6 +21,7 @@ import { useLibraryStore } from './stores/useLibraryStore';
 import { useGamepadStore } from './stores/useGamepadStore';
 import { useGamepad } from './hooks/useGamepad';
 import { Game } from '@shared/types/game';
+import { ipcErrorMessage } from './utils/ipcErrorMessage';
 import { GameAchievements } from '@shared/types/achievements';
 import { ScanResult } from '@shared/types/ipc';
 import { RefreshCw, Cpu, Plus, AlertTriangle, X, Settings, WifiOff } from 'lucide-react';
@@ -400,6 +401,10 @@ export const App: React.FC = () => {
 
   scanRef.current = handleScanLibraries;
 
+  const handleOpenFolder = (game: Game) => {
+    window.electronAPI?.openGameFolder(game.id).catch((err) => setLaunchNotice({ text: ipcErrorMessage(err), tone: 'warn' }));
+  };
+
   const openSettingsFrom = (close: () => void) => () => {
     close();
     setShowSettings(true);
@@ -563,6 +568,7 @@ export const App: React.FC = () => {
               onOpenSaves={() => setShowSavesModal(true)}
               onOpenArtwork={() => setShowArtworkPicker(true)}
               onEditPlaytime={() => setShowPlaytimeEditor(true)}
+              onOpenFolder={() => handleOpenFolder(selectedGame)}
             />
           ) : (
             <LibraryHome
@@ -584,7 +590,7 @@ export const App: React.FC = () => {
 
       {showWelcome && <WelcomeModal games={games} isScanning={isScanning} onFinish={finishWelcome} />}
 
-      {showEmulatorSettings && <EmulatorSettings onClose={() => setShowEmulatorSettings(false)} />}
+      {showEmulatorSettings && <EmulatorSettings onClose={() => setShowEmulatorSettings(false)} onConfigChanged={() => void scanRef.current()} />}
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
 
@@ -652,6 +658,7 @@ export const App: React.FC = () => {
           onLaunch={handleLaunchGame}
           onStop={(g) => window.electronAPI?.stopGame(g.id)}
           onOpenPage={openGame}
+          onOpenFolder={handleOpenFolder}
           onToggleFavorite={handleToggleFavorite}
           onOpenArtwork={(g) => {
             setSelectedGame(g);

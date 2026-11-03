@@ -7,6 +7,7 @@ import { gogScanner } from './gog-scanner.service';
 import { riotScanner } from './riot-scanner.service';
 import { xboxScanner } from './xbox-scanner.service';
 import { createEmulatorScanner } from './emulator-scanner.service';
+import { detectEmulators } from './emulator-detect.service';
 import { createStandaloneScanner } from './standalone-scanner.service';
 import { DetectedGame, PlatformScanner } from './scanner.types';
 import { normalizeKey } from '../cloudsync/save-locator.service';
@@ -19,7 +20,11 @@ const SCANNERS: PlatformScanner[] = [
   gogScanner,
   riotScanner,
   xboxScanner,
-  createEmulatorScanner(() => db.getEmulatorConfigs()),
+  createEmulatorScanner(
+    () => db.getEmulatorConfigs(),
+    () => db.getGames().filter((g) => g.platform !== 'emulator'),
+    () => detectEmulators()
+  ),
   createStandaloneScanner(() => db.getStandaloneDirectories())
 ];
 

@@ -6,7 +6,7 @@ import { DetectedGame, PlatformScanner, PlatformScanResult } from './scanner.typ
 
 // Pastas que geralmente não são jogos standalone (emuladores, BIOS, ferramentas, etc.)
 const IGNORED_DIRECTORY_PATTERNS = [
-  /^(dolphin|ryujinx|cemu|pcsx2|rpcs3|duckstation|retroarch|mgba|melonds|lime3ds|citra|yuzu|bizhawk)/i,
+  /^(dolphin|ryujinx|cemu|pcsx2|rpcs3|duckstation|retroarch|mgba|melonds|lime3ds|azahar|citra|yuzu|eden|suyu|citron|sudachi|ppsspp|emuhawk|bizhawk)/i,
   /^(roms|roms\s|.*_bios|_temp|_internal|commonredist|redist|\.git|\$recycle\.bin)/i
 ];
 

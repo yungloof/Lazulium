@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { CheckCircle2, Download, Gamepad2, Loader2, Pencil, Plus, Search, AlertTriangle } from 'lucide-react';
-import { Game, GameLog, GameLogStatus } from '@shared/types/game';
+import { Game, GameLog, GameLogStatus, isJournalEntry } from '@shared/types/game';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { JournalEntryModal } from './JournalEntryModal';
@@ -48,7 +48,7 @@ const JournalRow: React.FC<{
       onClick={onOpen}
       className="grid grid-cols-[56px_minmax(0,1fr)_auto_auto] items-center gap-4 p-2.5 pr-4 rounded-lg bg-slate-900/50 border border-transparent hover:border-slate-700/80 hover:bg-slate-800/60 transition-colors cursor-pointer"
     >
-      <span className="w-14 h-20 rounded-md overflow-hidden bg-slate-800 flex items-center justify-center">
+      <span className="w-14 aspect-[2/3] overflow-hidden bg-slate-800 flex items-center justify-center">
         {cover && coverFailed !== cover ? (
           <img
             src={cover}
@@ -58,7 +58,7 @@ const JournalRow: React.FC<{
               setCoverFailed(cover);
               window.electronAPI?.reportBrokenArtwork(game.id, 'cover');
             }}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
         ) : (
           <Gamepad2 className="w-5 h-5 text-slate-600" />
@@ -108,7 +108,7 @@ const JournalRow: React.FC<{
   );
 };
 
-// O registro permanente: todo jogo que já passou por aqui, instalado ou não
+// O registro permanente: o que você registrou continua aqui, instalado ou não
 export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlaytime }) => {
   const games = useLibraryStore((s) => s.games);
   const upsertGameLocal = useLibraryStore((s) => s.upsertGameLocal);
@@ -120,11 +120,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
   const [exporting, setExporting] = useState(false);
   const [feedback, setFeedback] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(null);
 
-  // Só entra quem tem história: horas, sessão, registro ou favorito (e nunca itens ocultos)
-  const entries = useMemo(
-    () => games.filter((g) => !g.isHidden && ((g.totalPlaytimeSeconds ?? 0) > 0 || g.lastPlayedAt || g.log?.status || g.log?.rating || g.log?.review || g.log?.notes || g.manualEntry || g.isFavorite)),
-    [games]
-  );
+  const entries = useMemo(() => games.filter((g) => !g.isHidden && isJournalEntry(g)), [games]);
 
   const stats = useMemo(
     () => ({
@@ -190,7 +186,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl text-white">Diário de jogos</h1>
-          <p className="mt-1 text-sm text-slate-400">Tudo que você já jogou, mesmo depois de desinstalar.</p>
+          <p className="mt-1 text-sm text-slate-400">Os jogos que você registrou. Continuam aqui mesmo depois de desinstalar.</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={handleExport} disabled={exporting} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-50 ${focusRing}`}>
@@ -247,7 +243,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
       </div>
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por status">
-        {[{ id: 'all' as StatusFilter, label: 'Todos', dot: '' }, ...LOG_STATUS.map((s) => ({ id: s.id as StatusFilter, label: s.label, dot: s.dot })), { id: 'none' as StatusFilter, label: 'Sem status', dot: '' }].map((f) => (
+        {[{ id: 'all' as StatusFilter, label: 'Todos', dot: '' }, ...LOG_STATUS.map((s) => ({ id: s.id as StatusFilter, label: s.label, dot: s.dot })), ...(statusCounts.none ? [{ id: 'none' as StatusFilter, label: 'Sem status', dot: '' }] : [])].map((f) => (
           <button
             key={f.id}
             onClick={() => setStatusFilter(f.id)}
@@ -262,7 +258,9 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
       </div>
 
       {visible.length === 0 ? (
-        <p className="px-4 py-12 text-center text-sm text-slate-400 rounded-lg bg-slate-900/50">Nenhum jogo com esses filtros.</p>
+        <p className="px-4 py-12 text-center text-sm text-slate-400 rounded-lg bg-slate-900/50">
+          {entries.length === 0 ? 'Nada registrado ainda. Abra um jogo e preencha "Meu registro", ou use Registrar jogo para algo que não está na biblioteca.' : 'Nenhum jogo com esses filtros.'}
+        </p>
       ) : (
         <ul className="space-y-2">
           {visible.map((game) => (

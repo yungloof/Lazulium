@@ -61,7 +61,7 @@ export const GameCard: React.FC<GameCardProps> = ({
         }
       }}
       title={game.title}
-      className={`group relative aspect-[2/3] rounded-lg overflow-hidden bg-slate-900/90 border transition-all duration-200 cursor-pointer ${
+      className={`group relative aspect-[2/3] overflow-hidden bg-slate-900/90 border transition-all duration-200 cursor-pointer ${
         isFocused
           ? 'border-indigo-400 ring-2 ring-indigo-500/70 scale-[1.05] shadow-xl z-20'
           : 'border-slate-800 hover:border-slate-600 hover:scale-[1.03] hover:shadow-lg'
@@ -72,7 +72,7 @@ export const GameCard: React.FC<GameCardProps> = ({
         <img
           src={game.media.coverUrl}
           alt={game.title}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="w-full h-full object-contain"
           loading="lazy"
           onError={() => {
             setCoverFailed(true);

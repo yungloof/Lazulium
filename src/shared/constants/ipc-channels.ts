@@ -12,6 +12,7 @@ export const IPC_CHANNELS = {
   // Emulators
   EMULATORS_GET_CONFIGS: 'emulators:get-configs',
   EMULATORS_SAVE_CONFIG: 'emulators:save-config',
+  EMULATORS_DETECT: 'emulators:detect',
 
   // Standalone / PC Game Folders
   STANDALONE_GET_DIRECTORIES: 'standalone:get-directories',
@@ -20,6 +21,7 @@ export const IPC_CHANNELS = {
   // Game Execution & Playtime Tracker
   GAME_LAUNCH: 'game:launch',
   GAME_STOP: 'game:stop',
+  GAME_OPEN_FOLDER: 'game:open-folder',
   GAME_STATUS_CHANGED: 'game:status-changed',
   GAME_GET_PLAYTIME_SESSIONS: 'game:get-playtime-sessions',
   GAME_SET_PLAYTIME: 'game:set-playtime',

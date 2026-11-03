@@ -147,6 +147,8 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [x] Perfil para quem abre pela primeira vez: conexão da Steam em um clique na própria tela e aviso de como liberar um perfil privado.
 - [x] Registro do jogo e Diário refeitos (status em botões, nota com legenda, resenha em espaço amplo, cartões e filtros à vista) e nova identidade visual: azul-noite com azul vivo e cantos suaves.
 - [x] Jogos da Família Steam identificados pelo dono no manifest (`LastOwner`), com a marca guardada depois de desinstalar.
+- [x] Abrir a pasta de qualquer jogo instalado; capas inteiras e sem cantos cortados; Diário só com jogos registrados.
+- [x] Emuladores detectados sozinhos: executáveis pelos atalhos e por uma busca limitada no disco, pastas de jogos lidas da configuração de cada emulador, sem duplicar atalhos da Steam. Novos perfis: Eden/yuzu, Azahar/Citra, melonDS, mGBA, PPSSPP e BizHawk.
 - [ ] Primeira publicação real no GitHub: conferir login do Git, ativação do Pages e a página no ar.
 - [ ] Scanners de outros lançadores (Battle.net, EA app, Ubisoft Connect) quando houver jogos instalados para validar.
 - [ ] Assinatura digital do instalador (evita o aviso do SmartScreen).

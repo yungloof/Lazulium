@@ -20,7 +20,7 @@ const TABS: { type: MediaAssetType; label: string; key: keyof Omit<GameAssetsRes
 ];
 
 const GRID_LAYOUT: Record<MediaAssetType, { grid: string; aspect: string; fit: string }> = {
-  cover: { grid: 'grid-cols-5', aspect: 'aspect-[2/3]', fit: 'object-cover' },
+  cover: { grid: 'grid-cols-5', aspect: 'aspect-[2/3]', fit: 'object-contain' },
   hero: { grid: 'grid-cols-2', aspect: 'aspect-[96/31]', fit: 'object-cover' },
   logo: { grid: 'grid-cols-3', aspect: 'aspect-[16/9]', fit: 'object-contain p-3' },
   icon: { grid: 'grid-cols-6', aspect: 'aspect-square', fit: 'object-contain p-2' }

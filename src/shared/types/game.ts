@@ -8,6 +8,12 @@ export type EmulatorType =
   | 'rpcs3' 
   | 'duckstation' 
   | 'retroarch' 
+  | 'eden' 
+  | 'azahar' 
+  | 'melonds' 
+  | 'mgba' 
+  | 'ppsspp' 
+  | 'bizhawk' 
   | 'custom';
 
 export interface GameMedia {
@@ -27,6 +33,12 @@ export interface GameLog {
   finishedOn?: string;              // AAAA-MM-DD
   review?: string;                  // Resenha / o que achou
   notes?: string;                   // Anotações de progresso
+}
+
+// Entra no Diário quem foi registrado: status, nota, datas, resenha ou anotações (horas sozinhas não contam)
+export function isJournalEntry(game: Pick<Game, 'log' | 'manualEntry'>): boolean {
+  const log = game.log;
+  return !!(game.manualEntry || log?.status || log?.rating || log?.startedOn || log?.finishedOn || log?.review?.trim() || log?.notes?.trim());
 }
 
 export interface Game {
@@ -99,4 +111,6 @@ export interface EmulatorConfig {
   executablePath?: string;          // Caminho completo do .exe do emulador
   romDirectories: string[];         // Pastas de ROMs a varrer
   corePath?: string;                // RetroArch: caminho do core (.dll) usado em {core}
+  autoDetected?: boolean;           // O executável foi achado pelo app, não escolhido à mão
+  dismissedRomDirectories?: string[]; // Pastas que o usuário tirou: a detecção não as traz de volta
 }

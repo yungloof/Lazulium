@@ -104,6 +104,7 @@ export interface ElectronAPI {
   // Emuladores
   getEmulatorConfigs: () => Promise<EmulatorConfig[]>;
   saveEmulatorConfig: (config: EmulatorConfig) => Promise<EmulatorConfig[]>;
+  detectEmulators: () => Promise<EmulatorConfig[]>;
 
   // Jogos Standalone / Pastas de PC
   getStandaloneDirectories: () => Promise<string[]>;
@@ -112,6 +113,7 @@ export interface ElectronAPI {
   // Execução & Playtime
   launchGame: (gameId: string) => Promise<boolean>;
   stopGame: (gameId: string) => Promise<boolean>;
+  openGameFolder: (gameId: string) => Promise<void>;
   getPlaytimeSessions: (gameId: string) => Promise<PlaytimeSession[]>;
   setGameLog: (gameId: string, log: GameLog) => Promise<Game>;
   addJournalEntry: (entry: JournalEntryInput) => Promise<Game>;

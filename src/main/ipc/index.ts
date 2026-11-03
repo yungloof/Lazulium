@@ -1,11 +1,14 @@
 import { app, ipcMain, BrowserWindow, dialog, shell } from 'electron';
 import { getLogsDir } from '../logger';
+import { statSync } from 'fs';
+import { dirname } from 'path';
 import { writeFile } from 'fs/promises';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { db } from '../database/db';
 import { EmulatorConfig, Game, GameLog, GamePlatform } from '@shared/types/game';
 import { randomUUID } from 'crypto';
 import { scanLibraries } from '../services/scanners';
+import { detectEmulators } from '../services/scanners/emulator-detect.service';
 import { playtimeService } from '../services/tracker/playtime.service';
 import { artworkService } from '../services/metadata/artwork.service';
 import { achievementsService } from '../services/achievements/achievements.service';
@@ -128,6 +131,11 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     return db.saveEmulatorConfig(config);
   });
 
+  ipcMain.handle(IPC_CHANNELS.EMULATORS_DETECT, async () => {
+    await detectEmulators(true);
+    return db.getEmulatorConfigs();
+  });
+
   // Standalone Directory Handlers
   ipcMain.handle(IPC_CHANNELS.STANDALONE_GET_DIRECTORIES, async () => {
     return db.getStandaloneDirectories();
@@ -144,6 +152,29 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
 
   ipcMain.handle(IPC_CHANNELS.GAME_STOP, async (_event, gameId: string) => {
     return playtimeService.stop(gameId);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GAME_OPEN_FOLDER, async (_event, gameId: string) => {
+    const game = db.getGameById(gameId);
+    if (!game) throw new Error('Jogo não encontrado.');
+    const isDirectory = (path: string) => {
+      try {
+        return statSync(path).isDirectory();
+      } catch {
+        return false;
+      }
+    };
+    // Emulador: a pasta da ROM. Steam: só a instalação (o executável seria o da própria Steam).
+    const isSteamApp = game.platform === 'steam' && !game.id.startsWith('steam-shortcut-');
+    const folder = [
+      game.romPath && dirname(game.romPath),
+      game.installPath,
+      !isSteamApp && game.workingDirectory,
+      !isSteamApp && game.executablePath && dirname(game.executablePath)
+    ].find((path): path is string => !!path && isDirectory(path));
+    if (!folder) throw new Error(`Pasta de ${game.title} não encontrada. Ela pode ter sido movida ou apagada: clique em Escanear para atualizar a biblioteca.`);
+    const error = await shell.openPath(folder);
+    if (error) throw new Error(`O Windows não abriu a pasta de ${game.title} (${error}). Tente abrir ${folder} pelo Explorador de Arquivos.`);
   });
 
   // Diário

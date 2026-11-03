@@ -35,7 +35,10 @@ const EMULATOR_CONSOLE_MAP: Record<string, number[]> = {
   rpcs3: [4],                            // PlayStation 3
   dolphin: [16, 18],                     // GameCube, Wii
   retroarch: [3, 7, 5, 1, 12, 11, 9],    // SNES, NES, GBA, Genesis, PS1, GB, GBC
-  cemu: [18, 16]                         // Wii U / Wii
+  cemu: [18, 16],                        // Wii U / Wii
+  melonds: [18],                         // Nintendo DS
+  mgba: [5, 6, 4],                       // GBA, GBC, GB
+  ppsspp: [41]                           // PSP
 };
 
 // Cache simples em memória da lista de jogos por console para evitar chamadas repetidas
