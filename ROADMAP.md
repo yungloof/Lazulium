@@ -141,7 +141,7 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [ ] Teste manual do instalador NSIS: instalar, atalhos e desinstalar mantendo `%APPDATA%\Lazulium`.
 - [ ] Teste manual de jogo: abrir um atalho não-Steam e o Minecraft pelo Lazulium e conferir a sessão registrada.
 - [ ] Testes de distribuição para amigos (instalador e versão portátil em outros PCs).
-- [ ] Client OAuth do Google no `.env` do build oficial, para o "Entrar com Google" funcionar para todos.
+- [x] Client OAuth do Google no `.env` do build oficial, para o "Entrar com Google" funcionar para todos.
 - [x] Tratamento de idle (jogador AFK com o jogo aberto).
 - [x] Publicar a página web do perfil a partir do app (Perfil → Publicar na web, GitHub Pages pelo login do Git, sem chave de API).
 - [x] Perfil para quem abre pela primeira vez: conexão da Steam em um clique na própria tela e aviso de como liberar um perfil privado.
