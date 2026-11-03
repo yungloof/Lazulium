@@ -51,3 +51,7 @@ web/profile/lazulium-perfil.json
 
 # Claude
 .claude/
+
+# Servidor do IGDB
+.wrangler/
+.dev.vars

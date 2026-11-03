@@ -86,13 +86,20 @@ export interface Game {
   isRunning?: boolean;
 }
 
-// Estimativa pelas horas de quem recomenda o jogo na Steam (não é o tempo oficial de campanha)
+// Quanto tempo o jogo leva. IGDB: médias enviadas pelos jogadores. Reserva: estimativa pelas horas de quem recomenda na Steam.
 export interface GamePlayLength {
-  lowHours: number;                 // Quartil de baixo: perto da campanha
-  typicalHours: number;             // Mediana: perto da campanha com extras
+  source: 'igdb' | 'steam-reviews';
+  lowHours: number | null;          // IGDB: até os créditos. Reviews: quartil de baixo
+  typicalHours: number | null;      // IGDB: com alguns extras. Reviews: mediana
+  completeHours?: number | null;    // IGDB: 100%
   openEnded: boolean;               // Multiplayer ou sem fim: as horas variam demais
-  sampleSize: number;
-  fetchedAt: number;
+  sampleSize: number;               // Envios no IGDB ou reviews usadas
+  matchedName?: string;             // Nome do jogo no IGDB
+}
+
+export interface CachedPlayLength {
+  length: GamePlayLength | null;    // null: já se sabe que não há dados
+  expiresAt: number;
 }
 
 export interface PlaytimeSession {

@@ -43,6 +43,15 @@ function formatHours(seconds: number): string {
   return hours < 1 ? `${Math.round(seconds / 60)} minutos` : `${hours.toFixed(1).replace('.', ',')} horas`;
 }
 
+const formatDuration = (hours: number) => (hours < 10 ? String(Math.round(hours * 10) / 10).replace('.', ',') : String(Math.round(hours)));
+
+function formatRange(length: GamePlayLength): string {
+  const low = length.lowHours ?? length.typicalHours ?? length.completeHours;
+  const high = length.typicalHours && length.lowHours ? length.typicalHours : null;
+  if (!low) return '';
+  return high && formatDuration(high) !== formatDuration(low) ? `${formatDuration(low)} a ${formatDuration(high)} horas` : `${formatDuration(low)} horas`;
+}
+
 function formatLastPlayed(iso?: string): string {
   if (!iso) return 'Nunca';
   const date = new Date(iso);
@@ -129,7 +138,6 @@ export const GamePage: React.FC<GamePageProps> = ({
   useEffect(() => {
     let cancelled = false;
     setPlayLength(null);
-    if (game.platform !== 'steam') return;
     window.electronAPI
       ?.getGamePlayLength(game.id)
       .then((length) => !cancelled && setPlayLength(length))
@@ -137,7 +145,7 @@ export const GamePage: React.FC<GamePageProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [game.id, game.platform]);
+  }, [game.id]);
 
   const runningMinutes = useMemo(() => {
     if (!isRunning) return 0;
@@ -220,13 +228,17 @@ export const GamePage: React.FC<GamePageProps> = ({
         {playLength && (
           <div
             className="flex items-center gap-2.5"
-            title={`Estimativa com as horas de ${playLength.sampleSize} reviews positivas recentes na Steam. Não é o tempo oficial de campanha.`}
+            title={
+              playLength.source === 'igdb'
+                ? `Média de ${playLength.sampleSize} ${playLength.sampleSize === 1 ? 'envio' : 'envios'} de jogadores no IGDB.com, para ${playLength.matchedName ?? game.title}.`
+                : `Estimativa com as horas de ${playLength.sampleSize} reviews positivas recentes na Steam. Não é o tempo oficial de campanha.`
+            }
           >
             <Hourglass className="w-5 h-5 text-slate-500" />
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Duração típica</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{playLength.source === 'igdb' ? 'Tempo para zerar' : 'Duração típica'}</p>
               <p className="text-xs text-slate-300">
-                {playLength.openEnded ? 'Sem fim definido' : `${Math.max(1, Math.round(playLength.lowHours))} a ${Math.max(1, Math.round(playLength.typicalHours))} horas`}
+                {playLength.openEnded ? 'Sem fim definido' : formatRange(playLength)}
               </p>
             </div>
           </div>
@@ -402,11 +414,26 @@ export const GamePage: React.FC<GamePageProps> = ({
                   </dd>
                 </div>
               )}
+              {playLength?.source === 'igdb' &&
+                [
+                  { label: 'Campanha', hours: playLength.lowHours },
+                  { label: 'Com extras', hours: playLength.typicalHours },
+                  { label: 'Tudo (100%)', hours: playLength.completeHours }
+                ].map(
+                  (row) =>
+                    row.hours && (
+                      <div key={row.label} className="flex justify-between gap-3">
+                        <dt className="text-slate-500">{row.label}</dt>
+                        <dd className="text-slate-300">{formatDuration(row.hours)} h</dd>
+                      </div>
+                    )
+                )}
               <div className="flex justify-between gap-3">
                 <dt className="text-slate-500">Na biblioteca desde</dt>
                 <dd className="text-slate-300">{game.createdAt ? new Date(game.createdAt).toLocaleDateString('pt-BR') : '—'}</dd>
               </div>
             </dl>
+            {playLength?.source === 'igdb' && <p className="mt-2 text-[11px] text-slate-500">Tempos de jogo: dados do IGDB.com</p>}
             <button
               onClick={onOpenSaves}
               className={`mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 ${focusRing}`}

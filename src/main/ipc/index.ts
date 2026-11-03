@@ -181,7 +181,7 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
 
   ipcMain.handle(IPC_CHANNELS.GAME_GET_PLAY_LENGTH, async (_event, gameId: string) => {
     const game = db.getGameById(gameId);
-    return game?.platform === 'steam' && game.platformGameId ? playLengthService.get(game.platformGameId) : null;
+    return game ? playLengthService.get(game) : null;
   });
 
   // Diário

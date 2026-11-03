@@ -1,0 +1,17 @@
+name = "lazulium-igdb"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# Cache de resultados e do token da Twitch. Troque o id pelo que `wrangler kv namespace create IGDB_CACHE` mostrar.
+[[kv_namespaces]]
+binding = "IGDB_CACHE"
+id = "COLE_AQUI_O_ID_DO_KV"
+
+# Por local da Cloudflare e aproximado: segura abuso, não é um limite exato
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 60
+  period = 60

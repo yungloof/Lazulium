@@ -1,7 +1,7 @@
 import { app, safeStorage } from 'electron';
 import { dirname, join } from 'path';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'fs';
-import { EmulatorConfig, EmulatorType, Game, GamePlayLength, PlaytimeSession } from '@shared/types/game';
+import { CachedPlayLength, EmulatorConfig, EmulatorType, Game, PlaytimeSession } from '@shared/types/game';
 import { Achievement, AchievementSource, GameAchievements } from '@shared/types/achievements';
 import { BackupRecord, GameSaveConfig } from '@shared/types/cloudsync';
 import { ProfileCustom, SteamProfileIdentity } from '@shared/types/profile';
@@ -77,7 +77,7 @@ export interface DatabaseSchema {
   saveBackups?: BackupRecord[];
   profileCustom?: ProfileCustom;
   steamProfileCache?: SteamProfileIdentity;
-  playLengths?: Record<string, GamePlayLength>;
+  playLengthCache?: Record<string, CachedPlayLength>;
   profileWeb?: { repoUrl: string; lastPublishedAt?: string };
   settings: Record<string, string>;
 }
@@ -426,12 +426,12 @@ class DatabaseService {
   }
 
   // Emulator Configs (sempre retorna um item por perfil conhecido)
-  getPlayLength(appId: string): GamePlayLength | undefined {
-    return this.data.playLengths?.[appId];
+  getPlayLength(gameId: string): CachedPlayLength | undefined {
+    return this.data.playLengthCache?.[gameId];
   }
 
-  setPlayLength(appId: string, length: GamePlayLength): void {
-    this.data.playLengths = { ...this.data.playLengths, [appId]: length };
+  setPlayLength(gameId: string, entry: CachedPlayLength): void {
+    this.data.playLengthCache = { ...this.data.playLengthCache, [gameId]: entry };
     this.persist();
   }
 
