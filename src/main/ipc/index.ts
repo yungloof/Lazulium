@@ -24,6 +24,7 @@ import { applyLoginItem, markRendererReady, notify } from '../app-shell';
 import { accountsService } from '../services/accounts/accounts.service';
 import { screenshotsService } from '../services/metadata/screenshots.service';
 import { profileService } from '../services/profile/profile.service';
+import { buildYearReview } from '../services/profile/year-review.service';
 import { profileWebService } from '../services/profile/profile-web.service';
 import { AccountService } from '@shared/types/accounts';
 
@@ -336,6 +337,10 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   // Perfil do jogador Handlers
   ipcMain.handle(IPC_CHANNELS.PROFILE_GET, async () => {
     return profileService.build();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.PROFILE_YEAR_REVIEW, async (_event, year?: number) => {
+    return buildYearReview(year);
   });
 
   ipcMain.handle(IPC_CHANNELS.PROFILE_SYNC_ACHIEVEMENTS, async () => {

@@ -1,6 +1,7 @@
 import { existsSync } from 'fs';
 import { readdir, readFile } from 'fs/promises';
-import { basename, dirname, join, normalize } from 'path';
+import { extname, basename, dirname, join, normalize } from 'path';
+import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
 import { db } from '../../database/db';
 import { mediaUrl } from '../metadata/media-cache.service';
 import { STEAM_GRID_HOST, readSteamShortcuts } from './steam-shortcuts';
@@ -163,6 +164,16 @@ function findGridArt(gridDir: string, appId: number, suffixes: string[]): string
   return undefined;
 }
 
+// Atalho que abre uma ROM num emulador conhecido ("azahar.exe" -f "F:\\Jogo.cci"): vale como jogo de emulador.
+// Quem abre o emulador sem ROM, ou um port para PC, continua como jogo de PC.
+function emulatorFromShortcut(exe: string, args: string | undefined): Pick<DetectedGame, 'platform' | 'emulatorId' | 'romPath'> | null {
+  const name = basename(exe).toLowerCase();
+  const profile = Object.values(DEFAULT_EMULATOR_PROFILES).find((p) => p.defaultExecutableNames.some((n) => n.toLowerCase() === name));
+  if (!profile || !args) return null;
+  const romPath = [...args.matchAll(/"([^"]+)"/g)].map((m) => m[1]).find((path) => profile.supportedExtensions.includes(extname(path).toLowerCase()));
+  return romPath ? { platform: 'emulator', emulatorId: profile.id, romPath } : null;
+}
+
 // Atalhos não-Steam ("Adicionar jogo" na Steam): emuladores, ports e jogos avulsos.
 // Abrem pela Steam (mantém Steam Input/overlay); artes personalizadas da pasta config/grid.
 // No localconfig.vdf a Steam grava as horas deles com o appid como int32 com sinal
@@ -179,13 +190,15 @@ async function scanShortcuts(accountDirs: string[], localStats: Map<string, Stea
       if (s.hidden || games.has(id)) continue;
       const installPath = s.startDir || (s.exe ? dirname(s.exe) : undefined);
       const stats = localStats.get(String(s.appId | 0)) ?? localStats.get(String(s.appId));
+      const launchArguments = [s.exeArgs, s.launchOptions].filter(Boolean).join(' ') || undefined;
       games.set(id, {
         id,
         title: s.name,
         platform: 'standalone',
+        ...emulatorFromShortcut(s.exe, launchArguments),
         platformGameId: s.gameId,
         executablePath: s.exe,
-        launchArguments: [s.exeArgs, s.launchOptions].filter(Boolean).join(' ') || undefined,
+        launchArguments,
         workingDirectory: installPath,
         installPath,
         launchUri: `steam://rungameid/${s.gameId}`,

@@ -580,6 +580,9 @@ export const App: React.FC = () => {
               onToggleFavorite={handleToggleFavorite}
               onColumnsChange={setGridColumns}
               onContextMenu={handleOpenContextMenu}
+              onSkipSuggestion={(game) => {
+                window.electronAPI?.updateGame(game.id, { skipSuggestions: true }).then((updated) => useLibraryStore.getState().upsertGameLocal(updated)).catch((err) => setLaunchNotice({ text: ipcErrorMessage(err), tone: 'warn' }));
+              }}
             />
           )}
         </main>

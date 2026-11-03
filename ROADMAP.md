@@ -149,6 +149,7 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [x] Jogos da Família Steam identificados pelo dono no manifest (`LastOwner`), com a marca guardada depois de desinstalar.
 - [x] Abrir a pasta de qualquer jogo instalado; capas inteiras e sem cantos cortados; Diário só com jogos registrados.
 - [x] Emuladores detectados sozinhos: executáveis pelos atalhos e por uma busca limitada no disco, pastas de jogos lidas da configuração de cada emulador, sem duplicar atalhos da Steam. Novos perfis: Eden/yuzu, Azahar/Citra, melonDS, mGBA, PPSSPP e BizHawk.
+- [x] Atalhos da Steam que abrem ROM viram jogos de emulador (backup de saves, RetroAchievements onde existe); seção O que jogar agora; retrospectiva do ano no Perfil.
 - [ ] Primeira publicação real no GitHub: conferir login do Git, ativação do Pages e a página no ar.
 - [ ] Scanners de outros lançadores (Battle.net, EA app, Ubisoft Connect) quando houver jogos instalados para validar.
 - [ ] Assinatura digital do instalador (evita o aviso do SmartScreen).

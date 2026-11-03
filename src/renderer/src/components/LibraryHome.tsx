@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Clock, Layers, Search } from 'lucide-react';
+import { Clock, Dices, EyeOff, Gamepad2, Layers, Play, Search } from 'lucide-react';
 import { Game } from '@shared/types/game';
 import { GameCard } from './GameCard';
+import { pickSuggestion } from '../utils/suggestGame';
 
 interface LibraryHomeProps {
   games: Game[];                    // Já filtrados por plataforma/busca
@@ -12,6 +13,7 @@ interface LibraryHomeProps {
   onToggleFavorite: (id: string) => void;
   onColumnsChange: (columns: number) => void;
   onContextMenu?: (game: Game, e: React.MouseEvent) => void;
+  onSkipSuggestion: (game: Game) => void;
 }
 
 // Largura mínima de cada capa por densidade: a grade preenche a linha com quantas couberem
@@ -43,10 +45,12 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
   onOpenGame,
   onToggleFavorite,
   onColumnsChange,
-  onContextMenu
+  onContextMenu,
+  onSkipSuggestion
 }) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [density, setDensity] = useState<GridDensity>(loadDensity);
+  const [suggestionRoll, setSuggestionRoll] = useState(0);
 
   const changeDensity = (next: GridDensity) => {
     setDensity(next);
@@ -78,8 +82,65 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
     [games]
   );
 
+  const playing = useMemo(() => games.filter((g) => g.log?.status === 'playing'), [games]);
+
+  // A sugestão só muda quando pedem outra (ou quando a atual sai da lista), não a cada atualização da biblioteca
+  const suggestionRef = useRef<{ roll: number; gameId: string } | null>(null);
+  const suggestion = useMemo(() => {
+    const previous = suggestionRef.current;
+    const candidate = previous?.roll === suggestionRoll ? games.find((g) => g.id === previous.gameId && !g.skipSuggestions) : undefined;
+    const next = candidate ? pickSuggestion([candidate]) : pickSuggestion(games, previous?.gameId);
+    suggestionRef.current = next ? { roll: suggestionRoll, gameId: next.game.id } : null;
+    return next;
+  }, [games, suggestionRoll]);
+
   return (
     <div className="px-8 py-6 space-y-7">
+      {!isFiltered && (playing.length > 0 || suggestion) && (
+        <section>
+          <h2 className="flex items-center gap-2 mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+            <Gamepad2 className="w-3.5 h-3.5 text-indigo-400" /> O que jogar agora
+          </h2>
+          <div className="flex gap-4 overflow-x-auto pb-2">
+            {playing.map((game) => (
+              <button
+                key={game.id}
+                onClick={() => onOpenGame(game)}
+                title={game.title}
+                className={`flex-shrink-0 w-[300px] flex items-center gap-3 p-3 rounded-lg bg-slate-900/70 border border-slate-800 hover:border-indigo-400 transition-colors text-left ${focusRing}`}
+              >
+                {game.media?.coverUrl ? <img src={game.media.coverUrl} alt="" loading="lazy" className="w-14 aspect-[2/3] object-contain flex-shrink-0" /> : <span className="w-14 aspect-[2/3] bg-slate-800 flex-shrink-0" />}
+                <span className="min-w-0">
+                  <span className="block text-sm text-white truncate">{game.title}</span>
+                  <span className="block mt-0.5 text-xs text-emerald-300">Jogando</span>
+                  <span className="block mt-0.5 text-xs text-slate-400">{((game.totalPlaytimeSeconds ?? 0) / 3600).toFixed(1).replace('.', ',')} h até agora</span>
+                </span>
+              </button>
+            ))}
+            {suggestion && (
+              <div className="flex-shrink-0 w-[420px] flex items-center gap-3 p-3 rounded-lg bg-slate-900/70 border border-slate-800">
+                {suggestion.game.media?.coverUrl ? <img src={suggestion.game.media.coverUrl} alt="" loading="lazy" className="w-14 aspect-[2/3] object-contain flex-shrink-0" /> : <span className="w-14 aspect-[2/3] bg-slate-800 flex-shrink-0" />}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-white truncate" title={suggestion.game.title}>{suggestion.game.title}</p>
+                  <p className="mt-0.5 text-xs text-slate-400 truncate">{suggestion.reason}</p>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <button onClick={() => onOpenGame(suggestion.game)} className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white ${focusRing}`}>
+                      <Play className="w-3 h-3" /> Abrir
+                    </button>
+                    <button onClick={() => setSuggestionRoll((n) => n + 1)} className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+                      <Dices className="w-3 h-3" /> Outro
+                    </button>
+                    <button onClick={() => onSkipSuggestion(suggestion.game)} title="Não sugerir este de novo" aria-label="Não sugerir este de novo" className={`p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 ${focusRing}`}>
+                      <EyeOff className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       {!isFiltered && recent.length > 0 && (
         <section>
           <h2 className="flex items-center gap-2 mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">

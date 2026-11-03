@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Camera, Clock, FolderOpen, Image as ImageIcon, Info, Pencil, Save, Star, Trophy, BarChart2, CalendarClock } from 'lucide-react';
 import { Game } from '@shared/types/game';
+import { hasRetroAchievements } from '@shared/constants/emulators';
 import { GameAchievements } from '@shared/types/achievements';
 import { Screenshot } from '@shared/types/screenshots';
 import { PlayButton } from './PlayButton';
@@ -112,7 +113,7 @@ export const GamePage: React.FC<GamePageProps> = ({
     : [];
   const canEditPlaytime = game.platform !== 'steam';
   // Conquistas vêm da Steam e do RetroAchievements; outras plataformas não têm de onde buscar
-  const supportsAchievements = game.platform === 'steam' || game.platform === 'emulator';
+  const supportsAchievements = game.platform === 'steam' || (game.platform === 'emulator' && hasRetroAchievements(game.emulatorId));
 
   const launchStatus = useLibraryStore((s) => s.launchStatuses[game.id]);
   const isRunning = launchStatus?.state === 'running';

@@ -202,6 +202,14 @@ async function detectEmulator(game: Game): Promise<SaveLocationSuggestion[]> {
     case 'rpcs3':
       if (exeDir) add(join(exeDir, 'dev_hdd0', 'home', '00000001', 'savedata'), 'RPCS3 savedata');
       break;
+    case 'eden':
+      if (exeDir) add(join(exeDir, 'user', 'nand', 'user', 'save'), 'Eden saves (portátil)');
+      for (const name of ['eden', 'yuzu', 'suyu', 'citron', 'sudachi']) add(join(appData, name, 'nand', 'user', 'save'), `${name} saves`);
+      break;
+    case 'azahar':
+      if (exeDir) add(join(exeDir, 'user', 'sdmc'), 'Azahar saves (portátil)');
+      for (const name of ['Azahar', 'Lime3DS', 'Citra']) add(join(appData, name, 'sdmc'), `${name} saves`);
+      break;
   }
 
   const results: SaveLocationSuggestion[] = [];

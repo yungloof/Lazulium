@@ -42,8 +42,9 @@ export function secondsSinceLastInput(systemIdleSeconds: number, lastGamepadInpu
 
 // Pastas cujos executáveis representam o jogo. Emuladores ficam de fora: a pasta
 // do emulador casaria com instâncias abertas manualmente; rastreamos pela árvore de PIDs.
+// Atalho aberto pela Steam não tem PID: só resta a pasta do próprio emulador.
 function getMatchDirs(game: Game, spawned: boolean): string[] {
-  if (game.platform === 'emulator') return [];
+  if (game.platform === 'emulator') return !spawned && game.launchUri && game.executablePath ? [dirname(game.executablePath)] : [];
   const dir = game.installPath || game.workingDirectory || (spawned && game.executablePath ? dirname(game.executablePath) : '');
   return dir ? [dir] : [];
 }

@@ -96,6 +96,7 @@ const electronAPI: ElectronAPI = {
 
   // Perfil do jogador
   getPlayerProfile: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_GET),
+  getYearReview: (year?: number) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_YEAR_REVIEW, year),
   syncAllAchievements: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SYNC_ACHIEVEMENTS),
   saveProfileCustom: (custom: ProfileCustom) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SAVE_CUSTOM, custom),
   pickProfileMedia: (kind: ProfileMediaKind) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_PICK_MEDIA, kind),

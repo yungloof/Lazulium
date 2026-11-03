@@ -107,6 +107,27 @@ export interface ProfileUnlockedAchievement {
   globalPercent?: number;
 }
 
+export interface YearReviewGame {
+  id: string;
+  title: string;
+  coverUrl?: string;
+  rating?: number;
+  achievements?: number;            // Conquistas desbloqueadas no ano
+}
+
+export interface YearReview {
+  year: number;
+  availableYears: number[];         // Do mais novo para o mais antigo
+  achievementsUnlocked: number;
+  bestMonth?: { month: number; achievements: number }; // 0 = janeiro
+  rarestAchievement?: { name: string; iconUrl: string; gameTitle: string; globalPercent: number };
+  topGames: YearReviewGame[];       // Mais conquistas no ano
+  finishedGames: YearReviewGame[];  // "Terminei em" dentro do ano
+  gamesPlayed: number;              // Jogos cuja última sessão foi no ano
+  screenshots: number;
+  trackedSeconds: number;           // Só sessões abertas pelo Lazulium
+}
+
 export interface PlayerProfile {
   schema: 'lazulium-profile/1';     // Versão do formato (exportação para web/site)
   generatedAt: string;

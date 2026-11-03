@@ -22,7 +22,7 @@ const SCANNERS: PlatformScanner[] = [
   xboxScanner,
   createEmulatorScanner(
     () => db.getEmulatorConfigs(),
-    () => db.getGames().filter((g) => g.platform !== 'emulator'),
+    () => db.getGames().filter((g) => !g.id.startsWith('emu-')),
     () => detectEmulators()
   ),
   createStandaloneScanner(() => db.getStandaloneDirectories())

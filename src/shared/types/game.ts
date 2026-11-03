@@ -71,6 +71,7 @@ export interface Game {
   media: GameMedia;
   isFavorite: boolean;
   isHidden: boolean;
+  skipSuggestions?: boolean;        // Não aparece em "O que jogar agora" (programas, jogos que não quer ver)
   tags: string[];                   // Categorias / Gêneros
   
   // Estatísticas de Uso

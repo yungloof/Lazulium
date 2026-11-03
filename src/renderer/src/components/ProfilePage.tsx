@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Download, Globe, Loader2, Pencil, RefreshCw, UserRound } from 'lucide-react';
+import { AlertTriangle, CalendarDays, CheckCircle2, Download, Globe, Loader2, Pencil, RefreshCw, UserRound } from 'lucide-react';
+import { YearReviewModal } from './YearReviewModal';
 import { GamePlatform } from '@shared/types/game';
 import { PlayerProfile, ProfileGame, ProfileSectionId, ProfileWebStatus } from '@shared/types/profile';
 import { useLibraryStore } from '../stores/useLibraryStore';
@@ -172,6 +173,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [editing, setEditing] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [showYearReview, setShowYearReview] = useState(false);
   const [webStatus, setWebStatus] = useState<ProfileWebStatus>({});
   const games = useLibraryStore((s) => s.games);
   const launchStatuses = useLibraryStore((s) => s.launchStatuses);
@@ -436,6 +438,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
                   {busy === 'export' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} Exportar
                 </button>
               </div>
+              <button onClick={() => setShowYearReview(true)} className={`${button} w-full`}>
+                <CalendarDays className="w-3.5 h-3.5" /> Retrospectiva do ano
+              </button>
               <button onClick={() => setPublishing(true)} disabled={busy !== null} className={`${button} w-full`}>
                 <Globe className="w-3.5 h-3.5" /> {webStatus.repoUrl ? 'Atualizar página na web' : 'Publicar na web'}
               </button>
@@ -524,6 +529,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
       </div>
 
       {editing && <ProfileEditModal profile={profile} onClose={() => setEditing(false)} onSaved={load} />}
+      {showYearReview && <YearReviewModal onClose={() => setShowYearReview(false)} onSelectGame={(id) => { setShowYearReview(false); onSelectGame(id); }} />}
       {publishing && <ProfilePublishModal status={webStatus} onClose={() => setPublishing(false)} onChanged={setWebStatus} />}
     </div>
   );

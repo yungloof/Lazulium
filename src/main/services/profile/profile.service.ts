@@ -1,3 +1,4 @@
+import { hasRetroAchievements } from '@shared/constants/emulators';
 import { app } from 'electron';
 import { copyFile, mkdir, readdir, stat, unlink } from 'fs/promises';
 import { extname, join } from 'path';
@@ -289,7 +290,7 @@ class ProfileService {
       try {
         const candidates = db
           .getGames()
-          .filter((g) => (g.platform === 'steam' || g.platform === 'emulator') && (g.totalPlaytimeSeconds ?? 0) > 0);
+          .filter((g) => (g.platform === 'steam' || (g.platform === 'emulator' && hasRetroAchievements(g.emulatorId))) && (g.totalPlaytimeSeconds ?? 0) > 0);
         for (let i = 0; i < candidates.length; i++) {
           const game = candidates[i];
           try {

@@ -1,3 +1,4 @@
+import { hasRetroAchievements } from '@shared/constants/emulators';
 import { createHash } from 'crypto';
 import { createReadStream, existsSync, statSync } from 'fs';
 import { Game } from '@shared/types/game';
@@ -33,9 +34,9 @@ const EMULATOR_CONSOLE_MAP: Record<string, number[]> = {
   pcsx2: [21],                           // PlayStation 2
   duckstation: [12],                     // PlayStation 1
   rpcs3: [4],                            // PlayStation 3
-  dolphin: [16, 18],                     // GameCube, Wii
+  dolphin: [16, 19],                     // GameCube, Wii
   retroarch: [3, 7, 5, 1, 12, 11, 9],    // SNES, NES, GBA, Genesis, PS1, GB, GBC
-  cemu: [18, 16],                        // Wii U / Wii
+  bizhawk: [7, 3, 4, 6, 5, 2, 1],        // NES, SNES, GB, GBC, GBA, N64, Genesis
   melonds: [18],                         // Nintendo DS
   mgba: [5, 6, 4],                       // GBA, GBC, GB
   ppsspp: [41]                           // PSP
@@ -124,6 +125,8 @@ export class RetroAchievementsService {
     username: string,
     apiKey: string
   ): Promise<{ gameId: number | null; method: 'hash' | 'title' | null }> {
+    if (!hasRetroAchievements(game.emulatorId)) return { gameId: null, method: null };
+
     // 1. Identificação por Hash MD5
     if (game.romPath) {
       try {

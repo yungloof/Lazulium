@@ -65,6 +65,7 @@ export const IPC_CHANNELS = {
 
   // Perfil do jogador
   PROFILE_GET: 'profile:get',
+  PROFILE_YEAR_REVIEW: 'profile:year-review',
   PROFILE_SYNC_ACHIEVEMENTS: 'profile:sync-achievements',
   PROFILE_EXPORT: 'profile:export',
   PROFILE_SAVE_CUSTOM: 'profile:save-custom',
