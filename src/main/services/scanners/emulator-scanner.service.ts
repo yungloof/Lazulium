@@ -50,8 +50,14 @@ export function cleanRomTitle(fileName: string): string {
   return cleaned;
 }
 
-// Leitor de SFO (Sony Format Optimizer) do PS3: extrai o título oficial de PARAM.SFO
-function readSfoTitle(ebootPath: string): string | null {
+interface SfoInfo {
+  title?: string;
+  category?: string;
+  titleId?: string;
+}
+
+// Leitor de SFO (Sony Format Optimizer) do PS3: extrai título, categoria e ID do PARAM.SFO
+function readSfoInfo(ebootPath: string): SfoInfo | null {
   const dir = dirname(ebootPath);
   const candidates = [
     join(dirname(dir), 'PARAM.SFO'),
@@ -66,6 +72,7 @@ function readSfoTitle(ebootPath: string): string | null {
       const keyTableStart = buf.readUInt32LE(0x08);
       const dataTableStart = buf.readUInt32LE(0x0c);
       const numEntries = buf.readUInt32LE(0x10);
+      const result: SfoInfo = {};
       for (let i = 0; i < numEntries; i++) {
         const entryOffset = 0x14 + i * 16;
         const keyOffset = keyTableStart + buf.readUInt16LE(entryOffset);
@@ -74,13 +81,14 @@ function readSfoTitle(ebootPath: string): string | null {
         let keyEnd = keyOffset;
         while (keyEnd < buf.length && buf[keyEnd] !== 0) keyEnd++;
         const key = buf.toString('utf8', keyOffset, keyEnd);
-        if (key === 'TITLE') {
-          let valEnd = dataOffset;
-          while (valEnd < dataOffset + dataLen && buf[valEnd] !== 0) valEnd++;
-          const title = buf.toString('utf8', dataOffset, valEnd).replace(/[™®]/g, '').trim();
-          if (title) return title;
-        }
+        let valEnd = dataOffset;
+        while (valEnd < dataOffset + dataLen && buf[valEnd] !== 0) valEnd++;
+        const val = buf.toString('utf8', dataOffset, valEnd).trim();
+        if (key === 'TITLE') result.title = val.replace(/[™®]/g, '').trim();
+        else if (key === 'CATEGORY') result.category = val;
+        else if (key === 'TITLE_ID') result.titleId = val;
       }
+      return result;
     } catch {
       // Falha de leitura do SFO não trava o scanner
     }
@@ -91,8 +99,8 @@ function readSfoTitle(ebootPath: string): string | null {
 function deriveTitle(profile: EmulatorProfile, romPath: string): string {
   // RPCS3: tenta ler o título oficial do PARAM.SFO; se não tiver, usa a pasta do jogo
   if (profile.id === 'rpcs3') {
-    const sfoTitle = readSfoTitle(romPath);
-    if (sfoTitle) return cleanRomTitle(sfoTitle);
+    const sfo = readSfoInfo(romPath);
+    if (sfo?.title) return cleanRomTitle(sfo.title);
     let gameDir = dirname(dirname(romPath));
     if (basename(gameDir).toUpperCase() === 'PS3_GAME') gameDir = dirname(gameDir);
     return cleanRomTitle(basename(gameDir));
@@ -114,7 +122,15 @@ function deriveTitle(profile: EmulatorProfile, romPath: string): string {
 
 function isRomCandidate(profile: EmulatorProfile, file: string, siblings: Set<string>): boolean {
   const ext = extname(file).toLowerCase();
-  if (profile.id === 'rpcs3') return basename(file).toUpperCase() === 'EBOOT.BIN';
+  if (profile.id === 'rpcs3') {
+    if (basename(file).toUpperCase() !== 'EBOOT.BIN') return false;
+    const sfo = readSfoInfo(file);
+    // GD = Game Data (update / patch de jogo instalado em dev_hdd0/game); não é executável de jogo
+    if (sfo?.category === 'GD') return false;
+    // Manuais e artbooks digitais não são jogos na biblioteca
+    if (sfo?.title && /[-_ ](manual|guide|artbook)(\s*\(.*\))?$/i.test(sfo.title)) return false;
+    return true;
+  }
   if (!profile.supportedExtensions.includes(ext)) return false;
   if (NOISY_EXTENSIONS[profile.id]?.includes(ext)) return false;
   if (ext === '.nsp' && SWITCH_EMULATORS.includes(profile.id) && SWITCH_ADDON.test(basename(file))) return false;
@@ -210,12 +226,15 @@ export function createEmulatorScanner(getConfigs: () => EmulatorConfig[], getOth
         warnings.push(`Emuladores: a busca automática falhou (${(err as Error).message})`);
       }
 
+      const allOtherGames = getOtherGames().filter((g) => g.isInstalled !== false);
       const officialStores = new Set<GamePlatform>(['steam', 'epic', 'gog']);
-      const others = getOtherGames().filter((g) => g.isInstalled !== false && officialStores.has(g.platform));
       const known: KnownGames = {
-        launchArguments: normalizePath(others.map((g) => g.launchArguments ?? '').join('\n')),
-        titleKeys: others.map((g) => normalizeKey(g.title)).filter(Boolean),
-        seenRoms: new Set()
+        launchArguments: normalizePath(allOtherGames.map((g) => `${g.launchArguments ?? ''} ${g.romPath ?? ''}`).join('\n')),
+        titleKeys: allOtherGames
+          .filter((g) => officialStores.has(g.platform) && !g.id.startsWith('steam-shortcut-'))
+          .map((g) => normalizeKey(g.title))
+          .filter(Boolean),
+        seenRoms: new Set(allOtherGames.map((g) => (g.romPath ? normalizePath(g.romPath) : '')).filter(Boolean))
       };
 
       // Cada emulador isolado: um perfil quebrado não derruba os demais
