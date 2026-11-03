@@ -24,7 +24,7 @@ const SCANNERS: PlatformScanner[] = [
   createEmulatorScanner(
     () => db.getEmulatorConfigs(),
     () => db.getGames().filter((g) => !g.id.startsWith('emu-')),
-    () => detectEmulators()
+    () => detectEmulators(true)
   ),
   createStandaloneScanner(() => [...db.getStandaloneDirectories(), ...commonGameFolders()])
 ];
@@ -128,18 +128,39 @@ async function runScan(platforms?: GamePlatform[]): Promise<ScanResult> {
   const detectedIds = new Set(detectedGames.map((d) => d.id));
   for (const detected of detectedGames) {
     let existing = db.getGameById(detected.id);
-    if (!existing && detected.isInstalled !== false) {
-      // Reinstalado ou movido para outra pasta (ID novo): continua o histórico do registro antigo
-      const key = normalizeKey(detected.title);
-      const previous = db
-        .getGames()
-        .find((g) => !detectedIds.has(g.id) && scannerOwner(g) === detected.platform && normalizeKey(g.title) === key);
-      if (previous) {
-        db.moveGameData(previous.id, detected.id);
+    const key = normalizeKey(detected.title);
+
+    // Procura registro anterior do mesmo jogo (ex: trocou de port standalone para emulador,
+    // atalho da Steam ou reinstalou em outra pasta): migra histórico, tempo de jogo, registro e artes.
+    const previous = db
+      .getGames()
+      .find(
+        (g) =>
+          g.id !== detected.id &&
+          !detectedIds.has(g.id) &&
+          normalizeKey(g.title) === key &&
+          (g.isInstalled === false ||
+            g.platform === 'standalone' ||
+            scannerOwner(g) === detected.platform ||
+            !g.executablePath ||
+            !existsSync(g.executablePath))
+      );
+
+    if (previous && detected.isInstalled !== false) {
+      db.moveGameData(previous.id, detected.id);
+      if (existing) {
+        existing.log = existing.log || previous.log;
+        existing.manualPlatform = existing.manualPlatform || previous.manualPlatform;
+        existing.totalPlaytimeSeconds = Math.max(existing.totalPlaytimeSeconds || 0, previous.totalPlaytimeSeconds || 0);
+        existing.lastPlayedAt = [existing.lastPlayedAt, previous.lastPlayedAt].filter(Boolean).sort().pop();
+        existing.isFavorite = existing.isFavorite || previous.isFavorite;
+        existing.media = { ...previous.media, ...existing.media };
+      } else {
         existing = { ...previous, id: detected.id };
-        console.log(`[Scanner] ${detected.title}: histórico levado para a nova instalação`);
       }
+      console.log(`[Scanner] ${detected.title}: histórico e dados levados para a nova instalação (${previous.platform} -> ${detected.platform})`);
     }
+
     const game = mergeGame(detected, existing);
     if (!existing) added++;
     else if (JSON.stringify(existing) !== JSON.stringify(game)) updated++;

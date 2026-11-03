@@ -1,9 +1,9 @@
 import { createHash } from 'crypto';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { readdir } from 'fs/promises';
 import { basename, dirname, extname, join } from 'path';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
-import { EmulatorConfig, EmulatorProfile, Game } from '@shared/types/game';
+import { EmulatorConfig, EmulatorProfile, Game, GamePlatform } from '@shared/types/game';
 import { DetectedGame, PlatformScanner, PlatformScanResult } from './scanner.types';
 import { normalizeKey } from '../cloudsync/save-locator.service';
 
@@ -50,9 +50,49 @@ export function cleanRomTitle(fileName: string): string {
   return cleaned;
 }
 
+// Leitor de SFO (Sony Format Optimizer) do PS3: extrai o título oficial de PARAM.SFO
+function readSfoTitle(ebootPath: string): string | null {
+  const dir = dirname(ebootPath);
+  const candidates = [
+    join(dirname(dir), 'PARAM.SFO'),
+    join(dirname(dirname(dir)), 'PARAM.SFO'),
+    join(dirname(dir), 'param.sfo')
+  ];
+  for (const sfoPath of candidates) {
+    if (!existsSync(sfoPath)) continue;
+    try {
+      const buf = readFileSync(sfoPath);
+      if (buf.toString('ascii', 0, 4) !== '\0PSF') continue;
+      const keyTableStart = buf.readUInt32LE(0x08);
+      const dataTableStart = buf.readUInt32LE(0x0c);
+      const numEntries = buf.readUInt32LE(0x10);
+      for (let i = 0; i < numEntries; i++) {
+        const entryOffset = 0x14 + i * 16;
+        const keyOffset = keyTableStart + buf.readUInt16LE(entryOffset);
+        const dataLen = buf.readUInt32LE(entryOffset + 4);
+        const dataOffset = dataTableStart + buf.readUInt32LE(entryOffset + 12);
+        let keyEnd = keyOffset;
+        while (keyEnd < buf.length && buf[keyEnd] !== 0) keyEnd++;
+        const key = buf.toString('utf8', keyOffset, keyEnd);
+        if (key === 'TITLE') {
+          let valEnd = dataOffset;
+          while (valEnd < dataOffset + dataLen && buf[valEnd] !== 0) valEnd++;
+          const title = buf.toString('utf8', dataOffset, valEnd).replace(/[™®]/g, '').trim();
+          if (title) return title;
+        }
+      }
+    } catch {
+      // Falha de leitura do SFO não trava o scanner
+    }
+  }
+  return null;
+}
+
 function deriveTitle(profile: EmulatorProfile, romPath: string): string {
-  // RPCS3: <JOGO>/USRDIR/EBOOT.BIN ou <JOGO>/PS3_GAME/USRDIR/EBOOT.BIN
+  // RPCS3: tenta ler o título oficial do PARAM.SFO; se não tiver, usa a pasta do jogo
   if (profile.id === 'rpcs3') {
+    const sfoTitle = readSfoTitle(romPath);
+    if (sfoTitle) return cleanRomTitle(sfoTitle);
     let gameDir = dirname(dirname(romPath));
     if (basename(gameDir).toUpperCase() === 'PS3_GAME') gameDir = dirname(gameDir);
     return cleanRomTitle(basename(gameDir));
@@ -170,7 +210,8 @@ export function createEmulatorScanner(getConfigs: () => EmulatorConfig[], getOth
         warnings.push(`Emuladores: a busca automática falhou (${(err as Error).message})`);
       }
 
-      const others = getOtherGames().filter((g) => g.isInstalled !== false);
+      const officialStores = new Set<GamePlatform>(['steam', 'epic', 'gog']);
+      const others = getOtherGames().filter((g) => g.isInstalled !== false && officialStores.has(g.platform));
       const known: KnownGames = {
         launchArguments: normalizePath(others.map((g) => g.launchArguments ?? '').join('\n')),
         titleKeys: others.map((g) => normalizeKey(g.title)).filter(Boolean),

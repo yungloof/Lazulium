@@ -78,15 +78,25 @@ function isUsableDirectory(path: string): boolean {
 }
 
 function readGameDirectories(id: EmulatorType, executablePath: string): string[] {
+  const exeDir = dirname(executablePath);
+  const extraDirs: string[] = [];
+  if (id === 'rpcs3') {
+    const disc = join(exeDir, 'dev_hdd0/disc');
+    const game = join(exeDir, 'dev_hdd0/game');
+    if (existsSync(disc)) extraDirs.push(disc);
+    if (existsSync(game)) extraDirs.push(game);
+  }
+
   const source = GAME_LIST_SOURCES[id];
-  const file = source?.files(dirname(executablePath)).find((f) => existsSync(f));
-  if (!source || !file) return [];
+  const file = source?.files(exeDir).find((f) => existsSync(f));
+  if (!source || !file) return extraDirs.filter(isUsableDirectory);
   try {
-    const dirs = source.parse(readFileSync(file, 'utf-8')).map((d) => normalize(d).replace(/[\\/]+$/, ''));
+    const parsed = source.parse(readFileSync(file, 'utf-8')).map((d) => normalize(d).replace(/[\\/]+$/, ''));
+    const dirs = [...extraDirs, ...parsed];
     return [...new Set(dirs)].filter(isUsableDirectory);
   } catch (err) {
     console.warn(`[Emuladores] Não foi possível ler ${file}: ${(err as Error).message}`);
-    return [];
+    return extraDirs.filter(isUsableDirectory);
   }
 }
 
