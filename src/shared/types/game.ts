@@ -97,6 +97,19 @@ export interface GamePlayLength {
   matchedName?: string;             // Nome do jogo no IGDB
 }
 
+const MIN_RELIABLE_SUBMISSIONS = 5;
+
+// Mais extras nunca levam menos tempo: fora dessa ordem, os rótulos se contradizem (Palworld: 85 h, 65 h, 88 h)
+export function hasConsistentTimes(length: GamePlayLength): boolean {
+  const times = [length.lowHours, length.typicalHours, length.completeHours].filter((h): h is number => !!h);
+  return times.every((hours, index) => index === 0 || hours >= times[index - 1]);
+}
+
+// Média do IGDB com poucos envios ou contraditória: serve de noção, não de número exato
+export function isWeakPlayLength(length: GamePlayLength): boolean {
+  return length.source === 'igdb' && (length.sampleSize < MIN_RELIABLE_SUBMISSIONS || !hasConsistentTimes(length));
+}
+
 export interface CachedPlayLength {
   length: GamePlayLength | null;    // null: já se sabe que não há dados
   expiresAt: number;

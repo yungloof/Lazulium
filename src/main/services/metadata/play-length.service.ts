@@ -1,11 +1,10 @@
-import { Game, GamePlayLength } from '@shared/types/game';
+import { Game, GamePlayLength, isWeakPlayLength } from '@shared/types/game';
 import { db } from '../../database/db';
 import { isSteamPlaceholderTitle } from '../scanners/steam-names.service';
 
 // Servidor em server/igdb-proxy, que guarda a credencial da Twitch. Vazio enquanto não está publicado: fica só a estimativa da Steam.
 const IGDB_PROXY_URL = 'https://lazulium-igdb.yungloof.workers.dev';
 const IGDB_TIMEOUT_MS = 8_000;
-const MIN_STEAM_IGDB_SUBMISSIONS = 3; // Com poucos envios, a estimativa das reviews é mais confiável
 
 // O Steam não publica "tempo para zerar", mas cada review traz as horas do autor. Entre quem recomenda o jogo,
 // o quartil de baixo costuma ficar perto da campanha, e a mediana, perto da campanha com extras.
@@ -20,7 +19,8 @@ const OPEN_ENDED_SPREAD = 8;        // p75 muito acima de p25: multiplayer e jog
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FOUND_TTL_MS = 30 * DAY_MS;
 const NOT_FOUND_TTL_MS = 7 * DAY_MS;
-const IGDB_DOWN_TTL_MS = DAY_MS;    // Ficou só com a reserva porque o IGDB não respondeu: tenta de novo logo
+const RETRY_SOON_TTL_MS = DAY_MS;   // Resultado incompleto porque uma das fontes não respondeu: tenta de novo logo
+const CACHE_PREFIX = 'v2:';         // Muda quando a regra de escolha da fonte muda
 
 type IgdbResult = { kind: 'found'; length: GamePlayLength } | { kind: 'none' } | { kind: 'unavailable' };
 
@@ -132,7 +132,7 @@ class PlayLengthService {
 
   // Informação extra da página do jogo: sem rede ou sem dados, a página só não mostra
   get(game: Game): Promise<GamePlayLength | null> {
-    const cached = db.getPlayLength(game.id);
+    const cached = db.getPlayLength(CACHE_PREFIX + game.id);
     if (cached && Date.now() < cached.expiresAt) return Promise.resolve(cached.length);
 
     const running = this.inFlight.get(game.id);
@@ -145,17 +145,19 @@ class PlayLengthService {
   private async load(game: Game, previous: GamePlayLength | null): Promise<GamePlayLength | null> {
     const igdb = await queryIgdb(game);
     const appId = steamAppId(game);
-    const igdbIsEnough = igdb.kind === 'found' && (!appId || igdb.length.sampleSize >= MIN_STEAM_IGDB_SUBMISSIONS);
-    const reviews = appId && !igdbIsEnough ? await measureSteamReviews(appId) : null;
-
-    const length = igdbIsEnough ? igdb.length : reviews ?? (igdb.kind === 'found' ? igdb.length : null);
+    const igdbLength = igdb.kind === 'found' ? igdb.length : null;
+    // Na Steam as reviews sempre entram: amostra maior quando o IGDB é fraco, e só elas revelam jogo sem fim (CS2)
+    const reviews = appId ? await measureSteamReviews(appId) : null;
+    const igdbWins = !appId || (igdbLength && !isWeakPlayLength(igdbLength) && !reviews?.openEnded);
+    const length = igdbWins ? igdbLength : reviews ?? igdbLength;
     const igdbDown = igdb.kind === 'unavailable';
+    const reviewsDown = !!appId && !reviews;
 
     if (!length && igdbDown) return previous; // Falha temporária não apaga o que já se sabia nem vira "sem dados"
     if (!length && appId) return previous;    // Reviews não responderam: não dá para afirmar que não há dados
 
-    const ttl = igdbDown ? IGDB_DOWN_TTL_MS : length ? FOUND_TTL_MS : NOT_FOUND_TTL_MS;
-    db.setPlayLength(game.id, { length, expiresAt: Date.now() + ttl });
+    const ttl = igdbDown || reviewsDown ? RETRY_SOON_TTL_MS : length ? FOUND_TTL_MS : NOT_FOUND_TTL_MS;
+    db.setPlayLength(CACHE_PREFIX + game.id, { length, expiresAt: Date.now() + ttl });
     return length;
   }
 }

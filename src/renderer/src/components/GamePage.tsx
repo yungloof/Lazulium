@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Camera, Clock, FolderOpen, Hourglass, Image as ImageIcon, Info, Pencil, Save, Star, Trophy, BarChart2, CalendarClock } from 'lucide-react';
-import { Game, GamePlayLength } from '@shared/types/game';
+import { Game, GamePlayLength, hasConsistentTimes, isWeakPlayLength } from '@shared/types/game';
 import { hasRetroAchievements } from '@shared/constants/emulators';
 import { GameAchievements } from '@shared/types/achievements';
 import { Screenshot } from '@shared/types/screenshots';
@@ -45,12 +45,23 @@ function formatHours(seconds: number): string {
 
 const formatDuration = (hours: number) => (hours < 10 ? String(Math.round(hours * 10) / 10).replace('.', ',') : String(Math.round(hours)));
 
-function formatRange(length: GamePlayLength): string {
-  const low = length.lowHours ?? length.typicalHours ?? length.completeHours;
-  const high = length.typicalHours && length.lowHours ? length.typicalHours : null;
-  if (!low) return '';
-  return high && formatDuration(high) !== formatDuration(low) ? `${formatDuration(low)} a ${formatDuration(high)} horas` : `${formatDuration(low)} horas`;
+const formatSpan = (low: number, high: number) =>
+  formatDuration(low) === formatDuration(high) ? `${formatDuration(low)} horas` : `${formatDuration(low)} a ${formatDuration(high)} horas`;
+
+function formatPlayLength(length: GamePlayLength): string {
+  if (length.openEnded) return 'Sem fim definido';
+  // Dados fracos: só a faixa do que existe, sem dizer qual número é campanha
+  if (isWeakPlayLength(length)) {
+    const times = [length.lowHours, length.typicalHours, length.completeHours].filter((h): h is number => !!h);
+    return times.length ? `Cerca de ${formatSpan(Math.min(...times), Math.max(...times))}` : '';
+  }
+  const { lowHours: low, typicalHours: typical, completeHours: complete } = length;
+  if (low && typical) return formatSpan(low, typical);
+  if (low || typical) return formatSpan((low ?? typical)!, (low ?? typical)!);
+  return complete ? `100% em ${formatDuration(complete)} horas` : '';
 }
+
+const submissionsLabel = (count: number) => `${count} ${count === 1 ? 'envio' : 'envios'}`;
 
 function formatLastPlayed(iso?: string): string {
   if (!iso) return 'Nunca';
@@ -230,7 +241,7 @@ export const GamePage: React.FC<GamePageProps> = ({
             className="flex items-center gap-2.5"
             title={
               playLength.source === 'igdb'
-                ? `Média de ${playLength.sampleSize} ${playLength.sampleSize === 1 ? 'envio' : 'envios'} de jogadores no IGDB.com, para ${playLength.matchedName ?? game.title}.`
+                ? `Média de ${submissionsLabel(playLength.sampleSize)} de jogadores no IGDB.com, para ${playLength.matchedName ?? game.title}.`
                 : `Estimativa com as horas de ${playLength.sampleSize} reviews positivas recentes na Steam. Não é o tempo oficial de campanha.`
             }
           >
@@ -238,7 +249,7 @@ export const GamePage: React.FC<GamePageProps> = ({
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{playLength.source === 'igdb' ? 'Tempo para zerar' : 'Duração típica'}</p>
               <p className="text-xs text-slate-300">
-                {playLength.openEnded ? 'Sem fim definido' : formatRange(playLength)}
+                {formatPlayLength(playLength)}
               </p>
             </div>
           </div>
@@ -415,6 +426,7 @@ export const GamePage: React.FC<GamePageProps> = ({
                 </div>
               )}
               {playLength?.source === 'igdb' &&
+                hasConsistentTimes(playLength) &&
                 [
                   { label: 'Campanha', hours: playLength.lowHours },
                   { label: 'Com extras', hours: playLength.typicalHours },
@@ -433,7 +445,12 @@ export const GamePage: React.FC<GamePageProps> = ({
                 <dd className="text-slate-300">{game.createdAt ? new Date(game.createdAt).toLocaleDateString('pt-BR') : '—'}</dd>
               </div>
             </dl>
-            {playLength?.source === 'igdb' && <p className="mt-2 text-[11px] text-slate-500">Tempos de jogo: dados do IGDB.com</p>}
+            {playLength?.source === 'igdb' && (
+              <p className="mt-2 text-[11px] text-slate-500">
+                {isWeakPlayLength(playLength) ? 'Poucos dados: ' : ''}
+                média de {submissionsLabel(playLength.sampleSize)} no IGDB.com
+              </p>
+            )}
             <button
               onClick={onOpenSaves}
               className={`mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 ${focusRing}`}
