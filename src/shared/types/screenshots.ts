@@ -3,6 +3,14 @@
 // 'custom': imagens anexadas pelo usuário no Lazulium
 export type ScreenshotSource = 'steam' | 'gamebar' | 'custom';
 
+// Captura salva no jogo errado (ex: Spacewar, usado para abrir jogos fora da Steam).
+// Só muda onde ela aparece: o arquivo continua na pasta de origem.
+export interface ScreenshotMove {
+  id: string;
+  fromGameId: string;               // Jogo que a encontra no disco
+  toGameId: string;
+}
+
 export interface GameScreenshots {
   gameId: string;
   title: string;

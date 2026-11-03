@@ -1,4 +1,5 @@
-import { EmulatorConfig, Game, GameLog, GamePlatform, PlaytimeSession, GamePlayLength } from './game';
+import { EmulatorConfig, Game, GameLog, GamePlatform, GameSearchResult, PlaytimeSession, GamePlayLength } from './game';
+import { GameList, GameListInput } from './lists';
 import { Achievement, GameAchievements } from './achievements';
 import { AccountService, AccountsStatus, SteamLocalAccount } from './accounts';
 import { GameScreenshots, Screenshot } from './screenshots';
@@ -19,6 +20,7 @@ export interface JournalEntryInput {
   manualPlatform?: string;
   totalPlaytimeSeconds: number;
   log: GameLog;
+  coverUrl?: string;                // Capa do catálogo, quando escolhido de lá
 }
 
 export interface ScanResult {
@@ -118,6 +120,10 @@ export interface ElectronAPI {
   getPlaytimeSessions: (gameId: string) => Promise<PlaytimeSession[]>;
   setGameLog: (gameId: string, log: GameLog) => Promise<Game>;
   addJournalEntry: (entry: JournalEntryInput) => Promise<Game>;
+  searchGameCatalog: (query: string) => Promise<GameSearchResult[]>;
+  getGameLists: () => Promise<GameList[]>;
+  saveGameList: (input: GameListInput) => Promise<GameList>;
+  deleteGameList: (id: string) => Promise<void>;
   exportJournal: () => Promise<string | null>;                 // Caminho salvo (null se cancelado)
   setPlaytime: (gameId: string, totalSeconds: number, lastPlayedOn?: string) => Promise<Game>;   // Ajuste manual (não-Steam)
   onGameStatusChanged: (callback: (status: GameLaunchStatus) => void) => () => void;
@@ -155,6 +161,7 @@ export interface ElectronAPI {
   deleteScreenshot: (gameId: string, screenshotId: string) => Promise<void>;
   listScreenshotsByGame: () => Promise<GameScreenshots[]>;
   showScreenshotInFolder: (gameId: string, screenshotId: string) => Promise<void>;
+  moveScreenshots: (fromGameId: string, screenshotIds: string[], toGameId: string) => Promise<void>;
 
   // Perfil do jogador
   getPlayerProfile: () => Promise<PlayerProfile>;

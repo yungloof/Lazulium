@@ -1,5 +1,5 @@
 // Intermediário entre o Lazulium e o IGDB. A credencial da Twitch fica só aqui: o app nunca a vê.
-// Só responde "quanto tempo leva este jogo": não aceita consulta livre, então a URL pública não serve para mais nada.
+// Só responde "quanto tempo leva este jogo" e "quais jogos têm esse nome": não aceita consulta livre, então a URL pública não serve para mais nada.
 
 const IGDB_BASE = 'https://api.igdb.com/v4';
 const TOKEN_URL = 'https://id.twitch.tv/oauth2/token';
@@ -10,6 +10,9 @@ const FOUND_TTL_SECONDS = 30 * 24 * 60 * 60;
 const NOT_FOUND_TTL_SECONDS = 7 * 24 * 60 * 60;
 const MAX_TITLE_LENGTH = 120;
 const MAX_CANDIDATES = 10;
+const MAX_SEARCH_RESULTS = 12;
+const MIN_SEARCH_LENGTH = 2;
+const COVER_URL = (imageId) => `https://images.igdb.com/igdb/image/upload/t_cover_big/${imageId}.jpg`;
 const RETRY_DELAY_MS = 300;
 
 class UpstreamError extends Error {}
@@ -103,6 +106,18 @@ async function lookupByTitle(env, title, state) {
   return toResult(entries[0], candidates.find((g) => g.id === entries[0].game_id)?.name ?? title);
 }
 
+async function searchGames(env, query, state) {
+  const games = await igdb(env, 'games', `search "${query}"; fields name,first_release_date,cover.image_id; where version_parent = null; limit ${MAX_SEARCH_RESULTS};`, state);
+  const results = games
+    .filter((g) => g.name)
+    .map((g) => ({
+      name: g.name,
+      year: g.first_release_date ? new Date(g.first_release_date * 1000).getUTCFullYear() : undefined,
+      coverUrl: g.cover?.image_id ? COVER_URL(g.cover.image_id) : undefined
+    }));
+  return { found: results.length > 0, results };
+}
+
 async function cached(env, key, load) {
   const hit = await env.IGDB_CACHE.get(key, 'json');
   if (hit) return hit;
@@ -112,12 +127,38 @@ async function cached(env, key, load) {
   return result;
 }
 
+async function isRateLimited(request, env) {
+  if (!env.RATE_LIMITER) return false;
+  const { success } = await env.RATE_LIMITER.limit({ key: request.headers.get('CF-Connecting-IP') ?? 'unknown' });
+  return !success;
+}
+
+function upstreamFailure(err) {
+  // Falha temporária nunca vai para o cache: a próxima tentativa consulta de novo
+  console.error(err instanceof UpstreamError ? err.message : 'Erro inesperado', err instanceof UpstreamError ? '' : err);
+  return json({ error: 'upstream_unavailable' }, 503);
+}
+
+async function handleSearch(url, request, env) {
+  const raw = url.searchParams.get('q') ?? '';
+  const query = cleanTitle(raw);
+  if (raw.length > MAX_TITLE_LENGTH || query.length < MIN_SEARCH_LENGTH) return json({ error: 'invalid_query' }, 400);
+  if (await isRateLimited(request, env)) return json({ error: 'rate_limited' }, 429);
+  try {
+    return json(await cached(env, `search:v1:${normalizeTitle(query)}`, () => searchGames(env, query, {})));
+  } catch (err) {
+    return upstreamFailure(err);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname !== '/v1/time-to-beat') return json({ error: 'not_found' }, 404);
+    const isSearch = url.pathname === '/v1/search';
+    if (!isSearch && url.pathname !== '/v1/time-to-beat') return json({ error: 'not_found' }, 404);
     if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
     if (!env.TWITCH_CLIENT_ID || !env.TWITCH_CLIENT_SECRET || !env.IGDB_CACHE) return json({ error: 'not_configured' }, 503);
+    if (isSearch) return handleSearch(url, request, env);
 
     const appId = url.searchParams.get('steamAppId');
     const rawTitle = url.searchParams.get('title');
@@ -126,10 +167,7 @@ export default {
     if (rawTitle !== null && (rawTitle.length > MAX_TITLE_LENGTH || !title)) return json({ error: 'invalid_title' }, 400);
     if (appId === null && !title) return json({ error: 'missing_query' }, 400);
 
-    if (env.RATE_LIMITER) {
-      const { success } = await env.RATE_LIMITER.limit({ key: request.headers.get('CF-Connecting-IP') ?? 'unknown' });
-      if (!success) return json({ error: 'rate_limited' }, 429);
-    }
+    if (await isRateLimited(request, env)) return json({ error: 'rate_limited' }, 429);
 
     const state = {};
     try {
@@ -139,9 +177,7 @@ export default {
       }
       return json(await cached(env, `ttb:v1:title:${normalizeTitle(title)}`, () => lookupByTitle(env, title, state)));
     } catch (err) {
-      // Falha temporária nunca vai para o cache: a próxima tentativa consulta de novo
-      console.error(err instanceof UpstreamError ? err.message : 'Erro inesperado', err instanceof UpstreamError ? '' : err);
-      return json({ error: 'upstream_unavailable' }, 503);
+      return upstreamFailure(err);
     }
   }
 };

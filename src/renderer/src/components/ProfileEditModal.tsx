@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowDown, ArrowUp, Check, ImagePlus, Loader2, Search, X } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Check, ChevronDown, ImagePlus, Loader2, Search, X } from 'lucide-react';
 import { PlayerProfile, ProfileBackgroundMode, ProfileCustom, ProfileMediaKind, ProfileSectionId } from '@shared/types/profile';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
+import { Select } from './Select';
 
 interface ProfileEditModalProps {
   profile: PlayerProfile;
@@ -13,12 +14,15 @@ interface ProfileEditModalProps {
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 const inputClass = `w-full px-3 py-2 text-sm bg-slate-900/80 border border-slate-800 rounded-lg text-slate-100 placeholder-slate-600 ${focusRing}`;
 const labelClass = 'block text-xs font-semibold text-slate-300 mb-1.5';
+const selectClass = `${inputClass} flex items-center justify-between gap-2 text-left hover:border-slate-600`;
 const MAX_FEATURED = 12;
 
 export const SECTION_LABEL: Record<ProfileSectionId, string> = {
   artwork: 'Arte em destaque',
-  activity: 'Atividade recente',
   featured: 'Jogos em destaque',
+  reviews: 'Resenhas',
+  lists: 'Listas',
+  activity: 'Atividade recente',
   achievements: 'Vitrine de conquistas',
   screenshots: 'Capturas',
   mostPlayed: 'Mais jogados'
@@ -163,21 +167,32 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
 
           <div className="space-y-2">
             <label className={labelClass} htmlFor="profile-background">Fundo</label>
-            <select id="profile-background" value={backgroundMode} onChange={(e) => update({ backgroundMode: e.target.value as ProfileBackgroundMode })} className={inputClass}>
-              {steam?.background && <option value="steam">O mesmo da Steam</option>}
-              <option value="game">Arte de um jogo</option>
-              <option value="file">Imagem ou vídeo meu</option>
-              <option value="none">Sem fundo</option>
-            </select>
+            <Select
+              id="profile-background"
+              value={backgroundMode}
+              onChange={(mode: ProfileBackgroundMode) => update({ backgroundMode: mode })}
+              options={[
+                ...(steam?.background ? [{ value: 'steam' as ProfileBackgroundMode, label: 'O mesmo da Steam' }] : []),
+                { value: 'game' as ProfileBackgroundMode, label: 'Arte de um jogo' },
+                { value: 'file' as ProfileBackgroundMode, label: 'Imagem ou vídeo meu' },
+                { value: 'none' as ProfileBackgroundMode, label: 'Sem fundo' }
+              ]}
+              className={selectClass}
+            >
+              {{ steam: 'O mesmo da Steam', game: 'Arte de um jogo', file: 'Imagem ou vídeo meu', none: 'Sem fundo' }[backgroundMode]}
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </Select>
             {backgroundMode === 'game' && (
-              <select aria-label="Jogo do fundo" value={form.bannerGameId ?? ''} onChange={(e) => update({ bannerGameId: e.target.value || undefined })} className={inputClass}>
-                <option value="">Automático (jogo mais recente)</option>
-                {banners.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.title}
-                  </option>
-                ))}
-              </select>
+              <Select
+                ariaLabel="Jogo do fundo"
+                value={form.bannerGameId ?? ''}
+                onChange={(id) => update({ bannerGameId: id || undefined })}
+                options={[{ value: '', label: 'Automático (jogo mais recente)' }, ...banners.map((g) => ({ value: g.id, label: g.title }))]}
+                className={selectClass}
+              >
+                <span className="truncate">{banners.find((g) => g.id === form.bannerGameId)?.title ?? 'Automático (jogo mais recente)'}</span>
+                <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
+              </Select>
             )}
             {backgroundMode === 'file' && (
               <div className="flex items-center gap-3">

@@ -29,6 +29,12 @@ export const IPC_CHANNELS = {
   GAME_SET_LOG: 'game:set-log',
   JOURNAL_ADD_ENTRY: 'journal:add-entry',
   JOURNAL_EXPORT: 'journal:export',
+  JOURNAL_SEARCH_CATALOG: 'journal:search-catalog',
+
+  // Listas
+  LISTS_GET: 'lists:get',
+  LISTS_SAVE: 'lists:save',
+  LISTS_DELETE: 'lists:delete',
 
   // SteamGridDB & Media Metadata
   METADATA_FETCH_ASSETS: 'metadata:fetch-assets',
@@ -63,6 +69,7 @@ export const IPC_CHANNELS = {
   SCREENSHOTS_DELETE: 'screenshots:delete',
   SCREENSHOTS_BY_GAME: 'screenshots:by-game',
   SCREENSHOTS_SHOW_IN_FOLDER: 'screenshots:show-in-folder',
+  SCREENSHOTS_MOVE: 'screenshots:move',
 
   // Perfil do jogador
   PROFILE_GET: 'profile:get',

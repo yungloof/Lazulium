@@ -11,6 +11,8 @@ import { ScreenshotsPanel } from './components/ScreenshotsPanel';
 import { ProfilePage } from './components/ProfilePage';
 import { JournalPage } from './components/JournalPage';
 import { GalleryPage } from './components/GalleryPage';
+import { ListsPage } from './components/ListsPage';
+import { AddToListModal } from './components/AddToListModal';
 import { WelcomeModal } from './components/WelcomeModal';
 import { PlaytimeEditor } from './components/PlaytimeEditor';
 import { LibraryFilter, LibrarySidebar } from './components/LibrarySidebar';
@@ -38,7 +40,7 @@ const FILTERS: { id: LibraryFilter; label: string }[] = [
   { id: 'standalone', label: 'Outros PC' }
 ];
 
-const SECTIONS = ['home', 'journal', 'gallery', 'profile'] as const;
+const SECTIONS = ['home', 'journal', 'lists', 'gallery', 'profile'] as const;
 const GAME_UPDATE_BATCH_MS = 120;
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 const toolbarButton = `flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 rounded-lg text-slate-200 transition-colors disabled:opacity-50 ${focusRing}`;
@@ -60,7 +62,9 @@ export const App: React.FC = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
   // Navegação estilo Steam: início da biblioteca ou a página de um jogo
-  const [view, setView] = useState<'home' | 'game' | 'profile' | 'journal' | 'gallery'>('home');
+  const [view, setView] = useState<'home' | 'game' | 'profile' | 'journal' | 'gallery' | 'lists'>('home');
+  const [openListId, setOpenListId] = useState<string | undefined>();
+  const [addToListGame, setAddToListGame] = useState<Game | null>(null);
   const [screenshotStartId, setScreenshotStartId] = useState<string | undefined>();
   const [showRemoved, setShowRemoved] = useState(() => {
     try {
@@ -295,6 +299,7 @@ export const App: React.FC = () => {
     showAddGameModal ||
     showPlaytimeEditor ||
     showWelcome ||
+    !!addToListGame ||
     !!contextMenu;
 
   const stepFilter = (step: number) => {
@@ -422,6 +427,7 @@ export const App: React.FC = () => {
           {[
             { label: 'Biblioteca', active: view === 'home' || view === 'game', onClick: goHome },
             { label: 'Diário', active: view === 'journal', onClick: () => setView('journal') },
+            { label: 'Listas', active: view === 'lists', onClick: () => { setOpenListId(undefined); setView('lists'); } },
             { label: 'Capturas', active: view === 'gallery', onClick: () => setView('gallery') },
             { label: 'Perfil', active: view === 'profile', onClick: openProfile }
           ].map((tab) => (
@@ -539,6 +545,8 @@ export const App: React.FC = () => {
                 setShowScreenshots(true);
               }}
             />
+          ) : view === 'lists' ? (
+            <ListsPage openListId={openListId} onOpenList={setOpenListId} onOpenGame={openGame} />
           ) : view === 'journal' ? (
             <JournalPage
               onOpenGame={openGame}
@@ -554,6 +562,10 @@ export const App: React.FC = () => {
                 const game = games.find((g) => g.id === id);
                 if (game) openGame(game);
               }}
+              onOpenList={(id) => {
+                setOpenListId(id);
+                setView('lists');
+              }}
             />
           ) : view === 'game' && selectedGame ? (
             <GamePage
@@ -568,6 +580,7 @@ export const App: React.FC = () => {
               onOpenArtwork={() => setShowArtworkPicker(true)}
               onEditPlaytime={() => setShowPlaytimeEditor(true)}
               onOpenFolder={() => handleOpenFolder(selectedGame)}
+              onAddToList={() => setAddToListGame(selectedGame)}
             />
           ) : (
             <LibraryHome
@@ -648,6 +661,8 @@ export const App: React.FC = () => {
         />
       )}
 
+      {addToListGame && <AddToListModal game={addToListGame} onClose={() => setAddToListGame(null)} />}
+
       {contextMenu && (
         <GameContextMenu
           game={contextMenu.game}
@@ -658,6 +673,7 @@ export const App: React.FC = () => {
           onStop={(g) => window.electronAPI?.stopGame(g.id)}
           onOpenPage={openGame}
           onOpenFolder={handleOpenFolder}
+          onAddToList={setAddToListGame}
           onToggleFavorite={handleToggleFavorite}
           onOpenArtwork={(g) => {
             setSelectedGame(g);

@@ -4,6 +4,7 @@ import { existsSync } from 'fs';
 import { copyFile, mkdir, readdir, readFile, stat } from 'fs/promises';
 import { basename, dirname, extname, join } from 'path';
 import { Game } from '@shared/types/game';
+import { db } from '../../database/db';
 import { GameScreenshots, Screenshot } from '@shared/types/screenshots';
 import { findSteamPath } from '../scanners/steam-scanner.service';
 import { STEAM_GRID_HOST, readSteamShortcuts } from '../scanners/steam-shortcuts';
@@ -127,8 +128,8 @@ async function customScreenshots(game: Game): Promise<Screenshot[]> {
 }
 
 class ScreenshotsService {
-  // Fontes isoladas: falha em uma não esconde as outras. Mais recentes primeiro.
-  async list(game: Game): Promise<Screenshot[]> {
+  // Fontes isoladas: falha em uma não esconde as outras
+  private async findOnDisk(game: Game): Promise<Screenshot[]> {
     const sources = [steamScreenshots, gameBarScreenshots, customScreenshots];
     const results: Screenshot[] = [];
     for (const source of sources) {
@@ -138,12 +139,43 @@ class ScreenshotsService {
         console.warn(`[Screenshots] ${game.title}: ${(err as Error).message}`);
       }
     }
+    return results;
+  }
+
+  // As do disco menos as que foram para outro jogo, mais as que vieram de outro. Mais recentes primeiro.
+  async list(game: Game): Promise<Screenshot[]> {
+    const moves = db.getScreenshotMoves();
+    const movedAway = new Set(moves.filter((m) => m.fromGameId === game.id).map((m) => m.id));
+    const results = (await this.findOnDisk(game)).filter((s) => !movedAway.has(s.id));
+    const incoming = moves.filter((m) => m.toGameId === game.id);
+    for (const fromGameId of new Set(incoming.map((m) => m.fromGameId))) {
+      const from = db.getGameById(fromGameId);
+      if (!from) continue;
+      const ids = new Set(incoming.filter((m) => m.fromGameId === fromGameId).map((m) => m.id));
+      results.push(...(await this.findOnDisk(from)).filter((s) => ids.has(s.id)));
+    }
     return results.sort((a, b) => b.takenAt.localeCompare(a.takenAt));
+  }
+
+  // Mover de volta para o jogo de origem desfaz a mudança
+  async move(from: Game, ids: string[], to: Game): Promise<void> {
+    const available = new Set((await this.list(from)).map((s) => s.id));
+    const moves = db.getScreenshotMoves();
+    const next = moves.filter((m) => !(ids.includes(m.id) && m.toGameId === from.id));
+    for (const id of ids) {
+      if (!available.has(id)) throw new Error('Essa captura não existe mais: abra a galeria de novo.');
+      const origin = moves.find((m) => m.id === id && m.toGameId === from.id)?.fromGameId ?? from.id;
+      if (origin !== to.id) next.push({ id, fromGameId: origin, toGameId: to.id });
+    }
+    db.setScreenshotMoves(next);
   }
 
   // Caminho real de uma captura já listada para este jogo (o renderer só conhece o id)
   async resolvePath(game: Game, id: string): Promise<string | null> {
-    const shot = (await this.list(game)).find((s) => s.id === id);
+    const moved = db.getScreenshotMoves().find((m) => m.id === id && m.toGameId === game.id);
+    const owner = moved ? db.getGameById(moved.fromGameId) : game;
+    if (!owner) return null;
+    const shot = (await this.findOnDisk(owner)).find((s) => s.id === id);
     if (!shot) return null;
     const [source, rest] = [shot.source, id.slice(id.indexOf(':') + 1)];
     if (source === 'steam') {
@@ -151,7 +183,7 @@ class ScreenshotsService {
       return userdata ? join(userdata, ...rest.split('/')) : null;
     }
     if (source === 'gamebar') return join(app.getPath('videos'), 'Captures', rest);
-    return join(customRoot(), gameDirName(game.id), rest);
+    return join(customRoot(), gameDirName(owner.id), rest);
   }
 
   async importFiles(game: Game, paths: string[]): Promise<number> {
@@ -182,6 +214,8 @@ class ScreenshotsService {
       const thumb = join(dirname(path), 'thumbnails', basename(path));
       if (existsSync(thumb)) await shell.trashItem(thumb).catch(() => undefined);
     }
+    const moves = db.getScreenshotMoves();
+    if (moves.some((m) => m.id === id)) db.setScreenshotMoves(moves.filter((m) => m.id !== id));
   }
 
   // Uma entrada por jogo com capturas, do jogo com a captura mais nova para o mais antigo

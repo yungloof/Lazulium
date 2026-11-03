@@ -25,8 +25,25 @@ import { steamProfileService } from './steam-profile.service';
 const MAX_ACHIEVEMENT_CHOICES = 300;
 const MAX_FEATURED_GAMES = 12;
 const MAX_FEATURED_ACHIEVEMENTS = 12;
-const SECTION_IDS: ProfileSectionId[] = ['artwork', 'activity', 'featured', 'achievements', 'screenshots', 'mostPlayed'];
-const SECTIONS_VERSION = 2;             // 2: seção da arte em destaque
+const SECTION_IDS: ProfileSectionId[] = ['artwork', 'activity', 'featured', 'reviews', 'lists', 'achievements', 'screenshots', 'mostPlayed'];
+const SECTIONS_VERSION = 3;             // 2: seção da arte em destaque; 3: resenhas e listas
+const ACTIVITY_DAYS = 100;
+const AUTO_SYNC_SETTING = 'achievementsAutoSyncAt';
+const AUTO_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+// Seções novas entram em perfis salvos antes delas; o editor pode tirar
+function withNewSections(sections: ProfileSectionId[], version: number): ProfileSectionId[] {
+  let next = sections;
+  if (version < 2) next = ['artwork', ...next.filter((s) => s !== 'artwork')];
+  if (version < 3) {
+    const added = (['reviews', 'lists'] as ProfileSectionId[]).filter((s) => !next.includes(s));
+    const after = next.indexOf('featured') + 1;
+    next = [...next.slice(0, after), ...added, ...next.slice(after)];
+  }
+  return next;
+}
+
+const localDayKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const MAX_BACKGROUND_VIDEO_BYTES = 200 * 1024 * 1024;
 const LOCAL_PROFILE_MEDIA = /^lazulium-media:\/\/profile\/(avatar|background|artwork)-[a-z0-9]+\.(png|jpe?g|webp|gif|webm|mp4)$/;
 const VIDEO_FILE = /\.(webm|mp4)$/i;
@@ -167,13 +184,26 @@ class ProfileService {
       }
     }
 
+    const activityByDay: Record<string, number> = {};
+    const activityStart = Date.now() - ACTIVITY_DAYS * 24 * 60 * 60 * 1000;
+    const countActivity = (iso?: string) => {
+      const date = iso ? new Date(iso) : null;
+      if (!date || date.getTime() < activityStart) return;
+      const key = localDayKey(date);
+      activityByDay[key] = (activityByDay[key] ?? 0) + 1;
+    };
+    for (const game of games) {
+      for (const session of db.getPlaytimeSessions(game.id)) countActivity(session.startedAt);
+    }
+    unlocked.forEach((a) => countActivity(a.unlockedAt));
+    screenshots.forEach((s) => countActivity(s.takenAt));
+
     const displayName =
       settings.steamPersonaName || steamIdentity?.personaName || settings.retroAchievementsUser || 'Jogador';
 
     const saved = db.getProfileCustom();
-    // Perfil salvo antes da arte em destaque existir: ela entra no topo, e o editor pode tirar
     const custom: ProfileCustom =
-      saved.sections && (saved.sectionsVersion ?? 1) < SECTIONS_VERSION ? { ...saved, sections: ['artwork', ...saved.sections.filter((s) => s !== 'artwork')] } : saved;
+      saved.sections && (saved.sectionsVersion ?? 1) < SECTIONS_VERSION ? { ...saved, sections: withNewSections(saved.sections, saved.sectionsVersion ?? 1) } : saved;
     const byId = new Map(games.map((g) => [g.id, g]));
     const choicesByKey = new Map(choices.map((c) => [c.key, c]));
     const bannerGame = custom.bannerGameId ? byId.get(custom.bannerGameId) : undefined;
@@ -198,6 +228,7 @@ class ProfileService {
         .sort((a, b) => (a.globalPercent ?? 101) - (b.globalPercent ?? 101))
         .slice(0, MAX_ACHIEVEMENT_CHOICES),
       steamLevel: steamId ? playerLevel : undefined,
+      activityByDay,
       recentPlaytimeSeconds:
         steamIdentity?.recentHours !== undefined
           ? steamIdentity.recentHours * 3600 + games.filter((g) => g.platform !== 'steam').reduce((sum, g) => sum + this.trackedSeconds(g, since), 0)
@@ -280,6 +311,19 @@ class ProfileService {
     }
   }
 
+  // Mantém conquistas e jogos 100% em dia sem depender do botão Atualizar
+  syncInBackground(): void {
+    achievementsService.applyPerfectGames();
+    const last = Number(db.getSettings()[AUTO_SYNC_SETTING] ?? 0);
+    if (Date.now() - last < AUTO_SYNC_INTERVAL_MS) return;
+    this.syncAllAchievements()
+      .then((result) => {
+        if (result.failed === 0) db.setSetting(AUTO_SYNC_SETTING, String(Date.now()));
+        console.log(`[Conquistas] Atualização automática: ${result.synced} jogos, ${result.failed} falhas`);
+      })
+      .catch((err) => console.warn(`[Conquistas] Atualização automática falhou: ${(err as Error).message}`));
+  }
+
   // Busca conquistas de todos os jogos já jogados (respeita o cache de 6h de cada jogo)
   async syncAllAchievements(): Promise<AchievementsSyncResult> {
     if (this.syncingPromise) return this.syncingPromise;
@@ -347,6 +391,7 @@ class ProfileService {
         badges: steam?.badges
       },
       achievementChoices: [],
+      activityByDay: {},
       featuredGames: profile.featuredGames.map(mapGame),
       featuredAchievements: profile.featuredAchievements.map((a) => ({ ...a, iconUrl: publicUrl(a.iconUrl) ?? '' })),
       recentGames: profile.recentGames.map(mapGame),

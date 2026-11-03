@@ -141,7 +141,7 @@ export const YearReviewModal: React.FC<YearReviewModalProps> = ({ onClose, onSel
                   <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">Zerados</h3>
                   <ul>
                     {review.finishedGames.map((g) => (
-                      <GameRow key={g.id} game={g} detail={g.rating ? `Nota ${g.rating} de 5` : 'Sem nota'} onSelect={() => onSelectGame(g.id)} />
+                      <GameRow key={g.id} game={g} detail={g.rating ? `Nota ${String(g.rating).replace('.', ',')} de 5` : 'Sem nota'} onSelect={() => onSelectGame(g.id)} />
                     ))}
                   </ul>
                 </section>

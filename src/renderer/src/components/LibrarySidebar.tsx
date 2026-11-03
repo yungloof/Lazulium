@@ -1,3 +1,4 @@
+import { Select } from './Select';
 import React, { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Gamepad2, Home, Search, Star } from 'lucide-react';
 import { Game, GamePlatform } from '@shared/types/game';
@@ -215,18 +216,16 @@ export const LibrarySidebar: React.FC<LibrarySidebarProps> = ({
         >
           <Home className="w-3.5 h-3.5" /> Início da biblioteca
         </button>
-        <select
+        <Select
           value={activeFilter}
-          onChange={(e) => onFilterChange(e.target.value as LibraryFilter)}
-          className="w-full px-2.5 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-md text-slate-200 focus:outline-none focus:border-indigo-500"
-          aria-label="Filtrar por plataforma"
+          options={filters.map((f) => ({ value: f.id, label: f.label }))}
+          onChange={onFilterChange}
+          ariaLabel="Filtrar por plataforma"
+          className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-md text-slate-200 hover:border-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
         >
-          {filters.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.label}
-            </option>
-          ))}
-        </select>
+          {filters.find((f) => f.id === activeFilter)?.label}
+          <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+        </Select>
         <label className="flex items-center gap-2 px-0.5 text-[11px] text-slate-400 cursor-pointer select-none">
           <input
             type="checkbox"

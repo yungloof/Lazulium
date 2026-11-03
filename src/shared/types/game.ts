@@ -28,7 +28,7 @@ export type GameLogStatus = 'backlog' | 'playing' | 'paused' | 'finished' | 'com
 // Registro pessoal do jogador: nunca é alterado por scans
 export interface GameLog {
   status?: GameLogStatus;
-  rating?: number;                  // 1 a 5 estrelas
+  rating?: number;                  // 0,5 a 5 estrelas, de meia em meia
   startedOn?: string;               // AAAA-MM-DD
   finishedOn?: string;              // AAAA-MM-DD
   review?: string;                  // Resenha / o que achou
@@ -58,6 +58,7 @@ export interface Game {
   manualEntry?: boolean;            // Registrado à mão no Diário (ex: jogo de console); não é iniciado pelo app
   manualPlatform?: string;          // Onde jogou, em texto livre (ex: PS5, Switch)
   log?: GameLog;
+  autoCompletedAt?: string;         // Já marcado como 100% pelas conquistas: se o jogador mudar depois, não insiste
   opensViaLauncher?: boolean;       // executablePath é só um lançador (Riot Client, Xbox): rastreia pela pasta do jogo
 
   // Específico para emuladores
@@ -108,6 +109,15 @@ export function hasConsistentTimes(length: GamePlayLength): boolean {
 // Média do IGDB com poucos envios ou contraditória: serve de noção, não de número exato
 export function isWeakPlayLength(length: GamePlayLength): boolean {
   return length.source === 'igdb' && (length.sampleSize < MIN_RELIABLE_SUBMISSIONS || !hasConsistentTimes(length));
+}
+
+// Resultado do catálogo ao registrar um jogo (IGDB e loja da Steam)
+export interface GameSearchResult {
+  source: 'igdb' | 'steam';
+  name: string;
+  year?: number;
+  coverUrl?: string;
+  thumbUrl?: string;                // Imagem menor para a lista, quando a fonte tem
 }
 
 export interface CachedPlayLength {

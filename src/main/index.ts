@@ -1,3 +1,4 @@
+import { profileService } from './services/profile/profile.service';
 import { app, BrowserWindow, session } from 'electron';
 import { registerIpcHandlers } from './ipc';
 import { db } from './database/db';
@@ -85,6 +86,7 @@ if (!app.requestSingleInstanceLock()) {
           for (const game of result.games) getMainWindow()?.webContents.send(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
           // Jogos novos sem capa (ex: Riot, Xbox) buscam artes no SteamGridDB em segundo plano
           artworkService.enqueueMissing();
+          profileService.syncInBackground();
           artworkService.enqueueMissing(repairedArtwork);
         })
         .catch((err) => console.warn('[Startup] Sincronização da Steam falhou:', (err as Error).message));

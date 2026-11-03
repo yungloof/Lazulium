@@ -5,6 +5,8 @@ import { CachedPlayLength, EmulatorConfig, EmulatorType, Game, PlaytimeSession }
 import { Achievement, AchievementSource, GameAchievements } from '@shared/types/achievements';
 import { BackupRecord, GameSaveConfig } from '@shared/types/cloudsync';
 import { ProfileCustom, SteamProfileIdentity } from '@shared/types/profile';
+import { GameList } from '@shared/types/lists';
+import { ScreenshotMove } from '@shared/types/screenshots';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
 
 const BACKUPS_DIR = 'backups';
@@ -78,6 +80,8 @@ export interface DatabaseSchema {
   profileCustom?: ProfileCustom;
   steamProfileCache?: SteamProfileIdentity;
   playLengthCache?: Record<string, CachedPlayLength>;
+  gameLists?: GameList[];
+  screenshotMoves?: ScreenshotMove[];
   profileWeb?: { repoUrl: string; lastPublishedAt?: string };
   settings: Record<string, string>;
 }
@@ -426,6 +430,30 @@ class DatabaseService {
   }
 
   // Emulator Configs (sempre retorna um item por perfil conhecido)
+  getGameLists(): GameList[] {
+    return this.data.gameLists ?? [];
+  }
+
+  saveGameList(list: GameList): void {
+    const others = this.getGameLists().filter((l) => l.id !== list.id);
+    this.data.gameLists = [list, ...others];
+    this.persist();
+  }
+
+  deleteGameList(id: string): void {
+    this.data.gameLists = this.getGameLists().filter((l) => l.id !== id);
+    this.persist();
+  }
+
+  getScreenshotMoves(): ScreenshotMove[] {
+    return this.data.screenshotMoves ?? [];
+  }
+
+  setScreenshotMoves(moves: ScreenshotMove[]): void {
+    this.data.screenshotMoves = moves;
+    this.persist();
+  }
+
   getPlayLength(gameId: string): CachedPlayLength | undefined {
     return this.data.playLengthCache?.[gameId];
   }

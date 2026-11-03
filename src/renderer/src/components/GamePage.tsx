@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Camera, Clock, FolderOpen, Hourglass, Image as ImageIcon, Info, Pencil, Save, Star, Trophy, BarChart2, CalendarClock } from 'lucide-react';
+import { Camera, Clock, FolderOpen, ListPlus, Hourglass, Image as ImageIcon, Info, Pencil, Save, Star, Trophy, BarChart2, CalendarClock } from 'lucide-react';
 import { Game, GamePlayLength, hasConsistentTimes, isWeakPlayLength } from '@shared/types/game';
 import { hasRetroAchievements } from '@shared/constants/emulators';
 import { GameAchievements } from '@shared/types/achievements';
@@ -21,6 +21,7 @@ interface GamePageProps {
   onOpenArtwork: () => void;
   onEditPlaytime: () => void;
   onOpenFolder: () => void;
+  onAddToList: () => void;
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
@@ -103,7 +104,8 @@ export const GamePage: React.FC<GamePageProps> = ({
   onOpenSaves,
   onOpenArtwork,
   onEditPlaytime,
-  onOpenFolder
+  onOpenFolder,
+  onAddToList
 }) => {
   const [heroFailed, setHeroFailed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
@@ -283,6 +285,7 @@ export const GamePage: React.FC<GamePageProps> = ({
         <div className="ml-auto flex items-center gap-1.5">
           {[
             ...(game.manualEntry || game.isInstalled === false ? [] : [{ label: 'Abrir pasta do jogo', icon: <FolderOpen className="w-4 h-4" />, onClick: onOpenFolder }]),
+            { label: 'Adicionar à lista', icon: <ListPlus className="w-4 h-4" />, onClick: onAddToList },
             { label: 'Capturas', icon: <Camera className="w-4 h-4" />, onClick: onOpenScreenshots },
             { label: 'Backup de saves', icon: <Save className="w-4 h-4" />, onClick: onOpenSaves },
             { label: 'Trocar artes', icon: <ImageIcon className="w-4 h-4" />, onClick: onOpenArtwork }

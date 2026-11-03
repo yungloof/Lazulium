@@ -25,6 +25,10 @@ import { applyLoginItem, markRendererReady, notify } from '../app-shell';
 import { accountsService } from '../services/accounts/accounts.service';
 import { screenshotsService } from '../services/metadata/screenshots.service';
 import { profileService } from '../services/profile/profile.service';
+import { saveGameList } from '../services/profile/lists.service';
+import { searchGameCatalog } from '../services/metadata/game-search.service';
+import { achievementsService as achievementsForListener } from '../services/achievements/achievements.service';
+import { GameListInput } from '@shared/types/lists';
 import { buildYearReview } from '../services/profile/year-review.service';
 import { profileWebService } from '../services/profile/profile-web.service';
 import { AccountService } from '@shared/types/accounts';
@@ -54,6 +58,9 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     } else if (event.state === 'error') {
       notify(`Backup de ${title} falhou`, event.message ?? 'Erro desconhecido.');
     }
+  });
+  achievementsForListener.setGameUpdatedListener((game) => {
+    getMainWindow()?.webContents.send(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
   });
   artworkService.setGameUpdatedListener((game) => {
     getMainWindow()?.webContents.send(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
@@ -195,6 +202,11 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     return game;
   });
 
+  ipcMain.handle(IPC_CHANNELS.JOURNAL_SEARCH_CATALOG, async (_event, query: string) => searchGameCatalog(query));
+  ipcMain.handle(IPC_CHANNELS.LISTS_GET, async () => db.getGameLists());
+  ipcMain.handle(IPC_CHANNELS.LISTS_SAVE, async (_event, input: GameListInput) => saveGameList(input));
+  ipcMain.handle(IPC_CHANNELS.LISTS_DELETE, async (_event, id: string) => db.deleteGameList(id));
+
   ipcMain.handle(IPC_CHANNELS.JOURNAL_EXPORT, async () => {
     const win = getMainWindow();
     const options: Electron.SaveDialogOptions = {
@@ -332,6 +344,10 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
 
   ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_BY_GAME, async () => {
     return screenshotsService.listByGame(db.getGames().filter((g) => !g.isHidden));
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_MOVE, async (_event, fromGameId: string, screenshotIds: string[], toGameId: string) => {
+    await screenshotsService.move(requireGame(fromGameId), screenshotIds, requireGame(toGameId));
   });
 
   ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_SHOW_IN_FOLDER, async (_event, gameId: string, screenshotId: string) => {

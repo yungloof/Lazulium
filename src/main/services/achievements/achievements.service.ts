@@ -3,10 +3,28 @@ import { GameAchievements } from '@shared/types/achievements';
 import { ApiKeyTestResult } from '@shared/types/ipc';
 import { steamAchievementsService } from './steam-achievements.service';
 import { retroAchievementsService } from './retroachievements.service';
+import { Game } from '@shared/types/game';
+import { markPerfectGame } from '../profile/journal.service';
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas de validade de cache
 
 export class AchievementsService {
+  private onGameUpdated?: (game: Game) => void;
+
+  setGameUpdatedListener(listener: (game: Game) => void): void {
+    this.onGameUpdated = listener;
+  }
+
+  // Conquistas já guardadas também contam: quem fez 100% antes desta função existir não fica de fora
+  applyPerfectGames(): void {
+    for (const game of db.getGames()) this.notePerfect(db.getGameAchievements(game.id));
+  }
+
+  private notePerfect(data: GameAchievements | null): void {
+    const updated = data && markPerfectGame(data);
+    if (updated) this.onGameUpdated?.(updated);
+  }
+
   /**
    * Obtém as conquistas de um jogo usando cache local ou buscando na API correspondente.
    * @param gameId ID do jogo no Lazulium
@@ -62,6 +80,7 @@ export class AchievementsService {
 
     // Persiste no banco de dados para caching local
     db.saveGameAchievements(result);
+    this.notePerfect(result);
 
     return result;
   }

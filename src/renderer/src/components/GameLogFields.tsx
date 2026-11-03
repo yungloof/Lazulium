@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronDown, Star } from 'lucide-react';
 import { GameLogStatus } from '@shared/types/game';
+import { Select, SelectOption } from './Select';
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 
@@ -36,35 +37,51 @@ export const StatusPicker: React.FC<{ value?: GameLogStatus; onChange: (status: 
   </div>
 );
 
-// Versão compacta para listas: parece um selo, e por baixo é um select, que funciona com teclado e controle
+const STATUS_OPTIONS: SelectOption<GameLogStatus | ''>[] = [{ value: '', label: 'Sem status' }, ...LOG_STATUS.map((s) => ({ value: s.id, label: s.label, dot: s.dot }))];
+
+// Versão compacta para listas: parece um selo e abre o menu do app
 export const StatusPill: React.FC<{ value?: GameLogStatus; onChange: (status: GameLogStatus | undefined) => void }> = ({ value, onChange }) => {
   const current = LOG_STATUS.find((s) => s.id === value);
   return (
-    <span
-      onClick={(e) => e.stopPropagation()}
-      className={`relative inline-flex items-center gap-1.5 pl-2.5 pr-2 py-1 rounded-full border text-xs focus-within:ring-2 focus-within:ring-indigo-400 ${current ? current.active : 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500'}`}
+    <Select
+      value={value ?? ''}
+      options={STATUS_OPTIONS}
+      onChange={(next) => onChange(next || undefined)}
+      ariaLabel="Status do jogo"
+      className={`inline-flex items-center gap-1.5 pl-2.5 pr-2 py-1 rounded-full border text-xs transition-colors ${focusRing} ${current ? current.active : 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500'}`}
     >
       {current && <span className={`w-1.5 h-1.5 rounded-full ${current.dot}`} />}
       {current?.label ?? 'Sem status'}
       <ChevronDown className="w-3 h-3 opacity-70" />
-      <select
-        value={value ?? ''}
-        onChange={(e) => onChange((e.target.value || undefined) as GameLogStatus | undefined)}
-        aria-label="Status do jogo"
-        className="absolute inset-0 w-full opacity-0 cursor-pointer focus:outline-none"
-      >
-        <option value="">Sem status</option>
-        {LOG_STATUS.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.label}
-          </option>
-        ))}
-      </select>
-    </span>
+    </Select>
   );
 };
 
-// Clicar na nota atual remove a avaliação
+const StarIcon: React.FC<{ fill: number; size: string; emptyClass?: string }> = ({ fill, size, emptyClass = 'text-slate-600' }) => (
+  <span className={`relative inline-block ${size}`}>
+    <Star className={`absolute inset-0 ${size} ${emptyClass}`} />
+    {fill > 0 && (
+      <span className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+        <Star className={`${size} text-amber-400 fill-amber-400`} />
+      </span>
+    )}
+  </span>
+);
+
+const starFill = (value: number | undefined, star: number) => (!value ? 0 : value >= star ? 1 : value >= star - 0.5 ? 0.5 : 0);
+
+// Nota só para mostrar, com meia estrela
+export const Stars: React.FC<{ value: number; size?: string }> = ({ value, size = 'w-3.5 h-3.5' }) => (
+  <span className="inline-flex items-center gap-px" aria-label={`${String(value).replace('.', ',')} de 5 estrelas`} title={`${String(value).replace('.', ',')} de 5`}>
+    {[1, 2, 3, 4, 5].map((n) => (
+      <StarIcon key={n} fill={starFill(value, n)} size={size} />
+    ))}
+  </span>
+);
+
+// Clicar na mesma estrela tira meia estrela e, depois, a nota: funciona igual no mouse e no controle
+const nextRating = (value: number | undefined, star: number) => (value === star ? star - 0.5 : value === star - 0.5 ? undefined : star);
+
 export const StarRating: React.FC<{ value?: number; onChange: (rating: number | undefined) => void; size?: string; showLabel?: boolean }> = ({
   value,
   onChange,
@@ -79,16 +96,16 @@ export const StarRating: React.FC<{ value?: number; onChange: (rating: number | 
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onChange(value === n ? undefined : n);
+            onChange(nextRating(value, n));
           }}
           aria-label={`${n} de 5 estrelas`}
-          aria-pressed={value === n}
+          aria-pressed={!!value && Math.ceil(value) === n}
           className={`rounded-sm p-0.5 ${focusRing}`}
         >
-          <Star className={`${size} transition-colors ${value && n <= value ? 'text-amber-400 fill-amber-400' : 'text-slate-600 hover:text-slate-400'}`} />
+          <StarIcon fill={starFill(value, n)} size={size} emptyClass="text-slate-600 hover:text-slate-400 transition-colors" />
         </button>
       ))}
     </span>
-    {showLabel && <span className="text-[13px] text-slate-400">{value ? RATING_LABEL[value] : 'Sem nota'}</span>}
+    {showLabel && <span className="text-[13px] text-slate-400">{value ? `${String(value).replace('.', ',')} · ${RATING_LABEL[Math.ceil(value)]}` : 'Sem nota'}</span>}
   </span>
 );

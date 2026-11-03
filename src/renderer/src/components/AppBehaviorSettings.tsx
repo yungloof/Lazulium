@@ -1,3 +1,4 @@
+import { Select } from './Select';
 import React, { useEffect, useState } from 'react';
 import { MonitorDown } from 'lucide-react';
 
@@ -100,16 +101,17 @@ export const AppBehaviorSettings: React.FC = () => {
         {discountIdle && (
           <div className="ml-7 flex items-center gap-2 text-xs text-slate-400">
             <span>Considerar ausente após:</span>
-            <select
+            <Select
               value={idleThreshold}
-              onChange={(e) => handleIdleThresholdChange(e.target.value)}
-              className={`px-2.5 py-1 text-xs bg-slate-900 border border-slate-700 rounded-lg text-slate-200 ${focusRing}`}
-            >
-              <option value="10">10 minutos</option>
-              <option value="15">15 minutos (padrão)</option>
-              <option value="30">30 minutos</option>
-              <option value="0">Desligado</option>
-            </select>
+              onChange={handleIdleThresholdChange}
+              ariaLabel="Considerar ausente após"
+              options={[
+                { value: '10', label: '10 minutos' },
+                { value: '15', label: '15 minutos (padrão)' },
+                { value: '30', label: '30 minutos' },
+                { value: '0', label: 'Desligado' }
+              ]}
+            />
           </div>
         )}
       </div>

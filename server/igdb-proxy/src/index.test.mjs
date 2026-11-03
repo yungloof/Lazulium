@@ -250,3 +250,43 @@ test('Limpeza de título', () => {
   assert.equal(normalizeTitle('The Legend of Zelda: OCARINA OF TIME'), normalizeTitle('The Legend of Zelda: Ocarina of Time'));
   assert.equal(normalizeTitle('Pokémon Sword'), normalizeTitle('Pokemon Sword'));
 });
+
+const search = async (env, query) => {
+  const res = await worker.fetch(new Request(`https://proxy.test/v1/search?${query}`), env);
+  const text = await res.text();
+  assert.ok(!text.includes(SECRET), 'o segredo vazou na resposta');
+  return { status: res.status, body: JSON.parse(text) };
+};
+
+test('Busca devolve nome, ano e capa', async (t) => {
+  const s = setup(() => ok([{ id: 1, name: 'God of War', first_release_date: 1523577600, cover: { id: 9, image_id: 'abc' } }, { id: 2, name: 'God of War II' }]));
+  t.after(s.restore);
+  const { status, body } = await search(s.env, 'q=god%20of%20war');
+  assert.equal(status, 200);
+  assert.deepEqual(body.results[0], { name: 'God of War', year: 2018, coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/abc.jpg' });
+  assert.equal(body.results[1].name, 'God of War II');
+});
+
+test('Busca hostil não altera a consulta do IGDB', async (t) => {
+  const s = setup(() => ok([]));
+  t.after(s.restore);
+  await search(s.env, `q=${encodeURIComponent('x"; fields *; limit 500; "')}`);
+  assert.equal(s.calls.igdb[0].body.match(/"/g).length, 2);
+  assert.ok(s.calls.igdb[0].body.includes('limit 12;'));
+  assert.ok(!s.calls.igdb[0].body.includes('limit 500;'));
+});
+
+test('Busca curta ou longa demais nem chega ao IGDB', async (t) => {
+  const s = setup(() => assert.fail('não devia consultar'));
+  t.after(s.restore);
+  assert.equal((await search(s.env, 'q=a')).status, 400);
+  assert.equal((await search(s.env, `q=${'a'.repeat(121)}`)).status, 400);
+  assert.equal((await search(s.env, '')).status, 400);
+});
+
+test('Falha do IGDB na busca não entra no cache', async (t) => {
+  const s = setup(() => new Response('{}', { status: 500 }));
+  t.after(s.restore);
+  assert.equal((await search(s.env, 'q=zelda')).status, 503);
+  assert.ok(![...s.kv.store.keys()].some((k) => k.startsWith('search:')));
+});

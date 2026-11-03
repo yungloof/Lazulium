@@ -1,7 +1,7 @@
 // Navegação espacial do controle e das setas: anda pelo que está na tela, em qualquer página ou janela aberta
 export type NavDirection = 'up' | 'down' | 'left' | 'right';
 
-const FOCUSABLE = 'button, a[href], input:not([type="hidden"]), select, textarea, [tabindex="0"]';
+const FOCUSABLE = 'button, a[href], input:not([type="hidden"]), textarea, [tabindex="0"]';
 const OVERLAY = '.fixed.inset-0, [data-nav-scope]';
 const OVERLAP_TOLERANCE = 12;       // A capa focada cresce um pouco e encosta na vizinha
 const CROSS_AXIS_WEIGHT = 3;        // Prefere o que está alinhado a o que está só mais perto
@@ -58,13 +58,6 @@ function currentElement(scope: HTMLElement): HTMLElement | null {
   return active instanceof HTMLElement && active !== document.body && scope.contains(active) && isNavigable(active) ? active : null;
 }
 
-function stepSelect(select: HTMLSelectElement, step: number): void {
-  const next = Math.min(select.options.length - 1, Math.max(0, select.selectedIndex + step));
-  if (next === select.selectedIndex) return;
-  select.selectedIndex = next;
-  select.dispatchEvent(new Event('change', { bubbles: true }));
-}
-
 function scrollNearest(from: HTMLElement, direction: NavDirection): void {
   for (let el: HTMLElement | null = from; el; el = el.parentElement) {
     if (el.scrollHeight > el.clientHeight && /auto|scroll/.test(getComputedStyle(el).overflowY)) {
@@ -80,11 +73,6 @@ export function moveFocus(direction: NavDirection): boolean {
   const scope = topOverlay() ?? document.body;
   const current = currentElement(scope);
   if (!current) return focusStart();
-
-  if (current instanceof HTMLSelectElement && (direction === 'left' || direction === 'right')) {
-    stepSelect(current, direction === 'right' ? 1 : -1);
-    return true;
-  }
 
   const from = current.getBoundingClientRect();
   const horizontal = direction === 'left' || direction === 'right';
@@ -125,7 +113,7 @@ export function activateFocused(): void {
     focusStart();
     return;
   }
-  if (current instanceof HTMLSelectElement || current instanceof HTMLTextAreaElement) return;
+  if (current instanceof HTMLTextAreaElement) return;
   if (current instanceof HTMLInputElement && !['checkbox', 'radio', 'button', 'submit'].includes(current.type)) return;
   current.click();
 }

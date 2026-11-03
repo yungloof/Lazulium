@@ -6,6 +6,8 @@ import { isSteamPlaceholderTitle } from '../scanners/steam-names.service';
 const IGDB_PROXY_URL = 'https://lazulium-igdb.yungloof.workers.dev';
 const IGDB_TIMEOUT_MS = 8_000;
 
+export const igdbProxyUrl = () => process.env.LAZULIUM_IGDB_PROXY_URL ?? IGDB_PROXY_URL;
+
 // O Steam não publica "tempo para zerar", mas cada review traz as horas do autor. Entre quem recomenda o jogo,
 // o quartil de baixo costuma ficar perto da campanha, e a mediana, perto da campanha com extras.
 const REVIEW_ENDPOINTS = ['appreviews', 'ajaxappreviews'];
@@ -46,7 +48,7 @@ const toHours = (seconds: unknown) => (typeof seconds === 'number' && Number.isF
 const steamAppId = (game: Game) => (game.platform === 'steam' ? game.platformGameId : undefined);
 
 async function queryIgdb(game: Game): Promise<IgdbResult> {
-  const base = process.env.LAZULIUM_IGDB_PROXY_URL ?? IGDB_PROXY_URL;
+  const base = igdbProxyUrl();
   if (!base) return { kind: 'unavailable' };
 
   const params = new URLSearchParams();

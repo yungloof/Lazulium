@@ -32,7 +32,7 @@ export interface ProfileScreenshot {
   takenAt: string;
 }
 
-export type ProfileSectionId = 'artwork' | 'featured' | 'achievements' | 'activity' | 'screenshots' | 'mostPlayed';
+export type ProfileSectionId = 'artwork' | 'featured' | 'reviews' | 'lists' | 'achievements' | 'activity' | 'screenshots' | 'mostPlayed';
 
 export type ProfileBackgroundMode = 'steam' | 'game' | 'file' | 'none';
 export type ProfileMediaKind = 'avatar' | 'background' | 'artwork';
@@ -141,6 +141,7 @@ export interface PlayerProfile {
   featuredGames: ProfileGame[];
   featuredAchievements: ProfileUnlockedAchievement[];
   achievementChoices: ProfileUnlockedAchievement[]; // Mais raras primeiro, para o editor
+  activityByDay: Record<string, number>; // AAAA-MM-DD -> sessões, conquistas e capturas do dia
   recentPlaytimeSeconds: number;    // Últimas 2 semanas: total da Steam + sessões de jogos fora dela
   recentGames: ProfileGame[];       // Jogados nas últimas 2 semanas
   recentAchievements: (Omit<ProfileAchievement, 'globalPercent'> & { globalPercent?: number })[];

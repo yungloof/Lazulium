@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, ChevronLeft, ChevronRight, FolderOpen, ImagePlus, Loader2, Trash2, X, AlertTriangle } from 'lucide-react';
+import { ArrowRightLeft, Camera, Check, ChevronLeft, ChevronRight, FolderOpen, ImagePlus, ListChecks, Loader2, Trash2, X, AlertTriangle } from 'lucide-react';
+import { GamePickerModal } from './GamePickerModal';
 import { Game } from '@shared/types/game';
 import { Screenshot, ScreenshotSource } from '@shared/types/screenshots';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
@@ -31,6 +32,9 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
   const initialIdRef = useRef(initialScreenshotId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [moving, setMoving] = useState<string[] | null>(null);
   // Ref: o pai pode passar uma função nova a cada render sem recarregar a lista
   const onChangedRef = useRef(onChanged);
   onChangedRef.current = onChanged;
@@ -105,6 +109,32 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
     }
   };
 
+  const stopSelecting = () => {
+    setSelecting(false);
+    setSelected(new Set());
+  };
+
+  const toggleSelected = (id: string) =>
+    setSelected((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const handleMove = async (target: Game) => {
+    if (!moving) return;
+    setError(null);
+    try {
+      await window.electronAPI?.moveScreenshots(game.id, moving, target.id);
+      stopSelecting();
+      setViewing((v) => (v === null || shots.length <= moving.length ? null : Math.min(v, shots.length - moving.length - 1)));
+      await load();
+    } catch (err) {
+      setError(ipcErrorMessage(err));
+    }
+  };
+
   const current = viewing !== null ? shots[viewing] : null;
 
   return (
@@ -118,7 +148,26 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
             <Camera className="w-4 h-4 text-indigo-400 flex-shrink-0" /> Capturas · {game.title}
             {!loading && <span className="text-slate-500 font-normal">({shots.length})</span>}
           </h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {selecting ? (
+              <>
+                <button onClick={() => setSelected(selected.size === shots.length ? new Set() : new Set(shots.map((s) => s.id)))} className={`px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+                  {selected.size === shots.length ? 'Desmarcar todas' : 'Marcar todas'}
+                </button>
+                <button onClick={() => setMoving([...selected])} disabled={selected.size === 0} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 ${focusRing}`}>
+                  <ArrowRightLeft className="w-3.5 h-3.5" /> Mover {selected.size || ''} para outro jogo
+                </button>
+                <button onClick={stopSelecting} className={`px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              shots.length > 0 && (
+                <button onClick={() => setSelecting(true)} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+                  <ListChecks className="w-3.5 h-3.5" /> Selecionar
+                </button>
+              )
+            )}
             <button onClick={handleImport} disabled={busy} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 ${focusRing}`}>
               {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
               Anexar imagens
@@ -153,12 +202,14 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
               {shots.map((shot, index) => (
                 <button
                   key={shot.id}
-                  onClick={() => setViewing(index)}
-                  className={`group relative aspect-video rounded-lg overflow-hidden bg-slate-900 border border-slate-800 hover:border-indigo-400 transition-colors ${focusRing}`}
+                  onClick={() => (selecting ? toggleSelected(shot.id) : setViewing(index))}
+                  aria-pressed={selecting ? selected.has(shot.id) : undefined}
+                  className={`group relative aspect-video rounded-lg overflow-hidden bg-slate-900 border transition-colors ${selected.has(shot.id) ? 'border-indigo-400 ring-2 ring-indigo-400' : 'border-slate-800 hover:border-indigo-400'} ${focusRing}`}
                   title={`${SOURCE_LABEL[shot.source]} · ${formatDate(shot.takenAt)}`}
                 >
                   <img src={shot.thumbUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
                   <span className="absolute bottom-1 left-1 px-1.5 rounded bg-black/70 text-[9px] text-slate-300">{formatDate(shot.takenAt)}</span>
+                  {selected.has(shot.id) && <Check className="absolute top-1.5 right-1.5 w-5 h-5 p-0.5 rounded-md bg-indigo-500 text-white" />}
                 </button>
               ))}
             </div>
@@ -175,6 +226,9 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
             <div className="flex items-center gap-2">
               <button onClick={() => window.electronAPI?.showScreenshotInFolder(game.id, current.id)} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 ${focusRing}`}>
                 <FolderOpen className="w-3.5 h-3.5" /> Mostrar na pasta
+              </button>
+              <button onClick={() => setMoving([current.id])} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 ${focusRing}`}>
+                <ArrowRightLeft className="w-3.5 h-3.5" /> Mover para outro jogo
               </button>
               {confirmDeleteId === current.id ? (
                 <>
@@ -218,6 +272,16 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
             )}
           </div>
         </div>
+      )}
+
+      {moving && (
+        <GamePickerModal
+          title={moving.length === 1 ? 'Mover captura para' : `Mover ${moving.length} capturas para`}
+          hint="Só muda onde ela aparece no Lazulium: o arquivo continua na pasta da Steam."
+          excludeIds={[game.id]}
+          onPick={handleMove}
+          onClose={() => setMoving(null)}
+        />
       )}
     </div>
   );

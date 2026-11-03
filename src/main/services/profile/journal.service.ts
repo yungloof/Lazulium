@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { Game, GameLog, GameLogStatus } from '@shared/types/game';
+import { GameAchievements } from '@shared/types/achievements';
 import { JournalEntryInput } from '@shared/types/ipc';
 import { db } from '../../database/db';
 
@@ -8,6 +9,7 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_TEXT_LENGTH = 200_000;
 const MAX_TITLE_LENGTH = 200;
 const MAX_PLAYTIME_SECONDS = 100_000 * 3600;
+const CATALOG_COVER = /^https:\/\/(images\.igdb\.com|cdn\.cloudflare\.steamstatic\.com)\//;
 
 const STATUS_LABEL: Record<GameLogStatus, string> = {
   backlog: 'Quero jogar',
@@ -24,12 +26,28 @@ function sanitizeLog(log: GameLog): GameLog {
   const rating = Number(log.rating);
   return {
     status: log.status && STATUS_VALUES.includes(log.status) ? log.status : undefined,
-    rating: Number.isInteger(rating) && rating >= 1 && rating <= 5 ? rating : undefined,
+    rating: Number.isInteger(rating * 2) && rating >= 0.5 && rating <= 5 ? rating : undefined,
     startedOn: date(log.startedOn),
     finishedOn: date(log.finishedOn),
     review: log.review?.trim().slice(0, MAX_TEXT_LENGTH) || undefined,
     notes: log.notes?.trim().slice(0, MAX_TEXT_LENGTH) || undefined
   };
+}
+
+// Todas as conquistas = 100%, com a data da última. Vale uma vez: se o jogador mudar depois, a escolha dele fica.
+export function markPerfectGame(data: GameAchievements): Game | null {
+  if (data.total === 0 || data.unlocked < data.total) return null;
+  const game = db.getGameById(data.gameId);
+  if (!game || game.autoCompletedAt) return null;
+  const lastUnlock = data.items.map((a) => a.unlockedAt).filter((d): d is string => !!d).sort().pop();
+  const updated: Game = {
+    ...game,
+    autoCompletedAt: new Date().toISOString(),
+    log: { ...game.log, status: game.log?.status === 'dropped' ? 'dropped' : 'completed', finishedOn: game.log?.finishedOn ?? lastUnlock?.slice(0, 10) }
+  };
+  db.upsertGame(updated);
+  console.log(`[Diário] ${game.title}: marcado como 100% pelas conquistas`);
+  return updated;
 }
 
 export function setGameLog(gameId: string, log: GameLog): Game {
@@ -78,7 +96,7 @@ export function addJournalEntry(entry: JournalEntryInput): Game {
     manualPlatform: entry.manualPlatform?.trim().slice(0, 60) || undefined,
     isInstalled: false,
     log: sanitizeLog(entry.log ?? {}),
-    media: {},
+    media: entry.coverUrl && CATALOG_COVER.test(entry.coverUrl) ? { coverUrl: entry.coverUrl } : {},
     isFavorite: false,
     isHidden: false,
     tags: [],

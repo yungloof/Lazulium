@@ -1,3 +1,4 @@
+import { GameListInput } from '../shared/types/lists';
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { ElectronAPI, JournalEntryInput, FetchAssetsOptions, GameLaunchStatus, MediaAssetType, TrayAction } from '@shared/types/ipc';
@@ -36,6 +37,10 @@ const electronAPI: ElectronAPI = {
   setGameLog: (gameId: string, log: GameLog) => ipcRenderer.invoke(IPC_CHANNELS.GAME_SET_LOG, gameId, log),
   addJournalEntry: (entry: JournalEntryInput) => ipcRenderer.invoke(IPC_CHANNELS.JOURNAL_ADD_ENTRY, entry),
   exportJournal: () => ipcRenderer.invoke(IPC_CHANNELS.JOURNAL_EXPORT),
+  searchGameCatalog: (query: string) => ipcRenderer.invoke(IPC_CHANNELS.JOURNAL_SEARCH_CATALOG, query),
+  getGameLists: () => ipcRenderer.invoke(IPC_CHANNELS.LISTS_GET),
+  saveGameList: (input: GameListInput) => ipcRenderer.invoke(IPC_CHANNELS.LISTS_SAVE, input),
+  deleteGameList: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.LISTS_DELETE, id),
   setPlaytime: (gameId: string, totalSeconds: number, lastPlayedOn?: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.GAME_SET_PLAYTIME, gameId, totalSeconds, lastPlayedOn),
   onGameStatusChanged: (callback: (status: GameLaunchStatus) => void) => {
@@ -94,6 +99,8 @@ const electronAPI: ElectronAPI = {
   listScreenshotsByGame: () => ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_BY_GAME),
   showScreenshotInFolder: (gameId: string, screenshotId: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_SHOW_IN_FOLDER, gameId, screenshotId),
+  moveScreenshots: (fromGameId: string, screenshotIds: string[], toGameId: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_MOVE, fromGameId, screenshotIds, toGameId),
 
   // Perfil do jogador
   getPlayerProfile: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_GET),

@@ -146,8 +146,6 @@ export function useGamepad(options: UseGamepadOptions) {
       }
 
       if (ARROWS[e.key] && !e.altKey) {
-        // Na lista de opções as setas continuam trocando o valor
-        if (target?.tagName === 'SELECT') return;
         e.preventDefault();
         move(ARROWS[e.key]);
         return;
@@ -156,7 +154,7 @@ export function useGamepad(options: UseGamepadOptions) {
       switch (e.key) {
         case 'Enter':
           // Botões já respondem ao Enter sozinhos
-          if (target?.tagName === 'BUTTON' || target?.tagName === 'A' || target?.tagName === 'SELECT') return;
+          if (target?.tagName === 'BUTTON' || target?.tagName === 'A') return;
           e.preventDefault();
           navAudio.playSelect();
           activateFocused();
