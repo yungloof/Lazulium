@@ -11,7 +11,9 @@ const REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 // drive.file: o app só enxerga os arquivos que ele mesmo criou
-const SCOPES = 'openid email https://www.googleapis.com/auth/drive.file';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const SCOPES = `openid email ${DRIVE_SCOPE}`;
+const NO_DRIVE_PERMISSION = 'O Google não liberou o acesso ao Drive. Clique em "Entrar com Google" de novo e, na tela do Google, marque a caixa de permissão do Google Drive.';
 const FOLDER_NAME = 'Lazulium Backups';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 const AUTH_TIMEOUT_MS = 5 * 60_000;
@@ -48,6 +50,7 @@ interface TokenResponse {
   expires_in: number;
   refresh_token?: string;
   id_token?: string;
+  scope?: string;
 }
 
 const base64url = (buf: Buffer) => buf.toString('base64url');
@@ -122,6 +125,8 @@ class GoogleDriveService {
       code_verifier: verifier
     });
     if (!tokens.refresh_token) throw new DriveError('O Google não devolveu um refresh token. Tente conectar novamente.');
+    // A tela do Google deixa desmarcar a permissão: sem ela o login entra, mas nenhum envio funciona
+    if (!tokens.scope?.split(' ').includes(DRIVE_SCOPE)) throw new DriveError(NO_DRIVE_PERMISSION, 403);
 
     this.accessToken = { value: tokens.access_token, expiresAt: Date.now() + tokens.expires_in * 1000 };
     db.setSetting(DRIVE_SETTING_KEYS.refreshToken, tokens.refresh_token);
@@ -254,6 +259,14 @@ class GoogleDriveService {
     if (res.status === 401) res = await send(await this.getAccessToken(true));
     if (!res.ok) {
       const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+      // Conta conectada sem a permissão: desconecta para o app oferecer o login em vez de seguir tentando
+      if (res.status === 403 && /insufficient authentication scopes/i.test(body?.error?.message ?? '')) {
+        this.accessToken = undefined;
+        db.setSetting(DRIVE_SETTING_KEYS.refreshToken, '');
+        db.setSetting(DRIVE_SETTING_KEYS.email, '');
+        console.warn('[GoogleDrive] Conta sem permissão do Drive: desconectada até entrar de novo');
+        throw new DriveError(NO_DRIVE_PERMISSION, 403);
+      }
       throw new DriveError(`Google Drive: ${body?.error?.message || `HTTP ${res.status}`}`, res.status);
     }
     return res;

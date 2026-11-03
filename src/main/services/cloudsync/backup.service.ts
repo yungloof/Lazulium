@@ -184,7 +184,7 @@ class BackupService {
           if (record.driveFileId) sent++;
         });
         // Continua sem conexão: tenta de novo numa próxima oportunidade
-        if (record.driveError?.startsWith('Sem conexão')) break;
+        if (record.driveError?.startsWith('Sem conexão') || !googleDriveService.isConnected()) break;
       }
     } finally {
       this.retrying = false;
