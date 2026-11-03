@@ -1,4 +1,4 @@
-import { EmulatorConfig, Game, GameLog, GamePlatform, PlaytimeSession } from './game';
+import { EmulatorConfig, Game, GameLog, GamePlatform, PlaytimeSession, GamePlayLength } from './game';
 import { Achievement, GameAchievements } from './achievements';
 import { AccountService, AccountsStatus, SteamLocalAccount } from './accounts';
 import { GameScreenshots, Screenshot } from './screenshots';
@@ -114,6 +114,7 @@ export interface ElectronAPI {
   launchGame: (gameId: string) => Promise<boolean>;
   stopGame: (gameId: string) => Promise<boolean>;
   openGameFolder: (gameId: string) => Promise<void>;
+  getGamePlayLength: (gameId: string) => Promise<GamePlayLength | null>;
   getPlaytimeSessions: (gameId: string) => Promise<PlaytimeSession[]>;
   setGameLog: (gameId: string, log: GameLog) => Promise<Game>;
   addJournalEntry: (entry: JournalEntryInput) => Promise<Game>;

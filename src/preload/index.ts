@@ -31,6 +31,7 @@ const electronAPI: ElectronAPI = {
   launchGame: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_LAUNCH, gameId),
   stopGame: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_STOP, gameId),
   openGameFolder: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_OPEN_FOLDER, gameId),
+  getGamePlayLength: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_GET_PLAY_LENGTH, gameId),
   getPlaytimeSessions: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_GET_PLAYTIME_SESSIONS, gameId),
   setGameLog: (gameId: string, log: GameLog) => ipcRenderer.invoke(IPC_CHANNELS.GAME_SET_LOG, gameId, log),
   addJournalEntry: (entry: JournalEntryInput) => ipcRenderer.invoke(IPC_CHANNELS.JOURNAL_ADD_ENTRY, entry),

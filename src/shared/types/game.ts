@@ -86,6 +86,15 @@ export interface Game {
   isRunning?: boolean;
 }
 
+// Estimativa pelas horas de quem recomenda o jogo na Steam (não é o tempo oficial de campanha)
+export interface GamePlayLength {
+  lowHours: number;                 // Quartil de baixo: perto da campanha
+  typicalHours: number;             // Mediana: perto da campanha com extras
+  openEnded: boolean;               // Multiplayer ou sem fim: as horas variam demais
+  sampleSize: number;
+  fetchedAt: number;
+}
+
 export interface PlaytimeSession {
   id: string;
   gameId: string;

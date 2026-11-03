@@ -22,6 +22,7 @@ export const IPC_CHANNELS = {
   GAME_LAUNCH: 'game:launch',
   GAME_STOP: 'game:stop',
   GAME_OPEN_FOLDER: 'game:open-folder',
+  GAME_GET_PLAY_LENGTH: 'game:get-play-length',
   GAME_STATUS_CHANGED: 'game:status-changed',
   GAME_GET_PLAYTIME_SESSIONS: 'game:get-playtime-sessions',
   GAME_SET_PLAYTIME: 'game:set-playtime',

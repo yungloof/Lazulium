@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Camera, Clock, FolderOpen, Image as ImageIcon, Info, Pencil, Save, Star, Trophy, BarChart2, CalendarClock } from 'lucide-react';
-import { Game } from '@shared/types/game';
+import { Camera, Clock, FolderOpen, Hourglass, Image as ImageIcon, Info, Pencil, Save, Star, Trophy, BarChart2, CalendarClock } from 'lucide-react';
+import { Game, GamePlayLength } from '@shared/types/game';
 import { hasRetroAchievements } from '@shared/constants/emulators';
 import { GameAchievements } from '@shared/types/achievements';
 import { Screenshot } from '@shared/types/screenshots';
@@ -125,6 +125,20 @@ export const GamePage: React.FC<GamePageProps> = ({
     return () => clearInterval(timer);
   }, [isRunning]);
 
+  const [playLength, setPlayLength] = useState<GamePlayLength | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setPlayLength(null);
+    if (game.platform !== 'steam') return;
+    window.electronAPI
+      ?.getGamePlayLength(game.id)
+      .then((length) => !cancelled && setPlayLength(length))
+      .catch(() => undefined); // Dado opcional: sem ele, a página só não mostra
+    return () => {
+      cancelled = true;
+    };
+  }, [game.id, game.platform]);
+
   const runningMinutes = useMemo(() => {
     if (!isRunning) return 0;
     const start = launchStatus?.startTime ? new Date(launchStatus.startTime).getTime() : now;
@@ -202,6 +216,21 @@ export const GamePage: React.FC<GamePageProps> = ({
             <p className="text-xs text-slate-300">{formatHours(game.totalPlaytimeSeconds)}</p>
           </div>
         </button>
+
+        {playLength && (
+          <div
+            className="flex items-center gap-2.5"
+            title={`Estimativa com as horas de ${playLength.sampleSize} reviews positivas recentes na Steam. Não é o tempo oficial de campanha.`}
+          >
+            <Hourglass className="w-5 h-5 text-slate-500" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Duração típica</p>
+              <p className="text-xs text-slate-300">
+                {playLength.openEnded ? 'Sem fim definido' : `${Math.max(1, Math.round(playLength.lowHours))} a ${Math.max(1, Math.round(playLength.typicalHours))} horas`}
+              </p>
+            </div>
+          </div>
+        )}
 
         {supportsAchievements && (
         <button
