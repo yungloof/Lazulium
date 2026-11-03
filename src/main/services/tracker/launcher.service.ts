@@ -12,32 +12,40 @@ export interface LaunchHandle {
 
 // O GOG Galaxy só abre a página do jogo via `goggalaxy://openGameView`, sem iniciar.
 // Como os jogos GOG são DRM-free, o executável direto é a melhor opção.
+// Emuladores e atalhos não-Steam cujo executável já existe no disco também abrem direto,
+// evitando que a Steam intercepte e falhe com "Configuração do jogo indisponível".
 function shouldUseUri(game: Game): boolean {
   if (!game.launchUri) return false;
   if (game.platform === 'gog' && game.executablePath && existsSync(game.executablePath)) return false;
+  if (game.platform === 'emulator' && game.executablePath && existsSync(game.executablePath)) return false;
+  if (game.id.startsWith('steam-shortcut-') && game.executablePath && existsSync(game.executablePath)) return false;
   return true;
+}
+
+function splitArguments(commandLine: string): string[] {
+  if (!commandLine || !commandLine.trim()) return [];
+  const matches = commandLine.match(/(?:[^\s"]+|"[^"]*")+/g);
+  return matches ? matches.map((m) => m.replace(/^"|"$/g, '')) : [];
 }
 
 function spawnDetached(game: Game): Promise<number> {
   const exe = game.executablePath;
-  const args = game.launchArguments?.trim() ?? '';
+  const rawArgs = game.launchArguments?.trim() ?? '';
   const cwd = game.workingDirectory && existsSync(game.workingDirectory) ? game.workingDirectory : dirname(exe);
   const isScript = ['.bat', '.cmd'].includes(extname(exe).toLowerCase());
 
-  // Argumentos são repassados literalmente (já vêm com aspas do scanner/usuário)
+  // Scripts (.bat/.cmd) rodam via cmd.exe. Executáveis normais recebem argumentos separados para evitar corrupção de aspas no Windows.
   const child = isScript
-    ? spawn('cmd.exe', ['/d', '/s', '/c', `""${exe}"${args ? ' ' + args : ''}"`], {
+    ? spawn('cmd.exe', ['/d', '/s', '/c', `""${exe}"${rawArgs ? ' ' + rawArgs : ''}"`], {
         cwd,
         detached: true,
         stdio: 'ignore',
         windowsVerbatimArguments: true
       })
-    : spawn(exe, args ? [args] : [], {
+    : spawn(exe, splitArguments(rawArgs), {
         cwd,
         detached: true,
-        stdio: 'ignore',
-        windowsVerbatimArguments: true,
-        argv0: `"${exe}"`
+        stdio: 'ignore'
       });
 
   return new Promise((resolve, reject) => {
