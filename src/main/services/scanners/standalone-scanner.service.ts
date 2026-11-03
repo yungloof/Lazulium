@@ -1,13 +1,16 @@
 import { existsSync } from 'fs';
-import { readdir, stat } from 'fs/promises';
+import { readFile, readdir, stat } from 'fs/promises';
 import { basename, dirname, join, normalize } from 'path';
 import { createHash } from 'crypto';
+import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
 import { DetectedGame, PlatformScanner, PlatformScanResult } from './scanner.types';
 
 // Pastas que geralmente não são jogos standalone (emuladores, BIOS, ferramentas, etc.)
 const IGNORED_DIRECTORY_PATTERNS = [
   /^(dolphin|ryujinx|cemu|pcsx2|rpcs3|duckstation|retroarch|mgba|melonds|lime3ds|azahar|citra|yuzu|eden|suyu|citron|sudachi|ppsspp|emuhawk|bizhawk)/i,
-  /^(roms|roms\s|.*_bios|_temp|_internal|commonredist|redist|\.git|\$recycle\.bin)/i
+  /^(roms|roms\s|.*_bios|_temp|_internal|commonredist|redist|\.git|\$recycle\.bin)/i,
+  /^(steam|steamlibrary|epic games|gog games|gog galaxy|xboxgames|riot games)$/i,
+  /\b(co-?op|trainer|mods?)\b/i
 ];
 
 // Arquivos executáveis auxiliares que NÃO são o executável do jogo
@@ -24,18 +27,34 @@ const IGNORED_EXECUTABLE_PATTERNS = [
   /^oalinst\w*\.exe$/i,
   /^easyanticheat\w*\.exe$/i,
   /^battleye\w*\.exe$/i,
-  /^7z\w*\.exe$/i
+  /^7z\w*\.exe$/i,
+  /setup|instal|updater/i,
+  /^(gerar|build|compile)/i,
+  /^(ffmpeg|ffplay|ffprobe|cmake)/i
 ];
+
+const EMULATOR_EXECUTABLES = new Set(Object.values(DEFAULT_EMULATOR_PROFILES).flatMap((p) => p.defaultExecutableNames.map((n) => n.toLowerCase())));
+const COMMON_GAME_FOLDERS = ['Games', 'Jogos'];
+
+// Onde quase todo mundo deixa jogo solto, em cada disco: não depende de configurar pasta nenhuma
+export function commonGameFolders(): string[] {
+  const folders: string[] = [];
+  for (let code = 67; code <= 90; code++) {
+    const drive = `${String.fromCharCode(code)}:\\`;
+    if (existsSync(drive)) folders.push(...COMMON_GAME_FOLDERS.map((name) => join(drive, name)));
+  }
+  return folders;
+}
 
 interface ScoredExecutable {
   path: string;
   score: number;
 }
 
-// Limpa o nome da pasta ou usa o nome expressivo do executável
-function formatGameTitle(folderName: string, exePath: string): string {
+// Usa o nome expressivo do executável, quando ele tem um
+function titleFromExecutable(exePath: string): string | null {
   const exeBase = basename(exePath).replace(/\.[^/.]+$/, '').trim();
-  const genericExeNames = new Set(['game', 'launcher', 'app', 'main', 'run', 'start', 'play', 'client', 'shipping', '2ship', 'soh', 'tmc_pc']);
+  const genericExeNames = new Set(['game', 'jogar', 'launcher', 'app', 'main', 'run', 'start', 'play', 'client', 'shipping', '2ship', 'soh', 'tmc_pc']);
   
   // Se o executável tem um nome expressivo e descritivo (ex: "Link's Awakening DX HD" ou "God of War III")
   if (
@@ -50,13 +69,28 @@ function formatGameTitle(folderName: string, exePath: string): string {
       .replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
+  return null;
+}
+
+// Limpa o nome da pasta
+function titleFromFolder(folderName: string): string {
   return folderName
     .replace(/[-_]+/g, ' ')
     .replace(/\s*\[.*?\]\s*/g, '')
     .replace(/\s*\(.*?\)\s*/g, '')
     .replace(/\s*v\d+.*$/i, '')
+    .replace(/\s+(pc|port)$/i, '')
     .trim()
     .replace(/\b\w/g, (c) => c.toUpperCase()) || folderName;
+}
+
+// Port baixado como repositório: o README tem o nome de verdade ("God of War: Ascension — port nativo"), a pasta só abrevia
+async function titleFromReadme(gameDir: string, folderTitle: string): Promise<string | null> {
+  const text = await readFile(join(gameDir, 'README.md'), 'utf-8').catch(() => '');
+  const heading = /^#\s+(.+)$/m.exec(text)?.[1].split(/\s+[—–-]\s+/)[0].trim();
+  if (!heading || heading.length > 60) return null;
+  const words = folderTitle.toLowerCase().split(/\s+/).filter((word) => word.length >= 4);
+  return words.some((word) => heading.toLowerCase().includes(word)) ? heading : null;
 }
 
 // Varre até 2 níveis de profundidade procurando o melhor executável/script
@@ -92,7 +126,7 @@ async function findBestExecutableInGameDir(gameDir: string): Promise<string | nu
         if (ext !== '.exe' && ext !== '.bat' && ext !== '.cmd') continue;
 
         // Ignora desinstaladores e crash handlers
-        if (IGNORED_EXECUTABLE_PATTERNS.some((pattern) => pattern.test(lowerName))) {
+        if (EMULATOR_EXECUTABLES.has(lowerName) || IGNORED_EXECUTABLE_PATTERNS.some((pattern) => pattern.test(lowerName))) {
           continue;
         }
 
@@ -192,7 +226,8 @@ export function createStandaloneScanner(getDirectories: () => string[]): Platfor
 
             if (games.has(id)) continue;
 
-            const title = formatGameTitle(folderName, executablePath);
+            const folderTitle = titleFromFolder(folderName);
+            const title = titleFromExecutable(executablePath) ?? (await titleFromReadme(gameDir, folderTitle)) ?? folderTitle;
             const workingDirectory = normalize(dirname(executablePath));
             const installPath = normalize(gameDir);
 

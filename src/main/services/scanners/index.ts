@@ -8,11 +8,12 @@ import { riotScanner } from './riot-scanner.service';
 import { xboxScanner } from './xbox-scanner.service';
 import { createEmulatorScanner } from './emulator-scanner.service';
 import { detectEmulators } from './emulator-detect.service';
-import { createStandaloneScanner } from './standalone-scanner.service';
+import { commonGameFolders, createStandaloneScanner } from './standalone-scanner.service';
 import { DetectedGame, PlatformScanner } from './scanner.types';
 import { normalizeKey } from '../cloudsync/save-locator.service';
 import { isSteamPlaceholderTitle, steamNamesService } from './steam-names.service';
 import { existsSync } from 'fs';
+import { dirname } from 'path';
 
 const SCANNERS: PlatformScanner[] = [
   steamScanner,
@@ -25,7 +26,7 @@ const SCANNERS: PlatformScanner[] = [
     () => db.getGames().filter((g) => !g.id.startsWith('emu-')),
     () => detectEmulators()
   ),
-  createStandaloneScanner(() => db.getStandaloneDirectories())
+  createStandaloneScanner(() => [...db.getStandaloneDirectories(), ...commonGameFolders()])
 ];
 
 // Combina o que o scanner detectou com o que já existe no banco, preservando
@@ -69,6 +70,23 @@ function scannerOwner(game: Game): GamePlatform | null {
   return game.id.startsWith('steam-') ? 'steam' : game.platform;
 }
 
+const normalizeFolder = (path: string) => path.replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase();
+
+// Pasta que já tem jogo de outra origem (atalho da Steam, Epic, GOG) não vira uma segunda entrada
+function dropCoveredFolders(detected: DetectedGame[]): DetectedGame[] {
+  const isLoose = (game: Pick<Game, 'id'>) => game.id.startsWith('standalone-') || game.id.startsWith('custom-');
+  const owned = [...detected, ...db.getGames()]
+    .filter((game) => !isLoose(game) && game.isInstalled !== false)
+    .flatMap((game) => [game.installPath, game.platform === 'steam' || !game.executablePath ? undefined : dirname(game.executablePath)])
+    .filter((path): path is string => !!path)
+    .map(normalizeFolder);
+  return detected.filter((game) => {
+    if (!game.id.startsWith('standalone-') || !game.installPath) return true;
+    const folder = normalizeFolder(game.installPath);
+    return !owned.some((path) => path === folder || path.startsWith(`${folder}\\`));
+  });
+}
+
 // Scans rodam em fila: o da abertura do app e o do botão "Escanear" (ou o da primeira execução)
 // não disputam o PowerShell/registro nem gravam o banco ao mesmo tempo
 let scanQueue: Promise<unknown> = Promise.resolve();
@@ -82,7 +100,7 @@ export function scanLibraries(platforms?: GamePlatform[]): Promise<ScanResult> {
 async function runScan(platforms?: GamePlatform[]): Promise<ScanResult> {
   const scanners = platforms ? SCANNERS.filter((s) => platforms.includes(s.platform)) : SCANNERS;
   const warnings: string[] = [];
-  const detectedGames: DetectedGame[] = [];
+  let detectedGames: DetectedGame[] = [];
   const completedPlatforms = new Set<GamePlatform>();
   let added = 0;
   let updated = 0;
@@ -100,6 +118,8 @@ async function runScan(platforms?: GamePlatform[]): Promise<ScanResult> {
       warnings.push(message);
     }
   }
+
+  detectedGames = dropCoveredFolders(detectedGames);
 
   // Junta com o banco só depois de todos os scanners (alguns levam segundos): assim artes trocadas,
   // favoritos e sessões registradas durante o scan não são sobrescritos por uma leitura antiga.

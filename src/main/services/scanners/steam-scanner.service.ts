@@ -174,6 +174,11 @@ function emulatorFromShortcut(exe: string, args: string | undefined): Pick<Detec
   return romPath ? { platform: 'emulator', emulatorId: profile.id, romPath } : null;
 }
 
+// O atalho continua na Steam depois que a pasta do jogo é apagada. Só confere caminho de arquivo no disco:
+// atalho pode ser um comando ou endereço, e isso não dá para checar.
+const LOCAL_FILE = /^[a-z]:[\\/].*\.\w+$/i;
+const isMissingFile = (path?: string) => !!path && LOCAL_FILE.test(path) && !existsSync(path);
+
 // Atalhos não-Steam ("Adicionar jogo" na Steam): emuladores, ports e jogos avulsos.
 // Abrem pela Steam (mantém Steam Input/overlay); artes personalizadas da pasta config/grid.
 // No localconfig.vdf a Steam grava as horas deles com o appid como int32 com sinal
@@ -191,11 +196,13 @@ async function scanShortcuts(accountDirs: string[], localStats: Map<string, Stea
       const installPath = s.startDir || (s.exe ? dirname(s.exe) : undefined);
       const stats = localStats.get(String(s.appId | 0)) ?? localStats.get(String(s.appId));
       const launchArguments = [s.exeArgs, s.launchOptions].filter(Boolean).join(' ') || undefined;
+      const emulator = emulatorFromShortcut(s.exe, launchArguments);
       games.set(id, {
         id,
         title: s.name,
         platform: 'standalone',
-        ...emulatorFromShortcut(s.exe, launchArguments),
+        ...emulator,
+        isInstalled: !isMissingFile(s.exe) && !isMissingFile(emulator?.romPath),
         platformGameId: s.gameId,
         executablePath: s.exe,
         launchArguments,
