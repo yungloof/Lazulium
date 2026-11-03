@@ -18,8 +18,8 @@ import { LibraryHome } from './components/LibraryHome';
 import { GamePage } from './components/GamePage';
 import { GameContextMenu } from './components/GameContextMenu';
 import { useLibraryStore } from './stores/useLibraryStore';
-import { useGamepadStore } from './stores/useGamepadStore';
 import { useGamepad } from './hooks/useGamepad';
+import { closeTopOverlay, focusedGameId, focusStart, isNavActive, topOverlay } from './utils/spatialNav';
 import { Game } from '@shared/types/game';
 import { ipcErrorMessage } from './utils/ipcErrorMessage';
 import { GameAchievements } from '@shared/types/achievements';
@@ -38,6 +38,7 @@ const FILTERS: { id: LibraryFilter; label: string }[] = [
   { id: 'standalone', label: 'Outros PC' }
 ];
 
+const SECTIONS = ['home', 'journal', 'gallery', 'profile'] as const;
 const GAME_UPDATE_BATCH_MS = 120;
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 const toolbarButton = `flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 rounded-lg text-slate-200 transition-colors disabled:opacity-50 ${focusRing}`;
@@ -56,10 +57,8 @@ export const App: React.FC = () => {
     applyGameStatus
   } = useLibraryStore();
 
-  const { activeFocusedIndex, setActiveFocusedIndex } = useGamepadStore();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
-  const [gridColumns, setGridColumns] = useState(6);
   // Navegação estilo Steam: início da biblioteca ou a página de um jogo
   const [view, setView] = useState<'home' | 'game' | 'profile' | 'journal' | 'gallery'>('home');
   const [screenshotStartId, setScreenshotStartId] = useState<string | undefined>();
@@ -298,52 +297,55 @@ export const App: React.FC = () => {
     showWelcome ||
     !!contextMenu;
 
-  // Controle e teclado: na grade do início navega pelos jogos; na página do jogo, A = jogar e B = voltar
+  const stepFilter = (step: number) => {
+    if (topOverlay() || (view !== 'home' && view !== 'game')) return;
+    const currentIndex = visibleFilters.findIndex((f) => f.id === activeFilter);
+    setActiveFilter(visibleFilters[(currentIndex + step + visibleFilters.length) % visibleFilters.length].id);
+    if (view === 'game') goHome();
+  };
+
+  const stepSection = (step: number) => {
+    if (topOverlay()) return;
+    const current = view === 'game' ? 0 : SECTIONS.indexOf(view);
+    setView(SECTIONS[(current + step + SECTIONS.length) % SECTIONS.length]);
+  };
+
+  // Controle e teclado: o direcional anda pelo que está na tela e o A age sobre o item focado (useGamepad)
   useGamepad({
-    itemCount: view === 'home' && !anyModalOpen ? homeGames.length : 0,
-    columns: gridColumns,
-    onSelect: (index) => {
-      if (view === 'game') {
-        if (selectedGame) void handleLaunchGame(selectedGame);
-        return;
-      }
-      const target = homeGames[index];
-      if (target) openGame(target);
-    },
     onBack: () => {
       if (contextMenu) setContextMenu(null);
-      else if (showSettings) setShowSettings(false);
-      else if (showArtworkPicker) setShowArtworkPicker(false);
-      else if (showAchievementsModal) setShowAchievementsModal(false);
-      else if (showSavesModal) setShowSavesModal(false);
-      else if (showScreenshots) setShowScreenshots(false);
-      else if (showEmulatorSettings) setShowEmulatorSettings(false);
-      else if (showAddGameModal) setShowAddGameModal(false);
+      else if (closeTopOverlay()) return;
       else if (view !== 'home') goHome();
       else if (searchQuery) setSearchQuery('');
     },
-    onToggleFavorite: (index) => {
-      const target = view === 'game' ? selectedGame : homeGames[index];
-      if (target) handleToggleFavorite(target.id);
+    onToggleFavorite: () => {
+      if (topOverlay()) return;
+      const focusedId = focusedGameId();
+      const target = focusedId ? games.find((g) => g.id === focusedId) : view === 'game' ? selectedGame : null;
+      if (target) void handleToggleFavorite(target.id);
     },
-    onNextTab: () => {
-      const currentIndex = visibleFilters.findIndex((f) => f.id === activeFilter);
-      setActiveFilter(visibleFilters[(currentIndex + 1) % visibleFilters.length].id);
-      setActiveFocusedIndex(0);
-    },
-    onPrevTab: () => {
-      const currentIndex = visibleFilters.findIndex((f) => f.id === activeFilter);
-      setActiveFilter(visibleFilters[(currentIndex - 1 + visibleFilters.length) % visibleFilters.length].id);
-      setActiveFocusedIndex(0);
-    },
+    onNextFilter: () => stepFilter(1),
+    onPrevFilter: () => stepFilter(-1),
+    onNextSection: () => stepSection(1),
+    onPrevSection: () => stepSection(-1),
     onSearch: () => {
+      if (topOverlay()) return;
       searchInputRef.current?.focus();
       searchInputRef.current?.select();
     },
     onMenu: () => {
+      if (topOverlay() && !showSettings) return;
       setShowSettings((prev) => !prev);
     }
   });
+
+  // Quem usa o controle não fica sem foco ao trocar de tela: abre no botão principal e volta para o jogo de onde saiu
+  useEffect(() => {
+    if (!isNavActive()) return;
+    const frame = requestAnimationFrame(() => focusStart(view === 'home' ? selectedGame?.id : undefined));
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, anyModalOpen, activeFilter]);
 
   // Voltar como num navegador: botão "voltar" do mouse, Alt+← ou Backspace (fora de campos de texto)
   useEffect(() => {
@@ -461,10 +463,7 @@ export const App: React.FC = () => {
           games={filteredGames}
           filters={visibleFilters}
           activeFilter={activeFilter}
-          onFilterChange={(f) => {
-            setActiveFilter(f);
-            setActiveFocusedIndex(0);
-          }}
+          onFilterChange={setActiveFilter}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchInputRef={searchInputRef}
@@ -573,12 +572,9 @@ export const App: React.FC = () => {
           ) : (
             <LibraryHome
               games={homeGames}
-              focusedIndex={activeFocusedIndex}
               isFiltered={activeFilter !== 'all' || !!searchQuery.trim()}
-              onFocusIndex={setActiveFocusedIndex}
               onOpenGame={openGame}
               onToggleFavorite={handleToggleFavorite}
-              onColumnsChange={setGridColumns}
               onContextMenu={handleOpenContextMenu}
               onSkipSuggestion={(game) => {
                 window.electronAPI?.updateGame(game.id, { skipSuggestions: true }).then((updated) => useLibraryStore.getState().upsertGameLocal(updated)).catch((err) => setLaunchNotice({ text: ipcErrorMessage(err), tone: 'warn' }));

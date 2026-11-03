@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Game } from '@shared/types/game';
 import { Star, Gamepad2 } from 'lucide-react';
 import { useLibraryStore } from '../stores/useLibraryStore';
@@ -15,7 +15,7 @@ const PLATFORM_BADGES: Record<Game['platform'], { label: string; className: stri
 
 interface GameCardProps {
   game: Game;
-  isFocused?: boolean;
+  navStart?: boolean;               // Primeiro item do controle nesta tela
   onSelect: (game: Game) => void;
   onToggleFavorite: (id: string) => void;
   onContextMenu?: (game: Game, e: React.MouseEvent) => void;
@@ -23,23 +23,15 @@ interface GameCardProps {
 
 export const GameCard: React.FC<GameCardProps> = ({
   game,
-  isFocused = false,
+  navStart = false,
   onSelect,
   onToggleFavorite,
   onContextMenu
 }) => {
-  const cardRef = useRef<HTMLDivElement>(null);
   // Nem todo AppID tem capa vertical na CDN: cai no placeholder em vez de imagem quebrada
   const [coverFailed, setCoverFailed] = useState(false);
   const isLaunching = useLibraryStore((s) => s.launchStatuses[game.id]?.state === 'launching');
   useEffect(() => setCoverFailed(false), [game.media?.coverUrl]);
-
-  // Garante que o item focado pelo controle ou teclado esteja visível na tela
-  useEffect(() => {
-    if (isFocused && cardRef.current) {
-      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [isFocused]);
 
   const formatPlaytime = (seconds: number) => {
     if (!seconds || seconds < 60) return 'Nunca jogado';
@@ -52,7 +44,10 @@ export const GameCard: React.FC<GameCardProps> = ({
 
   return (
     <div
-      ref={cardRef}
+      data-game-id={game.id}
+      data-nav-start={navStart ? '' : undefined}
+      tabIndex={0}
+      role="button"
       onClick={() => onSelect(game)}
       onContextMenu={(e) => {
         if (onContextMenu) {
@@ -61,11 +56,7 @@ export const GameCard: React.FC<GameCardProps> = ({
         }
       }}
       title={game.title}
-      className={`group relative aspect-[2/3] overflow-hidden bg-slate-900/90 border transition-all duration-200 cursor-pointer ${
-        isFocused
-          ? 'border-indigo-400 ring-2 ring-indigo-500/70 scale-[1.05] shadow-xl z-20'
-          : 'border-slate-800 hover:border-slate-600 hover:scale-[1.03] hover:shadow-lg'
-      }`}
+      className={`group relative aspect-[2/3] overflow-hidden bg-slate-900/90 border transition-all duration-200 cursor-pointer focus:outline-none border-slate-800 hover:border-slate-600 hover:scale-[1.03] hover:shadow-lg`}
     >
       {/* Cover Image or Fallback */}
       {game.media?.coverUrl && !coverFailed ? (
@@ -102,7 +93,7 @@ export const GameCard: React.FC<GameCardProps> = ({
             game.isFavorite
               ? 'bg-amber-500/25 text-amber-400'
               : 'bg-black/50 text-slate-300 opacity-0 group-hover:opacity-100 hover:text-white'
-          } ${isFocused ? 'opacity-100' : ''}`}
+          }`}
         >
           <Star className={`w-3 h-3 ${game.isFavorite ? 'fill-amber-400' : ''}`} />
         </button>

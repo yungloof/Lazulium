@@ -42,7 +42,7 @@ export const TitleBar: React.FC = () => {
       </div>
 
       {/* Right: Window Controls */}
-      <div className="titlebar-no-drag flex items-center">
+      <div className="titlebar-no-drag flex items-center" data-no-nav>
         <button
           onClick={handleMinimize}
           className="w-10 h-11 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800/70 transition-colors"

@@ -148,6 +148,7 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
   return (
     <div
       ref={menuRef}
+      data-nav-scope
       style={{ left: `${posX}px`, top: `${posY}px` }}
       className="fixed z-50 w-56 rounded-lg bg-steam-bg border border-slate-700/80 p-1.5 shadow-lg shadow-black/90 text-xs select-none backdrop-blur-md"
       onContextMenu={(e) => e.preventDefault()}

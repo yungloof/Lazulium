@@ -58,6 +58,17 @@
   border-radius: var(--radius-sm);
 }
 
+/* Foco do controle e das setas: some quando o mouse volta a ser usado */
+html[data-nav] :is(button, a, input, select, textarea, [tabindex]):focus {
+  outline: 3px solid var(--color-indigo-400);
+  outline-offset: -3px;
+}
+
+html[data-nav] [data-game-id]:focus {
+  scale: 1.05;
+  z-index: 20;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Clock, Dices, EyeOff, Gamepad2, Layers, Play, Search } from 'lucide-react';
 import { Game } from '@shared/types/game';
 import { GameCard } from './GameCard';
@@ -6,12 +6,9 @@ import { pickSuggestion } from '../utils/suggestGame';
 
 interface LibraryHomeProps {
   games: Game[];                    // Já filtrados por plataforma/busca
-  focusedIndex: number;
   isFiltered: boolean;              // Busca ou filtro ativo (esconde "Jogados recentemente")
-  onFocusIndex: (index: number) => void;
   onOpenGame: (game: Game) => void;
   onToggleFavorite: (id: string) => void;
-  onColumnsChange: (columns: number) => void;
   onContextMenu?: (game: Game, e: React.MouseEvent) => void;
   onSkipSuggestion: (game: Game) => void;
 }
@@ -39,16 +36,12 @@ const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-in
 
 export const LibraryHome: React.FC<LibraryHomeProps> = ({
   games,
-  focusedIndex,
   isFiltered,
-  onFocusIndex,
   onOpenGame,
   onToggleFavorite,
-  onColumnsChange,
   onContextMenu,
   onSkipSuggestion
 }) => {
-  const gridRef = useRef<HTMLDivElement>(null);
   const [density, setDensity] = useState<GridDensity>(loadDensity);
   const [suggestionRoll, setSuggestionRoll] = useState(0);
 
@@ -60,18 +53,6 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
       // Preferência só desta sessão
     }
   };
-
-  // Colunas reais da grade (auto-fill): a navegação por controle/setas precisa saber o que fica "abaixo"
-  useEffect(() => {
-    const el = gridRef.current;
-    if (!el) return;
-    const { minWidth, gap } = GRID_DENSITY[density];
-    const update = () => onColumnsChange(Math.max(1, Math.floor((el.clientWidth + gap) / (minWidth + gap))));
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [density, games.length > 0, onColumnsChange]);
 
   const recent = useMemo(
     () =>
@@ -204,7 +185,6 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
 
         {games.length > 0 ? (
           <div
-            ref={gridRef}
             className="grid pb-6"
             style={{
               gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_DENSITY[density].minWidth}px, 1fr))`,
@@ -215,11 +195,8 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
               <GameCard
                 key={game.id}
                 game={game}
-                isFocused={index === focusedIndex}
-                onSelect={(g) => {
-                  onFocusIndex(index);
-                  onOpenGame(g);
-                }}
+                navStart={isFiltered && index === 0}
+                onSelect={onOpenGame}
                 onToggleFavorite={onToggleFavorite}
                 onContextMenu={onContextMenu}
               />

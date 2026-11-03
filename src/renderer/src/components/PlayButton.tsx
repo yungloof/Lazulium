@@ -68,6 +68,7 @@ export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch }) => {
     if (game.platform === 'steam') {
       return (
         <button
+          data-nav-start
           onClick={() => onLaunch(game)}
           className={`flex items-center gap-2 px-6 py-2.5 rounded-sm bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm tracking-wide transition-colors ${focusRing}`}
         >
@@ -81,6 +82,7 @@ export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch }) => {
 
   return (
     <button
+      data-nav-start
       onClick={() => onLaunch(game)}
       className={`flex items-center gap-2 px-6 py-2.5 rounded-sm bg-gradient-to-r from-[#75b022] to-[#588a1b] hover:from-[#8ed629] hover:to-[#6aa621] text-white font-semibold text-sm tracking-wide transition-colors ${focusRing}`}
     >

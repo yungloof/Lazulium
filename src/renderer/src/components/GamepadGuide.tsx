@@ -12,7 +12,7 @@ export const GamepadGuide: React.FC = () => {
           <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center font-bold text-[10px]">
             A
           </span>
-          <span className="text-[11px]">Jogar / Selecionar</span>
+          <span className="text-[11px]">Selecionar</span>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <span className="w-4 h-4 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 flex items-center justify-center font-bold text-[10px]">
@@ -37,6 +37,18 @@ export const GamepadGuide: React.FC = () => {
             LB / RB
           </span>
           <span className="text-[11px]">Filtros</span>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono text-[9px]">
+            LT / RT
+          </span>
+          <span className="text-[11px]">Seções</span>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono text-[9px]">
+            Start
+          </span>
+          <span className="text-[11px]">Configurações</span>
         </div>
       </div>
 
