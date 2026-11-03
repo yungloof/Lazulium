@@ -5,7 +5,7 @@ compatibility_date = "2026-10-01"
 # Cache de resultados e do token da Twitch. Troque o id pelo que `wrangler kv namespace create IGDB_CACHE` mostrar.
 [[kv_namespaces]]
 binding = "IGDB_CACHE"
-id = "COLE_AQUI_O_ID_DO_KV"
+id = "d0b7a89fa76043a2bd8c71670d086ed7"
 
 # Por local da Cloudflare e aproximado: segura abuso, não é um limite exato
 [[ratelimits]]

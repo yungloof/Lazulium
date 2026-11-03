@@ -3,7 +3,7 @@ import { db } from '../../database/db';
 import { isSteamPlaceholderTitle } from '../scanners/steam-names.service';
 
 // Servidor em server/igdb-proxy, que guarda a credencial da Twitch. Vazio enquanto não está publicado: fica só a estimativa da Steam.
-const IGDB_PROXY_URL = '';
+const IGDB_PROXY_URL = 'https://lazulium-igdb.yungloof.workers.dev';
 const IGDB_TIMEOUT_MS = 8_000;
 const MIN_STEAM_IGDB_SUBMISSIONS = 3; // Com poucos envios, a estimativa das reviews é mais confiável
 
