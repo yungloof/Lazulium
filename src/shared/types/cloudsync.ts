@@ -39,6 +39,7 @@ export interface BackupRecord {
 export interface BackupListResult {
   backups: BackupRecord[];          // Mais recente primeiro (locais + somente-Drive)
   driveError?: string;
+  sharedWith?: string[];            // Outros jogos na mesma pasta (Ryujinx guarda todos juntos): restaurar volta os saves deles também
 }
 
 export interface RestoreResult {

@@ -22,6 +22,10 @@ type BackupListener = (event: BackupEvent) => void;
 
 const MAX_BACKUPS_PER_GAME = 10;
 const AUTO_BACKUP_DELAY_MS = 3_000;      // Dá tempo do jogo/launcher terminar de gravar
+const SWEEP_SETTING = 'savesSweepAt';
+const SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const SWEEP_PAUSE_MS = 200;              // Entre um jogo e outro: nunca disputa o PC com quem está jogando
+const MAX_GUESSED_FOLDER_BYTES = 200 * 1024 * 1024; // Pasta achada pelo nome, sem certeza de ser só de saves
 const DRIVE_PROPS = {
   gameId: 'lazuliumGameId',
   backupId: 'lazuliumBackupId'
@@ -41,6 +45,7 @@ class BackupService {
   private listener: BackupListener = () => {};
   private locks = new Map<string, Promise<unknown>>();
   private retrying = false;
+  private sweeping = false;
 
   setBackupListener(listener: BackupListener): void {
     this.listener = listener;
@@ -153,7 +158,8 @@ class BackupService {
           fileCount: String(record.fileCount),
           reason: record.reason,
           createdAt: record.createdAt
-        }
+        },
+        record.gameTitle
       );
       record.driveError = undefined;
     } catch (err) {
@@ -162,7 +168,7 @@ class BackupService {
     }
   }
 
-  // Reenvia ao Drive backups locais cujo upload falhou (ex: feitos sem internet)
+  // Envia ao Drive o que ainda só está neste PC (feito sem internet ou antes de conectar a conta)
   async retryPendingUploads(): Promise<number> {
     if (this.retrying || !googleDriveService.isConnected()) return 0;
     this.retrying = true;
@@ -170,7 +176,7 @@ class BackupService {
     try {
       const pending = db
         .getAllSaveBackups()
-        .filter((r) => r.driveError && !r.driveFileId && r.localPath && existsSync(r.localPath));
+        .filter((r) => !r.driveFileId && r.localPath && existsSync(r.localPath));
       for (const record of pending) {
         await this.withLock(record.gameId, async () => {
           await this.uploadRecord(record, await readFile(record.localPath!));
@@ -205,20 +211,44 @@ class BackupService {
     setTimeout(() => void this.runAutoBackup(gameId), AUTO_BACKUP_DELAY_MS);
   }
 
-  private async runAutoBackup(gameId: string): Promise<void> {
+  // Jogos abertos fora do Lazulium (pela Steam, pelo atalho) também entram: uma passada por dia, só no que mudou
+  async autoBackupSweep(): Promise<void> {
+    const last = Number(db.getSettings()[SWEEP_SETTING] ?? 0);
+    if (this.sweeping || Date.now() - last < SWEEP_INTERVAL_MS) return;
+    this.sweeping = true;
+    try {
+      const games = db.getGames().filter((g) => !g.isHidden && !g.manualEntry && (g.totalPlaytimeSeconds > 0 || g.platform === 'emulator' || db.getSaveConfig(g.id)));
+      for (const game of games) {
+        await this.runAutoBackup(game.id, true);
+        await new Promise((resolve) => setTimeout(resolve, SWEEP_PAUSE_MS));
+      }
+      // Só conta como feita se chegou ao fim: fechar o app no meio não pula jogos até amanhã
+      db.setSetting(SWEEP_SETTING, String(Date.now()));
+      console.log(`[Backup] Passada diária: ${games.length} jogos conferidos`);
+      await this.retryPendingUploads();
+    } finally {
+      this.sweeping = false;
+    }
+  }
+
+  private async runAutoBackup(gameId: string, silent = false): Promise<void> {
     try {
       let config = db.getSaveConfig(gameId);
       if (!config) {
-        // Primeira vez: adota só as pastas de alta confiança (Steam Cloud local, saves do RetroArch)
-        const high = (await this.detect(gameId)).filter((s) => s.confidence === 'high');
-        if (high.length === 0) return;
+        // Primeira vez: pastas confiáveis (Steam Cloud local, emuladores) e as achadas pelo nome, se forem de tamanho razoável
+        const found = (await this.detect(gameId)).filter((s) => s.confidence === 'high' || s.sizeBytes <= MAX_GUESSED_FOLDER_BYTES);
+        if (found.length === 0) return;
         config = this.setConfig(gameId, {
-          locations: high.map(({ path, filePrefix }) => ({ path, filePrefix })),
+          locations: found.map(({ path, filePrefix }) => ({ path, filePrefix })),
           autoBackup: true
         });
       }
       if (!config.autoBackup || config.locations.length === 0) return;
 
+      if (silent) {
+        await this.withLock(gameId, () => this.createBackup(gameId, 'auto'));
+        return;
+      }
       this.emit({ gameId, state: 'started' });
       const record = await this.withLock(gameId, () => this.createBackup(gameId, 'auto'));
       this.emit({
@@ -229,14 +259,24 @@ class BackupService {
       });
     } catch (err) {
       console.warn(`[Backup] Backup automático de ${gameId} falhou: ${(err as Error).message}`);
-      this.emit({ gameId, state: 'error', message: (err as Error).message });
+      if (!silent) this.emit({ gameId, state: 'error', message: (err as Error).message });
     }
+  }
+
+  private gamesSharingFolder(gameId: string): string[] {
+    const own = db.getSaveConfig(gameId)?.locations ?? [];
+    if (own.length === 0) return [];
+    return db
+      .getGames()
+      .filter((g) => g.id !== gameId && db.getSaveConfig(g.id)?.locations.some((l) => own.some((o) => sameLocation(o, l))))
+      .map((g) => g.title);
   }
 
   // Histórico local + backups que só existem no Drive (ex: feitos em outro PC)
   async listBackups(gameId: string): Promise<BackupListResult> {
     const local = db.getSaveBackups(gameId).filter((r) => r.driveFileId || (r.localPath && existsSync(r.localPath)));
-    if (!googleDriveService.isConnected()) return { backups: local };
+    const sharedWith = this.gamesSharingFolder(gameId);
+    if (!googleDriveService.isConnected()) return { backups: local, sharedWith };
 
     try {
       const knownIds = new Set(local.map((r) => r.id));
@@ -256,9 +296,9 @@ class BackupService {
           driveFileId: f.id
         }));
       const backups = [...local, ...remote].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      return { backups };
+      return { backups, sharedWith };
     } catch (err) {
-      return { backups: local, driveError: (err as Error).message };
+      return { backups: local, sharedWith, driveError: (err as Error).message };
     }
   }
 

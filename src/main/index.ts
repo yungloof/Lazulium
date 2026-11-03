@@ -45,6 +45,8 @@ if (!app.requestSingleInstanceLock()) {
     showMainWindow();
   });
 
+  const SAVES_SWEEP_DELAY_MS = 90_000; // Depois que a abertura e os scans terminaram
+
   app.whenReady().then(async () => {
     // Content-Security-Policy injetada nos cabeçalhos HTTP (no dev libera HMR/WebSocket e inline do Vite)
     const isDev = !app.isPackaged && !!process.env['ELECTRON_RENDERER_URL'];
@@ -92,6 +94,7 @@ if (!app.requestSingleInstanceLock()) {
         .catch((err) => console.warn('[Startup] Sincronização da Steam falhou:', (err as Error).message));
     }
     setTimeout(() => void backupService.retryPendingUploads(), PENDING_UPLOAD_RETRY_DELAY_MS);
+    setTimeout(() => void backupService.autoBackupSweep(), SAVES_SWEEP_DELAY_MS);
 
     app.on('activate', function () {
       if (BrowserWindow.getAllWindows().length === 0) showMainWindow();

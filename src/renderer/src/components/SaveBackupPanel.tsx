@@ -62,10 +62,12 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
   const [detecting, setDetecting] = useState(false);
   const [backups, setBackups] = useState<BackupRecord[]>([]);
   const [driveError, setDriveError] = useState<string | undefined>();
+  const [sharedWith, setSharedWith] = useState<string[]>([]);
   const [drive, setDrive] = useState<DriveStatus | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [busy, setBusy] = useState<'backup' | 'restore' | null>(null);
   const [confirmRestoreId, setConfirmRestoreId] = useState<string | null>(null);
+  const [confirmLatest, setConfirmLatest] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -75,6 +77,7 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
     const result = await window.electronAPI?.listSaveBackups(game.id);
     setBackups(result?.backups ?? []);
     setDriveError(result?.driveError);
+    setSharedWith(result?.sharedWith ?? []);
     setLoadingHistory(false);
   }, [game.id]);
 
@@ -183,6 +186,9 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
     }
   };
 
+  // Restaurar antes vira histórico também: o "mais recente" é sempre um save de verdade
+  const latest = backups.find((b) => b.reason !== 'pre-restore');
+
   const pendingSuggestions = suggestions.filter((s) => !config.locations.some((l) => sameLocation(l, s)));
   const suggestionFor = (location: SaveLocation) => suggestions.find((s) => sameLocation(s, location));
 
@@ -211,7 +217,7 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
               </span>
             ) : (
               <span className="flex items-center gap-2 text-slate-400">
-                <CloudOff className="w-3.5 h-3.5" /> Google Drive não conectado: backups ficam só neste PC
+                <CloudOff className="w-3.5 h-3.5" /> Google Drive não conectado: os backups automáticos ficam só neste PC
               </span>
             )}
             {!drive?.connected && (
@@ -223,6 +229,46 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
               </button>
             )}
           </div>
+
+          {/* Puxar o save em um clique */}
+          {latest && (
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-lg bg-indigo-500/10 border border-indigo-400/30">
+              <div className="min-w-0">
+                <p className="text-sm text-white">Último backup: {formatDate(latest.createdAt)}</p>
+                <p className="mt-0.5 text-xs text-slate-300">
+                  {latest.fileCount} arquivo(s) · {formatBytes(latest.sizeBytes)} · {latest.driveFileId ? 'neste PC e no Drive' : latest.localPath ? 'neste PC' : 'no Drive'}
+                </p>
+              </div>
+              {confirmLatest ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-amber-300">Os saves atuais vão para o histórico antes.</span>
+                  <button
+                    onClick={() => {
+                      setConfirmLatest(false);
+                      void handleRestore(latest.id);
+                    }}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white ${focusRing}`}
+                  >
+                    Confirmar
+                  </button>
+                  <button onClick={() => setConfirmLatest(false)} className={`px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirmLatest(true)} disabled={busy !== null} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 ${focusRing}`}>
+                  {busy === 'restore' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />} Restaurar o mais recente
+                </button>
+              )}
+            </div>
+          )}
+
+          {sharedWith.length > 0 && (
+            <p className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+              <span>Este emulador guarda os saves de vários jogos na mesma pasta. Restaurar aqui volta também os de: {sharedWith.join(', ')}.</span>
+            </p>
+          )}
 
           {/* Pastas de saves */}
           <section className="space-y-2">
@@ -247,7 +293,7 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
 
             {config.locations.length === 0 && (
               <p className="text-xs text-slate-500">
-                Nenhuma pasta configurada. Adicione uma sugestão abaixo ou escolha a pasta de saves manualmente.
+                Nenhuma pasta definida ainda: o Lazulium procura sozinho ao fechar o jogo e uma vez por dia. Se o jogo salva em outro lugar, escolha a pasta aqui.
               </p>
             )}
             {config.locations.map((location) => {
@@ -318,7 +364,7 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
                   onChange={(e) => saveConfig({ ...config, autoBackup: e.target.checked })}
                   className={`w-4 h-4 accent-indigo-500 rounded ${focusRing}`}
                 />
-                Backup automático ao fechar o jogo
+                Backup automático: ao fechar o jogo e uma vez por dia
               </label>
               <button
                 onClick={handleBackup}

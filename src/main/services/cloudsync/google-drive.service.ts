@@ -86,6 +86,7 @@ const CALLBACK_PAGE = `<!doctype html><meta charset="utf-8"><title>Lazulium</tit
 class GoogleDriveService {
   private accessToken?: { value: string; expiresAt: number };
   private cancelPendingAuth?: () => void;
+  private gameFolders = new Map<string, string>();
 
   getStatus(): DriveStatus {
     return {
@@ -288,9 +289,33 @@ class GoogleDriveService {
     return folderId;
   }
 
+  // Lazulium Backups/<nome do jogo>/: dá para achar qualquer save também pelo site do Drive
+  private async ensureGameFolder(gameTitle: string): Promise<string> {
+    const parent = await this.ensureFolder();
+    const name = gameTitle.replace(/[\\/:*?"<>|]/g, '').trim() || 'Jogo';
+    const cacheKey = `${parent}/${name}`;
+    const cached = this.gameFolders.get(cacheKey);
+    if (cached) return cached;
+
+    const escaped = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const q = `name='${escaped}' and mimeType='${FOLDER_MIME}' and '${parent}' in parents and trashed=false`;
+    const list = (await (await this.request(`${DRIVE_API}/files?${new URLSearchParams({ q, fields: 'files(id)', spaces: 'drive' })}`)).json()) as { files: { id: string }[] };
+    let folderId = list.files[0]?.id;
+    if (!folderId) {
+      const created = await this.request(`${DRIVE_API}/files?fields=id`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, mimeType: FOLDER_MIME, parents: [parent] })
+      });
+      folderId = ((await created.json()) as { id: string }).id;
+    }
+    this.gameFolders.set(cacheKey, folderId);
+    return folderId;
+  }
+
   // Upload resumível (funciona para qualquer tamanho de .zip)
-  async uploadFile(name: string, data: Uint8Array, appProperties: Record<string, string>): Promise<string> {
-    const folderId = await this.ensureFolder();
+  async uploadFile(name: string, data: Uint8Array, appProperties: Record<string, string>, gameTitle: string): Promise<string> {
+    const folderId = await this.ensureGameFolder(gameTitle);
     const session = await this.request(`${UPLOAD_API}/files?uploadType=resumable&fields=id`, {
       method: 'POST',
       headers: {
@@ -312,9 +337,9 @@ class GoogleDriveService {
   }
 
   async listFiles(appPropertyKey: string, value: string): Promise<DriveBackupFile[]> {
-    const folderId = await this.ensureFolder();
     const escaped = value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    const q = `'${folderId}' in parents and trashed=false and appProperties has { key='${appPropertyKey}' and value='${escaped}' }`;
+    // drive.file: só enxerga o que o Lazulium criou. Sem filtro de pasta, backups antigos da pasta geral continuam valendo
+    const q = `trashed=false and appProperties has { key='${appPropertyKey}' and value='${escaped}' }`;
     const params = new URLSearchParams({
       q,
       fields: 'files(id,name,size,createdTime,appProperties)',

@@ -40,8 +40,8 @@ export class AchievementsService {
 
     // Verifica o cache persistido no JSON
     const cached = db.getGameAchievements(gameId);
-    // Falha passageira nunca vale como cache: a próxima tentativa consulta de novo
-    if (!force && cached && cached.syncedAt && !cached.retryable) {
+    // Falha passageira ou aviso (sem conta, jogo não achado) nunca vale como cache: entrar na conta resolve na hora
+    if (!force && cached && cached.syncedAt && !cached.retryable && !cached.warning) {
       const age = Date.now() - new Date(cached.syncedAt).getTime();
       if (age < CACHE_TTL_MS) {
         return cached;

@@ -210,6 +210,19 @@ async function detectEmulator(game: Game): Promise<SaveLocationSuggestion[]> {
       if (exeDir) add(join(exeDir, 'user', 'sdmc'), 'Azahar saves (portátil)');
       for (const name of ['Azahar', 'Lime3DS', 'Citra']) add(join(appData, name, 'sdmc'), `${name} saves`);
       break;
+    case 'mgba':
+    case 'melonds':
+      // Gravam o .sav ao lado da ROM
+      if (game.romPath && romBase) add(dirname(game.romPath), `Save ao lado da ROM (${romBase})`, `${romBase}.sav`, true);
+      break;
+    case 'bizhawk':
+      // <BizHawk>/<sistema>/SaveRAM/<ROM>.SaveRAM
+      if (exeDir && romBase) {
+        for (const system of await listDirs(exeDir)) {
+          add(join(exeDir, system, 'SaveRAM'), `BizHawk SaveRAM (${romBase})`, romBase, true);
+        }
+      }
+      break;
   }
 
   const results: SaveLocationSuggestion[] = [];

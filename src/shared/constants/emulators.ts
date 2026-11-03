@@ -1,7 +1,7 @@
 import { EmulatorProfile, EmulatorType } from '../types/game';
 
-// O RetroAchievements não tem conquistas para estes consoles (Switch, Wii U, 3DS)
-const WITHOUT_RETROACHIEVEMENTS: EmulatorType[] = ['ryujinx', 'eden', 'cemu', 'azahar'];
+// O RetroAchievements não tem conquistas para estes consoles (Switch, Wii U, 3DS, PS3)
+const WITHOUT_RETROACHIEVEMENTS: EmulatorType[] = ['ryujinx', 'eden', 'cemu', 'azahar', 'rpcs3'];
 
 export function hasRetroAchievements(emulatorId?: EmulatorType): boolean {
   return !emulatorId || !WITHOUT_RETROACHIEVEMENTS.includes(emulatorId);

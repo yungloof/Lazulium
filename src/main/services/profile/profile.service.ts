@@ -334,7 +334,8 @@ class ProfileService {
       try {
         const candidates = db
           .getGames()
-          .filter((g) => (g.platform === 'steam' || (g.platform === 'emulator' && hasRetroAchievements(g.emulatorId))) && (g.totalPlaytimeSeconds ?? 0) > 0);
+          // Atalho de emulador costuma ficar sem horas registradas: conta mesmo assim
+          .filter((g) => (g.platform === 'steam' && (g.totalPlaytimeSeconds ?? 0) > 0) || (g.platform === 'emulator' && hasRetroAchievements(g.emulatorId)));
         for (let i = 0; i < candidates.length; i++) {
           const game = candidates[i];
           try {

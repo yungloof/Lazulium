@@ -150,6 +150,11 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [x] Abrir a pasta de qualquer jogo instalado; capas inteiras e sem cantos cortados; Diário só com jogos registrados.
 - [x] Emuladores detectados sozinhos: executáveis pelos atalhos e por uma busca limitada no disco, pastas de jogos lidas da configuração de cada emulador, sem duplicar atalhos da Steam. Novos perfis: Eden/yuzu, Azahar/Citra, melonDS, mGBA, PPSSPP e BizHawk.
 - [x] Atalhos da Steam que abrem ROM viram jogos de emulador (backup de saves, RetroAchievements onde existe); seção O que jogar agora; retrospectiva do ano no Perfil.
+- [x] Controle navega por todas as telas e janelas (direcional, A/B/X/Y, LB/RB, LT/RT, Start), ignora botões com a janela sem foco; erro de tela mostra aviso com "Recarregar".
+- [x] Listas de jogos (ordem, ranqueada, destaque no Perfil); Perfil com banner, números, abas, resenhas e mapa de atividade; Diário com capas, meses e meia estrela; menus do próprio app no lugar do select nativo.
+- [x] Capturas mudam de jogo sem tocar no arquivo (Spacewar); registrar jogo busca na biblioteca, no IGDB e na loja da Steam; todas as conquistas marcam 100% sozinho, sem insistir se o jogador mudar.
+- [x] RetroAchievements: conquistas atualizam ao entrar na conta, nome igual ao catálogo, aviso claro de emulador sem suporte ou que não envia conquistas.
+- [x] Backup de saves automático: ao fechar o jogo e uma passada diária no que mudou, com pasta por jogo no Drive e "Restaurar o mais recente".
 - [x] Duração típica na página dos jogos Steam, estimada pelas horas das reviews positivas (alternativa sem chave ao HowLongToBeat).
 - [x] Tempo para zerar pelo IGDB em qualquer jogo, por um servidor próprio (`server/igdb-proxy`) que guarda a credencial; as reviews da Steam ficam como reserva.
 - [x] Publicar o servidor do IGDB e colocar a URL em `IGDB_PROXY_URL` (passos em `server/igdb-proxy/README.md`).

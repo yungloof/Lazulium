@@ -453,12 +453,15 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   });
 
   ipcMain.handle(IPC_CHANNELS.ACCOUNTS_RETRO_LOGIN, async () => {
-    return accountsService.loginRetroAchievements(getMainWindow());
+    const status = await accountsService.loginRetroAchievements(getMainWindow());
+    void profileService.syncAllAchievements();
+    return status;
   });
 
   ipcMain.handle(IPC_CHANNELS.ACCOUNTS_GOOGLE_LOGIN, async () => {
     const status = await accountsService.loginGoogle();
     getMainWindow()?.focus();
+    void backupService.retryPendingUploads(); // O que já estava só neste PC sobe sozinho
     return status;
   });
 

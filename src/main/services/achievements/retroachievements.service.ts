@@ -1,10 +1,11 @@
-import { hasRetroAchievements } from '@shared/constants/emulators';
+import { DEFAULT_EMULATOR_PROFILES, hasRetroAchievements } from '@shared/constants/emulators';
 import { createHash } from 'crypto';
 import { createReadStream, existsSync, statSync } from 'fs';
 import { Game } from '@shared/types/game';
 import { Achievement, GameAchievements } from '@shared/types/achievements';
 import { ApiKeyTestResult } from '@shared/types/ipc';
 import { cleanRomTitle } from '../scanners/emulator-scanner.service';
+import { normalizeKey } from '../cloudsync/save-locator.service';
 
 interface RAGameListItem {
   ID: number;
@@ -33,7 +34,6 @@ interface RAGameInfoResponse {
 const EMULATOR_CONSOLE_MAP: Record<string, number[]> = {
   pcsx2: [21],                           // PlayStation 2
   duckstation: [12],                     // PlayStation 1
-  rpcs3: [4],                            // PlayStation 3
   dolphin: [16, 19],                     // GameCube, Wii
   retroarch: [3, 7, 5, 1, 12, 11, 9],    // SNES, NES, GBA, Genesis, PS1, GB, GBC
   bizhawk: [7, 3, 4, 6, 5, 2, 1],        // NES, SNES, GB, GBC, GBA, N64, Genesis
@@ -41,6 +41,23 @@ const EMULATOR_CONSOLE_MAP: Record<string, number[]> = {
   mgba: [5, 6, 4],                       // GBA, GBC, GB
   ppsspp: [41]                           // PSP
 };
+
+// O site lista o jogo, mas o programa no PC não envia conquistas: quem desbloqueia é o BizHawk ou o RetroArch
+// (docs.retroachievements.org, suporte de emuladores)
+const CATALOG_ONLY_EMULATORS = ['mgba', 'melonds'];
+
+// "Legend of Zelda, The: Oracle of Ages" -> mesma chave de "The Legend of Zelda: ORACLE OF AGES"
+const raTitleKey = (title: string) => normalizeKey(cleanRomTitle(title.replace(/^(.*?),\s*The\b/i, 'The $1')));
+// Hacks, homebrew e conjuntos extras têm o título marcado: não são o jogo que está na biblioteca
+const isVariantEntry = (title: string) => title.startsWith('~') || /\[Subset/i.test(title);
+
+function progressWarning(game: Game, unlocked: number): string | undefined {
+  if (unlocked > 0) return undefined;
+  const name = (game.emulatorId && DEFAULT_EMULATOR_PROFILES[game.emulatorId]?.name) ?? 'emulador';
+  return game.emulatorId && CATALOG_ONLY_EMULATORS.includes(game.emulatorId)
+    ? `O ${name} para PC não envia conquistas ao RetroAchievements. Para desbloquear, jogue esta ROM no BizHawk ou no RetroArch, logado na sua conta.`
+    : `Nenhuma conquista nesta conta ainda. Elas só contam se você entrar na mesma conta do RetroAchievements dentro do ${name} antes de jogar.`;
+}
 
 // Cache simples em memória da lista de jogos por console para evitar chamadas repetidas
 const gameListCache = new Map<number, RAGameListItem[]>();
@@ -123,12 +140,13 @@ export class RetroAchievementsService {
   private async identifyGameId(
     game: Game,
     username: string,
-    apiKey: string
+    apiKey: string,
+    skipHash = false
   ): Promise<{ gameId: number | null; method: 'hash' | 'title' | null }> {
     if (!hasRetroAchievements(game.emulatorId)) return { gameId: null, method: null };
 
     // 1. Identificação por Hash MD5
-    if (game.romPath) {
+    if (game.romPath && !skipHash) {
       try {
         const md5 = await this.computeRomMd5(game.romPath);
         if (md5) {
@@ -149,8 +167,8 @@ export class RetroAchievementsService {
     }
 
     // 2. Fallback: Busca por título limpo no console correspondente
-    const targetTitle = cleanRomTitle(game.title).toLowerCase().trim();
-    if (!targetTitle) return { gameId: null, method: null };
+    const targetKey = raTitleKey(game.title);
+    if (!targetKey) return { gameId: null, method: null };
 
     const consoleIds = (game.emulatorId && EMULATOR_CONSOLE_MAP[game.emulatorId]) || [3, 7, 5, 1, 12, 21, 16];
 
@@ -172,11 +190,8 @@ export class RetroAchievementsService {
         }
 
         if (Array.isArray(list)) {
-          // Busca exata ou por inclusão limpa
-          const match = list.find((g) => {
-            const clean = cleanRomTitle(g.Title).toLowerCase().trim();
-            return clean === targetTitle || (targetTitle.length >= 5 && clean.includes(targetTitle));
-          });
+          // Só nome igual: nome parecido traria as conquistas de outro jogo
+          const match = list.find((g) => !isVariantEntry(g.Title) && raTitleKey(g.Title) === targetKey);
           if (match && match.ID > 0) {
             return { gameId: match.ID, method: 'title' };
           }
@@ -207,6 +222,19 @@ export class RetroAchievementsService {
       };
     }
 
+    if (!hasRetroAchievements(game.emulatorId)) {
+      const name = (game.emulatorId && DEFAULT_EMULATOR_PROFILES[game.emulatorId]?.name) ?? 'Este emulador';
+      return {
+        gameId: game.id,
+        source: 'retroachievements',
+        total: 0,
+        unlocked: 0,
+        items: [],
+        syncedAt: now,
+        warning: `O ${name} não tem suporte ao RetroAchievements, então este jogo não tem conquistas por aqui.`
+      };
+    }
+
     const user = username.trim();
     const key = apiKey.trim();
 
@@ -223,7 +251,7 @@ export class RetroAchievementsService {
     }
 
     try {
-      const { gameId } = await this.identifyGameId(game, user, key);
+      const { gameId, method } = await this.identifyGameId(game, user, key);
 
       if (!gameId) {
         return {
@@ -237,14 +265,13 @@ export class RetroAchievementsService {
         };
       }
 
-      const progressUrl = `https://retroachievements.org/API/API_GetGameInfoAndUserProgress.php?u=${encodeURIComponent(
-        user
-      )}&z=${encodeURIComponent(user)}&y=${encodeURIComponent(key)}&g=${gameId}&a=1`;
+      const fetchProgress = (id: number) =>
+        fetch(
+          `https://retroachievements.org/API/API_GetGameInfoAndUserProgress.php?u=${encodeURIComponent(user)}&z=${encodeURIComponent(user)}&y=${encodeURIComponent(key)}&g=${id}&a=1`,
+          { headers: { 'User-Agent': 'Lazulium-Game-Hub/0.1.0' }, signal: AbortSignal.timeout(12_000) }
+        );
 
-      const res = await fetch(progressUrl, {
-        headers: { 'User-Agent': 'Lazulium-Game-Hub/0.1.0' },
-        signal: AbortSignal.timeout(12_000)
-      });
+      const res = await fetchProgress(gameId);
 
       if (!res.ok) {
         return {
@@ -259,7 +286,15 @@ export class RetroAchievementsService {
         };
       }
 
-      const data: RAGameInfoResponse = await res.json();
+      let data: RAGameInfoResponse = await res.json();
+      // A ROM pode apontar para uma entrada vazia (tradução, revisão): o jogo com o mesmo nome costuma ter as conquistas
+      if (method === 'hash' && !Object.keys(data?.Achievements ?? {}).length) {
+        const byTitle = (await this.identifyGameId(game, user, key, true)).gameId;
+        if (byTitle && byTitle !== gameId) {
+          const retry = await fetchProgress(byTitle);
+          if (retry.ok) data = await retry.json();
+        }
+      }
       const rawAchievements = data?.Achievements ? Object.values(data.Achievements) : [];
 
       if (rawAchievements.length === 0) {
@@ -308,7 +343,8 @@ export class RetroAchievementsService {
         total: items.length,
         unlocked: unlockedCount,
         items,
-        syncedAt: now
+        syncedAt: now,
+        warning: progressWarning(game, unlockedCount)
       };
     } catch (err) {
       return {
