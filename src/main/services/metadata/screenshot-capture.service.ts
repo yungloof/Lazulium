@@ -183,7 +183,7 @@ class ScreenshotCaptureService {
         fileName: `${baseName}.png`,
         width,
         height,
-        warning: blackFrame ? 'A captura saiu preta: esse jogo em tela cheia exclusiva bloqueia a imagem. Troque para "tela cheia sem bordas" nas opções dele.' : undefined
+        warning: blackFrame ? 'A captura saiu preta. Se a tela do jogo não estava escura nesse momento, troque para "tela cheia sem bordas" nas opções dele.' : undefined
       };
       console.log(`[Capturas] ${game.title}: ${width}x${height}${blackFrame ? ' (preta)' : ''}`);
       this.listener(result);
