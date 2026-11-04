@@ -36,7 +36,8 @@ const ACTIVITY_WEEKS = 13;
 const RATING_STEPS = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
-const panel = 'bg-slate-900/60 border border-slate-800 rounded-lg';
+const panel = 'bg-slate-950/75 border border-slate-700/40 rounded-lg';
+const sectionPanel = `${panel} p-4`;
 const buttonBase = `flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-100 disabled:opacity-50 transition-colors ${focusRing}`;
 const button = `${buttonBase} bg-slate-800 hover:bg-slate-700`;
 
@@ -63,8 +64,8 @@ const hours = (seconds = 0) => {
 const shortDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }).replace('.', '') : '');
 const localDay = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-// Banner do perfil. O vídeo pausa sem foco e com jogo aberto: nunca disputa CPU e GPU com o jogo.
-const ProfileBanner: React.FC<{ imageUrl?: string; videoUrl?: string; gameRunning: boolean }> = ({ imageUrl, videoUrl, gameRunning }) => {
+// Fundo do perfil inteiro, parado enquanto a página rola. O vídeo pausa sem foco e com jogo aberto: nunca disputa CPU e GPU com o jogo.
+const ProfileBackdrop: React.FC<{ imageUrl?: string; videoUrl?: string; gameRunning: boolean }> = ({ imageUrl, videoUrl, gameRunning }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [focused, setFocused] = useState(() => document.hasFocus() && !document.hidden);
   const [failedVideo, setFailedVideo] = useState<string>();
@@ -92,12 +93,14 @@ const ProfileBanner: React.FC<{ imageUrl?: string; videoUrl?: string; gameRunnin
   }, [focused, gameRunning, showVideo, videoUrl]);
 
   return (
-    <div className="absolute inset-x-0 top-0 h-72 overflow-hidden bg-slate-900" aria-hidden="true">
-      {imageUrl && <img src={imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
-      {showVideo && (
-        <video ref={videoRef} key={videoUrl} src={videoUrl} poster={imageUrl} muted loop playsInline preload="auto" onError={() => setFailedVideo(videoUrl)} className="absolute inset-0 w-full h-full object-cover" />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-steam-bg/60 to-steam-bg" />
+    <div className="sticky top-0 h-0 z-0" aria-hidden="true">
+      <div className="absolute inset-x-0 top-0 h-screen overflow-hidden bg-slate-950">
+        {imageUrl && <img src={imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+        {showVideo && (
+          <video ref={videoRef} key={videoUrl} src={videoUrl} poster={imageUrl} muted loop playsInline preload="auto" onError={() => setFailedVideo(videoUrl)} className="absolute inset-0 w-full h-full object-cover" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/45 to-black/60" />
+      </div>
     </div>
   );
 };
@@ -422,7 +425,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
         <section key={id}>
           <figure className="inline-block max-w-full">
             <img src={artworkUrl} alt={artworkCaption ?? ''} className="max-w-full max-h-[420px] object-contain rounded-lg" />
-            {artworkCaption && <figcaption className="mt-2 text-sm text-slate-300">{artworkCaption}</figcaption>}
+            {artworkCaption && <figcaption className="mt-2 text-sm text-slate-100 drop-shadow">{artworkCaption}</figcaption>}
           </figure>
         </section>
       );
@@ -430,7 +433,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
     if (id === 'featured') {
       if (highlights.length === 0) return null;
       return (
-        <section key={id}>
+        <section key={id} className={sectionPanel}>
           <SectionTitle extra={profile.featuredGames.length === 0 ? <LinkButton onClick={() => setEditing(true)}>Escolher os meus</LinkButton> : undefined}>
             {profile.featuredGames.length > 0 ? SECTION_LABEL[id] : profile.favorites.length > 0 ? 'Favoritos' : 'Mais jogados'}
           </SectionTitle>
@@ -442,7 +445,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
     }
     if (id === 'reviews') {
       return (
-        <section key={id}>
+        <section key={id} className={sectionPanel}>
           <SectionTitle extra={reviews.length > OVERVIEW_REVIEWS ? <LinkButton onClick={() => setTab('reviews')}>Ver todas ({reviews.length})</LinkButton> : undefined}>{SECTION_LABEL[id]}</SectionTitle>
           {reviews.length === 0 ? (
             <p className="py-6 text-sm text-slate-400">Nenhuma resenha ainda. Abra um jogo e escreva em “Meu registro”: ela aparece aqui.</p>
@@ -454,7 +457,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
     }
     if (id === 'lists') {
       return (
-        <section key={id}>
+        <section key={id} className={sectionPanel}>
           <SectionTitle extra={<LinkButton onClick={() => onOpenList()}>Ver todas</LinkButton>}>{SECTION_LABEL[id]}</SectionTitle>
           {shownLists.length === 0 ? (
             <div className="flex items-center justify-between gap-3 py-4">
@@ -476,7 +479,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
     if (id === 'achievements') {
       if (showcase.length === 0) return null;
       return (
-        <section key={id}>
+        <section key={id} className={sectionPanel}>
           <SectionTitle extra={profile.featuredAchievements.length === 0 ? 'as mais raras' : undefined}>{SECTION_LABEL[id]}</SectionTitle>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
             {showcase.map((a) => (
@@ -496,7 +499,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
     if (id === 'activity') {
       const rows = profile.recentGames.slice(0, 5);
       return (
-        <section key={id}>
+        <section key={id} className={sectionPanel}>
           <SectionTitle extra={profile.recentPlaytimeSeconds ? `${hours(profile.recentPlaytimeSeconds)} nas últimas 2 semanas` : undefined}>{SECTION_LABEL[id]}</SectionTitle>
           {rows.length === 0 ? (
             <p className="py-4 text-sm text-slate-400">Nenhum jogo nas últimas 2 semanas.</p>
@@ -513,7 +516,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
     if (id === 'screenshots') {
       if (profile.screenshots.length === 0) return null;
       return (
-        <section key={id}>
+        <section key={id} className={sectionPanel}>
           <SectionTitle>{SECTION_LABEL[id]}</SectionTitle>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
             {profile.screenshots.map((shot) => (
@@ -528,7 +531,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
     if (id === 'mostPlayed') {
       if (profile.mostPlayed.length === 0) return null;
       return (
-        <section key={id}>
+        <section key={id} className={sectionPanel}>
           <SectionTitle>{SECTION_LABEL[id]}</SectionTitle>
           <div className="space-y-1.5">
             {profile.mostPlayed.map((g) => (
@@ -543,13 +546,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
 
   return (
     <div className="relative min-h-full pb-12">
-      <ProfileBanner imageUrl={profile.background?.imageUrl} videoUrl={profile.background?.videoUrl} gameRunning={!!playingId} />
+      <ProfileBackdrop imageUrl={profile.background?.imageUrl} videoUrl={profile.background?.videoUrl} gameRunning={!!playingId} />
 
-      <div className="relative z-10 max-w-[1120px] mx-auto px-6 pt-32 space-y-5">
+      <div className="relative z-10 max-w-[1120px] mx-auto px-6 pt-24 space-y-5">
         <ProfileSteamNotice isPrivate={!!steam?.isPrivate} hasAchievements={t.gamesWithAchievementData > 0} onChanged={load} onOpenSettings={onOpenSettings} />
 
         {/* Identidade */}
-        <header className="flex flex-wrap items-end gap-5">
+        <header className={`${sectionPanel} flex flex-wrap items-end gap-5`}>
           <div className="relative w-32 h-32 flex-shrink-0">
             <div className="w-full h-full rounded-lg overflow-hidden bg-slate-800 border-2 border-slate-950">
               {profile.avatarUrl ? (
@@ -616,7 +619,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
           ))}
         </dl>
 
-        <nav className="flex items-center gap-1 border-b border-slate-800" aria-label="Partes do perfil">
+        <nav className={`${panel} flex items-center gap-1 px-1`} aria-label="Partes do perfil">
           {TABS.map((item) => (
             <button
               key={item.id}
@@ -701,7 +704,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
                 </SideBlock>
               )}
 
-              <button onClick={onOpenSettings} className={`px-1 text-xs text-slate-400 hover:text-white rounded-sm ${focusRing}`}>
+              <button onClick={onOpenSettings} className={`${panel} w-full px-3 py-2 text-xs text-slate-300 hover:text-white ${focusRing}`}>
                 Contas e configurações
               </button>
             </aside>
@@ -709,13 +712,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
         )}
 
         {tab === 'games' && (
-          <section className="space-y-4">
+          <section className={`${sectionPanel} space-y-4`}>
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm text-slate-400">{shelf.length} {shelf.length === 1 ? 'jogo' : 'jogos'}</p>
               <Select value={gamesFilter} options={filterOptions} onChange={setGamesFilter} ariaLabel="Filtrar por status" />
             </div>
             {shelf.length === 0 ? (
-              <p className={`${panel} px-4 py-10 text-center text-sm text-slate-400`}>Nenhum jogo com esse status.</p>
+              <p className="px-4 py-10 text-center text-sm text-slate-400">Nenhum jogo com esse status.</p>
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-x-3 gap-y-4">
                 {shelf.map((game) => (
@@ -736,9 +739,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
         )}
 
         {tab === 'reviews' && (
-          <section className="max-w-3xl">
+          <section className={`${sectionPanel} max-w-3xl`}>
             {reviews.length === 0 ? (
-              <p className={`${panel} px-4 py-10 text-center text-sm text-slate-400`}>Nenhuma resenha ainda. Abra um jogo e escreva em “Meu registro”.</p>
+              <p className="px-4 py-10 text-center text-sm text-slate-400">Nenhuma resenha ainda. Abra um jogo e escreva em “Meu registro”.</p>
             ) : (
               reviews.map((game) => <ReviewCard key={game.id} game={game} onOpen={() => onSelectGame(game.id)} />)
             )}
@@ -746,7 +749,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
         )}
 
         {tab === 'lists' && (
-          <section className="space-y-4">
+          <section className={`${sectionPanel} space-y-4`}>
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm text-slate-400">{lists.length} {lists.length === 1 ? 'lista' : 'listas'}</p>
               <button onClick={() => onOpenList()} className={button}>
