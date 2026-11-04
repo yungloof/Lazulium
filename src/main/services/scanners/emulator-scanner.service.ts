@@ -180,7 +180,8 @@ async function scanEmulator(config: EmulatorConfig, warnings: string[], known: K
   const games: DetectedGame[] = [];
   for (const romDir of config.romDirectories) {
     if (!existsSync(romDir)) {
-      warnings.push(`${profile.name}: pasta de ROMs não encontrada (${romDir})`);
+      // Pasta que veio da lista do próprio emulador: apagar os jogos dela não é erro. Escolhida à mão, vale avisar.
+      if (!config.autoDetected) warnings.push(`${profile.name}: pasta de ROMs não encontrada (${romDir})`);
       continue;
     }
     const files: string[] = [];

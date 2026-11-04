@@ -1,4 +1,4 @@
-import { Game, GamePlatform } from '@shared/types/game';
+import { Game, GamePlatform, isJournalEntry } from '@shared/types/game';
 import { ScanResult } from '@shared/types/ipc';
 import { db } from '../../database/db';
 import { steamScanner } from './steam-scanner.service';
@@ -96,6 +96,10 @@ function canHandOverHistory(game: Game, detected: DetectedGame): boolean {
   return isLocalCopy && (game.isInstalled === false || !game.executablePath || !existsSync(game.executablePath));
 }
 
+function hasNoPlayerData(game: Game): boolean {
+  return !game.totalPlaytimeSeconds && !game.isFavorite && !game.tags?.length && !isJournalEntry(game) && !db.getGameAchievements(game.id)?.unlocked && !db.getPlaytimeSessions(game.id).length;
+}
+
 // Scans rodam em fila: o da abertura do app e o do botão "Escanear" (ou o da primeira execução)
 // não disputam o PowerShell/registro nem gravam o banco ao mesmo tempo
 let scanQueue: Promise<unknown> = Promise.resolve();
@@ -171,6 +175,12 @@ async function runScan(platforms?: GamePlatform[]): Promise<ScanResult> {
   // Desinstalados nunca são apagados: horas, conquistas e registro continuam guardados
   for (const game of db.getGames()) {
     if (detectedIds.has(game.id) || game.manualEntry) continue;
+    // A não ser a ROM achada na pasta que saiu do PC sem nada do jogador: não há histórico a guardar
+    if (game.id.startsWith('emu-') && completedPlatforms.has('emulator') && hasNoPlayerData(game)) {
+      db.deleteGame(game.id);
+      updated++;
+      continue;
+    }
     const owner = scannerOwner(game);
     const stillThere = owner ? !completedPlatforms.has(owner) : !game.executablePath || existsSync(game.executablePath);
     const installed = game.isInstalled !== false && stillThere;
