@@ -128,7 +128,8 @@ async function customScreenshots(game: Game): Promise<Screenshot[]> {
     const url = mediaUrl(HOSTS.custom, `${dirName}/${file}`);
     const thumb = thumbNameOf(file);
     const thumbUrl = files.includes(thumb) ? mediaUrl(HOSTS.custom, `${dirName}/${thumb}`) : url;
-    results.push({ id: `custom:${file}`, source: 'custom', url, thumbUrl, fileName: file, takenAt: await mtimeIso(join(dir, file)) });
+    // Só as capturas da tecla têm miniatura própria
+    results.push({ id: `custom:${file}`, source: files.includes(thumb) ? 'lazulium' : 'custom', url, thumbUrl, fileName: file, takenAt: await mtimeIso(join(dir, file)) });
   }
   return results;
 }

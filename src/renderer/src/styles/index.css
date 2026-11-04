@@ -96,3 +96,10 @@ html[data-nav] [data-game-id]:focus {
 .titlebar-no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* A área de arrastar é do Windows e engole cliques até do que está desenhado por cima dela:
+   janela aberta e menu precisam liberar a faixa da barra de título */
+.fixed.inset-0,
+[data-nav-scope] {
+  -webkit-app-region: no-drag;
+}

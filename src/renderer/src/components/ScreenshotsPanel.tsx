@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRightLeft, Timer, Camera, Check, ChevronLeft, ChevronRight, FolderOpen, ImagePlus, ListChecks, Loader2, Trash2, X, AlertTriangle } from 'lucide-react';
+import { ArrowRightLeft, Timer, Camera, Check, Copy, ChevronLeft, ChevronRight, FolderOpen, ImagePlus, ListChecks, Loader2, Trash2, X, AlertTriangle } from 'lucide-react';
 import { GamePickerModal } from './GamePickerModal';
 import { Game } from '@shared/types/game';
 import { Screenshot, ScreenshotSource } from '@shared/types/screenshots';
@@ -14,11 +14,13 @@ interface ScreenshotsPanelProps {
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 const COUNTDOWN_SECONDS = 5;
+const COPIED_MS = 2000;
 
 const SOURCE_LABEL: Record<ScreenshotSource, string> = {
   steam: 'Steam',
   gamebar: 'Xbox Game Bar',
-  custom: 'Anexada'
+  custom: 'Anexada',
+  lazulium: 'Lazulium'
 };
 
 function formatDate(iso: string): string {
@@ -37,6 +39,7 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moving, setMoving] = useState<string[] | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   // Ref: o pai pode passar uma função nova a cada render sem recarregar a lista
   const onChangedRef = useRef(onChanged);
   onChangedRef.current = onChanged;
@@ -125,6 +128,22 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
     const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
     return () => clearTimeout(timer);
   }, [countdown, game.id, load]);
+
+  const handleCopy = async (shot: Screenshot) => {
+    setError(null);
+    try {
+      await window.electronAPI?.copyScreenshot(game.id, shot.id);
+      setCopiedId(shot.id);
+      setTimeout(() => setCopiedId((id) => (id === shot.id ? null : id)), COPIED_MS);
+    } catch (err) {
+      setError(ipcErrorMessage(err));
+    }
+  };
+
+  const handleShowInFolder = (shot: Screenshot) => {
+    setError(null);
+    window.electronAPI?.showScreenshotInFolder(game.id, shot.id).catch((err) => setError(ipcErrorMessage(err)));
+  };
 
   const stopSelecting = () => {
     setSelecting(false);
@@ -246,7 +265,10 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
               {SOURCE_LABEL[current.source]} · {formatDate(current.takenAt)} · {viewing! + 1}/{shots.length}
             </span>
             <div className="flex items-center gap-2">
-              <button onClick={() => window.electronAPI?.showScreenshotInFolder(game.id, current.id)} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 ${focusRing}`}>
+              <button onClick={() => handleCopy(current)} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 ${focusRing}`}>
+                {copiedId === current.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />} {copiedId === current.id ? 'Copiada' : 'Copiar imagem'}
+              </button>
+              <button onClick={() => handleShowInFolder(current)} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 ${focusRing}`}>
                 <FolderOpen className="w-3.5 h-3.5" /> Mostrar na pasta
               </button>
               <button onClick={() => setMoving([current.id])} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 ${focusRing}`}>
@@ -272,7 +294,12 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
               </button>
             </div>
           </div>
-          <div className="relative flex-1 flex items-center justify-center px-16 pb-6">
+          {error && (
+            <p className="mx-5 mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300" onClick={(e) => e.stopPropagation()}>
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" /> {error}
+            </p>
+          )}
+          <div className="relative flex-1 min-h-0 flex items-center justify-center px-16 pb-6">
             <img src={current.url} alt="" className="max-w-full max-h-full object-contain rounded" onClick={(e) => e.stopPropagation()} />
             {shots.length > 1 && (
               <>

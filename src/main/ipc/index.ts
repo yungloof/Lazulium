@@ -1,4 +1,4 @@
-import { app, ipcMain, BrowserWindow, dialog, shell } from 'electron';
+import { app, clipboard, ipcMain, BrowserWindow, dialog, nativeImage, shell } from 'electron';
 import { getLogsDir } from '../logger';
 import { statSync } from 'fs';
 import { dirname } from 'path';
@@ -378,6 +378,14 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_TAKE, async (_event, gameId: string) => screenshotCaptureService.capture(requireGame(gameId).id));
   ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_GET_HOTKEY, async () => screenshotCaptureService.getHotkey());
   ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_SET_HOTKEY, async (_event, key: string) => screenshotCaptureService.setHotkey(key));
+
+  ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_COPY, async (_event, gameId: string, screenshotId: string) => {
+    const path = await screenshotsService.resolvePath(requireGame(gameId), screenshotId);
+    if (!path) throw new Error('Essa captura não existe mais: abra a galeria de novo.');
+    const image = nativeImage.createFromPath(path);
+    if (image.isEmpty()) throw new Error('Não foi possível ler essa imagem. Use Mostrar na pasta para abrir o arquivo.');
+    clipboard.writeImage(image);
+  });
 
   ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_SHOW_IN_FOLDER, async (_event, gameId: string, screenshotId: string) => {
     const path = await screenshotsService.resolvePath(requireGame(gameId), screenshotId);

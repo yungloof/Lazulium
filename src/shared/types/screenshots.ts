@@ -1,7 +1,8 @@
 // 'steam': F12 da Steam (inclusive jogos não-Steam adicionados à Steam)
 // 'gamebar': Win+Alt+PrtScn (Xbox Game Bar, Vídeos\Capturas)
 // 'custom': imagens anexadas pelo usuário no Lazulium
-export type ScreenshotSource = 'steam' | 'gamebar' | 'custom';
+// 'lazulium': capturadas pela tecla do Lazulium
+export type ScreenshotSource = 'steam' | 'gamebar' | 'custom' | 'lazulium';
 
 // Captura salva no jogo errado (ex: Spacewar, usado para abrir jogos fora da Steam).
 // Só muda onde ela aparece: o arquivo continua na pasta de origem.

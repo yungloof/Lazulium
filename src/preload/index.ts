@@ -112,6 +112,7 @@ const electronAPI: ElectronAPI = {
   moveScreenshots: (fromGameId: string, screenshotIds: string[], toGameId: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_MOVE, fromGameId, screenshotIds, toGameId),
   takeScreenshot: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_TAKE, gameId),
+  copyScreenshot: (gameId: string, screenshotId: string) => ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_COPY, gameId, screenshotId),
   onScreenshotTaken: (callback: (result: ScreenshotTaken) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, result: ScreenshotTaken) => callback(result);
     ipcRenderer.on(IPC_CHANNELS.SCREENSHOTS_TAKEN, subscription);

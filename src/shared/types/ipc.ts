@@ -174,6 +174,7 @@ export interface ElectronAPI {
   showScreenshotInFolder: (gameId: string, screenshotId: string) => Promise<void>;
   moveScreenshots: (fromGameId: string, screenshotIds: string[], toGameId: string) => Promise<void>;
   takeScreenshot: (gameId: string) => Promise<ScreenshotTaken>;
+  copyScreenshot: (gameId: string, screenshotId: string) => Promise<void>;
   onScreenshotTaken: (callback: (result: ScreenshotTaken) => void) => () => void;
   getScreenshotHotkey: () => Promise<string>;
   setScreenshotHotkey: (key: string) => Promise<{ ok: boolean }>;
