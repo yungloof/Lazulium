@@ -25,7 +25,8 @@ function shouldUseUri(game: Game): boolean {
 function splitArguments(commandLine: string): string[] {
   if (!commandLine || !commandLine.trim()) return [];
   const matches = commandLine.match(/(?:[^\s"]+|"[^"]*")+/g);
-  return matches ? matches.map((m) => m.replace(/^"|"$/g, '')) : [];
+  // Tira também as aspas do meio (--rom="C:\\a b"): o Node já coloca as necessárias ao abrir o processo
+  return matches ? matches.map((m) => m.replace(/"/g, '')) : [];
 }
 
 function spawnDetached(game: Game): Promise<number> {

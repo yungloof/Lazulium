@@ -87,6 +87,15 @@ function dropCoveredFolders(detected: DetectedGame[]): DetectedGame[] {
   });
 }
 
+// Só herda o histórico quem saiu mesmo do PC e não tem dono próprio: registro do Diário, jogo adicionado à mão e
+// jogo de loja (a conta continua tendo) nunca somem porque apareceu outro jogo com o mesmo nome.
+function canHandOverHistory(game: Game, detected: DetectedGame): boolean {
+  if (game.manualEntry || game.id.startsWith('custom-')) return false;
+  if (scannerOwner(game) === detected.platform) return true;
+  const isLocalCopy = /^(standalone-|emu-|steam-shortcut-)/.test(game.id);
+  return isLocalCopy && (game.isInstalled === false || !game.executablePath || !existsSync(game.executablePath));
+}
+
 // Scans rodam em fila: o da abertura do app e o do botão "Escanear" (ou o da primeira execução)
 // não disputam o PowerShell/registro nem gravam o banco ao mesmo tempo
 let scanQueue: Promise<unknown> = Promise.resolve();
@@ -135,15 +144,7 @@ async function runScan(platforms?: GamePlatform[]): Promise<ScanResult> {
     const previous = db
       .getGames()
       .find(
-        (g) =>
-          g.id !== detected.id &&
-          !detectedIds.has(g.id) &&
-          normalizeKey(g.title) === key &&
-          (g.isInstalled === false ||
-            g.platform === 'standalone' ||
-            scannerOwner(g) === detected.platform ||
-            !g.executablePath ||
-            !existsSync(g.executablePath))
+        (g) => g.id !== detected.id && !detectedIds.has(g.id) && normalizeKey(g.title) === key && canHandOverHistory(g, detected)
       );
 
     if (previous && detected.isInstalled !== false) {

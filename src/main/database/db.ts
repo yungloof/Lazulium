@@ -305,12 +305,13 @@ class DatabaseService {
     for (const session of this.data.playtimeSessions) {
       if (session.gameId === oldId) session.gameId = newId;
     }
+    // O jogo que fica pode já ter dados próprios: o que veio do antigo só preenche o que falta
     if (this.data.gameAchievements?.[oldId]) {
-      this.data.gameAchievements[newId] = { ...this.data.gameAchievements[oldId], gameId: newId };
+      this.data.gameAchievements[newId] ??= { ...this.data.gameAchievements[oldId], gameId: newId };
       delete this.data.gameAchievements[oldId];
     }
     if (this.data.saveConfigs?.[oldId]) {
-      this.data.saveConfigs[newId] = this.data.saveConfigs[oldId];
+      this.data.saveConfigs[newId] ??= this.data.saveConfigs[oldId];
       delete this.data.saveConfigs[oldId];
     }
     for (const backup of this.data.saveBackups ?? []) {

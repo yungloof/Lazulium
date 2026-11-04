@@ -231,7 +231,9 @@ export function createEmulatorScanner(getConfigs: () => EmulatorConfig[], getOth
       const known: KnownGames = {
         launchArguments: normalizePath(allOtherGames.map((g) => `${g.launchArguments ?? ''} ${g.romPath ?? ''}`).join('\n')),
         titleKeys: allOtherGames
-          .filter((g) => officialStores.has(g.platform) && !g.id.startsWith('steam-shortcut-'))
+          // Atalho que abre emulador é o mesmo jogo, mesmo com outra ROM (Tears of the Kingdom com e sem update).
+          // Port para PC instalado não conta: o jogo no emulador é outra forma de jogar.
+          .filter((g) => g.platform === 'emulator' || (officialStores.has(g.platform) && !g.id.startsWith('steam-shortcut-')))
           .map((g) => normalizeKey(g.title))
           .filter(Boolean),
         seenRoms: new Set(allOtherGames.map((g) => (g.romPath ? normalizePath(g.romPath) : '')).filter(Boolean))
