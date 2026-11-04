@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Minus, Square, X, Gamepad2 } from 'lucide-react';
 import { useGamepadStore } from '../stores/useGamepadStore';
+import logo from '../assets/logo.png';
 
 export const TitleBar: React.FC = () => {
   const [isMaximized, setIsMaximized] = useState(false);
@@ -22,9 +23,7 @@ export const TitleBar: React.FC = () => {
     <header className="titlebar-drag-region h-11 bg-steam-header flex items-center justify-between px-3 select-none z-50">
       {/* Left: Brand / Logo */}
       <div className="flex items-center gap-2.5">
-        <div className="w-6 h-6 rounded-sm bg-indigo-800 flex items-center justify-center">
-          <Gamepad2 className="w-3.5 h-3.5 text-indigo-400" />
-        </div>
+        <img src={logo} alt="" className="w-6 h-6 rounded-sm" />
         <span className="text-sm font-extrabold tracking-wider text-slate-200">
           LAZULIUM
           <span className="text-[10px] font-medium text-indigo-400/80 ml-1.5 uppercase tracking-normal">Steam 2</span>

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Gamepad2 } from 'lucide-react';
+import logo from '../assets/logo.png';
 import { Game, GamePlatform } from '@shared/types/game';
 import { AccountsSettings } from './AccountsSettings';
 
@@ -36,9 +36,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ games, isScanning, o
       <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-lg bg-steam-panel border border-slate-800 shadow-lg">
         <div className="px-6 pt-6 pb-4 border-b border-slate-800">
           <h2 className="flex items-center gap-2.5 text-xl text-white">
-            <span className="w-8 h-8 rounded-lg bg-indigo-900/60 border border-indigo-700/50 flex items-center justify-center">
-              <Gamepad2 className="w-4 h-4 text-indigo-400" />
-            </span>
+            <img src={logo} alt="" className="w-8 h-8 rounded-lg" />
             Bem-vindo ao Lazulium
           </h2>
           <p className="mt-2 text-sm text-slate-300">
