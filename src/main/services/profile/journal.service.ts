@@ -58,6 +58,21 @@ export function setGameLog(gameId: string, log: GameLog): Game {
   return updated;
 }
 
+// Vale só no Lazulium: nome vazio ou igual ao original volta a acompanhar o que o scanner encontra
+export function renameGame(gameId: string, title: string | null): Game {
+  const game = db.getGameById(gameId);
+  if (!game) throw new Error('Jogo não encontrado.');
+  const clean = title?.trim().slice(0, MAX_TITLE_LENGTH);
+  const original = game.customTitle ? game.detectedTitle ?? game.title : game.title;
+  if (title !== null && !clean) throw new Error('Digite um nome para o jogo.');
+  const updated: Game =
+    clean && clean !== original
+      ? { ...game, title: clean, customTitle: clean, detectedTitle: original }
+      : { ...game, title: original, customTitle: undefined, detectedTitle: undefined };
+  db.upsertGame(updated);
+  return updated;
+}
+
 // Define o total jogado. Em atalhos da Steam guarda a diferença para o valor da Steam: a edição
 // sobrevive a todo scan e as horas que a Steam registrar depois continuam somando.
 export function setManualPlaytime(gameId: string, totalSeconds: number, lastPlayedOn?: string): Game {

@@ -22,6 +22,7 @@ interface GamePageProps {
   onEditPlaytime: () => void;
   onOpenFolder: () => void;
   onAddToList: () => void;
+  onRename: () => void;
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
@@ -105,7 +106,8 @@ export const GamePage: React.FC<GamePageProps> = ({
   onOpenArtwork,
   onEditPlaytime,
   onOpenFolder,
-  onAddToList
+  onAddToList,
+  onRename
 }) => {
   const [heroFailed, setHeroFailed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
@@ -158,7 +160,7 @@ export const GamePage: React.FC<GamePageProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [game.id]);
+  }, [game.id, game.title]);
 
   const runningMinutes = useMemo(() => {
     if (!isRunning) return 0;
@@ -285,6 +287,7 @@ export const GamePage: React.FC<GamePageProps> = ({
         <div className="ml-auto flex items-center gap-1.5">
           {[
             ...(game.manualEntry || game.isInstalled === false ? [] : [{ label: 'Abrir pasta do jogo', icon: <FolderOpen className="w-4 h-4" />, onClick: onOpenFolder }]),
+            { label: 'Renomear', icon: <Pencil className="w-4 h-4" />, onClick: onRename },
             { label: 'Adicionar à lista', icon: <ListPlus className="w-4 h-4" />, onClick: onAddToList },
             { label: 'Capturas', icon: <Camera className="w-4 h-4" />, onClick: onOpenScreenshots },
             { label: 'Backup de saves', icon: <Save className="w-4 h-4" />, onClick: onOpenSaves },
@@ -402,6 +405,15 @@ export const GamePage: React.FC<GamePageProps> = ({
 
           <Card title="Informações" icon={<Info className="w-3.5 h-3.5 text-slate-400" />}>
             <dl className="space-y-2 text-xs">
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-500">Nome</dt>
+                <dd className="min-w-0">
+                  <button onClick={onRename} title="Renomear" className={`flex items-center gap-1.5 max-w-full text-slate-300 hover:text-white rounded-sm ${focusRing}`}>
+                    <span className="truncate">{game.title}</span>
+                    <Pencil className="w-3 h-3 flex-shrink-0 text-slate-500" />
+                  </button>
+                </dd>
+              </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-slate-500">Plataforma</dt>
                 <dd className="text-slate-300 text-right">

@@ -26,6 +26,7 @@ import { accountsService } from '../services/accounts/accounts.service';
 import { screenshotsService } from '../services/metadata/screenshots.service';
 import { profileService } from '../services/profile/profile.service';
 import { saveGameList } from '../services/profile/lists.service';
+import { renameGame } from '../services/profile/journal.service';
 import { searchGameCatalog } from '../services/metadata/game-search.service';
 import { achievementsService as achievementsForListener } from '../services/achievements/achievements.service';
 import { GameListInput } from '@shared/types/lists';
@@ -203,6 +204,11 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   });
 
   ipcMain.handle(IPC_CHANNELS.JOURNAL_SEARCH_CATALOG, async (_event, query: string) => searchGameCatalog(query));
+  ipcMain.handle(IPC_CHANNELS.GAME_RENAME, async (_event, gameId: string, title: string | null) => {
+    const game = renameGame(gameId, title);
+    playLengthService.forget(game.id);
+    return game;
+  });
   ipcMain.handle(IPC_CHANNELS.LISTS_GET, async () => db.getGameLists());
   ipcMain.handle(IPC_CHANNELS.LISTS_SAVE, async (_event, input: GameListInput) => saveGameList(input));
   ipcMain.handle(IPC_CHANNELS.LISTS_DELETE, async (_event, id: string) => db.deleteGameList(id));

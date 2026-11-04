@@ -132,6 +132,11 @@ async function measureSteamReviews(appId: string): Promise<GamePlayLength | null
 class PlayLengthService {
   private inFlight = new Map<string, Promise<GamePlayLength | null>>();
 
+  // O nome faz parte da busca: renomear precisa consultar de novo
+  forget(gameId: string): void {
+    db.setPlayLength(CACHE_PREFIX + gameId, { length: null, expiresAt: 0 });
+  }
+
   // Informação extra da página do jogo: sem rede ou sem dados, a página só não mostra
   get(game: Game): Promise<GamePlayLength | null> {
     const cached = db.getPlayLength(CACHE_PREFIX + game.id);

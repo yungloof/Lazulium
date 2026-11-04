@@ -38,6 +38,7 @@ const electronAPI: ElectronAPI = {
   addJournalEntry: (entry: JournalEntryInput) => ipcRenderer.invoke(IPC_CHANNELS.JOURNAL_ADD_ENTRY, entry),
   exportJournal: () => ipcRenderer.invoke(IPC_CHANNELS.JOURNAL_EXPORT),
   searchGameCatalog: (query: string) => ipcRenderer.invoke(IPC_CHANNELS.JOURNAL_SEARCH_CATALOG, query),
+  renameGame: (gameId: string, title: string | null) => ipcRenderer.invoke(IPC_CHANNELS.GAME_RENAME, gameId, title),
   getGameLists: () => ipcRenderer.invoke(IPC_CHANNELS.LISTS_GET),
   saveGameList: (input: GameListInput) => ipcRenderer.invoke(IPC_CHANNELS.LISTS_SAVE, input),
   deleteGameList: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.LISTS_DELETE, id),

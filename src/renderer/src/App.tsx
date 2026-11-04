@@ -13,6 +13,7 @@ import { JournalPage } from './components/JournalPage';
 import { GalleryPage } from './components/GalleryPage';
 import { ListsPage } from './components/ListsPage';
 import { AddToListModal } from './components/AddToListModal';
+import { RenameGameModal } from './components/RenameGameModal';
 import { WelcomeModal } from './components/WelcomeModal';
 import { PlaytimeEditor } from './components/PlaytimeEditor';
 import { LibraryFilter, LibrarySidebar } from './components/LibrarySidebar';
@@ -65,6 +66,7 @@ export const App: React.FC = () => {
   const [view, setView] = useState<'home' | 'game' | 'profile' | 'journal' | 'gallery' | 'lists'>('home');
   const [openListId, setOpenListId] = useState<string | undefined>();
   const [addToListGame, setAddToListGame] = useState<Game | null>(null);
+  const [renamingGame, setRenamingGame] = useState<Game | null>(null);
   const [screenshotStartId, setScreenshotStartId] = useState<string | undefined>();
   const [showRemoved, setShowRemoved] = useState(() => {
     try {
@@ -300,6 +302,7 @@ export const App: React.FC = () => {
     showPlaytimeEditor ||
     showWelcome ||
     !!addToListGame ||
+    !!renamingGame ||
     !!contextMenu;
 
   const stepFilter = (step: number) => {
@@ -581,6 +584,7 @@ export const App: React.FC = () => {
               onEditPlaytime={() => setShowPlaytimeEditor(true)}
               onOpenFolder={() => handleOpenFolder(selectedGame)}
               onAddToList={() => setAddToListGame(selectedGame)}
+              onRename={() => setRenamingGame(selectedGame)}
             />
           ) : (
             <LibraryHome
@@ -663,6 +667,8 @@ export const App: React.FC = () => {
 
       {addToListGame && <AddToListModal game={addToListGame} onClose={() => setAddToListGame(null)} />}
 
+      {renamingGame && <RenameGameModal game={renamingGame} onClose={() => setRenamingGame(null)} />}
+
       {contextMenu && (
         <GameContextMenu
           game={contextMenu.game}
@@ -674,6 +680,7 @@ export const App: React.FC = () => {
           onOpenPage={openGame}
           onOpenFolder={handleOpenFolder}
           onAddToList={setAddToListGame}
+          onRename={setRenamingGame}
           onToggleFavorite={handleToggleFavorite}
           onOpenArtwork={(g) => {
             setSelectedGame(g);

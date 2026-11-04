@@ -30,6 +30,7 @@ export const IPC_CHANNELS = {
   JOURNAL_ADD_ENTRY: 'journal:add-entry',
   JOURNAL_EXPORT: 'journal:export',
   JOURNAL_SEARCH_CATALOG: 'journal:search-catalog',
+  GAME_RENAME: 'game:rename',
 
   // Listas
   LISTS_GET: 'lists:get',

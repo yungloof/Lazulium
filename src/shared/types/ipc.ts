@@ -121,6 +121,7 @@ export interface ElectronAPI {
   setGameLog: (gameId: string, log: GameLog) => Promise<Game>;
   addJournalEntry: (entry: JournalEntryInput) => Promise<Game>;
   searchGameCatalog: (query: string) => Promise<GameSearchResult[]>;
+  renameGame: (gameId: string, title: string | null) => Promise<Game>; // null volta ao nome original
   getGameLists: () => Promise<GameList[]>;
   saveGameList: (input: GameListInput) => Promise<GameList>;
   deleteGameList: (id: string) => Promise<void>;

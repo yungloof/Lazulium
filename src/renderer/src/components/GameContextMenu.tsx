@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Game } from '@shared/types/game';
-import { Clock, Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera, FolderOpen, ListPlus } from 'lucide-react';
+import { Clock, Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera, FolderOpen, ListPlus, Pencil } from 'lucide-react';
 import { useLibraryStore } from '../stores/useLibraryStore';
 
 export interface GameContextMenuProps {
@@ -18,6 +18,7 @@ export interface GameContextMenuProps {
   onEditPlaytime: (game: Game) => void;
   onOpenFolder: (game: Game) => void;
   onAddToList: (game: Game) => void;
+  onRename: (game: Game) => void;
 }
 
 interface MenuItem {
@@ -42,7 +43,8 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
   onOpenScreenshots,
   onEditPlaytime,
   onOpenFolder,
-  onAddToList
+  onAddToList,
+  onRename
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const isRunning = useLibraryStore((s) => s.launchStatuses[game.id]?.state === 'running');
@@ -78,6 +80,12 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
       label: game.isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos',
       icon: <Star className={`w-3.5 h-3.5 ${game.isFavorite ? 'text-amber-400 fill-amber-400' : 'text-slate-400'}`} />,
       action: () => onToggleFavorite(game.id)
+    },
+    {
+      id: 'rename',
+      label: 'Renomear',
+      icon: <Pencil className="w-3.5 h-3.5 text-slate-400" />,
+      action: () => onRename(game)
     },
     {
       id: 'list',
@@ -149,7 +157,7 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
 
   // Posiciona sem vazar para fora da janela
   const MENU_WIDTH = 220;
-  const MENU_HEIGHT = 340;
+  const MENU_HEIGHT = 370;
   const posX = Math.max(8, Math.min(x, window.innerWidth - MENU_WIDTH - 8));
   const posY = Math.max(8, Math.min(y, window.innerHeight - MENU_HEIGHT - 8));
 

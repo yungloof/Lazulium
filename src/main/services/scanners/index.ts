@@ -52,7 +52,8 @@ function mergeGame(detected: DetectedGame, existing: Game | null): Game {
   return {
     ...existing,
     ...detected,
-    title: isSteamPlaceholderTitle(detected.title) ? existing.title : detected.title,
+    title: existing.customTitle ?? (isSteamPlaceholderTitle(detected.title) ? existing.title : detected.title),
+    detectedTitle: existing.customTitle && !isSteamPlaceholderTitle(detected.title) ? detected.title : existing.detectedTitle,
     isInstalled: detected.isInstalled ?? true,
     sourcePlaytimeSeconds: source,
     // Launcher + ajuste manual; nunca menos do que já está contado (sessões do Lazulium, edições)
@@ -148,7 +149,7 @@ async function runScan(platforms?: GamePlatform[]): Promise<ScanResult> {
     const previous = db
       .getGames()
       .find(
-        (g) => g.id !== detected.id && !detectedIds.has(g.id) && normalizeKey(g.title) === key && canHandOverHistory(g, detected)
+        (g) => g.id !== detected.id && !detectedIds.has(g.id) && normalizeKey(g.detectedTitle ?? g.title) === key && canHandOverHistory(g, detected)
       );
 
     if (previous && detected.isInstalled !== false) {

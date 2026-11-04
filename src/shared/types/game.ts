@@ -44,6 +44,8 @@ export function isJournalEntry(game: Pick<Game, 'log' | 'manualEntry'>): boolean
 export interface Game {
   id: string;                       // UUID ou platform_id único
   title: string;                    // Nome exibido
+  customTitle?: string;             // Nome escolhido pelo jogador: nenhum scan troca
+  detectedTitle?: string;           // Nome que o scanner daria, para voltar ao original e reconhecer o jogo
   platform: GamePlatform;           // Origem
   platformGameId?: string;          // AppID da Steam, AppName da Epic, etc.
   
