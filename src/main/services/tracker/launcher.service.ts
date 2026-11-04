@@ -18,6 +18,7 @@ function shouldUseUri(game: Game): boolean {
   if (!game.launchUri) return false;
   if (game.platform === 'gog' && game.executablePath && existsSync(game.executablePath)) return false;
   if (game.platform === 'emulator' && game.executablePath && existsSync(game.executablePath)) return false;
+  if (game.launchMode === 'launcher') return true;
   if (game.id.startsWith('steam-shortcut-') && game.executablePath && existsSync(game.executablePath)) return false;
   return true;
 }
@@ -31,7 +32,7 @@ function splitArguments(commandLine: string): string[] {
 
 function spawnDetached(game: Game): Promise<number> {
   const exe = game.executablePath;
-  const rawArgs = game.launchArguments?.trim() ?? '';
+  const rawArgs = (game.customLaunchArguments ?? game.launchArguments)?.trim() ?? '';
   const cwd = game.workingDirectory && existsSync(game.workingDirectory) ? game.workingDirectory : dirname(exe);
   const isScript = ['.bat', '.cmd'].includes(extname(exe).toLowerCase());
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Game } from '@shared/types/game';
-import { Clock, Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera, FolderOpen, ListPlus, Pencil } from 'lucide-react';
+import { Clock, Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera, FolderOpen, ListPlus, Pencil, EyeOff, SlidersHorizontal } from 'lucide-react';
 import { useLibraryStore } from '../stores/useLibraryStore';
 
 export interface GameContextMenuProps {
@@ -19,6 +19,8 @@ export interface GameContextMenuProps {
   onOpenFolder: (game: Game) => void;
   onAddToList: (game: Game) => void;
   onRename: (game: Game) => void;
+  onHide: (game: Game) => void;
+  onLaunchOptions: (game: Game) => void;
 }
 
 interface MenuItem {
@@ -44,7 +46,9 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
   onEditPlaytime,
   onOpenFolder,
   onAddToList,
-  onRename
+  onRename,
+  onHide,
+  onLaunchOptions
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const isRunning = useLibraryStore((s) => s.launchStatuses[game.id]?.state === 'running');
@@ -117,6 +121,19 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
       label: 'Capturas de tela',
       icon: <Camera className="w-3.5 h-3.5 text-slate-400" />,
       action: () => onOpenScreenshots(game)
+    },
+    ...(game.platform === 'steam' || game.manualEntry ? [] : [{
+      id: 'launch-options',
+      label: 'Opções de inicialização',
+      icon: <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />,
+      action: () => onLaunchOptions(game)
+    }]),
+    {
+      id: 'hide',
+      label: 'Ocultar',
+      icon: <EyeOff className="w-3.5 h-3.5 text-slate-400" />,
+      action: () => onHide(game),
+      separatorBefore: true
     }
   ];
 
@@ -157,7 +174,7 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
 
   // Posiciona sem vazar para fora da janela
   const MENU_WIDTH = 220;
-  const MENU_HEIGHT = 370;
+  const MENU_HEIGHT = 440;
   const posX = Math.max(8, Math.min(x, window.innerWidth - MENU_WIDTH - 8));
   const posY = Math.max(8, Math.min(y, window.innerHeight - MENU_HEIGHT - 8));
 

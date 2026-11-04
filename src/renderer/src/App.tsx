@@ -14,10 +14,12 @@ import { GalleryPage } from './components/GalleryPage';
 import { ListsPage } from './components/ListsPage';
 import { AddToListModal } from './components/AddToListModal';
 import { RenameGameModal } from './components/RenameGameModal';
+import { LaunchOptionsModal } from './components/LaunchOptionsModal';
+import { QuickSearch } from './components/QuickSearch';
 import { WelcomeModal } from './components/WelcomeModal';
 import { PlaytimeEditor } from './components/PlaytimeEditor';
 import { LibraryFilter, LibrarySidebar } from './components/LibrarySidebar';
-import { LibraryHome } from './components/LibraryHome';
+import { LibraryHome, LibrarySort, LibraryStatusFilter } from './components/LibraryHome';
 import { GamePage } from './components/GamePage';
 import { GameContextMenu } from './components/GameContextMenu';
 import { useLibraryStore } from './stores/useLibraryStore';
@@ -43,6 +45,21 @@ const FILTERS: { id: LibraryFilter; label: string }[] = [
 
 const SECTIONS = ['home', 'journal', 'lists', 'gallery', 'profile'] as const;
 const GAME_UPDATE_BATCH_MS = 120;
+const NOTICE_MS = 6000;
+const NOTICE_WITH_ACTION_MS = 15000;
+const ASK_STATUS_AFTER_SECONDS = 10 * 60;
+const LIBRARY_SORT_KEY = 'lazulium.librarySort';
+
+function loadLibrarySort(): LibrarySort {
+  try {
+    const saved = localStorage.getItem(LIBRARY_SORT_KEY);
+    return saved === 'recent' || saved === 'hours' || saved === 'added' || saved === 'rating' ? saved : 'title';
+  } catch {
+    return 'title';
+  }
+}
+
+type Notice = { text: string; tone: 'ok' | 'warn'; action?: { label: string; run: () => void } };
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 const toolbarButton = `flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 rounded-lg text-slate-200 transition-colors disabled:opacity-50 ${focusRing}`;
 
@@ -84,7 +101,11 @@ export const App: React.FC = () => {
   const [showAchievementsModal, setShowAchievementsModal] = useState(false);
   const [showSavesModal, setShowSavesModal] = useState(false);
   const [gameAchievements, setGameAchievements] = useState<GameAchievements | null>(null);
-  const [launchNotice, setLaunchNotice] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
+  const [launchNotice, setLaunchNotice] = useState<Notice | null>(null);
+  const [launchOptionsGame, setLaunchOptionsGame] = useState<Game | null>(null);
+  const [showQuickSearch, setShowQuickSearch] = useState(false);
+  const [librarySort, setLibrarySort] = useState<LibrarySort>(loadLibrarySort);
+  const [libraryStatus, setLibraryStatus] = useState<LibraryStatusFilter>('all');
   const [showPlaytimeEditor, setShowPlaytimeEditor] = useState(false);
   const [showScreenshots, setShowScreenshots] = useState(false);
   const [screenshotsVersion, setScreenshotsVersion] = useState(0);
@@ -189,7 +210,25 @@ export const App: React.FC = () => {
         const minutes = Math.max(1, Math.round(status.sessionSeconds / 60));
         const idleMin = status.idleSeconds ? Math.round(status.idleSeconds / 60) : 0;
         const idleText = idleMin > 0 ? ` (${idleMin} min ausente descontados)` : '';
-        setLaunchNotice({ text: `${title}: sessão de ${minutes} min registrada${idleText}.`, tone: 'ok' });
+        const played = useLibraryStore.getState().games.find((g) => g.id === status.gameId);
+        // Sessão de verdade em jogo sem status: um clique para entrar no Diário
+        const askStatus = played && !played.log?.status && status.sessionSeconds >= ASK_STATUS_AFTER_SECONDS;
+        setLaunchNotice({
+          text: `${title}: sessão de ${minutes} min registrada${idleText}.`,
+          tone: 'ok',
+          action: askStatus
+            ? {
+                label: 'Marcar como Jogando',
+                run: () => {
+                  window.electronAPI
+                    ?.setGameLog(played.id, { ...played.log, status: 'playing', startedOn: played.log?.startedOn ?? new Date().toISOString().slice(0, 10) })
+                    .then((updated) => useLibraryStore.getState().upsertGameLocal(updated))
+                    .catch((err) => setLaunchNotice({ text: ipcErrorMessage(err), tone: 'warn' }));
+                  setLaunchNotice(null);
+                }
+              }
+            : undefined
+        });
       } else {
         setLaunchNotice({ text: `${title}: sessão menor que 15 s, não contabilizada.`, tone: 'warn' });
       }
@@ -243,7 +282,7 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     if (!launchNotice) return;
-    const timer = setTimeout(() => setLaunchNotice(null), 6000);
+    const timer = setTimeout(() => setLaunchNotice(null), launchNotice.action ? NOTICE_WITH_ACTION_MS : NOTICE_MS);
     return () => clearTimeout(timer);
   }, [launchNotice]);
 
@@ -294,10 +333,70 @@ export const App: React.FC = () => {
   }, [games, activeFilter, searchQuery, showRemoved]);
 
   // Grade do início em ordem alfabética (a lista lateral agrupa por plataforma)
-  const homeGames = useMemo(
-    () => [...filteredGames].sort((a, b) => a.title.localeCompare(b.title, 'pt-BR', { sensitivity: 'base' })),
-    [filteredGames]
-  );
+  const homeGames = useMemo(() => {
+    const byTitle = (a: Game, b: Game) => a.title.localeCompare(b.title, 'pt-BR', { sensitivity: 'base' });
+    const compare: Record<LibrarySort, (a: Game, b: Game) => number> = {
+      title: byTitle,
+      recent: (a, b) => (b.lastPlayedAt ?? '').localeCompare(a.lastPlayedAt ?? '') || byTitle(a, b),
+      hours: (a, b) => (b.totalPlaytimeSeconds ?? 0) - (a.totalPlaytimeSeconds ?? 0) || byTitle(a, b),
+      added: (a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '') || byTitle(a, b),
+      rating: (a, b) => (b.log?.rating ?? 0) - (a.log?.rating ?? 0) || byTitle(a, b)
+    };
+    return filteredGames
+      .filter((g) => libraryStatus === 'all' || (libraryStatus === 'unplayed' ? (g.totalPlaytimeSeconds ?? 0) < 60 : g.log?.status === libraryStatus))
+      .sort(compare[librarySort]);
+  }, [filteredGames, librarySort, libraryStatus]);
+
+  const changeLibrarySort = (sort: LibrarySort) => {
+    setLibrarySort(sort);
+    try {
+      localStorage.setItem(LIBRARY_SORT_KEY, sort);
+    } catch {
+      // Preferência só desta sessão
+    }
+  };
+
+  const hideGame = async (game: Game) => {
+    try {
+      const updated = await window.electronAPI?.updateGame(game.id, { isHidden: true });
+      if (updated) useLibraryStore.getState().upsertGameLocal(updated);
+      if (selectedGame?.id === game.id && view === 'game') goHome();
+      setLaunchNotice({
+        text: `${game.title} foi ocultado. Fica em Configurações → Jogos ocultos.`,
+        tone: 'ok',
+        action: {
+          label: 'Desfazer',
+          run: () => {
+            setLaunchNotice(null);
+            window.electronAPI?.updateGame(game.id, { isHidden: false }).then((restored) => useLibraryStore.getState().upsertGameLocal(restored));
+          }
+        }
+      });
+    } catch (err) {
+      setLaunchNotice({ text: ipcErrorMessage(err), tone: 'warn' });
+    }
+  };
+
+  // Só registro feito à mão: jogo detectado nunca é apagado, no máximo ocultado
+  const askDeleteEntry = (game: Game) => {
+    setLaunchNotice({
+      text: `Apagar o registro de ${game.title}? A resenha e a nota dele somem.`,
+      tone: 'warn',
+      action: {
+        label: 'Apagar',
+        run: () => {
+          setLaunchNotice(null);
+          window.electronAPI
+            ?.deleteGame(game.id)
+            .then(() => {
+              setGames(useLibraryStore.getState().games.filter((g) => g.id !== game.id));
+              goHome();
+            })
+            .catch((err) => setLaunchNotice({ text: ipcErrorMessage(err), tone: 'warn' }));
+        }
+      }
+    });
+  };
 
   const anyModalOpen =
     showSettings ||
@@ -311,6 +410,8 @@ export const App: React.FC = () => {
     showWelcome ||
     !!addToListGame ||
     !!renamingGame ||
+    !!launchOptionsGame ||
+    showQuickSearch ||
     !!contextMenu;
 
   const stepFilter = (step: number) => {
@@ -362,6 +463,17 @@ export const App: React.FC = () => {
     return () => cancelAnimationFrame(frame);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, anyModalOpen, activeFilter]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowQuickSearch((open) => !open);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   // Voltar como num navegador: botão "voltar" do mouse, Alt+← ou Backspace (fora de campos de texto)
   useEffect(() => {
@@ -539,7 +651,14 @@ export const App: React.FC = () => {
                       : 'bg-amber-950/95 border-amber-500/30 text-amber-300'
                   }`}
                 >
-                  {launchNotice.text}
+                  <span className="flex items-center justify-between gap-3">
+                    <span>{launchNotice.text}</span>
+                    {launchNotice.action && (
+                      <button onClick={launchNotice.action.run} className={`flex-shrink-0 px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 font-semibold text-white ${focusRing}`}>
+                        {launchNotice.action.label}
+                      </button>
+                    )}
+                  </span>
                 </div>
               )}
             </div>
@@ -593,11 +712,18 @@ export const App: React.FC = () => {
               onOpenFolder={() => handleOpenFolder(selectedGame)}
               onAddToList={() => setAddToListGame(selectedGame)}
               onRename={() => setRenamingGame(selectedGame)}
+              onHide={() => void hideGame(selectedGame)}
+              onLaunchOptions={() => setLaunchOptionsGame(selectedGame)}
+              onDeleteEntry={() => askDeleteEntry(selectedGame)}
             />
           ) : (
             <LibraryHome
               games={homeGames}
-              isFiltered={activeFilter !== 'all' || !!searchQuery.trim()}
+              isFiltered={activeFilter !== 'all' || !!searchQuery.trim() || libraryStatus !== 'all'}
+              sort={librarySort}
+              onSortChange={changeLibrarySort}
+              statusFilter={libraryStatus}
+              onStatusFilterChange={setLibraryStatus}
               onOpenGame={openGame}
               onToggleFavorite={handleToggleFavorite}
               onContextMenu={handleOpenContextMenu}
@@ -677,6 +803,10 @@ export const App: React.FC = () => {
 
       {renamingGame && <RenameGameModal game={renamingGame} onClose={() => setRenamingGame(null)} />}
 
+      {launchOptionsGame && <LaunchOptionsModal game={launchOptionsGame} onClose={() => setLaunchOptionsGame(null)} />}
+
+      {showQuickSearch && <QuickSearch onOpenGame={openGame} onLaunchGame={handleLaunchGame} onClose={() => setShowQuickSearch(false)} />}
+
       {contextMenu && (
         <GameContextMenu
           game={contextMenu.game}
@@ -689,6 +819,8 @@ export const App: React.FC = () => {
           onOpenFolder={handleOpenFolder}
           onAddToList={setAddToListGame}
           onRename={setRenamingGame}
+          onHide={(g) => void hideGame(g)}
+          onLaunchOptions={setLaunchOptionsGame}
           onToggleFavorite={handleToggleFavorite}
           onOpenArtwork={(g) => {
             setSelectedGame(g);

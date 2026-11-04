@@ -23,6 +23,9 @@ export interface GameMedia {
   iconUrl?: string;  // Ícone de app
 }
 
+// Atalho da Steam: abrir o programa direto ou pela Steam (ausente = direto)
+export type GameLaunchMode = 'direct' | 'launcher';
+
 export type GameLogStatus = 'backlog' | 'playing' | 'paused' | 'finished' | 'completed' | 'dropped';
 
 // Registro pessoal do jogador: nunca é alterado por scans
@@ -52,6 +55,8 @@ export interface Game {
   // Execução
   executablePath: string;           // Caminho do .exe ou do emulador
   launchArguments?: string;         // Argumentos passados via CLI
+  customLaunchArguments?: string;   // Escolhidos pelo jogador: valem no lugar dos detectados, e nenhum scan troca
+  launchMode?: GameLaunchMode;
   workingDirectory?: string;        // Diretório de execução
   launchUri?: string;               // Protocolo do launcher (ex: steam://rungameid/123)
   installPath?: string;             // Pasta de instalação detectada pelo scanner

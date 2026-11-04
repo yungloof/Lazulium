@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Camera, Clock, FolderOpen, ListPlus, Hourglass, Image as ImageIcon, Info, Pencil, Save, Star, Trophy, BarChart2, CalendarClock } from 'lucide-react';
+import { Camera, Clock, EyeOff, FolderOpen, ListPlus, SlidersHorizontal, Trash2, Hourglass, Image as ImageIcon, Info, Pencil, Save, Star, Trophy, BarChart2, CalendarClock } from 'lucide-react';
 import { Game, GamePlayLength, hasConsistentTimes, isWeakPlayLength } from '@shared/types/game';
 import { hasRetroAchievements } from '@shared/constants/emulators';
 import { GameAchievements } from '@shared/types/achievements';
@@ -23,6 +23,9 @@ interface GamePageProps {
   onOpenFolder: () => void;
   onAddToList: () => void;
   onRename: () => void;
+  onHide: () => void;
+  onLaunchOptions: () => void;
+  onDeleteEntry: () => void;
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
@@ -107,7 +110,10 @@ export const GamePage: React.FC<GamePageProps> = ({
   onEditPlaytime,
   onOpenFolder,
   onAddToList,
-  onRename
+  onRename,
+  onHide,
+  onLaunchOptions,
+  onDeleteEntry
 }) => {
   const [heroFailed, setHeroFailed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
@@ -150,6 +156,10 @@ export const GamePage: React.FC<GamePageProps> = ({
   }, [isRunning]);
 
   const [playLength, setPlayLength] = useState<GamePlayLength | null>(null);
+  // Noção de quanto falta. Zerado, sem fim definido ou com dados fracos, a barra só atrapalharia.
+  const typicalHours = playLength && !playLength.openEnded && !isWeakPlayLength(playLength) ? playLength.typicalHours ?? playLength.lowHours : null;
+  const finished = game.log?.status === 'finished' || game.log?.status === 'completed';
+  const progress = typicalHours && !finished && game.totalPlaytimeSeconds > 0 ? Math.min(100, Math.round((game.totalPlaytimeSeconds / 3600 / typicalHours) * 100)) : null;
   useEffect(() => {
     let cancelled = false;
     setPlayLength(null);
@@ -255,6 +265,11 @@ export const GamePage: React.FC<GamePageProps> = ({
               <p className="text-xs text-slate-300">
                 {formatPlayLength(playLength)}
               </p>
+              {progress !== null && (
+                <div className="mt-1 w-28 h-1 rounded-full bg-slate-800 overflow-hidden" title={`Você jogou o equivalente a ${progress}% do tempo típico`}>
+                  <div className="h-full bg-indigo-400" style={{ width: `${progress}%` }} />
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -291,7 +306,10 @@ export const GamePage: React.FC<GamePageProps> = ({
             { label: 'Adicionar à lista', icon: <ListPlus className="w-4 h-4" />, onClick: onAddToList },
             { label: 'Capturas', icon: <Camera className="w-4 h-4" />, onClick: onOpenScreenshots },
             { label: 'Backup de saves', icon: <Save className="w-4 h-4" />, onClick: onOpenSaves },
-            { label: 'Trocar artes', icon: <ImageIcon className="w-4 h-4" />, onClick: onOpenArtwork }
+            { label: 'Trocar artes', icon: <ImageIcon className="w-4 h-4" />, onClick: onOpenArtwork },
+            ...(game.platform === 'steam' || game.manualEntry ? [] : [{ label: 'Opções de inicialização', icon: <SlidersHorizontal className="w-4 h-4" />, onClick: onLaunchOptions }]),
+            { label: 'Ocultar da biblioteca', icon: <EyeOff className="w-4 h-4" />, onClick: onHide },
+            ...(game.manualEntry ? [{ label: 'Apagar este registro', icon: <Trash2 className="w-4 h-4" />, onClick: onDeleteEntry }] : [])
           ].map((b) => (
             <button
               key={b.label}

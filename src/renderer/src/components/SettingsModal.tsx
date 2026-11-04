@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { GoogleDriveSettings } from './GoogleDriveSettings';
 import { AppBehaviorSettings } from './AppBehaviorSettings';
+import { HiddenGamesSettings } from './HiddenGamesSettings';
 import { HelpSettings } from './HelpSettings';
 import { AccountsSettings } from './AccountsSettings';
 
@@ -210,6 +211,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           <AccountsSettings />
 
           <AppBehaviorSettings />
+
+          <HiddenGamesSettings />
 
           {/* Chaves manuais: só para quem prefere não usar o login (ou para depurar) */}
           <details className="group">

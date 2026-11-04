@@ -1,8 +1,10 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Clock, Dices, EyeOff, Gamepad2, Layers, Play, Search } from 'lucide-react';
-import { Game } from '@shared/types/game';
+import { ChevronDown, Clock, Dices, EyeOff, Gamepad2, Layers, Play, Search } from 'lucide-react';
+import { Game, GameLogStatus } from '@shared/types/game';
+import { LOG_STATUS } from './GameLogFields';
 import { GameCard } from './GameCard';
 import { pickSuggestion } from '../utils/suggestGame';
+import { Select, SelectOption } from './Select';
 
 interface LibraryHomeProps {
   games: Game[];                    // Já filtrados por plataforma/busca
@@ -11,7 +13,30 @@ interface LibraryHomeProps {
   onToggleFavorite: (id: string) => void;
   onContextMenu?: (game: Game, e: React.MouseEvent) => void;
   onSkipSuggestion: (game: Game) => void;
+  sort: LibrarySort;
+  onSortChange: (sort: LibrarySort) => void;
+  statusFilter: LibraryStatusFilter;
+  onStatusFilterChange: (filter: LibraryStatusFilter) => void;
 }
+
+export type LibrarySort = 'title' | 'recent' | 'hours' | 'added' | 'rating';
+export type LibraryStatusFilter = 'all' | 'unplayed' | GameLogStatus;
+
+const SORT_OPTIONS: SelectOption<LibrarySort>[] = [
+  { value: 'title', label: 'Nome' },
+  { value: 'recent', label: 'Jogados por último' },
+  { value: 'hours', label: 'Mais jogados' },
+  { value: 'added', label: 'Adicionados por último' },
+  { value: 'rating', label: 'Melhor nota' }
+];
+
+const STATUS_OPTIONS: SelectOption<LibraryStatusFilter>[] = [
+  { value: 'all', label: 'Todos os status' },
+  { value: 'unplayed', label: 'Nunca jogados' },
+  ...LOG_STATUS.map((s) => ({ value: s.id as LibraryStatusFilter, label: s.label, dot: s.dot }))
+];
+
+const compactSelect = 'flex items-center gap-1.5 px-2 py-1 text-[11px] rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 hover:border-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 
 // Largura mínima de cada capa por densidade: a grade preenche a linha com quantas couberem
 type GridDensity = 'compact' | 'normal' | 'large';
@@ -40,7 +65,11 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
   onOpenGame,
   onToggleFavorite,
   onContextMenu,
-  onSkipSuggestion
+  onSkipSuggestion,
+  sort,
+  onSortChange,
+  statusFilter,
+  onStatusFilterChange
 }) => {
   const [density, setDensity] = useState<GridDensity>(loadDensity);
   const [suggestionRoll, setSuggestionRoll] = useState(0);
@@ -167,6 +196,15 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
           <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
             <Layers className="w-3.5 h-3.5 text-indigo-400" /> {isFiltered ? 'Resultados' : 'Todos os jogos'} ({games.length})
           </h2>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <Select value={statusFilter} options={STATUS_OPTIONS} onChange={onStatusFilterChange} ariaLabel="Filtrar por status" className={compactSelect}>
+            {STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}
+            <ChevronDown className="w-3 h-3 text-slate-500" />
+          </Select>
+          <Select value={sort} options={SORT_OPTIONS} onChange={onSortChange} ariaLabel="Ordenar a biblioteca" className={compactSelect}>
+            {SORT_OPTIONS.find((o) => o.value === sort)?.label}
+            <ChevronDown className="w-3 h-3 text-slate-500" />
+          </Select>
           <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-900/80 border border-slate-800" role="group" aria-label="Tamanho das capas">
             {(Object.keys(GRID_DENSITY) as GridDensity[]).map((d) => (
               <button
@@ -180,6 +218,7 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
                 {GRID_DENSITY[d].label}
               </button>
             ))}
+          </div>
           </div>
         </div>
 
