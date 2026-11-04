@@ -2,7 +2,7 @@ import { EmulatorConfig, Game, GameLog, GamePlatform, GameSearchResult, Playtime
 import { GameList, GameListInput } from './lists';
 import { Achievement, GameAchievements } from './achievements';
 import { AccountService, AccountsStatus, SteamLocalAccount } from './accounts';
-import { GameScreenshots, Screenshot } from './screenshots';
+import { GameScreenshots, Screenshot, ScreenshotTaken } from './screenshots';
 import { AchievementsSyncResult, PlayerProfile, YearReview, ProfileCustom, ProfileMediaKind, ProfileWebLink, ProfileWebStatus } from './profile';
 import {
   BackupEvent,
@@ -163,6 +163,10 @@ export interface ElectronAPI {
   listScreenshotsByGame: () => Promise<GameScreenshots[]>;
   showScreenshotInFolder: (gameId: string, screenshotId: string) => Promise<void>;
   moveScreenshots: (fromGameId: string, screenshotIds: string[], toGameId: string) => Promise<void>;
+  takeScreenshot: (gameId: string) => Promise<ScreenshotTaken>;
+  onScreenshotTaken: (callback: (result: ScreenshotTaken) => void) => () => void;
+  getScreenshotHotkey: () => Promise<string>;
+  setScreenshotHotkey: (key: string) => Promise<{ ok: boolean }>;
 
   // Perfil do jogador
   getPlayerProfile: () => Promise<PlayerProfile>;

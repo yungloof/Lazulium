@@ -24,6 +24,7 @@ import { DRIVE_SETTING_KEYS, googleDriveService } from '../services/cloudsync/go
 import { applyLoginItem, markRendererReady, notify } from '../app-shell';
 import { accountsService } from '../services/accounts/accounts.service';
 import { screenshotsService } from '../services/metadata/screenshots.service';
+import { screenshotCaptureService } from '../services/metadata/screenshot-capture.service';
 import { profileService } from '../services/profile/profile.service';
 import { saveGameList } from '../services/profile/lists.service';
 import { renameGame } from '../services/profile/journal.service';
@@ -43,8 +44,11 @@ const PRIVATE_SETTING_KEYS: string[] = [
 
 export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): void {
   // Eventos de execução (main -> renderer)
+  screenshotCaptureService.setPidProvider((gameId) => playtimeService.getAlivePids(gameId));
+  screenshotCaptureService.setListener((result) => getMainWindow()?.webContents.send(IPC_CHANNELS.SCREENSHOTS_TAKEN, result));
   playtimeService.setStatusListener((status) => {
     getMainWindow()?.webContents.send(IPC_CHANNELS.GAME_STATUS_CHANGED, status);
+    if (status.state === 'running' || status.state === 'stopped') screenshotCaptureService.onGameStatus(status.gameId, status.state === 'running');
     // Sessão contabilizada (>= 15s): backup automático dos saves
     if (status.state === 'stopped' && (status.sessionSeconds ?? 0) > 0) backupService.onSessionEnded(status.gameId);
   });
@@ -355,6 +359,10 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_MOVE, async (_event, fromGameId: string, screenshotIds: string[], toGameId: string) => {
     await screenshotsService.move(requireGame(fromGameId), screenshotIds, requireGame(toGameId));
   });
+
+  ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_TAKE, async (_event, gameId: string) => screenshotCaptureService.capture(requireGame(gameId).id));
+  ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_GET_HOTKEY, async () => screenshotCaptureService.getHotkey());
+  ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_SET_HOTKEY, async (_event, key: string) => screenshotCaptureService.setHotkey(key));
 
   ipcMain.handle(IPC_CHANNELS.SCREENSHOTS_SHOW_IN_FOLDER, async (_event, gameId: string, screenshotId: string) => {
     const path = await screenshotsService.resolvePath(requireGame(gameId), screenshotId);

@@ -11,6 +11,15 @@ export interface ScreenshotMove {
   toGameId: string;
 }
 
+export interface ScreenshotTaken {
+  gameId: string;
+  gameTitle: string;
+  fileName: string;
+  width: number;
+  height: number;
+  warning?: string;                 // Saiu preta: o que fazer
+}
+
 export interface GameScreenshots {
   gameId: string;
   title: string;

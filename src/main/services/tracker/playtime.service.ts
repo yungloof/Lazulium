@@ -112,6 +112,10 @@ class PlaytimeService {
     }
   });
 
+  getAlivePids(gameId: string): number[] {
+    return this.monitor.getAlivePids(gameId);
+  }
+
   setStatusListener(listener: StatusListener): void {
     this.listener = listener;
   }

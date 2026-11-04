@@ -15,6 +15,8 @@ const IMAGE_EXT = /\.(jpe?g|png|webp|gif|bmp)$/i;
 const PREVIEW_COUNT = 6;
 const MAX_IMPORT_BYTES = 50 * 1024 * 1024;
 const HOSTS = { steam: 'steam-shot', gamebar: 'gamebar-shot', custom: 'shot' } as const;
+const THUMB_SUFFIX = '.thumb.jpg';      // Miniatura das capturas do Lazulium: a galeria não carrega o PNG inteiro
+const thumbNameOf = (file: string) => `${basename(file, extname(file))}${THUMB_SUFFIX}`;
 
 function customRoot(): string {
   return join(app.getPath('userData'), 'screenshots');
@@ -120,9 +122,13 @@ async function customScreenshots(game: Game): Promise<Screenshot[]> {
   const dirName = gameDirName(game.id);
   const dir = join(customRoot(), dirName);
   const results: Screenshot[] = [];
-  for (const file of await listImages(dir)) {
+  const files = await listImages(dir);
+  for (const file of files) {
+    if (file.endsWith(THUMB_SUFFIX)) continue;
     const url = mediaUrl(HOSTS.custom, `${dirName}/${file}`);
-    results.push({ id: `custom:${file}`, source: 'custom', url, thumbUrl: url, fileName: file, takenAt: await mtimeIso(join(dir, file)) });
+    const thumb = thumbNameOf(file);
+    const thumbUrl = files.includes(thumb) ? mediaUrl(HOSTS.custom, `${dirName}/${thumb}`) : url;
+    results.push({ id: `custom:${file}`, source: 'custom', url, thumbUrl, fileName: file, takenAt: await mtimeIso(join(dir, file)) });
   }
   return results;
 }
@@ -212,6 +218,9 @@ class ScreenshotsService {
     await shell.trashItem(path);
     if (id.startsWith('steam:')) {
       const thumb = join(dirname(path), 'thumbnails', basename(path));
+      if (existsSync(thumb)) await shell.trashItem(thumb).catch(() => undefined);
+    } else if (id.startsWith('custom:')) {
+      const thumb = join(dirname(path), thumbNameOf(basename(path)));
       if (existsSync(thumb)) await shell.trashItem(thumb).catch(() => undefined);
     }
     const moves = db.getScreenshotMoves();

@@ -71,6 +71,10 @@ export const IPC_CHANNELS = {
   SCREENSHOTS_BY_GAME: 'screenshots:by-game',
   SCREENSHOTS_SHOW_IN_FOLDER: 'screenshots:show-in-folder',
   SCREENSHOTS_MOVE: 'screenshots:move',
+  SCREENSHOTS_TAKE: 'screenshots:take',
+  SCREENSHOTS_TAKEN: 'screenshots:taken',
+  SCREENSHOTS_GET_HOTKEY: 'screenshots:get-hotkey',
+  SCREENSHOTS_SET_HOTKEY: 'screenshots:set-hotkey',
 
   // Perfil do jogador
   PROFILE_GET: 'profile:get',

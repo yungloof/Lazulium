@@ -1,8 +1,18 @@
 import { Select } from './Select';
 import React, { useEffect, useState } from 'react';
-import { MonitorDown } from 'lucide-react';
+import { AlertTriangle, MonitorDown } from 'lucide-react';
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
+
+const HOTKEYS = [
+  { value: 'Control+F12', label: 'Ctrl + F12 (padrão)' },
+  { value: 'Alt+F12', label: 'Alt + F12' },
+  { value: 'Control+Shift+S', label: 'Ctrl + Shift + S' },
+  { value: 'F9', label: 'F9' },
+  { value: 'F10', label: 'F10' },
+  { value: 'F11', label: 'F11' },
+  { value: 'off', label: 'Desligada' }
+];
 
 const OPTIONS = [
   {
@@ -23,8 +33,11 @@ export const AppBehaviorSettings: React.FC = () => {
   const [values, setValues] = useState<Record<string, boolean>>({});
   const [discountIdle, setDiscountIdle] = useState(true);
   const [idleThreshold, setIdleThreshold] = useState('15');
+  const [hotkey, setHotkey] = useState('Control+F12');
+  const [hotkeyBusy, setHotkeyBusy] = useState(false);
 
   useEffect(() => {
+    window.electronAPI?.getScreenshotHotkey().then(setHotkey);
     window.electronAPI?.getSettings().then((settings) => {
       setValues(
         Object.fromEntries(
@@ -39,6 +52,12 @@ export const AppBehaviorSettings: React.FC = () => {
       setIdleThreshold(settings.idleThresholdMinutes || '15');
     });
   }, []);
+
+  const changeHotkey = async (key: string) => {
+    setHotkey(key);
+    const result = await window.electronAPI?.setScreenshotHotkey(key);
+    setHotkeyBusy(result?.ok === false);
+  };
 
   const toggle = async (key: string, value: boolean) => {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -113,6 +132,21 @@ export const AppBehaviorSettings: React.FC = () => {
               ]}
             />
           </div>
+        )}
+      </div>
+
+      <div className="pt-1">
+        <div className="flex items-center justify-between gap-3">
+          <span className="min-w-0">
+            <span className="block text-xs text-slate-200">Tecla de captura de tela</span>
+            <span className="block mt-0.5 text-[11px] text-slate-500">Vale com o jogo aberto pelo Lazulium. Salva em PNG sem perda, na galeria do jogo.</span>
+          </span>
+          <Select value={hotkey} options={HOTKEYS} onChange={changeHotkey} ariaLabel="Tecla de captura de tela" />
+        </div>
+        {hotkeyBusy && (
+          <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-amber-300">
+            <AlertTriangle className="w-3 h-3 flex-shrink-0" /> Outro programa está usando essa tecla: escolha outra.
+          </p>
         )}
       </div>
     </section>

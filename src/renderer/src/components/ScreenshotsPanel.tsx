@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRightLeft, Camera, Check, ChevronLeft, ChevronRight, FolderOpen, ImagePlus, ListChecks, Loader2, Trash2, X, AlertTriangle } from 'lucide-react';
+import { ArrowRightLeft, Timer, Camera, Check, ChevronLeft, ChevronRight, FolderOpen, ImagePlus, ListChecks, Loader2, Trash2, X, AlertTriangle } from 'lucide-react';
 import { GamePickerModal } from './GamePickerModal';
 import { Game } from '@shared/types/game';
 import { Screenshot, ScreenshotSource } from '@shared/types/screenshots';
@@ -13,6 +13,7 @@ interface ScreenshotsPanelProps {
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
+const COUNTDOWN_SECONDS = 5;
 
 const SOURCE_LABEL: Record<ScreenshotSource, string> = {
   steam: 'Steam',
@@ -35,6 +36,7 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moving, setMoving] = useState<string[] | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
   // Ref: o pai pode passar uma função nova a cada render sem recarregar a lista
   const onChangedRef = useRef(onChanged);
   onChangedRef.current = onChanged;
@@ -109,6 +111,21 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
     }
   };
 
+  // Para jogos abertos fora do Lazulium: dá tempo de voltar para o jogo antes de capturar
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown === 0) {
+      setCountdown(null);
+      window.electronAPI
+        ?.takeScreenshot(game.id)
+        .then(() => load())
+        .catch((err) => setError(ipcErrorMessage(err)));
+      return;
+    }
+    const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown, game.id, load]);
+
   const stopSelecting = () => {
     setSelecting(false);
     setSelected(new Set());
@@ -168,6 +185,11 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
                 </button>
               )
             )}
+            {!selecting && (
+              <button onClick={() => setCountdown(COUNTDOWN_SECONDS)} disabled={countdown !== null} title="Com o jogo aberto pelo Lazulium, use a tecla de captura das Configurações" className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-60 ${focusRing}`}>
+                <Timer className="w-3.5 h-3.5" /> {countdown !== null ? `Capturando em ${countdown} s` : `Capturar em ${COUNTDOWN_SECONDS} s`}
+              </button>
+            )}
             <button onClick={handleImport} disabled={busy} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 ${focusRing}`}>
               {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
               Anexar imagens
@@ -193,8 +215,8 @@ export const ScreenshotsPanel: React.FC<ScreenshotsPanelProps> = ({ game, onClos
             <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
               <Camera className="w-8 h-8 text-slate-600" />
               <p className="text-xs text-slate-400 max-w-sm">
-                Nenhuma captura ainda. As fotos tiradas com F12 na Steam e com Win+Alt+PrtScn (Game Bar) aparecem aqui sozinhas, ou
-                use “Anexar imagens”.
+                Nenhuma captura ainda. Com o jogo aberto pelo Lazulium, aperte a tecla de captura (padrão Ctrl+F12). As do F12 da Steam e do
+                Win+Alt+PrtScn aparecem aqui sozinhas.
               </p>
             </div>
           ) : (

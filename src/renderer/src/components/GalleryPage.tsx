@@ -79,7 +79,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ version, onOpenGallery
         <div className="py-16 flex flex-col items-center gap-2 text-center">
           <Camera className="w-8 h-8 text-slate-600" />
           <p className="text-xs text-slate-400 max-w-sm">
-            {groups.length === 0 ? 'Nenhuma captura ainda. Fotos com F12 na Steam e Win+Alt+PrtScn aparecem aqui sozinhas.' : 'Nenhum jogo com esse nome.'}
+            {groups.length === 0 ? 'Nenhuma captura ainda. Com o jogo aberto pelo Lazulium, aperte a tecla de captura (padrão Ctrl+F12). As do F12 da Steam e do Win+Alt+PrtScn aparecem aqui sozinhas.' : 'Nenhum jogo com esse nome.'}
           </p>
         </div>
       ) : (

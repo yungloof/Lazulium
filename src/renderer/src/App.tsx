@@ -197,6 +197,14 @@ export const App: React.FC = () => {
     return () => unsubscribe?.();
   }, [applyGameStatus]);
 
+  // Capturas tiradas pela tecla durante o jogo
+  useEffect(() => {
+    return window.electronAPI?.onScreenshotTaken((result) => {
+      setScreenshotsVersion((v) => v + 1);
+      setLaunchNotice(result.warning ? { text: `${result.gameTitle}: ${result.warning}`, tone: 'warn' } : { text: `${result.gameTitle}: captura salva em ${result.width}x${result.height}.`, tone: 'ok' });
+    });
+  }, []);
+
   // Backup automático de saves ao encerrar a sessão
   useEffect(() => {
     const unsubscribe = window.electronAPI?.onBackupEvent((event) => {

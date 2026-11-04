@@ -1,3 +1,4 @@
+import { ScreenshotTaken } from '../shared/types/screenshots';
 import { GameListInput } from '../shared/types/lists';
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
@@ -102,6 +103,14 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_SHOW_IN_FOLDER, gameId, screenshotId),
   moveScreenshots: (fromGameId: string, screenshotIds: string[], toGameId: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_MOVE, fromGameId, screenshotIds, toGameId),
+  takeScreenshot: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_TAKE, gameId),
+  onScreenshotTaken: (callback: (result: ScreenshotTaken) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, result: ScreenshotTaken) => callback(result);
+    ipcRenderer.on(IPC_CHANNELS.SCREENSHOTS_TAKEN, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SCREENSHOTS_TAKEN, subscription);
+  },
+  getScreenshotHotkey: () => ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_GET_HOTKEY),
+  setScreenshotHotkey: (key: string) => ipcRenderer.invoke(IPC_CHANNELS.SCREENSHOTS_SET_HOTKEY, key),
 
   // Perfil do jogador
   getPlayerProfile: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_GET),

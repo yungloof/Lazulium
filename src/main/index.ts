@@ -1,3 +1,4 @@
+import { screenshotCaptureService } from './services/metadata/screenshot-capture.service';
 import { profileService } from './services/profile/profile.service';
 import { app, BrowserWindow, session } from 'electron';
 import { registerIpcHandlers } from './ipc';
@@ -103,6 +104,7 @@ if (!app.requestSingleInstanceLock()) {
 
   // Contabiliza sessões em andamento e encerra o worker de processos
   app.on('before-quit', () => {
+    screenshotCaptureService.stop();
     setQuitting();
     playtimeService.shutdown();
     destroyTray();
