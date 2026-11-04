@@ -31,10 +31,10 @@ async function fetchAccountWishlist(steamId: string): Promise<{ appid: number; d
   return data.response?.items ?? [];
 }
 
-async function fetchDetails(appId: number): Promise<{ name?: string; isFree?: boolean }> {
-  const data = await getJson<Record<string, { success?: boolean; data?: { name?: string; is_free?: boolean } }>>(`${APP_DETAILS_URL}?appids=${appId}&cc=br&l=portuguese`);
+async function fetchDetails(appId: number): Promise<{ name?: string; isFree?: boolean; imageUrl?: string }> {
+  const data = await getJson<Record<string, { success?: boolean; data?: { name?: string; is_free?: boolean; header_image?: string } }>>(`${APP_DETAILS_URL}?appids=${appId}&cc=br&l=portuguese`);
   const entry = data[String(appId)]?.data;
-  return { name: entry?.name, isFree: entry?.is_free };
+  return { name: entry?.name, isFree: entry?.is_free, imageUrl: entry?.header_image };
 }
 
 async function fetchPrices(appIds: number[]): Promise<Map<number, PriceOverview | null>> {
@@ -111,11 +111,12 @@ class WishlistService {
 
     const list = [...items.values()];
     for (const item of list) {
-      if (!item.name.startsWith('Jogo ') && item.isFree !== undefined) continue;
+      if (!item.name.startsWith('Jogo ') && item.isFree !== undefined && item.imageUrl) continue;
       try {
         const details = await fetchDetails(item.appId);
         if (details.name) item.name = details.name;
         item.isFree = !!details.isFree;
+        item.imageUrl = details.imageUrl ?? item.imageUrl;
       } catch {
         // Fica com o nome provisório; a próxima atualização tenta de novo
       }

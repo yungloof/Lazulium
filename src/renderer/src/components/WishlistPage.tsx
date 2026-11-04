@@ -19,7 +19,6 @@ const SEARCH_DELAY_MS = 350;
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 const button = `flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-50 transition-colors ${focusRing}`;
 const brl = (cents: number) => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const headerImage = (appId: number) => `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/header.jpg`;
 
 const WishlistCard: React.FC<{
   item: WishlistItem;
@@ -29,6 +28,7 @@ const WishlistCard: React.FC<{
   onSetTarget: (cents: number | null) => void;
 }> = ({ item, owned, onRemove, onOpenStore, onSetTarget }) => {
   const [editing, setEditing] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
   const [target, setTarget] = useState(item.targetCents ? String(item.targetCents / 100).replace('.', ',') : '');
   const discount = item.discountPercent ?? 0;
   const reachedTarget = item.targetCents !== undefined && item.priceCents !== undefined && item.priceCents <= item.targetCents;
@@ -43,7 +43,11 @@ const WishlistCard: React.FC<{
   return (
     <article className={`flex flex-col rounded-lg overflow-hidden bg-slate-900/60 border ${reachedTarget ? 'border-emerald-400/60' : 'border-slate-800'}`}>
       <div className="relative aspect-[460/215] bg-slate-800">
-        <img src={headerImage(item.appId)} alt="" loading="lazy" className="w-full h-full object-cover" />
+        {item.imageUrl && !imageFailed ? (
+          <img src={item.imageUrl} alt="" loading="lazy" onError={() => setImageFailed(true)} className="w-full h-full object-cover" />
+        ) : (
+          <span className="w-full h-full flex items-center justify-center p-3 text-center text-sm text-slate-400">{item.name}</span>
+        )}
         {discount > 0 && <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-emerald-500 text-sm font-bold text-slate-950">-{discount}%</span>}
         {owned && <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/75 text-[11px] text-slate-200">Na biblioteca</span>}
       </div>

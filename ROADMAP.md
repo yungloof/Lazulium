@@ -155,6 +155,10 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [x] Capturas mudam de jogo sem tocar no arquivo (Spacewar); registrar jogo busca na biblioteca, no IGDB e na loja da Steam; todas as conquistas marcam 100% sozinho, sem insistir se o jogador mudar.
 - [x] RetroAchievements: conquistas atualizam ao entrar na conta, nome igual ao catálogo, aviso claro de emulador sem suporte ou que não envia conquistas.
 - [x] Backup de saves automático: ao fechar o jogo e uma passada diária no que mudou, com pasta por jogo no Drive e "Restaurar o mais recente".
+- [x] Captura de tela por tecla durante o jogo (padrão Ctrl+F12), em PNG sem perda, na galeria do jogo; "Capturar em 5 s" para jogos abertos por fora.
+- [x] Renomear jogos e ocultar pelo menu, com lista de ocultos nas Configurações; biblioteca com ordenação e filtro por status; busca rápida Ctrl+K.
+- [x] Opções de inicialização por atalho (direto ou pela Steam, argumentos próprios); progresso em relação ao tempo para zerar; aviso de sessão oferece marcar como Jogando.
+- [x] Aba Desejos: lista da Steam, preço em reais, menor preço visto, preço-alvo e aviso de promoção. Painel geral de backups nas Configurações.
 - [x] Duração típica na página dos jogos Steam, estimada pelas horas das reviews positivas (alternativa sem chave ao HowLongToBeat).
 - [x] Tempo para zerar pelo IGDB em qualquer jogo, por um servidor próprio (`server/igdb-proxy`) que guarda a credencial; as reviews da Steam ficam como reserva.
 - [x] Publicar o servidor do IGDB e colocar a URL em `IGDB_PROXY_URL` (passos em `server/igdb-proxy/README.md`).

@@ -1,6 +1,7 @@
 export interface WishlistItem {
   appId: number;                    // AppID da Steam: é de lá que vêm nome e preço
   name: string;
+  imageUrl?: string;                // Jogos novos não têm a imagem no endereço antigo da CDN: vem da própria loja
   source: 'steam' | 'manual';       // 'steam': sai daqui quando sai da lista de desejos da conta
   addedAt: string;                  // ISO timestamp
   priceCents?: number;              // Preço de agora, em centavos
