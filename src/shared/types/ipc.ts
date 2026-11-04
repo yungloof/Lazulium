@@ -1,11 +1,13 @@
 import { EmulatorConfig, Game, GameLog, GamePlatform, GameSearchResult, PlaytimeSession, GamePlayLength } from './game';
 import { GameList, GameListInput } from './lists';
+import { WishlistState } from './wishlist';
 import { Achievement, GameAchievements } from './achievements';
 import { AccountService, AccountsStatus, SteamLocalAccount } from './accounts';
 import { GameScreenshots, Screenshot, ScreenshotTaken } from './screenshots';
 import { AchievementsSyncResult, PlayerProfile, YearReview, ProfileCustom, ProfileMediaKind, ProfileWebLink, ProfileWebStatus } from './profile';
 import {
   BackupEvent,
+  BackupOverview,
   BackupListResult,
   BackupRecord,
   DriveStatus,
@@ -122,6 +124,14 @@ export interface ElectronAPI {
   addJournalEntry: (entry: JournalEntryInput) => Promise<Game>;
   searchGameCatalog: (query: string) => Promise<GameSearchResult[]>;
   renameGame: (gameId: string, title: string | null) => Promise<Game>; // null volta ao nome original
+  getWishlist: () => Promise<WishlistState>;
+  syncWishlist: () => Promise<WishlistState>;
+  addToWishlist: (appId: number, name: string) => Promise<WishlistState>;
+  removeFromWishlist: (appId: number) => Promise<WishlistState>;
+  setWishlistTarget: (appId: number, targetCents: number | null) => Promise<WishlistState>;
+  openWishlistStore: (appId: number) => Promise<void>;
+  getBackupOverview: () => Promise<BackupOverview>;
+  runBackupSweep: () => Promise<BackupOverview>;
   getGameLists: () => Promise<GameList[]>;
   saveGameList: (input: GameListInput) => Promise<GameList>;
   deleteGameList: (id: string) => Promise<void>;

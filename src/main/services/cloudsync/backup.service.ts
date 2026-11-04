@@ -6,6 +6,7 @@ import { isAbsolute, join, normalize } from 'path';
 import {
   BackupEvent,
   BackupListResult,
+  BackupOverview,
   BackupReason,
   BackupRecord,
   GameSaveConfig,
@@ -212,9 +213,9 @@ class BackupService {
   }
 
   // Jogos abertos fora do Lazulium (pela Steam, pelo atalho) também entram: uma passada por dia, só no que mudou
-  async autoBackupSweep(): Promise<void> {
+  async autoBackupSweep(force = false): Promise<void> {
     const last = Number(db.getSettings()[SWEEP_SETTING] ?? 0);
-    if (this.sweeping || Date.now() - last < SWEEP_INTERVAL_MS) return;
+    if (this.sweeping || (!force && Date.now() - last < SWEEP_INTERVAL_MS)) return;
     this.sweeping = true;
     try {
       const games = db.getGames().filter((g) => !g.isHidden && !g.manualEntry && (g.totalPlaytimeSeconds > 0 || g.platform === 'emulator' || db.getSaveConfig(g.id)));
@@ -261,6 +262,20 @@ class BackupService {
       console.warn(`[Backup] Backup automático de ${gameId} falhou: ${(err as Error).message}`);
       if (!silent) this.emit({ gameId, state: 'error', message: (err as Error).message });
     }
+  }
+
+  getOverview(): BackupOverview {
+    const backups = db.getAllSaveBackups();
+    const last = Number(db.getSettings()[SWEEP_SETTING] ?? 0);
+    return {
+      games: new Set(backups.map((b) => b.gameId)).size,
+      backups: backups.length,
+      sizeBytes: backups.reduce((sum, b) => sum + b.sizeBytes, 0),
+      onDrive: backups.filter((b) => b.driveFileId).length,
+      pendingUpload: backups.filter((b) => !b.driveFileId && b.localPath && existsSync(b.localPath)).length,
+      driveConnected: googleDriveService.isConnected(),
+      lastSweepAt: last ? new Date(last).toISOString() : undefined
+    };
   }
 
   private gamesSharingFolder(gameId: string): string[] {

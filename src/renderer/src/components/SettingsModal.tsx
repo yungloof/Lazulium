@@ -15,6 +15,7 @@ import {
 import { GoogleDriveSettings } from './GoogleDriveSettings';
 import { AppBehaviorSettings } from './AppBehaviorSettings';
 import { HiddenGamesSettings } from './HiddenGamesSettings';
+import { BackupOverviewSettings } from './BackupOverviewSettings';
 import { HelpSettings } from './HelpSettings';
 import { AccountsSettings } from './AccountsSettings';
 
@@ -211,6 +212,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           <AccountsSettings />
 
           <AppBehaviorSettings />
+
+          <BackupOverviewSettings />
 
           <HiddenGamesSettings />
 

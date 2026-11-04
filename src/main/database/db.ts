@@ -6,6 +6,7 @@ import { Achievement, AchievementSource, GameAchievements } from '@shared/types/
 import { BackupRecord, GameSaveConfig } from '@shared/types/cloudsync';
 import { ProfileCustom, SteamProfileIdentity } from '@shared/types/profile';
 import { GameList } from '@shared/types/lists';
+import { WishlistItem } from '@shared/types/wishlist';
 import { ScreenshotMove } from '@shared/types/screenshots';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
 
@@ -81,6 +82,7 @@ export interface DatabaseSchema {
   steamProfileCache?: SteamProfileIdentity;
   playLengthCache?: Record<string, CachedPlayLength>;
   gameLists?: GameList[];
+  wishlist?: WishlistItem[];
   screenshotMoves?: ScreenshotMove[];
   profileWeb?: { repoUrl: string; lastPublishedAt?: string };
   settings: Record<string, string>;
@@ -431,6 +433,15 @@ class DatabaseService {
   }
 
   // Emulator Configs (sempre retorna um item por perfil conhecido)
+  getWishlist(): WishlistItem[] {
+    return this.data.wishlist ?? [];
+  }
+
+  setWishlist(items: WishlistItem[]): void {
+    this.data.wishlist = items;
+    this.persist();
+  }
+
   getGameLists(): GameList[] {
     return this.data.gameLists ?? [];
   }

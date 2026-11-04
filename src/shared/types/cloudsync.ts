@@ -42,6 +42,16 @@ export interface BackupListResult {
   sharedWith?: string[];            // Outros jogos na mesma pasta (Ryujinx guarda todos juntos): restaurar volta os saves deles também
 }
 
+export interface BackupOverview {
+  games: number;
+  backups: number;
+  sizeBytes: number;
+  onDrive: number;
+  pendingUpload: number;
+  driveConnected: boolean;
+  lastSweepAt?: string;
+}
+
 export interface RestoreResult {
   restoredFiles: number;
   safetyBackupId?: string;          // Backup automático dos saves atuais feito antes de restaurar

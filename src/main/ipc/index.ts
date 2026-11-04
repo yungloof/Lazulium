@@ -29,6 +29,7 @@ import { profileService } from '../services/profile/profile.service';
 import { saveGameList } from '../services/profile/lists.service';
 import { renameGame } from '../services/profile/journal.service';
 import { searchGameCatalog } from '../services/metadata/game-search.service';
+import { wishlistService } from '../services/metadata/wishlist.service';
 import { achievementsService as achievementsForListener } from '../services/achievements/achievements.service';
 import { GameListInput } from '@shared/types/lists';
 import { buildYearReview } from '../services/profile/year-review.service';
@@ -212,6 +213,20 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     const game = renameGame(gameId, title);
     playLengthService.forget(game.id);
     return game;
+  });
+  ipcMain.handle(IPC_CHANNELS.WISHLIST_GET, async () => wishlistService.getState());
+  ipcMain.handle(IPC_CHANNELS.WISHLIST_SYNC, async () => wishlistService.sync());
+  ipcMain.handle(IPC_CHANNELS.WISHLIST_ADD, async (_event, appId: number, name: string) => wishlistService.add(appId, name));
+  ipcMain.handle(IPC_CHANNELS.WISHLIST_REMOVE, async (_event, appId: number) => wishlistService.remove(appId));
+  ipcMain.handle(IPC_CHANNELS.WISHLIST_SET_TARGET, async (_event, appId: number, cents: number | null) => wishlistService.setTarget(appId, cents));
+  ipcMain.handle(IPC_CHANNELS.WISHLIST_OPEN_STORE, async (_event, appId: number) => {
+    if (!Number.isInteger(appId) || appId <= 0) throw new Error('Jogo inválido.');
+    await shell.openExternal(`steam://store/${appId}`);
+  });
+  ipcMain.handle(IPC_CHANNELS.BACKUP_OVERVIEW, async () => backupService.getOverview());
+  ipcMain.handle(IPC_CHANNELS.BACKUP_RUN_SWEEP, async () => {
+    await backupService.autoBackupSweep(true);
+    return backupService.getOverview();
   });
   ipcMain.handle(IPC_CHANNELS.LISTS_GET, async () => db.getGameLists());
   ipcMain.handle(IPC_CHANNELS.LISTS_SAVE, async (_event, input: GameListInput) => saveGameList(input));

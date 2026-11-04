@@ -1,3 +1,4 @@
+import { wishlistService } from './services/metadata/wishlist.service';
 import { screenshotCaptureService } from './services/metadata/screenshot-capture.service';
 import { profileService } from './services/profile/profile.service';
 import { app, BrowserWindow, session } from 'electron';
@@ -90,6 +91,7 @@ if (!app.requestSingleInstanceLock()) {
           // Jogos novos sem capa (ex: Riot, Xbox) buscam artes no SteamGridDB em segundo plano
           artworkService.enqueueMissing();
           profileService.syncInBackground();
+          wishlistService.syncInBackground();
           artworkService.enqueueMissing(repairedArtwork);
         })
         .catch((err) => console.warn('[Startup] Sincronização da Steam falhou:', (err as Error).message));

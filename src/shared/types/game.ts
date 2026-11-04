@@ -125,6 +125,7 @@ export interface GameSearchResult {
   year?: number;
   coverUrl?: string;
   thumbUrl?: string;                // Imagem menor para a lista, quando a fonte tem
+  steamAppId?: number;
 }
 
 export interface CachedPlayLength {

@@ -12,6 +12,7 @@ import { ProfilePage } from './components/ProfilePage';
 import { JournalPage } from './components/JournalPage';
 import { GalleryPage } from './components/GalleryPage';
 import { ListsPage } from './components/ListsPage';
+import { WishlistPage } from './components/WishlistPage';
 import { AddToListModal } from './components/AddToListModal';
 import { RenameGameModal } from './components/RenameGameModal';
 import { LaunchOptionsModal } from './components/LaunchOptionsModal';
@@ -43,7 +44,7 @@ const FILTERS: { id: LibraryFilter; label: string }[] = [
   { id: 'standalone', label: 'Outros PC' }
 ];
 
-const SECTIONS = ['home', 'journal', 'lists', 'gallery', 'profile'] as const;
+const SECTIONS = ['home', 'journal', 'lists', 'wishlist', 'gallery', 'profile'] as const;
 const GAME_UPDATE_BATCH_MS = 120;
 const NOTICE_MS = 6000;
 const NOTICE_WITH_ACTION_MS = 15000;
@@ -80,7 +81,7 @@ export const App: React.FC = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
   // Navegação estilo Steam: início da biblioteca ou a página de um jogo
-  const [view, setView] = useState<'home' | 'game' | 'profile' | 'journal' | 'gallery' | 'lists'>('home');
+  const [view, setView] = useState<'home' | 'game' | 'profile' | 'journal' | 'gallery' | 'lists' | 'wishlist'>('home');
   const [openListId, setOpenListId] = useState<string | undefined>();
   const [addToListGame, setAddToListGame] = useState<Game | null>(null);
   const [renamingGame, setRenamingGame] = useState<Game | null>(null);
@@ -551,6 +552,7 @@ export const App: React.FC = () => {
             { label: 'Biblioteca', active: view === 'home' || view === 'game', onClick: goHome },
             { label: 'Diário', active: view === 'journal', onClick: () => setView('journal') },
             { label: 'Listas', active: view === 'lists', onClick: () => { setOpenListId(undefined); setView('lists'); } },
+            { label: 'Desejos', active: view === 'wishlist', onClick: () => setView('wishlist') },
             { label: 'Capturas', active: view === 'gallery', onClick: () => setView('gallery') },
             { label: 'Perfil', active: view === 'profile', onClick: openProfile }
           ].map((tab) => (
@@ -675,6 +677,8 @@ export const App: React.FC = () => {
                 setShowScreenshots(true);
               }}
             />
+          ) : view === 'wishlist' ? (
+            <WishlistPage />
           ) : view === 'lists' ? (
             <ListsPage openListId={openListId} onOpenList={setOpenListId} onOpenGame={openGame} />
           ) : view === 'journal' ? (

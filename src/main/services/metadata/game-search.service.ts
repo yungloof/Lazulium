@@ -34,7 +34,7 @@ async function searchSteam(query: string): Promise<GameSearchResult[]> {
   const data = (await res.json()) as SteamSearchResponse;
   return (data.items ?? []).flatMap((item) =>
     typeof item.id === 'number' && typeof item.name === 'string' && item.type === 'app' && !NOT_A_GAME.test(item.name)
-      ? [{ source: 'steam' as const, name: item.name, coverUrl: STEAM_COVER(item.id), thumbUrl: typeof item.tiny_image === 'string' ? item.tiny_image : undefined }]
+      ? [{ source: 'steam' as const, name: item.name, coverUrl: STEAM_COVER(item.id), steamAppId: item.id, thumbUrl: typeof item.tiny_image === 'string' ? item.tiny_image : undefined }]
       : []
   );
 }
@@ -44,7 +44,8 @@ export async function searchGameCatalog(query: string): Promise<GameSearchResult
   const term = query.trim().slice(0, 120);
   if (term.length < MIN_QUERY_LENGTH) return [];
   const settled = await Promise.allSettled([searchIgdb(term), searchSteam(term)]);
-  const seen = new Set<string>();
+  // O mesmo jogo nas duas fontes vira uma entrada só, com o que cada uma sabe (capa e ano do IGDB, ID da Steam)
+  const seen = new Map<string, GameSearchResult>();
   const results: GameSearchResult[] = [];
   for (const outcome of settled) {
     if (outcome.status === 'rejected') {
@@ -53,8 +54,13 @@ export async function searchGameCatalog(query: string): Promise<GameSearchResult
     }
     for (const item of outcome.value) {
       const key = normalizeKey(item.name);
-      if (seen.has(key)) continue;
-      seen.add(key);
+      const known = seen.get(key);
+      if (known) {
+        known.steamAppId ??= item.steamAppId;
+        known.thumbUrl ??= item.thumbUrl;
+        continue;
+      }
+      seen.set(key, item);
       results.push(item);
     }
   }

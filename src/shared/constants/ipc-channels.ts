@@ -32,6 +32,18 @@ export const IPC_CHANNELS = {
   JOURNAL_SEARCH_CATALOG: 'journal:search-catalog',
   GAME_RENAME: 'game:rename',
 
+  // Lista de desejos
+  WISHLIST_GET: 'wishlist:get',
+  WISHLIST_SYNC: 'wishlist:sync',
+  WISHLIST_ADD: 'wishlist:add',
+  WISHLIST_REMOVE: 'wishlist:remove',
+  WISHLIST_SET_TARGET: 'wishlist:set-target',
+  WISHLIST_OPEN_STORE: 'wishlist:open-store',
+
+  // Backup: visão geral
+  BACKUP_OVERVIEW: 'backup:overview',
+  BACKUP_RUN_SWEEP: 'backup:run-sweep',
+
   // Listas
   LISTS_GET: 'lists:get',
   LISTS_SAVE: 'lists:save',
