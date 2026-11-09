@@ -77,6 +77,17 @@ const electronAPI: ElectronAPI = {
   // Conquistas
   getAchievements: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.ACHIEVEMENTS_GET, gameId),
   syncAchievements: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.ACHIEVEMENTS_SYNC, gameId),
+  setManualAchievement: (gameId: string, achievementId: string, unlocked: boolean) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ACHIEVEMENTS_SET_MANUAL, gameId, achievementId, unlocked),
+  addCustomAchievement: (gameId: string, name: string, description: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ACHIEVEMENTS_ADD_CUSTOM, gameId, name, description),
+  removeCustomAchievement: (gameId: string, achievementId: string) => ipcRenderer.invoke(IPC_CHANNELS.ACHIEVEMENTS_REMOVE_CUSTOM, gameId, achievementId),
+  setAchievementList: (gameId: string, useMilestones: boolean) => ipcRenderer.invoke(IPC_CHANNELS.ACHIEVEMENTS_SET_LIST, gameId, useMilestones),
+  onAchievementsUpdated: (callback: (gameId: string) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, gameId: string) => callback(gameId);
+    ipcRenderer.on(IPC_CHANNELS.ACHIEVEMENTS_UPDATED, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.ACHIEVEMENTS_UPDATED, subscription);
+  },
   testSteamCredentials: (apiKey: string, steamId: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.ACHIEVEMENTS_TEST_STEAM, apiKey, steamId),
   testRetroAchievementsCredentials: (username: string, apiKey: string) =>

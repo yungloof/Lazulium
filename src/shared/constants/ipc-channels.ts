@@ -60,6 +60,11 @@ export const IPC_CHANNELS = {
   // Achievements
   ACHIEVEMENTS_GET: 'achievements:get',
   ACHIEVEMENTS_SYNC: 'achievements:sync',
+  ACHIEVEMENTS_SET_MANUAL: 'achievements:set-manual',
+  ACHIEVEMENTS_ADD_CUSTOM: 'achievements:add-custom',
+  ACHIEVEMENTS_REMOVE_CUSTOM: 'achievements:remove-custom',
+  ACHIEVEMENTS_SET_LIST: 'achievements:set-list',
+  ACHIEVEMENTS_UPDATED: 'achievements:updated',
   ACHIEVEMENTS_TEST_STEAM: 'achievements:test-steam',
   ACHIEVEMENTS_TEST_RETRO: 'achievements:test-retro',
 

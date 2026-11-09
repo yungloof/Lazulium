@@ -254,6 +254,7 @@ export class SteamAchievementsService {
           unlocked: 0,
           items: [],
           syncedAt: now,
+          noList: true,
           warning: 'Este jogo não possui conquistas na Steam ou o esquema não está disponível.'
         };
       }

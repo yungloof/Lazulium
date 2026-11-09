@@ -150,6 +150,11 @@ export interface ElectronAPI {
   // Conquistas
   getAchievements: (gameId: string) => Promise<GameAchievements | null>;
   syncAchievements: (gameId: string) => Promise<GameAchievements>;
+  setManualAchievement: (gameId: string, achievementId: string, unlocked: boolean) => Promise<GameAchievements>;
+  addCustomAchievement: (gameId: string, name: string, description: string) => Promise<GameAchievements>;
+  removeCustomAchievement: (gameId: string, achievementId: string) => Promise<GameAchievements>;
+  setAchievementList: (gameId: string, useMilestones: boolean) => Promise<GameAchievements | null>;
+  onAchievementsUpdated: (callback: (gameId: string) => void) => () => void;
   testSteamCredentials: (apiKey: string, steamId: string) => Promise<ApiKeyTestResult>;
   testRetroAchievementsCredentials: (username: string, apiKey: string) => Promise<ApiKeyTestResult>;
 

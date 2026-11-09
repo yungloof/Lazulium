@@ -237,6 +237,14 @@ export const App: React.FC = () => {
     return () => unsubscribe?.();
   }, [applyGameStatus]);
 
+  // Lista de conquistas que chegou depois (procura em segundo plano)
+  useEffect(() => {
+    return window.electronAPI?.onAchievementsUpdated((gameId) => {
+      if (gameId !== selectedGame?.id) return;
+      window.electronAPI?.getAchievements(gameId).then(setGameAchievements).catch(() => undefined);
+    });
+  }, [selectedGame?.id]);
+
   // Capturas tiradas pela tecla durante o jogo
   useEffect(() => {
     return window.electronAPI?.onScreenshotTaken((result) => {

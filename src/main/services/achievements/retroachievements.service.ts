@@ -51,16 +51,67 @@ const raTitleKey = (title: string) => normalizeKey(cleanRomTitle(title.replace(/
 // Hacks, homebrew e conjuntos extras têm o título marcado: não são o jogo que está na biblioteca
 const isVariantEntry = (title: string) => title.startsWith('~') || /\[Subset/i.test(title);
 
-function progressWarning(game: Game, unlocked: number): string | undefined {
+function progressNote(game: Game, unlocked: number): string | undefined {
   if (unlocked > 0) return undefined;
   const name = (game.emulatorId && DEFAULT_EMULATOR_PROFILES[game.emulatorId]?.name) ?? 'emulador';
   return game.emulatorId && CATALOG_ONLY_EMULATORS.includes(game.emulatorId)
-    ? `O ${name} para PC não envia conquistas ao RetroAchievements. Para desbloquear, jogue esta ROM no BizHawk ou no RetroArch, logado na sua conta.`
-    : `Nenhuma conquista nesta conta ainda. Elas só contam se você entrar na mesma conta do RetroAchievements dentro do ${name} antes de jogar.`;
+    ? `O ${name} para PC não envia conquistas ao RetroAchievements: marque à mão as que você já fez. No BizHawk ou no RetroArch, logado na sua conta, elas contam sozinhas.`
+    : `Nenhuma conquista nesta conta ainda. Elas contam sozinhas se você entrar na mesma conta do RetroAchievements dentro do ${name}; também dá para marcar à mão.`;
 }
 
-// Cache simples em memória da lista de jogos por console para evitar chamadas repetidas
-const gameListCache = new Map<number, RAGameListItem[]>();
+const RA_HEADERS = { 'User-Agent': 'Lazulium-Game-Hub/0.1.0' };
+const LIST_TIMEOUT_MS = 20_000;
+const MIN_CATALOG_KEY_LENGTH = 6;
+// Mesmo jogo relançado: a lista do original serve ("The Wind Waker HD")
+const REMASTER_SUFFIX = /\s+(hd|remaster(ed)?|definitive edition|deluxe)$/i;
+
+// Consoles onde vale procurar pelo nome um jogo que não roda em emulador com suporte (ports, Switch, registros à mão)
+const CATALOG_CONSOLES: [number, string][] = [
+  [2, 'Nintendo 64'], [3, 'SNES'], [7, 'NES'], [5, 'Game Boy Advance'], [6, 'Game Boy Color'], [4, 'Game Boy'], [16, 'GameCube'],
+  [19, 'Wii'], [18, 'Nintendo DS'], [21, 'PlayStation 2'], [12, 'PlayStation'], [41, 'PSP'], [1, 'Mega Drive']
+];
+
+// Lista de jogos por console: uma por sessão, mesmo com vários jogos perguntando ao mesmo tempo
+const gameListCache = new Map<number, Promise<RAGameListItem[] | undefined>>();
+
+function loadGameList(consoleId: number, username: string, apiKey: string): Promise<RAGameListItem[] | undefined> {
+  const cached = gameListCache.get(consoleId);
+  if (cached) return cached;
+  // f=1: só jogos com conquistas cadastradas
+  const request = fetch(`https://retroachievements.org/API/API_GetGameList.php?i=${consoleId}&f=1&z=${encodeURIComponent(username)}&y=${encodeURIComponent(apiKey)}`, {
+    headers: RA_HEADERS,
+    signal: AbortSignal.timeout(LIST_TIMEOUT_MS)
+  })
+    .then(async (res) => {
+      const list = res.ok ? ((await res.json()) as RAGameListItem[]) : undefined;
+      return Array.isArray(list) ? list : undefined;
+    })
+    .catch(() => undefined)
+    .then((list) => {
+      // Falha não fica guardada: a próxima consulta tenta de novo
+      if (!list) gameListCache.delete(consoleId);
+      return list;
+    });
+  gameListCache.set(consoleId, request);
+  return request;
+}
+
+function toItems(data: RAGameInfoResponse): Achievement[] {
+  const totalPlayers = data.NumDistinctPlayersCasual || 0;
+  return Object.values(data.Achievements ?? {}).map((ach) => {
+    const badge = ach.BadgeName || '00000';
+    return {
+      id: String(ach.ID),
+      name: ach.Title,
+      description: ach.Description || '',
+      iconUrl: `https://media.retroachievements.org/Badge/${badge}.png`,
+      iconLockedUrl: `https://media.retroachievements.org/Badge/${badge}_lock.png`,
+      unlocked: Boolean(ach.DateEarned),
+      unlockedAt: ach.DateEarned ? new Date(ach.DateEarned).toISOString() : undefined,
+      globalPercent: totalPlayers > 0 && ach.NumAwarded !== undefined ? Math.round((ach.NumAwarded / totalPlayers) * 1000) / 10 : undefined
+    };
+  });
+}
 
 export class RetroAchievementsService {
   /**
@@ -174,20 +225,7 @@ export class RetroAchievementsService {
 
     for (const consoleId of consoleIds) {
       try {
-        let list = gameListCache.get(consoleId);
-        if (!list) {
-          const listUrl = `https://retroachievements.org/API/API_GetGameList.php?i=${consoleId}&z=${encodeURIComponent(
-            username
-          )}&y=${encodeURIComponent(apiKey)}`;
-          const res = await fetch(listUrl, {
-            headers: { 'User-Agent': 'Lazulium-Game-Hub/0.1.0' },
-            signal: AbortSignal.timeout(10_000)
-          });
-          if (res.ok) {
-            list = (await res.json()) as RAGameListItem[];
-            if (Array.isArray(list)) gameListCache.set(consoleId, list);
-          }
-        }
+        const list = await loadGameList(consoleId, username, apiKey);
 
         if (Array.isArray(list)) {
           // Só nome igual: nome parecido traria as conquistas de outro jogo
@@ -202,6 +240,51 @@ export class RetroAchievementsService {
     }
 
     return { gameId: null, method: null };
+  }
+
+  private requestProgress(raGameId: number, user: string, key: string): Promise<Response> {
+    return fetch(
+      `https://retroachievements.org/API/API_GetGameInfoAndUserProgress.php?u=${encodeURIComponent(user)}&z=${encodeURIComponent(user)}&y=${encodeURIComponent(key)}&g=${raGameId}&a=1`,
+      { headers: RA_HEADERS, signal: AbortSignal.timeout(12_000) }
+    );
+  }
+
+  // Procura o jogo pelo nome em todos os consoles. null: não existe lista; erro: não deu para conferir tudo.
+  async findInCatalog(title: string, username: string, apiKey: string): Promise<{ raGameId: number; consoleName: string } | null> {
+    const key = raTitleKey(cleanRomTitle(title).replace(REMASTER_SUFFIX, ''));
+    if (key.length < MIN_CATALOG_KEY_LENGTH) return null;
+    let failed = 0;
+    for (const [consoleId, consoleName] of CATALOG_CONSOLES) {
+      const list = await loadGameList(consoleId, username, apiKey);
+      if (!list) {
+        failed++;
+        continue;
+      }
+      const match = list.find((g) => !isVariantEntry(g.Title) && raTitleKey(g.Title) === key);
+      if (match && match.ID > 0) return { raGameId: match.ID, consoleName };
+    }
+    if (failed > 0) throw new Error('O RetroAchievements não respondeu para todos os consoles.');
+    return null;
+  }
+
+  // Lista de um jogo que não envia conquistas sozinho (port, console sem suporte): o jogador marca à mão
+  async fetchCatalogList(game: Game, raGameId: number, consoleName: string, username: string, apiKey: string): Promise<GameAchievements> {
+    const base = { gameId: game.id, source: 'retroachievements' as const, syncedAt: new Date().toISOString() };
+    try {
+      const res = await this.requestProgress(raGameId, username.trim(), apiKey.trim());
+      if (!res.ok) return { ...base, total: 0, unlocked: 0, items: [], retryable: true, warning: `RetroAchievements retornou HTTP ${res.status}.` };
+      const items = toItems((await res.json()) as RAGameInfoResponse);
+      return {
+        ...base,
+        listLabel: `RetroAchievements · ${consoleName}`,
+        total: items.length,
+        unlocked: items.filter((i) => i.unlocked).length,
+        items,
+        note: `Lista da versão de ${consoleName} no RetroAchievements. Esta versão do jogo não envia conquistas sozinha: marque à mão as que você já fez.`
+      };
+    } catch (err) {
+      return { ...base, total: 0, unlocked: 0, items: [], retryable: true, warning: `Falha ao carregar conquistas do RetroAchievements: ${(err as Error).message}` };
+    }
   }
 
   /**
@@ -265,11 +348,7 @@ export class RetroAchievementsService {
         };
       }
 
-      const fetchProgress = (id: number) =>
-        fetch(
-          `https://retroachievements.org/API/API_GetGameInfoAndUserProgress.php?u=${encodeURIComponent(user)}&z=${encodeURIComponent(user)}&y=${encodeURIComponent(key)}&g=${id}&a=1`,
-          { headers: { 'User-Agent': 'Lazulium-Game-Hub/0.1.0' }, signal: AbortSignal.timeout(12_000) }
-        );
+      const fetchProgress = (id: number) => this.requestProgress(id, user, key);
 
       const res = await fetchProgress(gameId);
 
@@ -309,32 +388,7 @@ export class RetroAchievementsService {
         };
       }
 
-      const totalPlayers = data.NumDistinctPlayersCasual || 0;
-
-      const items: Achievement[] = rawAchievements.map((ach) => {
-        const unlocked = Boolean(ach.DateEarned);
-        const unlockedAt = ach.DateEarned ? new Date(ach.DateEarned).toISOString() : undefined;
-        const globalPercent =
-          totalPlayers > 0 && ach.NumAwarded !== undefined
-            ? Math.round((ach.NumAwarded / totalPlayers) * 1000) / 10
-            : undefined;
-
-        const badge = ach.BadgeName || '00000';
-        const iconUrl = `https://media.retroachievements.org/Badge/${badge}.png`;
-        const iconLockedUrl = `https://media.retroachievements.org/Badge/${badge}_lock.png`;
-
-        return {
-          id: String(ach.ID),
-          name: ach.Title,
-          description: ach.Description || '',
-          iconUrl,
-          iconLockedUrl,
-          unlocked,
-          unlockedAt,
-          globalPercent
-        };
-      });
-
+      const items = toItems(data);
       const unlockedCount = items.filter((i) => i.unlocked).length;
 
       return {
@@ -344,7 +398,7 @@ export class RetroAchievementsService {
         unlocked: unlockedCount,
         items,
         syncedAt: now,
-        warning: progressWarning(game, unlockedCount)
+        note: progressNote(game, unlockedCount)
       };
     } catch (err) {
       return {

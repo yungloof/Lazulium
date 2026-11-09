@@ -65,6 +65,7 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
       notify(`Backup de ${title} falhou`, event.message ?? 'Erro desconhecido.');
     }
   });
+  achievementsForListener.setListUpdatedListener((gameId) => getMainWindow()?.webContents.send(IPC_CHANNELS.ACHIEVEMENTS_UPDATED, gameId));
   achievementsForListener.setGameUpdatedListener((game) => {
     getMainWindow()?.webContents.send(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
   });
@@ -264,6 +265,13 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   ipcMain.handle(IPC_CHANNELS.ACHIEVEMENTS_SYNC, async (_event, gameId: string) => {
     return achievementsService.getAchievements(gameId, true);
   });
+
+  ipcMain.handle(IPC_CHANNELS.ACHIEVEMENTS_SET_MANUAL, async (_event, gameId: string, achievementId: string, unlocked: boolean) =>
+    achievementsService.setManual(gameId, achievementId, !!unlocked)
+  );
+  ipcMain.handle(IPC_CHANNELS.ACHIEVEMENTS_ADD_CUSTOM, async (_event, gameId: string, name: string, description: string) => achievementsService.addCustom(gameId, name, description));
+  ipcMain.handle(IPC_CHANNELS.ACHIEVEMENTS_REMOVE_CUSTOM, async (_event, gameId: string, achievementId: string) => achievementsService.removeCustom(gameId, achievementId));
+  ipcMain.handle(IPC_CHANNELS.ACHIEVEMENTS_SET_LIST, async (_event, gameId: string, useMilestones: boolean) => achievementsService.setPreferMilestones(gameId, !!useMilestones));
 
   ipcMain.handle(IPC_CHANNELS.ACHIEVEMENTS_TEST_STEAM, async (_event, apiKey: string, steamId: string) => {
     return achievementsService.testSteam(apiKey, steamId);

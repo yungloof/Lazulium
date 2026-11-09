@@ -1,8 +1,7 @@
-import { hasRetroAchievements } from '@shared/constants/emulators';
 import { app } from 'electron';
 import { copyFile, mkdir, readdir, stat, unlink } from 'fs/promises';
 import { extname, join } from 'path';
-import { Game } from '@shared/types/game';
+import { Game, isJournalEntry } from '@shared/types/game';
 import { mediaUrl } from '../metadata/media-cache.service';
 import {
   AchievementsSyncResult,
@@ -99,6 +98,7 @@ class ProfileService {
   }
 
   async build(): Promise<PlayerProfile> {
+    achievementsService.refreshLocal();
     const settings = db.getSettings();
     const games = db.getGames().filter((g) => !g.isHidden);
     const played = games.filter((g) => (g.totalPlaytimeSeconds ?? 0) > 0);
@@ -334,8 +334,8 @@ class ProfileService {
       try {
         const candidates = db
           .getGames()
-          // Atalho de emulador costuma ficar sem horas registradas: conta mesmo assim
-          .filter((g) => (g.platform === 'steam' && (g.totalPlaytimeSeconds ?? 0) > 0) || (g.platform === 'emulator' && hasRetroAchievements(g.emulatorId)));
+          // Todo jogo tem conquistas. Da Steam só os jogados (o histórico da conta é longo); dos outros, os que estão no PC ou no Diário
+          .filter((g) => !g.isHidden && (g.platform === 'steam' ? (g.totalPlaytimeSeconds ?? 0) > 0 : g.isInstalled !== false || (g.totalPlaytimeSeconds ?? 0) > 0 || isJournalEntry(g)));
         for (let i = 0; i < candidates.length; i++) {
           const game = candidates[i];
           try {
@@ -357,7 +357,8 @@ class ProfileService {
             break;
           }
 
-          await sleep(SYNC_DELAY_MS);
+          // Marcos são calculados aqui mesmo: só espera quando falou com um serviço de fora
+          if (db.getGameAchievements(game.id)?.source !== 'lazulium') await sleep(SYNC_DELAY_MS);
         }
       } finally {
         this.syncingPromise = undefined;

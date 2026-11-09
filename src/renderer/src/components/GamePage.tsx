@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Camera, Clock, EyeOff, FolderOpen, ListPlus, SlidersHorizontal, Trash2, Hourglass, Image as ImageIcon, Info, Pencil, Save, Star, Trophy, BarChart2, CalendarClock } from 'lucide-react';
 import { Game, GamePlayLength, hasConsistentTimes, isWeakPlayLength } from '@shared/types/game';
-import { hasRetroAchievements } from '@shared/constants/emulators';
-import { GameAchievements } from '@shared/types/achievements';
+import { GameAchievements, achievementSourceLabel } from '@shared/types/achievements';
 import { Screenshot } from '@shared/types/screenshots';
 import { PlayButton } from './PlayButton';
 import { GameStats } from './GameStats';
@@ -143,7 +142,6 @@ export const GamePage: React.FC<GamePageProps> = ({
     : [];
   const canEditPlaytime = game.platform !== 'steam';
   // Conquistas vêm da Steam e do RetroAchievements; outras plataformas não têm de onde buscar
-  const supportsAchievements = game.platform === 'steam' || (game.platform === 'emulator' && hasRetroAchievements(game.emulatorId));
 
   const launchStatus = useLibraryStore((s) => s.launchStatuses[game.id]);
   const isRunning = launchStatus?.state === 'running';
@@ -274,7 +272,6 @@ export const GamePage: React.FC<GamePageProps> = ({
           </div>
         )}
 
-        {supportsAchievements && (
         <button
           onClick={onOpenAchievements}
           className={`flex items-center gap-2.5 text-left rounded-md -mx-1.5 px-1.5 py-0.5 hover:bg-slate-800/70 ${focusRing}`}
@@ -297,7 +294,6 @@ export const GamePage: React.FC<GamePageProps> = ({
             )}
           </div>
         </button>
-        )}
 
         <div className="ml-auto flex items-center gap-1.5">
           {[
@@ -373,7 +369,6 @@ export const GamePage: React.FC<GamePageProps> = ({
         </div>
 
         <div className="space-y-5">
-          {supportsAchievements && (
           <Card
             title="Conquistas"
             icon={<Trophy className="w-3.5 h-3.5 text-amber-400" />}
@@ -387,7 +382,7 @@ export const GamePage: React.FC<GamePageProps> = ({
               <div className="space-y-3">
                 <div>
                   <p className="text-xs text-slate-300">
-                    {achievements!.unlocked}/{achievements!.total} alcançadas <span className="text-slate-500">({percent}%)</span>
+                    {achievements!.unlocked}/{achievements!.total} alcançadas <span className="text-slate-500">({percent}%) · {achievementSourceLabel(achievements!)}</span>
                   </p>
                   <div className="mt-1.5 h-1.5 rounded-full bg-slate-800 overflow-hidden">
                     <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${percent}%` }} />
@@ -415,11 +410,10 @@ export const GamePage: React.FC<GamePageProps> = ({
               </div>
             ) : (
               <p className="text-xs text-slate-500">
-                {achievements?.warning ?? 'Abra para sincronizar as conquistas deste jogo.'}
+                {achievements?.warning ?? 'Carregando conquistas...'}
               </p>
             )}
           </Card>
-          )}
 
           <Card title="Informações" icon={<Info className="w-3.5 h-3.5 text-slate-400" />}>
             <dl className="space-y-2 text-xs">

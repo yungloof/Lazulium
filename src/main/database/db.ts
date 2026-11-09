@@ -2,7 +2,7 @@ import { app, safeStorage } from 'electron';
 import { dirname, join } from 'path';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'fs';
 import { CachedPlayLength, EmulatorConfig, EmulatorType, Game, PlaytimeSession } from '@shared/types/game';
-import { Achievement, AchievementSource, GameAchievements } from '@shared/types/achievements';
+import { Achievement, AchievementExtras, AchievementSource, GameAchievements } from '@shared/types/achievements';
 import { BackupRecord, GameSaveConfig } from '@shared/types/cloudsync';
 import { ProfileCustom, SteamProfileIdentity } from '@shared/types/profile';
 import { GameList } from '@shared/types/lists';
@@ -73,6 +73,7 @@ export interface DatabaseSchema {
   playtimeSessions: PlaytimeSession[];
   achievements: Achievement[];
   gameAchievements?: Record<string, GameAchievements>;
+  achievementExtras?: Record<string, AchievementExtras>;
   emulatorConfigs: EmulatorConfig[];
   standaloneDirectories: string[];
   activeSessions: ActiveSessionRecord[];
@@ -307,6 +308,10 @@ class DatabaseService {
     for (const session of this.data.playtimeSessions) {
       if (session.gameId === oldId) session.gameId = newId;
     }
+    if (this.data.achievementExtras?.[oldId]) {
+      this.data.achievementExtras[newId] ??= this.data.achievementExtras[oldId];
+      delete this.data.achievementExtras[oldId];
+    }
     // O jogo que fica pode já ter dados próprios: o que veio do antigo só preenche o que falta
     if (this.data.gameAchievements?.[oldId]) {
       this.data.gameAchievements[newId] ??= { ...this.data.gameAchievements[oldId], gameId: newId };
@@ -384,6 +389,23 @@ class DatabaseService {
       this.data.gameAchievements = {};
     }
     this.data.gameAchievements[achievements.gameId] = achievements;
+    this.persist();
+  }
+
+  // Várias listas de uma vez: o arquivo é grande, e gravar a cada jogo travaria o app
+  saveGameAchievementsBatch(list: GameAchievements[]): void {
+    if (list.length === 0) return;
+    this.data.gameAchievements ??= {};
+    for (const achievements of list) this.data.gameAchievements[achievements.gameId] = achievements;
+    this.persist();
+  }
+
+  getAchievementExtras(gameId: string): AchievementExtras {
+    return this.data.achievementExtras?.[gameId] ?? {};
+  }
+
+  setAchievementExtras(gameId: string, extras: AchievementExtras): void {
+    this.data.achievementExtras = { ...this.data.achievementExtras, [gameId]: extras };
     this.persist();
   }
 
