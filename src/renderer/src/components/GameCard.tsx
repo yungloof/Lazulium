@@ -3,14 +3,14 @@ import { Game } from '@shared/types/game';
 import { Star, Gamepad2 } from 'lucide-react';
 import { useLibraryStore } from '../stores/useLibraryStore';
 
-const PLATFORM_BADGES: Record<Game['platform'], { label: string; className: string }> = {
-  steam: { label: 'Steam', className: 'bg-blue-600/85' },
-  epic: { label: 'Epic', className: 'bg-slate-700/90' },
-  gog: { label: 'GOG', className: 'bg-purple-600/85' },
-  riot: { label: 'Riot', className: 'bg-red-600/85' },
-  xbox: { label: 'Xbox', className: 'bg-emerald-600/85' },
-  emulator: { label: 'Emu', className: 'bg-amber-600/85' },
-  standalone: { label: 'PC', className: 'bg-zinc-700/90' }
+const PLATFORM_LABEL: Record<Game['platform'], string> = {
+  steam: 'Steam',
+  epic: 'Epic',
+  gog: 'GOG',
+  riot: 'Riot',
+  xbox: 'Xbox',
+  emulator: 'Emu',
+  standalone: 'PC'
 };
 
 interface GameCardProps {
@@ -21,26 +21,20 @@ interface GameCardProps {
   onContextMenu?: (game: Game, e: React.MouseEvent) => void;
 }
 
-export const GameCard: React.FC<GameCardProps> = ({
-  game,
-  navStart = false,
-  onSelect,
-  onToggleFavorite,
-  onContextMenu
-}) => {
+const formatPlaytime = (seconds: number) => {
+  if (!seconds || seconds < 60) return 'Nunca jogado';
+  const hours = seconds / 3600;
+  return hours < 1 ? `${Math.round(seconds / 60)} min` : `${hours.toFixed(1).replace('.', ',')} h`;
+};
+
+// A capa aparece inteira: nome e horas ficam embaixo, não por cima da arte
+export const GameCard: React.FC<GameCardProps> = ({ game, navStart = false, onSelect, onToggleFavorite, onContextMenu }) => {
   // Nem todo AppID tem capa vertical na CDN: cai no placeholder em vez de imagem quebrada
   const [coverFailed, setCoverFailed] = useState(false);
   const isLaunching = useLibraryStore((s) => s.launchStatuses[game.id]?.state === 'launching');
   useEffect(() => setCoverFailed(false), [game.media?.coverUrl]);
 
-  const formatPlaytime = (seconds: number) => {
-    if (!seconds || seconds < 60) return 'Nunca jogado';
-    const hours = seconds / 3600;
-    return hours < 1 ? `${Math.round(seconds / 60)} min` : `${hours.toFixed(1).replace('.', ',')} h`;
-  };
-
-  const badge = PLATFORM_BADGES[game.platform];
-  const badgeLabel = game.platform === 'emulator' ? game.emulatorId || 'EMU' : badge.label;
+  const platform = game.platform === 'emulator' ? game.emulatorId || PLATFORM_LABEL.emulator : PLATFORM_LABEL[game.platform];
 
   return (
     <div
@@ -56,56 +50,47 @@ export const GameCard: React.FC<GameCardProps> = ({
         }
       }}
       title={game.title}
-      className={`group relative aspect-[2/3] overflow-hidden bg-slate-900/90 border transition-all duration-200 cursor-pointer focus:outline-none border-slate-800 hover:border-slate-600 hover:scale-[1.03] hover:shadow-lg`}
+      className="group min-w-0 cursor-pointer focus:outline-none"
     >
-      {/* Cover Image or Fallback */}
-      {game.media?.coverUrl && !coverFailed ? (
-        <img
-          src={game.media.coverUrl}
-          alt={game.title}
-          className="w-full h-full object-contain"
-          loading="lazy"
-          onError={() => {
-            setCoverFailed(true);
-            // O main confirma se a URL não existe e busca uma capa no SteamGridDB
-            window.electronAPI?.reportBrokenArtwork(game.id, 'cover');
-          }}
-        />
-      ) : (
-        <div className="w-full h-full flex flex-col items-center justify-center p-2.5 bg-gradient-to-b from-slate-800 to-slate-950 text-center">
-          <Gamepad2 className="w-7 h-7 text-slate-600 mb-1.5" />
-          <span className="text-[11px] leading-tight font-semibold text-slate-300 line-clamp-3">{game.title}</span>
-        </div>
-      )}
+      <div className="relative aspect-[2/3] overflow-hidden bg-slate-900 border border-slate-800 group-hover:border-slate-500 transition-colors">
+        {game.media?.coverUrl && !coverFailed ? (
+          <img
+            src={game.media.coverUrl}
+            alt=""
+            className="w-full h-full object-contain"
+            loading="lazy"
+            onError={() => {
+              setCoverFailed(true);
+              // O main confirma se a URL não existe e busca uma capa no SteamGridDB
+              window.electronAPI?.reportBrokenArtwork(game.id, 'cover');
+            }}
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center p-2.5 bg-slate-900 text-center">
+            <Gamepad2 className="w-7 h-7 text-slate-600 mb-1.5" />
+            <span className="text-[11px] leading-tight font-medium text-slate-400 line-clamp-3">{game.title}</span>
+          </div>
+        )}
 
-      {/* Top Overlay: Platform Badge & Favorite Button */}
-      <div className="absolute top-1.5 inset-x-1.5 flex items-center justify-between z-10">
-        <span className={`${badge.className} text-white text-[9px] font-bold leading-none px-1.5 py-1 rounded uppercase tracking-wide`}>
-          {badgeLabel}
-        </span>
         <button
           onClick={(e) => {
             e.stopPropagation();
             onToggleFavorite(game.id);
           }}
           title={game.isFavorite ? 'Remover dos favoritos' : 'Favoritar'}
-          className={`p-1 rounded-full backdrop-blur-md transition-all ${
-            game.isFavorite
-              ? 'bg-amber-500/25 text-amber-400'
-              : 'bg-black/50 text-slate-300 opacity-0 group-hover:opacity-100 hover:text-white'
+          className={`absolute top-1.5 right-1.5 p-1 rounded-full transition-opacity ${
+            game.isFavorite ? 'bg-black/70 text-amber-400' : 'bg-black/70 text-slate-200 opacity-0 group-hover:opacity-100 hover:text-white'
           }`}
         >
           <Star className={`w-3 h-3 ${game.isFavorite ? 'fill-amber-400' : ''}`} />
         </button>
       </div>
 
-      {/* Bottom Gradient Overlay: Title & Playtime */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/75 to-transparent px-2 pb-1.5 pt-6">
-        <h3 className="text-xs font-bold leading-tight text-white truncate drop-shadow-md">{game.title}</h3>
-        <p className="mt-0.5 text-[10px] text-slate-400 truncate">
-          {isLaunching ? 'Iniciando...' : formatPlaytime(game.totalPlaytimeSeconds)}
-        </p>
-      </div>
+      <h3 className="mt-2 text-[13px] leading-tight text-slate-100 truncate">{game.title}</h3>
+      <p className="mt-0.5 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+        <span className="truncate">{isLaunching ? 'Iniciando...' : formatPlaytime(game.totalPlaytimeSeconds)}</span>
+        <span className="flex-shrink-0 uppercase tracking-wide">{platform}</span>
+      </p>
     </div>
   );
 };

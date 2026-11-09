@@ -108,7 +108,7 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
     <div className="px-8 py-6 space-y-7">
       {!isFiltered && (playing.length > 0 || suggestion) && (
         <section>
-          <h2 className="flex items-center gap-2 mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+          <h2 className="flex items-center gap-2 mb-3 text-[15px] font-semibold text-slate-100">
             <Gamepad2 className="w-3.5 h-3.5 text-indigo-400" /> O que jogar agora
           </h2>
           <div className="flex gap-4 overflow-x-auto pb-2">
@@ -153,7 +153,7 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
 
       {!isFiltered && recent.length > 0 && (
         <section>
-          <h2 className="flex items-center gap-2 mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+          <h2 className="flex items-center gap-2 mb-3 text-[15px] font-semibold text-slate-100">
             <Clock className="w-3.5 h-3.5 text-indigo-400" /> Jogados recentemente
           </h2>
           <div className="flex gap-4 overflow-x-auto pb-2">
@@ -193,7 +193,7 @@ export const LibraryHome: React.FC<LibraryHomeProps> = ({
 
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+          <h2 className="flex items-center gap-2 text-[15px] font-semibold text-slate-100">
             <Layers className="w-3.5 h-3.5 text-indigo-400" /> {isFiltered ? 'Resultados' : 'Todos os jogos'} ({games.length})
           </h2>
           <div className="flex items-center gap-2 flex-wrap justify-end">

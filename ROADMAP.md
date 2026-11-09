@@ -159,6 +159,10 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [x] Renomear jogos e ocultar pelo menu, com lista de ocultos nas Configurações; biblioteca com ordenação e filtro por status; busca rápida Ctrl+K.
 - [x] Opções de inicialização por atalho (direto ou pela Steam, argumentos próprios); progresso em relação ao tempo para zerar; aviso de sessão oferece marcar como Jogando.
 - [x] Aba Desejos: lista da Steam, preço em reais, menor preço visto, preço-alvo e aviso de promoção. Painel geral de backups nas Configurações.
+- [x] Conquistas para todos os jogos, com o mesmo destaque: Steam, RetroAchievements (sincronizadas ou marcadas à mão, inclusive em ports, pela lista achada pelo nome), marcos do Lazulium onde não existe lista, e conquistas criadas pelo jogador.
+- [x] Lista de desejos compara preços de outras lojas pelo GG.deals (chave guardada no servidor, em `/v1/prices`).
+- [ ] Publicar o `/v1/prices` no Worker com a chave do GG.deals (`wrangler secret put GGDEALS_API_KEY`) e conferir o formato real da resposta.
+- [x] Interface: barra única no topo, fontes Inter e Outfit embutidas, capas inteiras com nome embaixo, ações da página do jogo agrupadas em "Mais opções", faixa de botões só com controle conectado.
 - [x] Duração típica na página dos jogos Steam, estimada pelas horas das reviews positivas (alternativa sem chave ao HowLongToBeat).
 - [x] Tempo para zerar pelo IGDB em qualquer jogo, por um servidor próprio (`server/igdb-proxy`) que guarda a credencial; as reviews da Steam ficam como reserva.
 - [x] Publicar o servidor do IGDB e colocar a URL em `IGDB_PROXY_URL` (passos em `server/igdb-proxy/README.md`).

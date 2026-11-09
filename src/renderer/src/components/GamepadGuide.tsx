@@ -4,6 +4,8 @@ import { Gamepad2 } from 'lucide-react';
 
 export const GamepadGuide: React.FC = () => {
   const { gamepad } = useGamepadStore();
+  // Sem controle a faixa só ocupava espaço
+  if (!gamepad?.connected) return null;
 
   return (
     <footer className="h-9 bg-steam-header border-t border-slate-800/80 px-4 flex items-center justify-between text-xs text-slate-400 select-none flex-shrink-0 z-30">

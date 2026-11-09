@@ -34,6 +34,9 @@
   --color-steam-play: #5c7e10;
   --color-steam-play-light: #a4d007;
 
+  --font-sans: 'Inter Variable', 'Segoe UI', Arial, sans-serif;
+  --font-display: 'Outfit Variable', 'Inter Variable', 'Segoe UI', sans-serif;
+
   --radius-xs: 0.375rem;
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
@@ -46,11 +49,18 @@
   }
 
   body {
-    font-family: 'Segoe UI', 'Motiva Sans', Arial, sans-serif;
+    font-family: var(--font-sans);
     background: #0e1426;
     color: #cbd6ec;
     color-scheme: dark;
   }
+}
+
+/* Títulos com a fonte da marca */
+h1,
+h2 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
 }
 
 /* A classe rounded simples não acompanha os raios do tema */
@@ -65,7 +75,8 @@ html[data-nav] :is(button, a, input, select, textarea, [tabindex]):focus {
 }
 
 html[data-nav] [data-game-id]:focus {
-  scale: 1.05;
+  outline-offset: 4px;
+  position: relative;
   z-index: 20;
 }
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Game } from '@shared/types/game';
-import { Clock, Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera, FolderOpen, ListPlus, Pencil, EyeOff, SlidersHorizontal } from 'lucide-react';
+import { Clock, Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera, FolderOpen, ListPlus, Pencil, EyeOff, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useLibraryStore } from '../stores/useLibraryStore';
 
 export interface GameContextMenuProps {
@@ -21,6 +21,7 @@ export interface GameContextMenuProps {
   onRename: (game: Game) => void;
   onHide: (game: Game) => void;
   onLaunchOptions: (game: Game) => void;
+  onDeleteEntry: (game: Game) => void;
 }
 
 interface MenuItem {
@@ -48,7 +49,8 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
   onAddToList,
   onRename,
   onHide,
-  onLaunchOptions
+  onLaunchOptions,
+  onDeleteEntry
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const isRunning = useLibraryStore((s) => s.launchStatuses[game.id]?.state === 'running');
@@ -134,7 +136,13 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
       icon: <EyeOff className="w-3.5 h-3.5 text-slate-400" />,
       action: () => onHide(game),
       separatorBefore: true
-    }
+    },
+    ...(game.manualEntry ? [{
+      id: 'delete-entry',
+      label: 'Apagar este registro',
+      icon: <Trash2 className="w-3.5 h-3.5 text-slate-400" />,
+      action: () => onDeleteEntry(game)
+    }] : [])
   ];
 
   const [activeIndex, setActiveIndex] = useState(0);
@@ -174,7 +182,7 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
 
   // Posiciona sem vazar para fora da janela
   const MENU_WIDTH = 220;
-  const MENU_HEIGHT = 440;
+  const MENU_HEIGHT = 470;
   const posX = Math.max(8, Math.min(x, window.innerWidth - MENU_WIDTH - 8));
   const posY = Math.max(8, Math.min(y, window.innerHeight - MENU_HEIGHT - 8));
 

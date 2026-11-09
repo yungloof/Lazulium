@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Camera, Clock, EyeOff, FolderOpen, ListPlus, SlidersHorizontal, Trash2, Hourglass, Image as ImageIcon, Info, Pencil, Save, Star, Trophy, BarChart2, CalendarClock } from 'lucide-react';
+import { Camera, Clock, FolderOpen, ListPlus, MoreHorizontal, Hourglass, Image as ImageIcon, Info, Pencil, Save, Star, Trophy, BarChart2, CalendarClock } from 'lucide-react';
 import { Game, GamePlayLength, hasConsistentTimes, isWeakPlayLength } from '@shared/types/game';
 import { GameAchievements, achievementSourceLabel } from '@shared/types/achievements';
 import { Screenshot } from '@shared/types/screenshots';
@@ -22,9 +22,7 @@ interface GamePageProps {
   onOpenFolder: () => void;
   onAddToList: () => void;
   onRename: () => void;
-  onHide: () => void;
-  onLaunchOptions: () => void;
-  onDeleteEntry: () => void;
+  onOpenMenu: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
@@ -110,9 +108,7 @@ export const GamePage: React.FC<GamePageProps> = ({
   onOpenFolder,
   onAddToList,
   onRename,
-  onHide,
-  onLaunchOptions,
-  onDeleteEntry
+  onOpenMenu
 }) => {
   const [heroFailed, setHeroFailed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
@@ -297,15 +293,10 @@ export const GamePage: React.FC<GamePageProps> = ({
 
         <div className="ml-auto flex items-center gap-1.5">
           {[
-            ...(game.manualEntry || game.isInstalled === false ? [] : [{ label: 'Abrir pasta do jogo', icon: <FolderOpen className="w-4 h-4" />, onClick: onOpenFolder }]),
-            { label: 'Renomear', icon: <Pencil className="w-4 h-4" />, onClick: onRename },
             { label: 'Adicionar à lista', icon: <ListPlus className="w-4 h-4" />, onClick: onAddToList },
             { label: 'Capturas', icon: <Camera className="w-4 h-4" />, onClick: onOpenScreenshots },
             { label: 'Backup de saves', icon: <Save className="w-4 h-4" />, onClick: onOpenSaves },
-            { label: 'Trocar artes', icon: <ImageIcon className="w-4 h-4" />, onClick: onOpenArtwork },
-            ...(game.platform === 'steam' || game.manualEntry ? [] : [{ label: 'Opções de inicialização', icon: <SlidersHorizontal className="w-4 h-4" />, onClick: onLaunchOptions }]),
-            { label: 'Ocultar da biblioteca', icon: <EyeOff className="w-4 h-4" />, onClick: onHide },
-            ...(game.manualEntry ? [{ label: 'Apagar este registro', icon: <Trash2 className="w-4 h-4" />, onClick: onDeleteEntry }] : [])
+            { label: 'Trocar artes', icon: <ImageIcon className="w-4 h-4" />, onClick: onOpenArtwork }
           ].map((b) => (
             <button
               key={b.label}
@@ -317,6 +308,14 @@ export const GamePage: React.FC<GamePageProps> = ({
               {b.icon}
             </button>
           ))}
+          <button
+            onClick={onOpenMenu}
+            title="Mais opções"
+            aria-label="Mais opções"
+            className={`p-2.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors ${focusRing}`}
+          >
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
           <button
             onClick={() => onToggleFavorite(game.id)}
             title={game.isFavorite ? 'Remover dos favoritos' : 'Favoritar'}

@@ -84,9 +84,9 @@ export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch }) => {
     <button
       data-nav-start
       onClick={() => onLaunch(game)}
-      className={`flex items-center gap-2 px-6 py-2.5 rounded-sm bg-gradient-to-r from-[#75b022] to-[#588a1b] hover:from-[#8ed629] hover:to-[#6aa621] text-white font-semibold text-sm tracking-wide transition-colors ${focusRing}`}
+      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold text-sm tracking-wide transition-colors ${focusRing}`}
     >
-      <Play className="w-4 h-4 fill-white" />
+      <Play className="w-4 h-4 fill-emerald-950" />
       <span>JOGAR</span>
     </button>
   );

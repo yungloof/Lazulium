@@ -243,7 +243,7 @@ export const GameStats: React.FC<GameStatsProps> = ({ game, collapsible = true }
                           style={{ height: `${heightPercent}%` }}
                           className={`w-full rounded-sm transition-all duration-300 ${
                             isToday
-                              ? 'bg-gradient-to-t from-indigo-600 to-indigo-400 shadow-sm'
+                              ? 'bg-indigo-400'
                               : 'bg-indigo-500/80 hover:bg-indigo-400'
                           }`}
                         />

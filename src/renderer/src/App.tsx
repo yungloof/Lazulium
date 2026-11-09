@@ -30,7 +30,7 @@ import { Game } from '@shared/types/game';
 import { ipcErrorMessage } from './utils/ipcErrorMessage';
 import { GameAchievements } from '@shared/types/achievements';
 import { ScanResult } from '@shared/types/ipc';
-import { RefreshCw, Cpu, Plus, AlertTriangle, X, Settings, WifiOff } from 'lucide-react';
+import { RefreshCw, Cpu, Plus, AlertTriangle, Search, X, Settings, WifiOff } from 'lucide-react';
 
 const FILTERS: { id: LibraryFilter; label: string }[] = [
   { id: 'all', label: 'Todos os jogos' },
@@ -47,6 +47,7 @@ const FILTERS: { id: LibraryFilter; label: string }[] = [
 const SECTIONS = ['home', 'journal', 'lists', 'wishlist', 'gallery', 'profile'] as const;
 const GAME_UPDATE_BATCH_MS = 120;
 const NOTICE_MS = 6000;
+const MENU_WIDTH = 224;
 const NOTICE_WITH_ACTION_MS = 15000;
 const ASK_STATUS_AFTER_SECONDS = 10 * 60;
 const LIBRARY_SORT_KEY = 'lazulium.librarySort';
@@ -62,7 +63,6 @@ function loadLibrarySort(): LibrarySort {
 
 type Notice = { text: string; tone: 'ok' | 'warn'; action?: { label: string; run: () => void } };
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
-const toolbarButton = `flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 rounded-lg text-slate-200 transition-colors disabled:opacity-50 ${focusRing}`;
 
 export const App: React.FC = () => {
   const {
@@ -551,11 +551,8 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-screen bg-steam-bg text-slate-100 overflow-hidden">
-      <TitleBar />
-
-      {/* Navegação superior (estilo Steam) */}
-      <header className="flex items-center justify-between gap-4 px-4 h-12 flex-shrink-0 bg-steam-header border-b border-black/40">
-        <nav className="flex items-center gap-1" aria-label="Seções">
+      <TitleBar>
+        <nav className="titlebar-no-drag h-full flex items-center" aria-label="Seções">
           {[
             { label: 'Biblioteca', active: view === 'home' || view === 'game', onClick: goHome },
             { label: 'Diário', active: view === 'journal', onClick: () => setView('journal') },
@@ -568,33 +565,39 @@ export const App: React.FC = () => {
               key={tab.label}
               onClick={tab.onClick}
               aria-current={tab.active ? 'page' : undefined}
-              className={`relative px-3 h-12 text-sm font-medium tracking-wider uppercase transition-colors ${focusRing} ${
-                tab.active ? 'text-indigo-400' : 'text-slate-300 hover:text-white'
-              }`}
+              className={`relative px-3 h-12 text-sm transition-colors ${focusRing} ${tab.active ? 'text-white font-medium' : 'text-slate-400 hover:text-white'}`}
             >
               {tab.label}
-              {tab.active && <span className="absolute left-3 right-3 bottom-2 h-0.5 bg-indigo-400" />}
+              {tab.active && <span className="absolute left-3 right-3 bottom-0 h-0.5 rounded-full bg-indigo-400" />}
             </button>
           ))}
         </nav>
-        <div className="flex items-center gap-2">
-          <button onClick={handleScanLibraries} disabled={isScanning} className={toolbarButton}>
+        <div className="titlebar-no-drag flex items-center gap-1">
+          <button
+            onClick={() => setShowQuickSearch(true)}
+            title="Buscar jogo (Ctrl+K)"
+            aria-label="Buscar jogo"
+            className={`flex items-center gap-2 h-8 px-2.5 lg:w-44 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-500 hover:border-slate-600 hover:text-slate-300 transition-colors ${focusRing}`}
+          >
+            <Search className="w-3.5 h-3.5" />
+            <span className="hidden lg:inline">Buscar jogo</span>
+            <kbd className="hidden lg:inline ml-auto px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400">Ctrl K</kbd>
+          </button>
+          <button onClick={handleScanLibraries} disabled={isScanning} title="Procurar jogos instalados" className={`flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-60 transition-colors ${focusRing}`}>
             <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin text-indigo-400' : ''}`} />
             <span>{isScanning ? 'Escaneando...' : 'Escanear'}</span>
           </button>
-          <button onClick={() => setShowEmulatorSettings(true)} className={toolbarButton}>
-            <Cpu className="w-3.5 h-3.5" />
-            <span>Emuladores</span>
-          </button>
-          <button onClick={() => setShowAddGameModal(true)} className={toolbarButton} title="Adicionar jogo manual (.exe)">
-            <Plus className="w-3.5 h-3.5" />
-            <span>Adicionar jogo</span>
-          </button>
-          <button onClick={() => setShowSettings(true)} className={`${toolbarButton} px-2`} title="Configurações" aria-label="Configurações">
-            <Settings className="w-4 h-4" />
-          </button>
+          {[
+            { label: 'Emuladores', icon: <Cpu className="w-4 h-4" />, onClick: () => setShowEmulatorSettings(true) },
+            { label: 'Adicionar jogo', icon: <Plus className="w-4 h-4" />, onClick: () => setShowAddGameModal(true) },
+            { label: 'Configurações', icon: <Settings className="w-4 h-4" />, onClick: () => setShowSettings(true) }
+          ].map((action) => (
+            <button key={action.label} onClick={action.onClick} title={action.label} aria-label={action.label} className={`w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors ${focusRing}`}>
+              {action.icon}
+            </button>
+          ))}
         </div>
-      </header>
+      </TitleBar>
 
       <div className="flex-1 flex min-h-0">
         {(view === 'home' || view === 'game') && (
@@ -724,9 +727,11 @@ export const App: React.FC = () => {
               onOpenFolder={() => handleOpenFolder(selectedGame)}
               onAddToList={() => setAddToListGame(selectedGame)}
               onRename={() => setRenamingGame(selectedGame)}
-              onHide={() => void hideGame(selectedGame)}
-              onLaunchOptions={() => setLaunchOptionsGame(selectedGame)}
-              onDeleteEntry={() => askDeleteEntry(selectedGame)}
+              onOpenMenu={(e) => {
+                // Abre embaixo do botão: com teclado ou controle o clique não tem posição
+                const rect = e.currentTarget.getBoundingClientRect();
+                setContextMenu({ game: selectedGame, x: rect.right - MENU_WIDTH, y: rect.bottom + 6 });
+              }}
             />
           ) : (
             <LibraryHome
@@ -833,6 +838,7 @@ export const App: React.FC = () => {
           onRename={setRenamingGame}
           onHide={(g) => void hideGame(g)}
           onLaunchOptions={setLaunchOptionsGame}
+          onDeleteEntry={askDeleteEntry}
           onToggleFavorite={handleToggleFavorite}
           onOpenArtwork={(g) => {
             setSelectedGame(g);
