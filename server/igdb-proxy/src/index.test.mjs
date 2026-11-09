@@ -290,3 +290,59 @@ test('Falha do IGDB na busca não entra no cache', async (t) => {
   assert.equal((await search(s.env, 'q=zelda')).status, 503);
   assert.ok(![...s.kv.store.keys()].some((k) => k.startsWith('search:')));
 });
+
+const GG_SECRET = 'chave-gg-de-teste';
+function setupPrices(handler) {
+  const original = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    assert.ok(href.startsWith('https://api.gg.deals/v1/prices/by-steam-app-id/?'), `chamada inesperada: ${href}`);
+    calls.push(new URL(href).searchParams);
+    return handler();
+  };
+  const env = { GGDEALS_API_KEY: GG_SECRET };
+  const get = async (query, overrideEnv = env) => {
+    const res = await worker.fetch(new Request(`https://proxy.test/v1/prices?${query}`), overrideEnv);
+    const text = await res.text();
+    assert.ok(!text.includes(GG_SECRET), 'a chave vazou na resposta');
+    return { status: res.status, body: JSON.parse(text) };
+  };
+  return { calls, get, restore: () => (globalThis.fetch = original) };
+}
+
+test('Preços: converte para centavos e só repassa os campos conhecidos', async (t) => {
+  const s = setupPrices(() => ok({ success: true, data: { 1: null, 420: { title: 'Jogo', url: 'https://gg.deals/game/jogo/', segredo: 'x', prices: { currentRetail: '8.19', currentKeyshops: 3.5, historicalRetail: '0.81', historicalKeyshops: null, currency: 'BRL' } } } }));
+  t.after(s.restore);
+  const { status, body } = await s.get('steamAppIds=420,1');
+  assert.equal(status, 200);
+  assert.equal(body.prices['1'], null);
+  assert.deepEqual(body.prices['420'], { url: 'https://gg.deals/game/jogo/', currency: 'BRL', retail: 819, keyshops: 350, lowestRetail: 81, lowestKeyshops: null });
+  assert.equal(s.calls[0].get('ids'), '1,420');
+  assert.equal(s.calls[0].get('region'), 'br');
+});
+
+test('Preços: entradas inválidas nem chegam ao GG.deals', async (t) => {
+  const s = setupPrices(() => assert.fail('não devia consultar'));
+  t.after(s.restore);
+  assert.equal((await s.get('steamAppIds=')).status, 400);
+  assert.equal((await s.get('steamAppIds=1;drop')).status, 400);
+  assert.equal((await s.get(`steamAppIds=${Array.from({ length: 51 }, (_, i) => i + 1).join(',')}`)).status, 400);
+});
+
+test('Preços: sem chave configurada responde 503 sem consultar', async (t) => {
+  const s = setupPrices(() => assert.fail('não devia consultar'));
+  t.after(s.restore);
+  const { status, body } = await s.get('steamAppIds=420', {});
+  assert.equal(status, 503);
+  assert.equal(body.error, 'not_configured');
+});
+
+test('Preços: falha ou formato estranho do GG.deals vira 503, sem repassar o corpo', async (t) => {
+  let reply = () => new Response('chave inválida: ' + GG_SECRET, { status: 401 });
+  const s = setupPrices(() => reply());
+  t.after(s.restore);
+  assert.equal((await s.get('steamAppIds=420')).status, 503);
+  reply = () => ok({ success: false, message: 'x' });
+  assert.equal((await s.get('steamAppIds=420')).status, 503);
+});

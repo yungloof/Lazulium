@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, BellRing, ExternalLink, Heart, Loader2, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Tags, BellRing, ExternalLink, Heart, Loader2, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { GameSearchResult } from '@shared/types/game';
 import { WishlistItem, WishlistState } from '@shared/types/wishlist';
 import { useLibraryStore } from '../stores/useLibraryStore';
@@ -18,6 +18,7 @@ const SORT_OPTIONS: SelectOption<SortKey>[] = [
 const SEARCH_DELAY_MS = 350;
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 const button = `flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-50 transition-colors ${focusRing}`;
+const money = (cents: number, currency: string) => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency });
 const brl = (cents: number) => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const WishlistCard: React.FC<{
@@ -25,13 +26,16 @@ const WishlistCard: React.FC<{
   owned: boolean;
   onRemove: () => void;
   onOpenStore: () => void;
+  onOpenDeals: () => void;
   onSetTarget: (cents: number | null) => void;
-}> = ({ item, owned, onRemove, onOpenStore, onSetTarget }) => {
+}> = ({ item, owned, onRemove, onOpenStore, onOpenDeals, onSetTarget }) => {
   const [editing, setEditing] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [target, setTarget] = useState(item.targetCents ? String(item.targetCents / 100).replace('.', ',') : '');
   const discount = item.discountPercent ?? 0;
   const reachedTarget = item.targetCents !== undefined && item.priceCents !== undefined && item.priceCents <= item.targetCents;
+  const deals = item.deals;
+  const cheaperElsewhere = deals?.currency === 'BRL' && deals.retailCents !== undefined && item.priceCents !== undefined && deals.retailCents < item.priceCents;
   const atLowest = item.lowestCents !== undefined && item.priceCents === item.lowestCents && discount > 0;
 
   const saveTarget = () => {
@@ -70,6 +74,28 @@ const WishlistCard: React.FC<{
         <p className="mt-0.5 text-[11px] text-slate-500">
           {atLowest ? 'Menor preço que o Lazulium já viu' : item.lowestCents !== undefined ? `Menor visto: ${brl(item.lowestCents)}` : ' '}
         </p>
+        {deals && (deals.retailCents !== undefined || deals.keyshopCents !== undefined) && (
+          <dl className="mt-2 pt-2 border-t border-slate-800 space-y-0.5 text-[11px]">
+            {deals.retailCents !== undefined && (
+              <div className="flex justify-between gap-2">
+                <dt className="text-slate-400">Lojas oficiais</dt>
+                <dd className={cheaperElsewhere ? 'text-emerald-300 font-semibold' : 'text-slate-200'}>{money(deals.retailCents, deals.currency)}</dd>
+              </div>
+            )}
+            {deals.keyshopCents !== undefined && (
+              <div className="flex justify-between gap-2">
+                <dt className="text-slate-400" title="Revendedores de chaves: mais baratos, mas sem garantia da loja oficial">Revendedores de chaves</dt>
+                <dd className="text-slate-200">{money(deals.keyshopCents, deals.currency)}</dd>
+              </div>
+            )}
+            {deals.lowestRetailCents !== undefined && (
+              <div className="flex justify-between gap-2">
+                <dt className="text-slate-500">Menor preço histórico</dt>
+                <dd className="text-slate-400">{money(deals.lowestRetailCents, deals.currency)}</dd>
+              </div>
+            )}
+          </dl>
+        )}
         {editing ? (
           <form
             className="mt-2 flex items-center gap-1.5"
@@ -89,7 +115,10 @@ const WishlistCard: React.FC<{
         )}
         <div className="mt-auto pt-2.5 flex items-center gap-1.5">
           <button onClick={onOpenStore} className={`${button} flex-1 justify-center`}>
-            <ExternalLink className="w-3.5 h-3.5" /> Ver na Steam
+            <ExternalLink className="w-3.5 h-3.5" /> Steam
+          </button>
+          <button onClick={onOpenDeals} title="Comparar preços em outras lojas no GG.deals" className={`${button} flex-1 justify-center`}>
+            <Tags className="w-3.5 h-3.5" /> GG.deals
           </button>
           <button onClick={onRemove} aria-label={`Tirar ${item.name} da lista`} title={item.source === 'steam' ? 'Tirar daqui. Volta na próxima atualização se continuar na lista da Steam.' : 'Tirar da lista'} className={`p-2 rounded-lg bg-slate-800 hover:bg-red-500/20 hover:text-red-300 text-slate-400 ${focusRing}`}>
             <Trash2 className="w-3.5 h-3.5" />
@@ -190,7 +219,7 @@ export const WishlistPage: React.FC = () => {
         <div>
           <h1 className="text-2xl text-white">Lista de desejos</h1>
           <p className="mt-1 text-sm text-slate-400">
-            {items.length} {items.length === 1 ? 'jogo' : 'jogos'}{deals > 0 ? ` · ${deals} em promoção` : ''}. Vem da sua conta Steam e avisa quando o preço cai.
+            {items.length} {items.length === 1 ? 'jogo' : 'jogos'}{deals > 0 ? ` · ${deals} em promoção` : ''}. Vem da sua conta Steam e avisa quando o preço cai. Preços de outras lojas por GG.deals.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -248,6 +277,7 @@ export const WishlistPage: React.FC = () => {
               item={item}
               owned={ownedIds.has(String(item.appId))}
               onOpenStore={() => window.electronAPI?.openWishlistStore(item.appId)}
+              onOpenDeals={() => window.electronAPI?.openWishlistDeals(item.appId)}
               onRemove={() => void run(async () => window.electronAPI?.removeFromWishlist(item.appId))}
               onSetTarget={(cents) => void run(async () => window.electronAPI?.setWishlistTarget(item.appId, cents))}
             />

@@ -46,6 +46,7 @@ const electronAPI: ElectronAPI = {
   removeFromWishlist: (appId: number) => ipcRenderer.invoke(IPC_CHANNELS.WISHLIST_REMOVE, appId),
   setWishlistTarget: (appId: number, targetCents: number | null) => ipcRenderer.invoke(IPC_CHANNELS.WISHLIST_SET_TARGET, appId, targetCents),
   openWishlistStore: (appId: number) => ipcRenderer.invoke(IPC_CHANNELS.WISHLIST_OPEN_STORE, appId),
+  openWishlistDeals: (appId: number) => ipcRenderer.invoke(IPC_CHANNELS.WISHLIST_OPEN_DEALS, appId),
   getBackupOverview: () => ipcRenderer.invoke(IPC_CHANNELS.BACKUP_OVERVIEW),
   runBackupSweep: () => ipcRenderer.invoke(IPC_CHANNELS.BACKUP_RUN_SWEEP),
   getGameLists: () => ipcRenderer.invoke(IPC_CHANNELS.LISTS_GET),

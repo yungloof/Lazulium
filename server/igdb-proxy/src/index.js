@@ -1,4 +1,5 @@
 // Intermediário entre o Lazulium e o IGDB. A credencial da Twitch fica só aqui: o app nunca a vê.
+// Também guarda a chave do GG.deals e responde "quanto custa este jogo nas lojas".
 // Só responde "quanto tempo leva este jogo" e "quais jogos têm esse nome": não aceita consulta livre, então a URL pública não serve para mais nada.
 
 const IGDB_BASE = 'https://api.igdb.com/v4';
@@ -12,6 +13,10 @@ const MAX_TITLE_LENGTH = 120;
 const MAX_CANDIDATES = 10;
 const MAX_SEARCH_RESULTS = 12;
 const MIN_SEARCH_LENGTH = 2;
+const GGDEALS_URL = 'https://api.gg.deals/v1/prices/by-steam-app-id/';
+const GGDEALS_REGION = 'br';
+const MAX_PRICE_IDS = 50;
+const PRICES_TTL_SECONDS = 6 * 60 * 60;
 const COVER_URL = (imageId) => `https://images.igdb.com/igdb/image/upload/t_cover_big/${imageId}.jpg`;
 const RETRY_DELAY_MS = 300;
 
@@ -127,6 +132,58 @@ async function cached(env, key, load) {
   return result;
 }
 
+const toCents = (value) => {
+  const number = typeof value === 'number' ? value : parseFloat(value);
+  return Number.isFinite(number) && number >= 0 ? Math.round(number * 100) : null;
+};
+
+// Só os campos que o app usa: a resposta do GG.deals nunca é repassada inteira
+function toDeal(entry) {
+  if (!entry || typeof entry !== 'object' || !entry.prices) return null;
+  const { prices } = entry;
+  return {
+    url: typeof entry.url === 'string' && entry.url.startsWith('https://gg.deals/') ? entry.url : null,
+    currency: typeof prices.currency === 'string' ? prices.currency : null,
+    retail: toCents(prices.currentRetail),
+    keyshops: toCents(prices.currentKeyshops),
+    lowestRetail: toCents(prices.historicalRetail),
+    lowestKeyshops: toCents(prices.historicalKeyshops)
+  };
+}
+
+// Preços mudam ao longo do dia: cache curto na borda da Cloudflare, que não gasta a cota de escrita do KV
+async function handlePrices(url, request, env) {
+  const raw = url.searchParams.get('steamAppIds') ?? '';
+  const ids = [...new Set(raw.split(',').filter(Boolean))];
+  if (ids.length === 0 || ids.length > MAX_PRICE_IDS || ids.some((id) => !/^\d{1,10}$/.test(id))) return json({ error: 'invalid_steam_app_ids' }, 400);
+  if (!env.GGDEALS_API_KEY) return json({ error: 'not_configured' }, 503);
+  if (await isRateLimited(request, env)) return json({ error: 'rate_limited' }, 429);
+
+  ids.sort((a, b) => Number(a) - Number(b));
+  const edgeCache = globalThis.caches?.default;
+  const cacheKey = new Request(`https://cache.lazulium/prices/v1/${GGDEALS_REGION}/${ids.join(',')}`);
+  const hit = await edgeCache?.match(cacheKey);
+  if (hit) return hit;
+
+  try {
+    const params = new URLSearchParams({ ids: ids.join(','), key: env.GGDEALS_API_KEY, region: GGDEALS_REGION });
+    const res = await fetch(`${GGDEALS_URL}?${params}`, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new UpstreamError(`GG.deals respondeu ${res.status}`);
+    const body = await res.json();
+    if (!body || typeof body.data !== 'object' || body.data === null) throw new UpstreamError('GG.deals devolveu um formato inesperado');
+    const prices = Object.fromEntries(ids.map((id) => [id, toDeal(body.data[id])]));
+    const response = json({ source: 'gg.deals', region: GGDEALS_REGION, prices });
+    if (edgeCache) {
+      const stored = new Response(response.clone().body, response);
+      stored.headers.set('Cache-Control', `public, max-age=${PRICES_TTL_SECONDS}`);
+      await edgeCache.put(cacheKey, stored).catch(() => undefined);
+    }
+    return response;
+  } catch (err) {
+    return upstreamFailure(err);
+  }
+}
+
 async function isRateLimited(request, env) {
   if (!env.RATE_LIMITER) return false;
   const { success } = await env.RATE_LIMITER.limit({ key: request.headers.get('CF-Connecting-IP') ?? 'unknown' });
@@ -155,8 +212,10 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const isSearch = url.pathname === '/v1/search';
-    if (!isSearch && url.pathname !== '/v1/time-to-beat') return json({ error: 'not_found' }, 404);
+    const isPrices = url.pathname === '/v1/prices';
+    if (!isSearch && !isPrices && url.pathname !== '/v1/time-to-beat') return json({ error: 'not_found' }, 404);
     if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
+    if (isPrices) return handlePrices(url, request, env);
     if (!env.TWITCH_CLIENT_ID || !env.TWITCH_CLIENT_SECRET || !env.IGDB_CACHE) return json({ error: 'not_configured' }, 503);
     if (isSearch) return handleSearch(url, request, env);
 

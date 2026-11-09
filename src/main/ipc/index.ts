@@ -224,6 +224,10 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     if (!Number.isInteger(appId) || appId <= 0) throw new Error('Jogo inválido.');
     await shell.openExternal(`steam://store/${appId}`);
   });
+  ipcMain.handle(IPC_CHANNELS.WISHLIST_OPEN_DEALS, async (_event, appId: number) => {
+    if (!Number.isInteger(appId) || appId <= 0) throw new Error('Jogo inválido.');
+    await shell.openExternal(wishlistService.dealsUrl(appId));
+  });
   ipcMain.handle(IPC_CHANNELS.BACKUP_OVERVIEW, async () => backupService.getOverview());
   ipcMain.handle(IPC_CHANNELS.BACKUP_RUN_SWEEP, async () => {
     await backupService.autoBackupSweep(true);

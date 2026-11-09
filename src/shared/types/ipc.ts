@@ -130,6 +130,7 @@ export interface ElectronAPI {
   removeFromWishlist: (appId: number) => Promise<WishlistState>;
   setWishlistTarget: (appId: number, targetCents: number | null) => Promise<WishlistState>;
   openWishlistStore: (appId: number) => Promise<void>;
+  openWishlistDeals: (appId: number) => Promise<void>;
   getBackupOverview: () => Promise<BackupOverview>;
   runBackupSweep: () => Promise<BackupOverview>;
   getGameLists: () => Promise<GameList[]>;

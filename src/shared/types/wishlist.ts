@@ -14,6 +14,18 @@ export interface WishlistItem {
   targetCents?: number;             // Avisar quando chegar neste preço
   notifiedCents?: number;           // Último preço avisado: a mesma promoção não avisa duas vezes
   checkedAt?: string;
+  deals?: WishlistDeals;            // Outras lojas, pelo GG.deals
+}
+
+// Preços em centavos, na moeda da região. Revendedores de chaves ficam separados das lojas oficiais.
+export interface WishlistDeals {
+  url?: string;                     // Página do jogo no GG.deals
+  currency: string;
+  retailCents?: number;
+  keyshopCents?: number;
+  lowestRetailCents?: number;       // Menor preço histórico em lojas oficiais
+  lowestKeyshopCents?: number;
+  checkedAt: string;
 }
 
 export interface WishlistState {

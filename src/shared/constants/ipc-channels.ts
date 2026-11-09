@@ -39,6 +39,7 @@ export const IPC_CHANNELS = {
   WISHLIST_REMOVE: 'wishlist:remove',
   WISHLIST_SET_TARGET: 'wishlist:set-target',
   WISHLIST_OPEN_STORE: 'wishlist:open-store',
+  WISHLIST_OPEN_DEALS: 'wishlist:open-deals',
 
   // Backup: visão geral
   BACKUP_OVERVIEW: 'backup:overview',

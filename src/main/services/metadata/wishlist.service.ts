@@ -1,5 +1,6 @@
 import { Notification } from 'electron';
-import { WishlistItem, WishlistState } from '@shared/types/wishlist';
+import { WishlistDeals, WishlistItem, WishlistState } from '@shared/types/wishlist';
+import { igdbProxyUrl } from './play-length.service';
 import { db } from '../../database/db';
 
 const WISHLIST_URL = 'https://api.steampowered.com/IWishlistService/GetWishlist/v1/';
@@ -10,6 +11,9 @@ const REQUEST_TIMEOUT_MS = 12_000;
 const LAST_SYNC_SETTING = 'wishlistSyncAt';
 const SYNC_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const SILENT_MODE = process.env.LAZULIUM_SILENT === '1';
+const DEALS_BATCH = 50;
+// O GG.deals leva pelo AppID da Steam à página do jogo, com todas as lojas
+const GGDEALS_GAME_URL = (appId: number) => `https://gg.deals/steam/app/${appId}/`;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -51,11 +55,48 @@ async function fetchPrices(appIds: number[]): Promise<Map<number, PriceOverview 
   return prices;
 }
 
+interface DealsResponse {
+  prices?: Record<string, { url?: unknown; currency?: unknown; retail?: unknown; keyshops?: unknown; lowestRetail?: unknown; lowestKeyshops?: unknown } | null>;
+}
+
+const cents = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.round(value) : undefined);
+
+// Outras lojas, pelo nosso servidor (é ele que guarda a chave do GG.deals). Fora do ar ou sem chave, a lista segue só com a Steam.
+async function fetchDeals(appIds: number[]): Promise<Map<number, WishlistDeals>> {
+  const deals = new Map<number, WishlistDeals>();
+  const checkedAt = new Date().toISOString();
+  for (let i = 0; i < appIds.length; i += DEALS_BATCH) {
+    const batch = appIds.slice(i, i + DEALS_BATCH);
+    const data = await getJson<DealsResponse>(`${igdbProxyUrl()}/v1/prices?steamAppIds=${batch.join(',')}`);
+    for (const id of batch) {
+      const entry = data.prices?.[String(id)];
+      if (!entry || typeof entry.currency !== 'string') continue;
+      deals.set(id, {
+        url: typeof entry.url === 'string' && entry.url.startsWith('https://gg.deals/') ? entry.url : undefined,
+        currency: entry.currency,
+        retailCents: cents(entry.retail),
+        keyshopCents: cents(entry.keyshops),
+        lowestRetailCents: cents(entry.lowestRetail),
+        lowestKeyshopCents: cents(entry.lowestKeyshops),
+        checkedAt
+      });
+    }
+  }
+  return deals;
+}
+
+// Menor preço em loja oficial: a Steam ou outra que o GG.deals achou
+const bestOfficialCents = (item: WishlistItem) => {
+  const prices = [item.priceCents, item.deals?.currency === 'BRL' ? item.deals.retailCents : undefined].filter((p): p is number => p !== undefined);
+  return prices.length ? Math.min(...prices) : undefined;
+};
+
 // Vale avisar quando chegou no alvo ou entrou em promoção mais barata do que a última avisada
 function shouldNotify(item: WishlistItem): boolean {
-  if (item.priceCents === undefined) return false;
-  if (item.notifiedCents !== undefined && item.priceCents >= item.notifiedCents) return false;
-  if (item.targetCents !== undefined) return item.priceCents <= item.targetCents;
+  const price = bestOfficialCents(item);
+  if (price === undefined) return false;
+  if (item.notifiedCents !== undefined && price >= item.notifiedCents) return false;
+  if (item.targetCents !== undefined) return price <= item.targetCents;
   return (item.discountPercent ?? 0) > 0;
 }
 
@@ -136,6 +177,12 @@ class WishlistService {
         item.priceLabel = price?.final_formatted;
         if (price?.final !== undefined) item.lowestCents = Math.min(item.lowestCents ?? price.final, price.final);
       }
+      try {
+        const deals = await fetchDeals(list.map((item) => item.appId));
+        for (const item of list) item.deals = deals.get(item.appId) ?? item.deals;
+      } catch (err) {
+        console.warn(`[Desejos] Preços de outras lojas indisponíveis: ${(err as Error).message}`);
+      }
       this.notify(list);
     } catch (err) {
       warning ??= `Não foi possível atualizar os preços (${(err as Error).message}). Confira a internet e clique em Atualizar.`;
@@ -149,15 +196,21 @@ class WishlistService {
 
   private notify(list: WishlistItem[]): void {
     const deals = list.filter(shouldNotify);
-    for (const item of deals) item.notifiedCents = item.priceCents;
+    for (const item of deals) item.notifiedCents = bestOfficialCents(item);
     // Preço voltou a subir: a próxima promoção avisa de novo
     for (const item of list) {
-      if (item.notifiedCents !== undefined && item.priceCents !== undefined && item.priceCents > item.notifiedCents) item.notifiedCents = undefined;
+      const price = bestOfficialCents(item);
+      if (item.notifiedCents !== undefined && price !== undefined && price > item.notifiedCents) item.notifiedCents = undefined;
     }
     if (deals.length === 0 || SILENT_MODE || !Notification.isSupported()) return;
     const [first] = deals;
-    const body = deals.length === 1 ? `${first.name}: ${first.priceLabel}${first.discountPercent ? ` (-${first.discountPercent}%)` : ''}` : `${first.name} e mais ${deals.length - 1} jogos da sua lista`;
+    const brl = (value?: number) => (value === undefined ? '' : (value / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+    const body = deals.length === 1 ? `${first.name}: ${brl(bestOfficialCents(first))}${bestOfficialCents(first) === first.priceCents && first.discountPercent ? ` (-${first.discountPercent}%)` : ''}` : `${first.name} e mais ${deals.length - 1} jogos da sua lista`;
     new Notification({ title: 'Promoção na lista de desejos', body }).show();
+  }
+
+  dealsUrl(appId: number): string {
+    return db.getWishlist().find((item) => item.appId === appId)?.deals?.url ?? GGDEALS_GAME_URL(appId);
   }
 
   async add(appId: number, name: string): Promise<WishlistState> {
