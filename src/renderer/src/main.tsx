@@ -5,6 +5,9 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import '@fontsource-variable/inter';
 import '@fontsource-variable/outfit';
 import './styles/index.css';
+import { initTheme } from './utils/theme';
+
+initTheme();
 
 const rootElement = document.getElementById('root');
 

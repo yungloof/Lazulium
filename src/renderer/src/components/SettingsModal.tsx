@@ -17,6 +17,7 @@ import { AppBehaviorSettings } from './AppBehaviorSettings';
 import { HiddenGamesSettings } from './HiddenGamesSettings';
 import { BackupOverviewSettings } from './BackupOverviewSettings';
 import { HelpSettings } from './HelpSettings';
+import { AppearanceSettings } from './AppearanceSettings';
 import { AccountsSettings } from './AccountsSettings';
 
 interface SettingsModalProps {
@@ -211,6 +212,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         <div className="p-6 overflow-y-auto space-y-6">
           <AccountsSettings />
 
+          <AppearanceSettings />
           <AppBehaviorSettings />
 
           <BackupOverviewSettings />

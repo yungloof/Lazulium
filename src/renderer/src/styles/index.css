@@ -50,8 +50,8 @@
 
   body {
     font-family: var(--font-sans);
-    background: #0e1426;
-    color: #cbd6ec;
+    background: var(--color-steam-bg);
+    color: var(--color-slate-200);
     color-scheme: dark;
   }
 }
@@ -87,16 +87,16 @@ html[data-nav] [data-game-id]:focus {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0c1222;
+  background: var(--color-steam-sidebar);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2f3b56;
+  background: var(--color-slate-700);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #44526f;
+  background: var(--color-slate-600);
 }
 
 /* Electron Window Drag Regions */
