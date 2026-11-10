@@ -25,14 +25,13 @@ import {
   SaveLocationSuggestion
 } from '@shared/types/cloudsync';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
+import { Modal, focusRing } from './ui';
 
 interface SaveBackupPanelProps {
   game: Game;
   onClose: () => void;
   onOpenSettings: () => void;
 }
-
-const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 
 const REASON_LABEL: Record<BackupReason, string> = {
   auto: 'Automático',
@@ -100,12 +99,6 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
       if (event.gameId === game.id && event.state !== 'started') loadHistory();
     });
   }, [game.id, loadHistory]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   const saveConfig = async (next: GameSaveConfig) => {
     setFeedback(null);
@@ -193,22 +186,13 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
   const suggestionFor = (location: SaveLocation) => suggestions.find((s) => sameLocation(s, location));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-6" onClick={onClose}>
-      <div
-        className="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-lg bg-steam-bg border border-slate-800 shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 flex-shrink-0">
-          <h2 className="flex items-center gap-2 text-sm font-bold text-slate-100 truncate">
-            <Save className="w-4 h-4 text-sky-400 flex-shrink-0" /> Saves · {game.title}
-          </h2>
-          <button onClick={onClose} className={`p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 ${focusRing}`}>
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="p-5 overflow-y-auto space-y-5">
+    <Modal
+      title={`Saves · ${game.title}`}
+      icon={<Save className="w-4 h-4 text-indigo-400" />}
+      size="xl"
+      onClose={onClose}
+      bodyClassName="p-5 space-y-5"
+    >
           {/* Status do Drive */}
           <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-slate-900/70 border border-slate-800 text-xs">
             {drive?.connected ? (
@@ -292,7 +276,7 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
             </div>
 
             {config.locations.length === 0 && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-400">
                 Nenhuma pasta definida ainda: o Lazulium procura sozinho ao fechar o jogo e uma vez por dia. Se o jogo salva em outro lugar, escolha a pasta aqui.
               </p>
             )}
@@ -301,14 +285,14 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
               return (
                 <div
                   key={`${location.path}|${location.filePrefix ?? ''}`}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg bg-sky-500/5 border border-sky-500/20"
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg bg-indigo-500/5 border border-indigo-400/20"
                 >
-                  <HardDrive className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
+                  <HardDrive className="w-3.5 h-3.5 text-indigo-300 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-slate-200 truncate" title={location.path}>
                       {location.path}
                     </p>
-                    <p className="text-[10px] text-slate-500">
+                    <p className="text-[11px] text-slate-400">
                       {location.filePrefix ? `Somente arquivos "${location.filePrefix}*" · ` : ''}
                       {info ? `${info.fileCount} arquivo(s) · ${formatBytes(info.sizeBytes)}` : 'Pasta escolhida manualmente'}
                     </p>
@@ -317,6 +301,7 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
                     onClick={() => saveConfig({ ...config, locations: config.locations.filter((l) => !sameLocation(l, location)) })}
                     className={`p-1 rounded text-slate-500 hover:text-red-300 hover:bg-red-500/10 ${focusRing}`}
                     title="Remover pasta"
+                    aria-label={`Remover a pasta ${location.path}`}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -326,7 +311,7 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
 
             {pendingSuggestions.length > 0 && (
               <div className="space-y-1.5 pt-1">
-                <p className="text-[11px] text-slate-500">Sugestões encontradas:</p>
+                <p className="text-[11px] text-slate-400">Sugestões encontradas:</p>
                 {pendingSuggestions.map((s) => (
                   <div
                     key={`${s.path}|${s.filePrefix ?? ''}`}
@@ -341,7 +326,7 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
                           </span>
                         )}
                       </p>
-                      <p className="text-[10px] text-slate-500 truncate" title={s.path}>
+                      <p className="text-[11px] text-slate-400 truncate" title={s.path}>
                         {s.fileCount} arquivo(s) · {formatBytes(s.sizeBytes)} · {s.path}
                       </p>
                     </div>
@@ -428,11 +413,11 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
               </div>
             )}
             {loadingHistory ? (
-              <div className="flex items-center gap-2 text-xs text-slate-500 py-4">
+              <div className="flex items-center gap-2 text-xs text-slate-400 py-4">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" /> Carregando...
               </div>
             ) : backups.length === 0 ? (
-              <p className="text-xs text-slate-500 py-2">Nenhum backup ainda.</p>
+              <p className="text-xs text-slate-400 py-2">Nenhum backup ainda.</p>
             ) : (
               <div className="space-y-1.5">
                 {backups.map((b) => (
@@ -442,7 +427,7 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
                         {formatDate(b.createdAt)}
                         <span className="ml-2 px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px]">{REASON_LABEL[b.reason]}</span>
                       </p>
-                      <p className="text-[10px] text-slate-500 font-mono" title={`SHA-256: ${b.sha256}`}>
+                      <p className="text-[11px] text-slate-400 font-mono" title={`SHA-256: ${b.sha256}`}>
                         {b.fileCount} arquivo(s) · {formatBytes(b.sizeBytes)} · sha256 {b.sha256.slice(0, 12)}
                       </p>
                     </div>
@@ -454,7 +439,7 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
                       )}
                       {b.driveFileId ? (
                         <span title="Enviado ao Google Drive">
-                          <Cloud className="w-3.5 h-3.5 text-sky-400" />
+                          <Cloud className="w-3.5 h-3.5 text-indigo-300" />
                         </span>
                       ) : b.driveError ? (
                         <span title={`Falha no envio ao Drive: ${b.driveError}`}>
@@ -498,8 +483,6 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
               </p>
             )}
           </section>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 };

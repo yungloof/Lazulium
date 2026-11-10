@@ -12,9 +12,11 @@ interface LibraryState {
   achievementsSyncError: string | null;
   achievementsSyncDone: boolean;    // Já buscou nesta execução: quem não tem conquistas não recebe o convite de novo
   launchStatuses: Record<string, GameLaunchStatus>; // Apenas jogos iniciando/rodando
-  
+  isLoaded: boolean;                // A primeira leitura da biblioteca terminou (antes disso a tela mostra o esqueleto)
+
   // Actions
   setGames: (games: Game[]) => void;
+  setIsLoaded: (loaded: boolean) => void;
   setSelectedGameId: (id: string | null) => void;
   setActiveFilter: (filter: 'all' | GamePlatform | 'favorites') => void;
   setSearchQuery: (query: string) => void;
@@ -38,8 +40,10 @@ export const useLibraryStore = create<LibraryState>((set) => ({
   achievementsSyncError: null,
   achievementsSyncDone: false,
   launchStatuses: {},
+  isLoaded: false,
 
   setGames: (games) => set({ games }),
+  setIsLoaded: (isLoaded) => set({ isLoaded }),
   setSelectedGameId: (id) => set({ selectedGameId: id }),
   setActiveFilter: (activeFilter) => set({ activeFilter }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),

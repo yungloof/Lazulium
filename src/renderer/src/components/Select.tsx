@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search } from 'lucide-react';
+import { focusRing } from './ui';
 
 export interface SelectOption<T extends string> {
   value: T;
@@ -24,7 +25,7 @@ const MIN_LIST_WIDTH = 180;
 const SEARCH_FROM = 12;             // Listas longas ganham busca
 const WINDOW_MARGIN = 8;
 
-const defaultTrigger = 'flex items-center justify-between gap-2 px-3 py-2 text-[13px] bg-slate-900 border border-slate-700/80 rounded-lg text-slate-200 hover:border-slate-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
+const defaultTrigger = `flex items-center justify-between gap-2 px-3 py-2 text-[13px] bg-slate-900 border border-slate-700/80 rounded-lg text-slate-200 hover:border-slate-600 transition-colors ${focusRing}`;
 
 // Menu do próprio app: o <select> nativo abre na cor do sistema e não dá para estilizar
 export function Select<T extends string>({ value, options, onChange, ariaLabel, id, className, children }: SelectProps<T>): React.ReactElement {
@@ -114,7 +115,7 @@ export function Select<T extends string>({ value, options, onChange, ariaLabel, 
               aria-label={ariaLabel}
               style={position()}
               onClick={(e) => e.stopPropagation()}
-              className="fixed flex flex-col rounded-lg bg-slate-900 border border-slate-700 shadow-lg shadow-black/60 overflow-hidden"
+              className="fixed flex flex-col rounded-lg bg-slate-900 border border-slate-700 shadow-2xl shadow-black/60 overflow-hidden animate-pop-in"
             >
               {searchable && (
                 <div className="relative p-1.5 border-b border-slate-800 flex-shrink-0">
@@ -123,7 +124,8 @@ export function Select<T extends string>({ value, options, onChange, ariaLabel, 
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Buscar"
-                    className="w-full pl-7 pr-2 py-1.5 text-xs bg-slate-950/60 border border-slate-800 rounded-md text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-400"
+                    aria-label="Buscar opção"
+                    className="w-full pl-7 pr-2 py-1.5 text-xs bg-slate-950/60 border border-slate-800 rounded-md text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-400 placeholder-slate-500"
                   />
                 </div>
               )}
@@ -140,7 +142,7 @@ export function Select<T extends string>({ value, options, onChange, ariaLabel, 
                         onChange(option.value);
                         close();
                       }}
-                      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left text-[13px] transition-colors focus:outline-none hover:bg-slate-800 focus:bg-slate-800 ${selected ? 'text-white' : 'text-slate-300'}`}
+                      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left text-[13px] transition-colors focus:outline-none hover:bg-slate-800 focus:bg-indigo-500/20 focus:text-white ${selected ? 'text-white' : 'text-slate-300'}`}
                     >
                       {option.dot && <span className={`w-2 h-2 rounded-full flex-shrink-0 ${option.dot}`} />}
                       <span className="flex-1 min-w-0 truncate">{option.label}</span>
@@ -148,7 +150,7 @@ export function Select<T extends string>({ value, options, onChange, ariaLabel, 
                     </button>
                   );
                 })}
-                {visible.length === 0 && <p className="px-2.5 py-2 text-xs text-slate-500">Nada com esse nome.</p>}
+                {visible.length === 0 && <p className="px-2.5 py-2 text-xs text-slate-400">Nada com esse nome.</p>}
               </div>
             </div>
           </div>,

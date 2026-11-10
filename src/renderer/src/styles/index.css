@@ -41,6 +41,51 @@
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 0.875rem;
+
+  /* Movimento: curto e discreto */
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-fade-in: lz-fade-in 160ms var(--ease-out-soft);
+  --animate-pop-in: lz-pop-in 180ms var(--ease-out-soft);
+  --animate-rise-in: lz-rise-in 220ms var(--ease-out-soft);
+  --animate-toast-in: lz-toast-in 220ms var(--ease-out-soft);
+  --animate-shimmer: lz-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes lz-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes lz-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+
+@keyframes lz-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes lz-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes lz-shimmer {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 @layer base {
@@ -53,6 +98,7 @@
     background: var(--color-steam-bg);
     color: var(--color-slate-200);
     color-scheme: dark;
+    font-feature-settings: 'cv11', 'ss01';
   }
 }
 
@@ -68,35 +114,52 @@ h2 {
   border-radius: var(--radius-sm);
 }
 
-/* Foco do controle e das setas: some quando o mouse volta a ser usado */
+/* Foco do controle e das setas: um anel só (sem somar ao ring do mouse/Tab), some quando o mouse volta */
 html[data-nav] :is(button, a, input, select, textarea, [tabindex]):focus {
-  outline: 3px solid var(--color-indigo-400);
-  outline-offset: -3px;
+  outline: 2px solid var(--color-indigo-400);
+  outline-offset: -2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-indigo-400) 22%, transparent);
 }
 
+/* Capas: o anel fica por fora e a capa cresce um pouco, como nos consoles */
 html[data-nav] [data-game-id]:focus {
-  outline-offset: 4px;
+  outline: none;
+  box-shadow: none;
   position: relative;
   z-index: 20;
 }
 
-/* Custom Scrollbar */
+html[data-nav] [data-game-id]:focus [data-cover] {
+  outline: 3px solid var(--color-indigo-400);
+  outline-offset: 3px;
+  box-shadow: 0 12px 32px -8px color-mix(in srgb, var(--color-indigo-500) 55%, transparent);
+  transform: translateY(-3px) scale(1.03);
+}
+
+html[data-nav] [data-game-id]:focus [data-cover-title] {
+  color: var(--color-white);
+}
+
+/* Barras de rolagem finas, no tom do tema */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-steam-sidebar);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-slate-700);
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-slate-600);
+  background-clip: padding-box;
 }
 
 /* Electron Window Drag Regions */
@@ -113,4 +176,14 @@ html[data-nav] [data-game-id]:focus {
 .fixed.inset-0,
 [data-nav-scope] {
   -webkit-app-region: no-drag;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }

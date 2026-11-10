@@ -2,26 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { Game } from '@shared/types/game';
 import { Download, Loader2, Play, Square } from 'lucide-react';
 import { useLibraryStore } from '../stores/useLibraryStore';
+import { formatElapsed } from '../utils/format';
+import { stopGame } from '../utils/gameActions';
+import { focusRing } from './ui';
 
 interface PlayButtonProps {
   game: Game;
   onLaunch: (game: Game) => void;
+  size?: 'md' | 'lg';
 }
 
-const formatElapsed = (ms: number) => {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+const SIZES = {
+  md: 'h-10 px-6 text-sm gap-2',
+  lg: 'h-11 px-7 text-[15px] gap-2.5'
 };
 
-const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
-
-export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch }) => {
+// Botão principal da página do jogo: Jogar, Iniciando, Parar (com cronômetro) ou Instalar
+export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch, size = 'md' }) => {
   const status = useLibraryStore((s) => s.launchStatuses[game.id]);
   const [now, setNow] = useState(Date.now());
+  const base = `flex items-center justify-center rounded-lg font-bold tracking-wide transition-[background-color,box-shadow,transform] active:scale-[0.98] ${SIZES[size]} ${focusRing}`;
 
   // Cronômetro da sessão atual (só tica enquanto o jogo está rodando)
   useEffect(() => {
@@ -32,10 +32,7 @@ export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch }) => {
 
   if (status?.state === 'launching') {
     return (
-      <button
-        disabled
-        className={`flex items-center gap-2 px-6 py-2.5 rounded-md bg-slate-700 text-slate-200 font-bold text-sm cursor-wait ${focusRing}`}
-      >
+      <button disabled aria-live="polite" className={`${base} bg-slate-700 text-slate-200 cursor-wait`}>
         <Loader2 className="w-4 h-4 animate-spin" />
         <span>INICIANDO...</span>
       </button>
@@ -46,17 +43,14 @@ export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch }) => {
     const startedAt = status.startTime ? new Date(status.startTime).getTime() : now;
     return (
       <div className="flex items-center gap-3">
-        <span className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
+        <button data-nav-start onClick={() => stopGame(game)} className={`${base} bg-red-600/90 hover:bg-red-500 text-white`}>
+          <Square className="w-4 h-4 fill-current" />
+          <span>PARAR</span>
+        </button>
+        <span className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs font-semibold text-emerald-300 tabular-nums">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           Jogando · {formatElapsed(now - startedAt)}
         </span>
-        <button
-          onClick={() => window.electronAPI?.stopGame(game.id)}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-md bg-red-600/90 hover:bg-red-500 text-white font-bold text-sm transition-colors ${focusRing}`}
-        >
-          <Square className="w-4 h-4 fill-white" />
-          <span>PARAR</span>
-        </button>
       </div>
     );
   }
@@ -67,26 +61,22 @@ export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch }) => {
   if (game.isInstalled === false) {
     if (game.platform === 'steam') {
       return (
-        <button
-          data-nav-start
-          onClick={() => onLaunch(game)}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-sm bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm tracking-wide transition-colors ${focusRing}`}
-        >
+        <button data-nav-start onClick={() => onLaunch(game)} className={`${base} bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-950/50`}>
           <Download className="w-4 h-4" />
           <span>INSTALAR</span>
         </button>
       );
     }
-    return <span className="px-4 py-2.5 rounded-sm bg-slate-800 text-slate-400 font-semibold text-sm tracking-wide">NÃO INSTALADO</span>;
+    return <span className={`${base} bg-slate-800 text-slate-400 cursor-default`}>NÃO INSTALADO</span>;
   }
 
   return (
     <button
       data-nav-start
       onClick={() => onLaunch(game)}
-      className={`flex items-center gap-2 px-6 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold text-sm tracking-wide transition-colors ${focusRing}`}
+      className={`${base} bg-emerald-500 hover:bg-emerald-400 text-emerald-950 shadow-lg shadow-emerald-950/40 hover:shadow-emerald-500/20`}
     >
-      <Play className="w-4 h-4 fill-emerald-950" />
+      <Play className="w-4 h-4 fill-current" />
       <span>JOGAR</span>
     </button>
   );

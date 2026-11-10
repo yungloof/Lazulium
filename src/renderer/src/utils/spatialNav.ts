@@ -53,9 +53,12 @@ export function focusStart(gameId?: string): boolean {
   return !!target;
 }
 
+// Item que o direcional alcança (a própria janela focada ao abrir não conta: o primeiro aperto vai para dentro dela)
+export const isFocusTarget = (el: Element | null): el is HTMLElement => el instanceof HTMLElement && el.matches(FOCUSABLE) && isNavigable(el);
+
 function currentElement(scope: HTMLElement): HTMLElement | null {
   const active = document.activeElement;
-  return active instanceof HTMLElement && active !== document.body && scope.contains(active) && isNavigable(active) ? active : null;
+  return active instanceof HTMLElement && active !== document.body && scope.contains(active) && isFocusTarget(active) ? active : null;
 }
 
 function scrollNearest(from: HTMLElement, direction: NavDirection): void {

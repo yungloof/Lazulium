@@ -1,13 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Game, PlaytimeSession } from '@shared/types/game';
 import { Clock, Calendar, Gamepad2, Timer, BarChart2, ChevronDown, ChevronUp } from 'lucide-react';
+import { focusRing } from './ui';
 
 interface GameStatsProps {
   game: Game;
   collapsible?: boolean;            // false na página do jogo: sempre aberto, sem cabeçalho próprio
 }
-
-const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -162,18 +161,18 @@ export const GameStats: React.FC<GameStatsProps> = ({ game, collapsible = true }
           {/* 4 Cards de Indicadores */}
           <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
             {/* 1. Tempo total */}
-            <div className="p-2.5 rounded-md bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
+            <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800/80 flex flex-col justify-between">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
                 <Clock className="w-3 h-3 text-indigo-400" />
                 <span>Tempo total</span>
               </div>
-              <div className="mt-1 text-sm sm:text-base font-extrabold text-white truncate" title={formatDuration(game.totalPlaytimeSeconds)}>
+              <div className="mt-1 text-sm sm:text-base font-bold text-white tabular-nums truncate" title={formatDuration(game.totalPlaytimeSeconds)}>
                 {formatDuration(game.totalPlaytimeSeconds)}
               </div>
             </div>
 
             {/* 2. Última vez jogado */}
-            <div className="p-2.5 rounded-md bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
+            <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800/80 flex flex-col justify-between">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
                 <Calendar className="w-3 h-3 text-indigo-400" />
                 <span>Última vez</span>
@@ -184,33 +183,33 @@ export const GameStats: React.FC<GameStatsProps> = ({ game, collapsible = true }
             </div>
 
             {/* 3. Quantidade de Sessões */}
-            <div className="p-2.5 rounded-md bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
+            <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800/80 flex flex-col justify-between">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
                 <Gamepad2 className="w-3 h-3 text-indigo-400" />
                 <span>Sessões</span>
               </div>
-              <div className="mt-1 text-sm sm:text-base font-extrabold text-white">
+              <div className="mt-1 text-sm sm:text-base font-bold text-white tabular-nums">
                 {sessions.length}
               </div>
             </div>
 
             {/* 4. Média por Sessão */}
-            <div className="p-2.5 rounded-md bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
+            <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800/80 flex flex-col justify-between">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
                 <Timer className="w-3 h-3 text-indigo-400" />
                 <span>Média / sessão</span>
               </div>
-              <div className="mt-1 text-sm sm:text-base font-extrabold text-white truncate" title={averagePerSession}>
+              <div className="mt-1 text-sm sm:text-base font-bold text-white tabular-nums truncate" title={averagePerSession}>
                 {averagePerSession}
               </div>
             </div>
           </div>
 
           {/* Gráfico de Barras - Últimos 7 Dias */}
-          <div className="w-full lg:w-72 p-2.5 rounded-md bg-slate-900/90 border border-slate-800/80 flex flex-col justify-between">
+          <div className="w-full lg:w-72 p-3 rounded-lg bg-slate-900/70 border border-slate-800/80 flex flex-col justify-between">
             <div className="flex items-center justify-between text-[11px] font-medium text-slate-400 mb-1.5">
               <span>Últimos 7 dias</span>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[10px] text-slate-400">
                 {maxMinutesInWeek > 0 ? `pico: ${maxMinutesInWeek}m` : 'sem atividade'}
               </span>
             </div>
@@ -255,7 +254,7 @@ export const GameStats: React.FC<GameStatsProps> = ({ game, collapsible = true }
                     {/* Rótulo do dia */}
                     <span
                       className={`text-[9px] mt-1 font-semibold truncate ${
-                        isToday ? 'text-indigo-400 font-bold' : 'text-slate-500'
+                        isToday ? 'text-indigo-300 font-bold' : 'text-slate-400'
                       }`}
                     >
                       {day.label}
