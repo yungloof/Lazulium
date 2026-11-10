@@ -12,8 +12,8 @@ Você vai receber ou baixar um dos seguintes arquivos da pasta `dist/`:
 
 | Arquivo | Para quem é | Como funciona |
 |---|---|---|
-| **`Lazulium-Setup-0.1.0.exe`** *(Recomendado)* | Quem quer instalar no PC normalmente | Cria atalhos na Área de Trabalho e no Menu Iniciar. Instala apenas para o seu usuário (não precisa de permissão de administrador). |
-| **`Lazulium-Portable-0.1.0.exe`** | Quem prefere não instalar nada | É um único arquivo executável. Basta dar dois cliques e ele abre direto (pode rodar até de um pendrive). |
+| **`Lazulium-Setup-0.2.0.exe`** *(Recomendado)* | Quem quer instalar no PC normalmente | Cria atalhos na Área de Trabalho e no Menu Iniciar. Instala apenas para o seu usuário (não precisa de permissão de administrador). |
+| **`Lazulium-Portable-0.2.0.exe`** | Quem prefere não instalar nada | É um único arquivo executável. Basta dar dois cliques e ele abre direto (pode rodar até de um pendrive). |
 
 > **Nota sobre seus dados:** Pode testar com tranquilidade! Seus dados (banco em `storage`, capas e artes em `artwork`, anotações do diário e backups de saves) ficam guardados com segurança na pasta do seu usuário (`%APPDATA%\Lazulium`) e não são apagados ao trocar de versão ou desinstalar o app.
 
@@ -61,6 +61,13 @@ O Diário é a sua linha do tempo permanente de jogos:
 - **Registrar jogo à mão:** Use o botão **"Registrar Jogo"** para cadastrar manualmente um jogo que você jogou no videogame (PlayStation, Nintendo Switch, etc.) ou em outro computador.
 - **Ajustar horas de jogos fora da Steam:** Se você joga algum jogo fora da Steam e já tinha horas acumuladas nele antes, teste ajustar o tempo total para manter o histórico correto.
 - **Exportar:** No topo do Diário, teste os botões de exportar em **CSV** (para abrir no Excel) ou **JSON**.
+
+### 🧰 E. Novidades para experimentar
+- **Backup de saves:** na tela de boas-vindas (ou em Configurações → Backup de saves) você escolhe se o Lazulium copia seus saves sozinho. É opcional, usa no máximo 3 GB de disco (ajustável) e, se conectar o Google Drive, também envia para lá. Teste jogar algo, fechar e ver se aparece em Configurações.
+- **Capturas em tempo real:** com um jogo aberto pelo Lazulium, aperte **Ctrl+F12**. A captura aparece na galeria do jogo, e dá para copiar, abrir a pasta, mover para outro jogo ou apagar. Se a imagem sair preta, o jogo provavelmente está em tela cheia exclusiva: use o modo janela sem bordas.
+- **Listas, Desejos e busca:** crie listas (no menu do jogo, **Adicionar à lista**), acompanhe preços na aba **Desejos** e aperte **Ctrl+K** para buscar qualquer jogo rápido.
+- **Renomear e ocultar jogos:** botão direito no jogo.
+- **Conquistas:** todos os jogos têm o mesmo destaque. Jogos de emulador usam o RetroAchievements (entre com a conta em Contas).
 
 ---
 

@@ -4,7 +4,7 @@
 
 O **Lazulium** (codinome *Steam 2*) junta a Steam, os jogos que você adicionou à Steam, GOG, Epic, Riot, Xbox/Microsoft Store, emuladores e jogos avulsos em uma biblioteca só, rápida e bonita, que funciona com mouse, teclado ou controle. Nenhuma chave de API é necessária: você entra com as suas contas.
 
-> Versão **0.1.0**. Windows 10/11 (x64).
+> Versão **0.2.0**. Windows 10/11 (x64).
 
 ---
 
@@ -64,8 +64,8 @@ Use um dos arquivos gerados em `dist/`:
 
 | Arquivo | Para quem |
 |---|---|
-| `Lazulium-Setup-0.1.0.exe` | Instalador (por usuário, sem precisar de administrador), com atalhos na área de trabalho e no Menu Iniciar. |
-| `Lazulium-Portable-0.1.0.exe` | Versão portátil: um único `.exe`, sem instalar. |
+| `Lazulium-Setup-0.2.0.exe` | Instalador (por usuário, sem precisar de administrador), com atalhos na área de trabalho e no Menu Iniciar. |
+| `Lazulium-Portable-0.2.0.exe` | Versão portátil: um único `.exe`, sem instalar. |
 
 Os executáveis não são assinados digitalmente; na primeira execução o Windows SmartScreen pode pedir "Mais informações → Executar assim mesmo".
 

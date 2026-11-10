@@ -148,7 +148,7 @@ class ProfileService {
     const choices: ProfileUnlockedAchievement[] = [];
     for (const game of games) {
       const data = db.getGameAchievements(game.id);
-      if (!data || data.total === 0) continue;
+      if (!data || data.total === 0 || data.source === 'lazulium') continue;
       gamesWithAchievementData++;
       achievementsUnlocked += data.unlocked;
       achievementsTotal += data.total;
