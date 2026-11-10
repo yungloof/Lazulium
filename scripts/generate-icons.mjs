@@ -1,5 +1,8 @@
 // Gera os ícones do Lazulium a partir da logo (resources/logo.png), sem dependências externas.
-// Uso: node scripts/generate-icons.mjs  ->  resources/icon.ico, resources/icon.png, resources/tray.ico e a logo da interface
+// A logo é só reduzida e posicionada: o desenho não muda.
+// Uso: node scripts/generate-icons.mjs  ->  resources/icon.ico, resources/icon.png, resources/tray.ico, a logo da
+//      interface e as imagens do instalador (resources/installerSidebar.bmp e resources/installerHeader.bmp)
+//      node scripts/generate-icons.mjs --instalador  ->  só as imagens do instalador
 import { deflateSync, inflateSync } from 'zlib';
 import { mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
@@ -90,7 +93,7 @@ function decodePng(file) {
 }
 
 // Média por área: reduzir de 800 para 16 px não perde as linhas finas de uma vez
-function render(logo, size) {
+function resample(logo, size) {
   const scale = logo.size / size;
   const out = Buffer.alloc(size * size * CHANNELS);
   for (let py = 0; py < size; py++) {
@@ -118,7 +121,70 @@ function render(logo, size) {
       out[i + 3] = Math.round(a / weight);
     }
   }
-  return encodePng(size, out);
+  return out;
+}
+
+const render = (logo, size) => encodePng(size, resample(logo, size));
+
+// Imagens do instalador NSIS: BMP de 24 bits (o NSIS não aceita PNG nessas posições)
+const hex = (color) => [1, 3, 5].map((i) => parseInt(color.slice(i, i + 2), 16));
+
+function canvas(width, height, colorAtRow) {
+  const rgb = Buffer.alloc(width * height * 3);
+  for (let y = 0; y < height; y++) {
+    const [r, g, b] = colorAtRow(y);
+    for (let x = 0; x < width; x++) rgb.set([r, g, b], (y * width + x) * 3);
+  }
+  return { width, height, rgb };
+}
+
+function paste(target, logo, size, left, top) {
+  const rgba = resample(logo, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const s = (y * size + x) * CHANNELS;
+      const d = ((top + y) * target.width + left + x) * 3;
+      const alpha = rgba[s + 3] / 255;
+      for (let c = 0; c < 3; c++) target.rgb[d + c] = Math.round(rgba[s + c] * alpha + target.rgb[d + c] * (1 - alpha));
+    }
+  }
+  return target;
+}
+
+function encodeBmp({ width, height, rgb }) {
+  const rowSize = Math.ceil((width * 3) / 4) * 4;
+  const file = Buffer.alloc(54 + rowSize * height);
+  file.write('BM', 0, 'ascii');
+  file.writeUInt32LE(file.length, 2);
+  file.writeUInt32LE(54, 10);
+  file.writeUInt32LE(40, 14);
+  file.writeInt32LE(width, 18);
+  file.writeInt32LE(height, 22); // positivo: linhas de baixo para cima
+  file.writeUInt16LE(1, 26);
+  file.writeUInt16LE(24, 28);
+  file.writeUInt32LE(rowSize * height, 34);
+  file.writeInt32LE(2835, 38); // 72 DPI
+  file.writeInt32LE(2835, 42);
+  for (let y = 0; y < height; y++) {
+    const row = 54 + (height - 1 - y) * rowSize;
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 3;
+      file.set([rgb[i + 2], rgb[i + 1], rgb[i]], row + x * 3); // BGR
+    }
+  }
+  return file;
+}
+
+// Barra lateral das telas de boas-vindas e de conclusão (164 x 314): azul-noite do app, em degradê, com a logo
+function installerSidebar(logo) {
+  const [top, bottom] = [hex('#121f4a'), hex('#0e1426')];
+  const mix = (y) => top.map((c, i) => Math.round(c + ((bottom[i] - c) * y) / 313));
+  return encodeBmp(paste(canvas(164, 314, mix), logo, 116, 24, 56));
+}
+
+// Cabeçalho das outras telas (150 x 57, alinhado à direita sobre o fundo branco do instalador)
+function installerHeader(logo) {
+  return encodeBmp(paste(canvas(150, 57, () => [255, 255, 255]), logo, 45, 99, 6));
 }
 
 // ICO com entradas PNG (suportado desde o Windows Vista)
@@ -150,8 +216,13 @@ const write = (rel, data) => {
 
 const logo = decodePng(readFileSync(join(root, 'resources/logo.png')));
 const icons = (sizes) => encodeIco(sizes.map((size) => ({ size, data: render(logo, size) })));
+const onlyInstaller = process.argv.includes('--instalador');
 
-write('resources/icon.ico', icons([256, 64, 48, 32, 24, 16]));
-write('resources/icon.png', render(logo, 512));
-write('resources/tray.ico', icons([32, 24, 16]));
-write('src/renderer/src/assets/logo.png', render(logo, 128));
+if (!onlyInstaller) {
+  write('resources/icon.ico', icons([256, 64, 48, 32, 24, 16]));
+  write('resources/icon.png', render(logo, 512));
+  write('resources/tray.ico', icons([32, 24, 16]));
+  write('src/renderer/src/assets/logo.png', render(logo, 128));
+}
+write('resources/installerSidebar.bmp', installerSidebar(logo));
+write('resources/installerHeader.bmp', installerHeader(logo));

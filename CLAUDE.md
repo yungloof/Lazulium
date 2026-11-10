@@ -28,7 +28,7 @@ Este documento define padrões de engenharia, arquitetura e convenções de cód
 
 4. **Experiência do Usuário (Gamepad-First):**
    - Todos os componentes interativos devem ser acessíveis tanto por clique de mouse quanto por foco espacial de controle (D-Pad / Analógico).
-   - Deve haver sempre um anel visual claro de foco (`ring-2 ring-primary`) para quando o controle estiver ativo.
+   - Deve haver sempre um anel visual claro de foco (`focus-visible:ring-2 focus-visible:ring-indigo-400`, a cor de destaque do tema) para quando o controle estiver ativo.
 
 ---
 
@@ -38,26 +38,32 @@ Este documento define padrões de engenharia, arquitetura e convenções de cód
 Lazulium/
 ├── src/
 │   ├── main/                    # Processo Principal do Electron (Node.js)
-│   │   ├── index.ts             # Inicialização da janela e ciclo de vida
-│   │   ├── ipc/                 # Handlers IPC registrados
-│   │   ├── services/            # Serviços de negócio (Scanners, Tracker, etc.)
-│   │   └── database/            # Banco de dados JSON (lazulium_db.json, db.ts) e persistência atômica
+│   │   ├── index.ts             # Inicialização e ciclo de vida (janela e bandeja em app-shell.ts, log em logger.ts)
+│   │   ├── ipc/                 # Handlers IPC por domínio (library, play, achievements...), helpers.ts e events.ts
+│   │   ├── services/            # Serviços de negócio (Scanners, Tracker, etc.); HTTP comum em services/metadata/http.ts
+│   │   └── database/            # Banco JSON: db.ts, storage.ts (disco, gravação atômica) e normalize.ts (versão do formato)
 │   ├── preload/                 # Ponte de segurança (ContextBridge)
 │   │   ├── index.ts             # Expõe electronAPI tipada
 │   │   └── index.d.ts           # Extensão do objeto global Window
 │   ├── renderer/                # Interface React + Vite + Tailwind
 │   │   ├── src/
-│   │   │   ├── components/      # Componentes visuais modulares
-│   │   │   ├── hooks/           # Hooks (useGamepad, useSpatialNav, etc.)
+│   │   │   ├── components/      # Telas e componentes; base reutilizável em components/ui/
+│   │   │   ├── hooks/           # Hooks (useGamepad, useAppEvents, etc.)
 │   │   │   ├── stores/          # Zustand state stores
-│   │   │   ├── pages/           # Visualizações (Library, GameDetails, Settings)
+│   │   │   ├── utils/           # Navegação espacial, formatação, ações de jogo
 │   │   │   └── styles/          # Tailwind e CSS global
 │   └── shared/                  # Código compartilhado entre Main e Renderer
 │       ├── types/               # Tipos TypeScript puros
 │       └── constants/           # Enums, canais IPC, configurações padrão
+├── resources/                   # Logo do dono (logo.png, não alterar), ícones e imagens do instalador gerados dela
+├── scripts/                     # generate-icons.mjs (npm run icons) e check-package.mjs (conferência antes do empacotamento)
+├── server/igdb-proxy/           # Cloudflare Worker: tempo para zerar, busca (IGDB) e preços (GG.deals)
+├── web/profile/                 # Página web estática do perfil
+├── docs/                        # Guia de teste, política de privacidade e checklist de publicação
 ├── ARCHITECTURE.md              # Documentação detalhada da arquitetura
 ├── ROADMAP.md                   # Fases de desenvolvimento
-└── package.json
+├── CHANGELOG.md                 # Novidades por versão, em linguagem de jogador
+└── package.json                 # Inclui o bloco "build" do electron-builder
 ```
 
 ---
@@ -88,9 +94,17 @@ npm run dev
 # Fazer checagem de tipos TypeScript
 npm run typecheck
 
-# Gerar build de produção (.exe instalador via electron-builder)
+# Gerar build de produção (instalador + portátil em dist/; confere o pacote antes do electron-builder)
 npm run build:win
+
+# Regenerar ícones e imagens do instalador a partir de resources/logo.png
+npm run icons
 ```
+
+- **Dependências do main:** o processo main só pode usar, em tempo de execução, pacotes de `dependencies` que **não** estão nas exclusões de `build.files` no `package.json` (as libs do renderer ficam fora do pacote porque já vão no bundle do Vite). O `scripts/check-package.mjs` barra o build se isso for violado.
+- **Build de teste fora de `out/`:** use caminho absoluto em `npx electron-vite build --outDir <caminho absoluto>`; com caminho relativo o renderer é gerado dentro de `src/renderer/`.
+- **Nova versão:** suba `version` no `package.json`, acrescente a seção no `CHANGELOG.md` e atualize os nomes dos instaladores no `README.md` e em `docs/guia-de-teste.md`.
+- **Novo serviço externo ou novo dado enviado:** atualize `docs/privacidade.md` e a tabela de serviços do `ARCHITECTURE.md`.
 
 ---
 

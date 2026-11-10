@@ -1,6 +1,6 @@
 {
   "name": "lazulium",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Lazulium - Hub universal de jogos para PC e emuladores, com horas jogadas, conquistas e backup de saves",
   "main": "./out/main/index.js",
   "author": {
@@ -12,9 +12,10 @@
     "dev": "electron-vite dev --watch",
     "build": "electron-vite build",
     "postinstall": "electron-builder install-app-deps",
-    "build:win": "npm run build && electron-builder --win --x64",
+    "build:win": "npm run build && node scripts/check-package.mjs && electron-builder --win --x64",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "build:portable": "npm run build && electron-builder --win portable --x64",
+    "build:portable": "npm run build && node scripts/check-package.mjs && electron-builder --win portable --x64",
+    "check:package": "node scripts/check-package.mjs",
     "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
@@ -50,9 +51,17 @@
       "buildResources": "resources",
       "output": "dist"
     },
+    "asar": true,
+    "compression": "maximum",
+    "electronLanguages": [
+      "pt-BR",
+      "en-US"
+    ],
     "files": [
       "out/**/*",
-      "package.json"
+      "package.json",
+      "!**/*.map",
+      "!**/node_modules/{react,react-dom,scheduler,lucide-react,zustand,clsx,tailwind-merge}/**"
     ],
     "extraResources": [
       {
@@ -94,15 +103,25 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
+      "installerLanguages": [
+        "pt_BR"
+      ],
+      "language": "1046",
+      "installerIcon": "resources/icon.ico",
+      "uninstallerIcon": "resources/icon.ico",
+      "installerSidebar": "resources/installerSidebar.bmp",
+      "installerHeader": "resources/installerHeader.bmp",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Lazulium",
+      "runAfterFinish": true,
       "uninstallDisplayName": "Lazulium",
       "deleteAppDataOnUninstall": false,
       "artifactName": "Lazulium-Setup-${version}.${ext}"
     },
     "portable": {
-      "artifactName": "Lazulium-Portable-${version}.${ext}"
+      "artifactName": "Lazulium-Portable-${version}.${ext}",
+      "requestExecutionLevel": "user"
     }
   }
 }

@@ -2,7 +2,7 @@
 
 Este roadmap organiza a implementação do aplicativo em fases modulares e bem delimitadas.
 
-> **Versão 0.1.0:** Fases 1 a 9 concluídas. Itens ainda abertos estão em [Depois da 0.1.0](#-depois-da-010).
+> **Versão 1.0.0:** fases 1 a 11, versões de teste 0.1 e 0.2 e preparação da 1.0 concluídas. O que ficou para depois está em [Depois da 1.0](#-depois-da-10). As novidades de cada versão, em linguagem de jogador, estão no [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -98,7 +98,7 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [x] Ajuste manual do tempo jogado para jogos que não são da Steam.
 - [x] Polling do controle só roda com um gamepad conectado.
 - [x] Login por conta em vez de chaves de API: Steam (conta do cliente da Steam deste PC ou OpenID no navegador; conquistas pelo perfil público, sem chave), SteamGridDB e RetroAchievements (janela de login que captura e valida a chave sozinha) e Google (client OAuth embutido no build via `.env`). Chaves manuais ficaram em "Avançado".
-- [ ] Testes de distribuição para amigos.
+- [x] Testes de distribuição para amigos (versões 0.1.0 e 0.2.0; os da 1.0 seguem em [Depois da 1.0](#-depois-da-10)).
 
 ---
 
@@ -135,12 +135,9 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 
 ---
 
-## 🔭 Depois da 0.1.0
+## 🧪 Versões de teste 0.1.x (até 9/11/2026)
 - [x] Preparação para distribuição: primeira execução testada num perfil limpo; tela de boas-vindas (jogos encontrados + contas), log de diagnóstico em `%APPDATA%\Lazulium\logs\lazulium.log` com botão "Abrir pasta de logs" nas Configurações, scans em fila (sem trabalho dobrado na primeira execução).
 - [x] Revisão pré-release: desconto de ausência considera controle XInput (antes descontava sessões jogadas de controle), `fflate` sem alertas no `npm audit`, executáveis (desempacotado e portátil) testados em modo silencioso num perfil limpo.
-- [ ] Teste manual do instalador NSIS: instalar, atalhos e desinstalar mantendo `%APPDATA%\Lazulium`.
-- [ ] Teste manual de jogo: abrir um atalho não-Steam e o Minecraft pelo Lazulium e conferir a sessão registrada.
-- [ ] Testes de distribuição para amigos (instalador e versão portátil em outros PCs).
 - [x] Client OAuth do Google no `.env` do build oficial, para o "Entrar com Google" funcionar para todos.
 - [x] Tratamento de idle (jogador AFK com o jogo aberto).
 - [x] Publicar a página web do perfil a partir do app (Perfil → Publicar na web, GitHub Pages pelo login do Git, sem chave de API).
@@ -161,21 +158,49 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [x] Aba Desejos: lista da Steam, preço em reais, menor preço visto, preço-alvo e aviso de promoção. Painel geral de backups nas Configurações.
 - [x] Conquistas para todos os jogos, com o mesmo destaque: Steam, RetroAchievements (sincronizadas ou marcadas à mão, inclusive em ports, pela lista achada pelo nome), marcos do Lazulium onde não existe lista, e conquistas criadas pelo jogador.
 - [x] Lista de desejos compara preços de outras lojas pelo GG.deals (chave guardada no servidor, em `/v1/prices`).
-- [ ] Publicar o `/v1/prices` no Worker com a chave do GG.deals (`wrangler secret put GGDEALS_API_KEY`) e conferir o formato real da resposta.
 - [x] Interface: barra única no topo, fontes Inter e Outfit embutidas, capas inteiras com nome embaixo, ações da página do jogo agrupadas em "Mais opções", faixa de botões só com controle conectado.
 - [x] Duração típica na página dos jogos Steam, estimada pelas horas das reviews positivas (alternativa sem chave ao HowLongToBeat).
 - [x] Tempo para zerar pelo IGDB em qualquer jogo, por um servidor próprio (`server/igdb-proxy`) que guarda a credencial; as reviews da Steam ficam como reserva.
 - [x] Publicar o servidor do IGDB e colocar a URL em `IGDB_PROXY_URL` (passos em `server/igdb-proxy/README.md`).
-- [ ] Primeira publicação real no GitHub: conferir login do Git, ativação do Pages e a página no ar.
-- [ ] Scanners de outros lançadores (Battle.net, EA app, Ubisoft Connect) quando houver jogos instalados para validar.
-- [ ] Assinatura digital do instalador (evita o aviso do SmartScreen).
 
-## 🎨 Fase 7: Amigos, aparência e receitas de lançamento (versão 0.2.0)
+---
 
+## 🎨 Versão 0.2.0: aparência e receitas de lançamento (10/11/2026)
 - [x] Backup automático de saves só com consentimento (boas-vindas e Configurações) e limite de espaço em disco.
 - [x] Perfil não conta mais os marcos do Lazulium como conquistas.
 - [x] Editor de aparência: presets, cores de superfície, destaque, texto, partes e avisos, fontes, tamanho, cantos, importar/exportar tema.
 - [x] Receitas de lançamento por jogo: variáveis de ambiente, comando antes/depois e exportação para .bat.
-- [x] Emuladores personalizados com modelo de comando ({rom}, {romname}, {romdir}, {core}) e presets compartilháveis em JSON.
+
+---
+
+## 🚀 Versão 1.0.0: primeira versão pública (10/11/2026)
+- [x] Emuladores personalizados com modelo de comando (`{rom}`, `{romname}`, `{romdir}`, `{core}`) e presets compartilháveis em JSON.
+- [x] Componentes base de interface (`components/ui/`: Modal, Button, Notice, EmptyState, Skeleton, SectionHeader) e estado da casca do app em stores Zustand (`useUiStore`, `useLibraryViewStore`) no lugar de props.
+- [x] Pedidos HTTP do main num lugar só (`services/metadata/http.ts`): tempo limite, nova tentativa em falha passageira e erros em português sem a URL (que pode levar chave de API).
+- [x] Banco com versão de formato (`schemaVersion`, conversão em `database/normalize.ts`) e leitura tolerante a arquivo preso por antivírus (`database/storage.ts`); handlers IPC divididos por domínio em `src/main/ipc/`.
+- [x] Empacotamento: instalador NSIS em português com imagens próprias (`npm run icons`), sem as bibliotecas do renderer no `app.asar` (35,7 MB → ~2 MB), só os idiomas pt-BR e en-US do Chromium e conferência do pacote antes do electron-builder (`scripts/check-package.mjs`).
+- [x] Renderer minificado e dividido em partes (`react`, `icons` e páginas com `React.lazy`): 1,25 MB → ~0,58 MB de JS.
+- [x] Documentação para quem usa: README para amigos, guia de teste da 1.0, [política de privacidade](docs/privacidade.md), [CHANGELOG](CHANGELOG.md) e licença MIT.
+
+---
+
+## 🔭 Depois da 1.0
+Passos que só o dono pode fazer estão detalhados em [docs/publicar-1.0.md](docs/publicar-1.0.md).
+
+**Publicação**
+- [ ] Criar o repositório e a Release `v1.0.0` no GitHub com os dois `.exe`, e ativar o GitHub Pages da pasta `docs/`.
+- [ ] Tirar o OAuth do Google do modo de teste (hoje o acesso ao Drive expira a cada 7 dias e só entra quem é testador).
+- [ ] Publicar o `/v1/prices` no Worker com a chave do GG.deals (`wrangler secret put GGDEALS_API_KEY`) e conferir o formato real da resposta.
+- [ ] Primeira publicação real do perfil no GitHub pelo app: conferir login do Git, ativação do Pages e a página no ar.
+
+**Testes manuais**
+- [ ] Instalador NSIS da 1.0: instalar "Apenas para mim", atalhos, instalar por cima da 0.2.0 e desinstalar mantendo `%APPDATA%\Lazulium`.
+- [ ] Abrir um atalho não-Steam e o Minecraft pelo Lazulium e conferir a sessão registrada.
+- [ ] Testes de distribuição com amigos (instalador e versão portátil em outros PCs).
+
+**Funcionalidades**
+- [ ] Atualização automática pelo GitHub (`electron-updater`, provider `github`; plano em `docs/publicar-1.0.md`).
+- [ ] Assinatura digital do instalador (evita o aviso do SmartScreen; opções e custos em `docs/publicar-1.0.md`).
 - [ ] "Adicionar à Steam" (atalho não-Steam) a partir do Lazulium.
-- [ ] Atualização automática (precisa de hospedagem das versões) e assinatura do instalador.
+- [ ] Scanners de outros lançadores (Battle.net, EA app, Ubisoft Connect) quando houver jogos instalados para validar.
+- [ ] Horas da Epic e do GOG importadas dos próprios lançadores (hoje só a Steam traz o histórico).

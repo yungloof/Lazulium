@@ -1,117 +1,116 @@
-# 🎮 Guia de Teste do Lazulium (para amigos)
+# Guia de teste do Lazulium 1.0 (para amigos)
 
-Oi! Muito obrigado por topar testar o **Lazulium** (nosso hub universal de jogos para PC).
-
-Este guia rápido foi feito para você testar as principais funções do aplicativo sem complicações e nos ajudar a encontrar detalhes a ajustar antes do lançamento público.
+Oi! Obrigado por testar o **Lazulium**, o hub de jogos para PC. Este guia mostra o que experimentar e como mandar o que você encontrar. Não precisa testar tudo: o que der já ajuda muito.
 
 ---
 
-## 📥 1. Qual arquivo baixar e como abrir
+## 1. Baixar e instalar
 
-Você vai receber ou baixar um dos seguintes arquivos da pasta `dist/`:
+Baixe um destes arquivos pelo link que você recebeu (a página de downloads do Lazulium no GitHub):
 
-| Arquivo | Para quem é | Como funciona |
+| Arquivo | Para quem | Como funciona |
 |---|---|---|
-| **`Lazulium-Setup-0.2.0.exe`** *(Recomendado)* | Quem quer instalar no PC normalmente | Cria atalhos na Área de Trabalho e no Menu Iniciar. Instala apenas para o seu usuário (não precisa de permissão de administrador). |
-| **`Lazulium-Portable-0.2.0.exe`** | Quem prefere não instalar nada | É um único arquivo executável. Basta dar dois cliques e ele abre direto (pode rodar até de um pendrive). |
+| **`Lazulium-Setup-1.0.0.exe`** *(recomendado)* | Quem quer instalar normalmente | Instala só para o seu usuário (não pede administrador) e cria atalhos na Área de Trabalho e no Menu Iniciar. |
+| **`Lazulium-Portable-1.0.0.exe`** | Quem prefere não instalar | Um arquivo só: dois cliques e abre. Demora um pouco mais para abrir. |
 
-> **Nota sobre seus dados:** Pode testar com tranquilidade! Seus dados (banco em `storage`, capas e artes em `artwork`, anotações do diário e backups de saves) ficam guardados com segurança na pasta do seu usuário (`%APPDATA%\Lazulium`) e não são apagados ao trocar de versão ou desinstalar o app.
+Já testou uma versão antiga? Instale por cima: seus jogos, horas e anotações continuam lá.
 
----
+### Avisos do navegador e do Windows
 
-### 🛡️ Como passar pelo aviso do Windows SmartScreen
+O Lazulium é um projeto independente e o instalador ainda não tem uma assinatura digital paga. Por isso aparecem avisos de "programa desconhecido". É normal para programas novos.
 
-Como o Lazulium é um projeto independente em fase de testes e ainda não possui um certificado digital pago da Microsoft, o Windows pode exibir uma tela azul avisando que *"O Windows protegeu o seu computador"*. Isso é normal para programas novos independentes.
+- **No navegador** ("este arquivo não é baixado com frequência"): escolha **Manter**. No Edge: **…** → **Manter** → **Mostrar mais** → **Manter mesmo assim**.
+- **Na tela azul "O Windows protegeu o computador"**: clique em **Mais informações** e depois em **Executar assim mesmo**.
 
-Para abrir:
-1. Na janela azul que aparecer, clique no link **"Mais informações"** (abaixo do texto principal).
-2. Em seguida, clique no botão **"Executar assim mesmo"** que vai surgir no canto inferior.
-3. Pronto! O Lazulium vai iniciar normalmente.
+### No instalador
 
----
+1. Em "Para quem esta aplicação deve ser instalada?", escolha **Apenas para mim**.
+2. Confirme a pasta e clique em **Instalar**.
+3. No fim, deixe marcado **Executar Lazulium** e clique em **Concluir**.
 
-## 🎯 2. O que testar (Roteiro sugerido)
-
-Não precisa testar tudo de uma vez só. Aqui estão os recursos principais para você experimentar:
-
-### 🌟 A. Boas-vindas e Contas
-- Na primeira vez que abrir, veja se a tela de **boas-vindas** aparece mostrando quantos jogos foram encontrados no seu PC.
-- Conecte a sua conta da **Steam**:
-  - O Lazulium **não pede senha nem chaves de API complicadas**.
-  - Se a sua Steam estiver aberta no computador, ele reconhece a conta e conecta com apenas **um clique**.
-  - Se preferir outra conta, você pode entrar pelo navegador com segurança.
-
-### 🕹️ B. Abrir um jogo e conferir as horas
-1. Na sua biblioteca, clique em qualquer jogo e aperte o botão verde grande **JOGAR**.
-2. Jogue por alguns minutos (ou deixe o jogo aberto um tempinho).
-3. Feche o jogo e volte para a tela do Lazulium.
-4. Confira se o tempo jogado foi somado corretamente no cartão do jogo e no gráfico de atividade recente.
-5. *Dica:* Se tiver um controle (Xbox, PlayStation, Switch ou genérico), conecte-o e teste navegar pelo app usando o direcional e os botões!
-
-### 🏆 C. Capturas, Conquistas e Perfil
-- **Capturas de Tela:** Se você tirou screenshots pela Steam (F12) ou pela Xbox Game Bar (Win + Alt + PrtScn), veja se elas aparecem na galeria na página do jogo. Você pode clicar para ver em tela cheia!
-- **Conquistas:** Veja se as suas conquistas desbloqueadas e bloqueadas da Steam aparecem corretamente com data e imagem.
-- **Perfil:** Clique na aba **Perfil** na barra superior para ver o resumo unificado de todas as suas horas jogadas, seu nível da conta e a vitrine de conquistas.
-
-### 📓 D. O Diário de Jogos (Novidade!)
-O Diário é a sua linha do tempo permanente de jogos:
-- Clique em **Diário** na barra superior.
-- **Jogos desinstalados não somem:** Verifique se jogos da Steam que você já jogou no passado (mas que estão desinstalados agora) continuam aparecendo na lista com as horas históricas preservadas.
-- **Marcar status e dar nota:** Clique em qualquer jogo para definir seu status (ex: *Jogando*, *Zerado*, *100%*, *Pausado*, *Quero jogar*), dar uma nota e escrever anotações pessoais.
-- **Registrar jogo à mão:** Use o botão **"Registrar Jogo"** para cadastrar manualmente um jogo que você jogou no videogame (PlayStation, Nintendo Switch, etc.) ou em outro computador.
-- **Ajustar horas de jogos fora da Steam:** Se você joga algum jogo fora da Steam e já tinha horas acumuladas nele antes, teste ajustar o tempo total para manter o histórico correto.
-- **Exportar:** No topo do Diário, teste os botões de exportar em **CSV** (para abrir no Excel) ou **JSON**.
-
-### 🧰 E. Novidades para experimentar
-- **Backup de saves:** na tela de boas-vindas (ou em Configurações → Backup de saves) você escolhe se o Lazulium copia seus saves sozinho. É opcional, usa no máximo 3 GB de disco (ajustável) e, se conectar o Google Drive, também envia para lá. Teste jogar algo, fechar e ver se aparece em Configurações.
-- **Capturas em tempo real:** com um jogo aberto pelo Lazulium, aperte **Ctrl+F12**. A captura aparece na galeria do jogo, e dá para copiar, abrir a pasta, mover para outro jogo ou apagar. Se a imagem sair preta, o jogo provavelmente está em tela cheia exclusiva: use o modo janela sem bordas.
-- **Listas, Desejos e busca:** crie listas (no menu do jogo, **Adicionar à lista**), acompanhe preços na aba **Desejos** e aperte **Ctrl+K** para buscar qualquer jogo rápido.
-- **Renomear e ocultar jogos:** botão direito no jogo.
-- **Emulador que o app não conhece:** em Emuladores, **Novo emulador** (há modelos de Xemu, Xenia, Flycast e outros). Informe o executável, as extensões e o comando; dá para exportar e importar os presets em JSON e trocar com amigos.
-- **Receitas por jogo:** em Opções de inicialização, variáveis de ambiente, comando antes/depois e **Exportar como .bat**.
-- **Aparência:** Configurações → Aparência muda cores, fontes e cantos.
-- **Conquistas:** todos os jogos têm o mesmo destaque. Jogos de emulador usam o RetroAchievements (entre com a conta em Contas).
+> **Seus dados:** tudo fica em `%APPDATA%\Lazulium` (biblioteca, artes, diário, backups de saves e o log) e **não é apagado** ao desinstalar ou trocar de versão.
 
 ---
 
-## 🪵 3. Algo deu errado? Como nos enviar o log
+## 2. O que testar
 
-Se o aplicativo travar, alguma tela ficar em branco, fechar sozinho ou um jogo não contar o tempo, envie para nós o arquivo de diagnóstico (`lazulium.log`).
+### A. Primeira vez e contas
+- A tela de **boas-vindas** mostra quantos jogos foram encontrados? Faltou algum jogo instalado?
+- Conecte a **Steam**: se ela estiver instalada, a sua conta aparece para conectar com um clique. O Lazulium **nunca pede senha**.
+- Se quiser, conecte também **SteamGridDB** (capas), **RetroAchievements** (conquistas de emulador) e **Google** (backup no Drive). As janelas de login são dos próprios sites.
+- Escolha se quer o **backup automático de saves** (dá para mudar depois em Configurações).
 
-### Como pegar o arquivo com 2 cliques:
-1. No Lazulium, clique no **ícone de engrenagem (Configurações)** no canto superior direito.
-2. Na lateral esquerda, clique em **Ajuda e diagnóstico**.
-3. Clique no botão **"Abrir pasta de logs"**.
-4. Uma pasta do Windows vai abrir. O arquivo que precisamos se chama **`lazulium.log`**.
+### B. Jogar e contar as horas
+1. Abra um jogo pelo Lazulium (botão **JOGAR** ou clique duplo na lista à esquerda).
+2. Jogue alguns minutos e feche o jogo.
+3. As horas e o gráfico da semana atualizaram na página do jogo?
+4. Teste também um jogo que abre por outro lançador (Epic, Riot, Xbox) e, se tiver, um jogo de emulador.
 
-> ⚠️ **Aviso de privacidade:** O arquivo de log registra informações técnicas do sistema para nos ajudar a encontrar defeitos (como erros de código e versões). Ele pode conter o caminho das pastas onde seus jogos estão instalados (por exemplo, `C:\Users\SeuNome\Games\...`). Se preferir, você pode abrir o arquivo no Bloco de Notas antes de enviar para conferir o que está escrito nele.
+### C. Biblioteca e controle
+- Busque um jogo com **Ctrl+K**, favorite, renomeie e oculte (botão direito no jogo).
+- Conecte um **controle** (Xbox, PlayStation, Switch ou genérico) e navegue pelas telas: direcional, A/B, LB/RB e LT/RT.
+
+### D. Conquistas, capturas e Perfil
+- **Conquistas:** as da Steam aparecem com data e raridade? (Precisam do perfil da Steam com **Detalhes dos jogos** público.)
+- **Capturas:** com um jogo aberto pelo Lazulium, aperte **Ctrl+F12**. A imagem aparece na galeria do jogo? As da Steam (F12) e da Xbox Game Bar também aparecem?
+- **Perfil:** confira as horas somadas, as conquistas raras e a retrospectiva do ano; teste **Editar perfil**.
+
+### E. Diário, listas e desejos
+- No **Diário**, marque status, dê nota, escreva uma resenha e registre um jogo de console com **Registrar jogo**. Teste exportar em CSV ou JSON.
+- Crie uma **lista** (menu do jogo → *Adicionar à lista*).
+- Em **Desejos**, confira os preços da sua lista de desejos da Steam e defina um preço-alvo.
+
+### F. Saves
+- Com o backup ligado, jogue algo, feche e veja se o backup aparece em **Configurações**.
+- Se tiver coragem: restaure um backup (o Lazulium guarda os saves atuais antes de restaurar).
+
+### G. Personalizar
+- **Configurações → Aparência:** cores, fontes, cantos; exporte o seu tema.
+- **Emuladores → Novo emulador:** cadastre um emulador que o app não conhece (há modelos de Xemu, Xenia, Flycast e outros) e exporte o arquivo para trocar com amigos.
+- **Opções de inicialização** de um jogo: argumentos, variáveis, comando antes/depois e **Exportar como .bat**.
+
+### H. Fechar, desinstalar e reinstalar
+- Feche a janela: o Lazulium continua na bandeja, perto do relógio. Clique com o botão direito no ícone e escolha **Sair** para fechar de vez.
+- Desinstale em **Configurações do Windows → Aplicativos**, confira que a pasta `%APPDATA%\Lazulium` continua lá, reinstale e veja se a biblioteca voltou igual.
 
 ---
 
-## 📝 4. Modelo rápido de relato
+## 3. Algo deu errado? Mande o log
 
-Quando terminar o teste ou se encontrar qualquer problema, copie o modelo abaixo, preencha e nos envie (pelo WhatsApp, Discord ou onde estivermos conversando):
+Se o app travar, uma tela ficar em branco, fechar sozinho ou um jogo não contar o tempo, mande o arquivo de diagnóstico:
+
+1. No Lazulium, abra **Configurações** (ícone de engrenagem no canto superior direito).
+2. Vá até **Ajuda e diagnóstico** e clique em **Abrir pasta de logs**.
+3. Na pasta que abrir, pegue o **`lazulium.log`** (e o `lazulium.log.old`, se existir).
+
+> ⚠️ **Privacidade:** o log tem informações técnicas, como erros, versões e o caminho das pastas dos seus jogos (por exemplo `C:\Users\SeuNome\Games\...`). Ele não tem senhas. Se quiser, abra no Bloco de Notas antes de enviar.
+
+---
+
+## 4. Modelo de relato
+
+Copie, preencha e mande por onde a gente conversa:
 
 ```text
---- RELATO DE TESTE - LAZULIUM ---
+--- RELATO DE TESTE - LAZULIUM 1.0.0 ---
 1. O que eu tentei fazer:
-(Ex: Tentei conectar a Steam / Abri o jogo Elden Ring / Adicionei um jogo à mão no Diário)
+(Ex: conectar a Steam / abrir o Elden Ring / registrar um jogo no Diário)
 
-2. O que eu esperava que acontecesse:
-(Ex: O jogo abrir e contar 15 minutos / O Diário salvar a nota que dei)
+2. O que eu esperava:
+(Ex: o jogo abrir e contar 15 minutos)
 
-3. O que realmente aconteceu:
-(Ex: Funcionou perfeitamente / Deu uma mensagem de erro / O tempo não contou ao fechar)
+3. O que aconteceu:
+(Ex: funcionou / apareceu uma mensagem de erro / o tempo não contou)
 
-4. Versão do Windows:
-(Ex: Windows 11 / Windows 10)
+4. Instalador ou versão portátil?
 
-5. Usou controle?
-(Ex: Não, só mouse e teclado / Sim, controle de Xbox Series via Bluetooth / Sim, controle de PS5 no cabo)
+5. Windows 10 ou 11?
 
-6. Anexou o arquivo lazulium.log?
-(Sim / Não)
------------------------------------
+6. Usou controle? Qual?
+(Ex: não / controle de Xbox Series por Bluetooth / DualSense no cabo)
+
+7. Anexou o lazulium.log? (sim / não)
+-----------------------------------------
 ```
 
-Muito obrigado por nos ajudar a tornar o Lazulium cada vez melhor! 🚀
+Valeu demais pela ajuda! 🎮
