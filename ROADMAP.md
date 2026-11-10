@@ -169,3 +169,13 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [ ] Primeira publicação real no GitHub: conferir login do Git, ativação do Pages e a página no ar.
 - [ ] Scanners de outros lançadores (Battle.net, EA app, Ubisoft Connect) quando houver jogos instalados para validar.
 - [ ] Assinatura digital do instalador (evita o aviso do SmartScreen).
+
+## 🎨 Fase 7: Amigos, aparência e receitas de lançamento (versão 0.2.0)
+
+- [x] Backup automático de saves só com consentimento (boas-vindas e Configurações) e limite de espaço em disco.
+- [x] Perfil não conta mais os marcos do Lazulium como conquistas.
+- [x] Editor de aparência: presets, cores de superfície, destaque, texto, partes e avisos, fontes, tamanho, cantos, importar/exportar tema.
+- [x] Receitas de lançamento por jogo: variáveis de ambiente, comando antes/depois e exportação para .bat.
+- [ ] Emuladores personalizados com modelos de linha de comando e presets compartilháveis em JSON.
+- [ ] "Adicionar à Steam" (atalho não-Steam) a partir do Lazulium.
+- [ ] Atualização automática (precisa de hospedagem das versões) e assinatura do instalador.
