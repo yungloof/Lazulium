@@ -1,6 +1,6 @@
 import { app, shell } from 'electron';
 import { createHash } from 'crypto';
-import { existsSync } from 'fs';
+import { existsSync, readdirSync } from 'fs';
 import { copyFile, mkdir, readdir, readFile, stat } from 'fs/promises';
 import { basename, dirname, extname, join } from 'path';
 import { Game } from '@shared/types/game';
@@ -9,7 +9,7 @@ import { GameScreenshots, Screenshot } from '@shared/types/screenshots';
 import { findSteamPath } from '../scanners/steam-scanner.service';
 import { STEAM_GRID_HOST, readSteamShortcuts } from '../scanners/steam-shortcuts';
 import { normalizeKey } from '../cloudsync/save-locator.service';
-import { mediaUrl, registerMediaRoot } from './media-cache.service';
+import { gameDirName, mediaUrl, registerMediaRoot } from './media-cache.service';
 
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif|bmp)$/i;
 const PREVIEW_COUNT = 6;
@@ -22,8 +22,19 @@ function customRoot(): string {
   return join(app.getPath('userData'), 'screenshots');
 }
 
-function gameDirName(gameId: string): string {
-  return gameId.replace(/[^a-z0-9._-]/gi, '_');
+// Pasta das capturas da tecla do Lazulium e das imagens anexadas a um jogo
+export function customScreenshotsDir(gameId: string): string {
+  return join(customRoot(), gameDirName(gameId));
+}
+
+// Captura feita pela tecla do Lazulium (tem miniatura própria); imagens anexadas à mão não contam
+export function hasLazuliumCapture(gameId: string): boolean {
+  try {
+    const files = readdirSync(customScreenshotsDir(gameId));
+    return files.some((file) => /\.png$/i.test(file) && files.includes(thumbNameOf(file)));
+  } catch {
+    return false;
+  }
 }
 
 let steamUserdata: Promise<string | undefined> | undefined;
@@ -66,19 +77,34 @@ async function mtimeIso(path: string): Promise<string> {
   return (await stat(path).catch(() => null))?.mtime.toISOString() ?? new Date(0).toISOString();
 }
 
+// "Ver todas" lista a biblioteca inteira e relia as mesmas pastas (contas da Steam, shortcuts.vdf, Game Bar)
+// uma vez por jogo: a leitura vale por alguns segundos. Apagar ou anexar limpa na hora.
+const LISTING_TTL_MS = 5_000;
+const listingCache = new Map<string, { at: number; value: Promise<unknown> }>();
+
+function cachedListing<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const hit = listingCache.get(key);
+  if (hit && Date.now() - hit.at < LISTING_TTL_MS) return hit.value as Promise<T>;
+  const value = load();
+  listingCache.set(key, { at: Date.now(), value });
+  return value;
+}
+
 async function steamScreenshots(game: Game): Promise<Screenshot[]> {
   const userdata = await getSteamUserdata();
   if (!userdata) return [];
   const results: Screenshot[] = [];
   const titleKey = normalizeKey(game.title);
+  const accounts = await cachedListing(`steam-accounts:${userdata}`, async () => (await readdir(userdata).catch(() => [] as string[])).filter((a) => /^\d+$/.test(a)));
 
-  for (const account of (await readdir(userdata).catch(() => [])).filter((a) => /^\d+$/.test(a))) {
+  for (const account of accounts) {
     const gameIds: string[] = [];
     if (game.platform === 'steam' && game.platformGameId) gameIds.push(game.platformGameId);
     else if (game.id.startsWith('steam-shortcut-') && game.platformGameId) gameIds.push(game.platformGameId);
     else {
       const exe = game.executablePath?.toLowerCase();
-      for (const s of await readSteamShortcuts(join(userdata, account))) {
+      const shortcuts = await cachedListing(`steam-shortcuts:${account}`, () => readSteamShortcuts(join(userdata, account)));
+      for (const s of shortcuts) {
         if ((titleKey.length >= 3 && normalizeKey(s.name) === titleKey) || (exe && s.exe.toLowerCase() === exe)) gameIds.push(s.gameId);
       }
     }
@@ -108,7 +134,7 @@ async function gameBarScreenshots(game: Game): Promise<Screenshot[]> {
   const titleKey = normalizeKey(game.title);
   if (titleKey.length < 3) return [];
   const results: Screenshot[] = [];
-  for (const file of await listImages(dir)) {
+  for (const file of await cachedListing(`gamebar:${dir}`, () => listImages(dir))) {
     if (extname(file).toLowerCase() !== '.png') continue;
     const namePart = file.replace(/\s+\d{1,2}[_.-]\d{1,2}[_.-]\d{2,4}.*$/, '');
     if (normalizeKey(namePart) !== titleKey) continue;
@@ -166,10 +192,13 @@ class ScreenshotsService {
 
   // Mover de volta para o jogo de origem desfaz a mudança
   async move(from: Game, ids: string[], to: Game): Promise<void> {
+    // O mesmo id duas vezes gravaria duas mudanças (e a captura apareceria em dobro no destino)
+    const unique = [...new Set(Array.isArray(ids) ? ids.filter((id) => typeof id === 'string') : [])];
+    if (unique.length === 0 || from.id === to.id) return;
     const available = new Set((await this.list(from)).map((s) => s.id));
     const moves = db.getScreenshotMoves();
-    const next = moves.filter((m) => !(ids.includes(m.id) && m.toGameId === from.id));
-    for (const id of ids) {
+    const next = moves.filter((m) => !(unique.includes(m.id) && m.toGameId === from.id));
+    for (const id of unique) {
       if (!available.has(id)) throw new Error('Essa captura não existe mais: abra a galeria de novo.');
       const origin = moves.find((m) => m.id === id && m.toGameId === from.id)?.fromGameId ?? from.id;
       if (origin !== to.id) next.push({ id, fromGameId: origin, toGameId: to.id });
@@ -201,14 +230,20 @@ class ScreenshotsService {
       if (!IMAGE_EXT.test(path)) continue;
       const info = await stat(path).catch(() => null);
       if (!info?.isFile() || info.size > MAX_IMPORT_BYTES) continue;
-      // Nome com hash do conteúdo: importar a mesma imagem duas vezes não duplica
-      const hash = createHash('sha1').update(await readFile(path)).digest('hex').slice(0, 10);
-      const safeBase = basename(path, extname(path)).replace(/[^\w\- ]+/g, '_').slice(0, 60);
-      const target = join(dir, `${safeBase}-${hash}${extname(path).toLowerCase()}`);
-      if (existsSync(target)) continue;
-      await copyFile(path, target);
-      imported++;
+      try {
+        // Nome com hash do conteúdo: importar a mesma imagem duas vezes não duplica
+        const hash = createHash('sha1').update(await readFile(path)).digest('hex').slice(0, 10);
+        const safeBase = basename(path, extname(path)).replace(/[^\w\- ]+/g, '_').slice(0, 60);
+        const target = join(dir, `${safeBase}-${hash}${extname(path).toLowerCase()}`);
+        if (existsSync(target)) continue;
+        await copyFile(path, target);
+        imported++;
+      } catch (err) {
+        // Arquivo preso ou ilegível: os outros continuam
+        console.warn(`[Screenshots] Imagem não anexada: ${(err as NodeJS.ErrnoException).code ?? (err as Error).message}`);
+      }
     }
+    listingCache.clear();
     return imported;
   }
 
@@ -217,6 +252,7 @@ class ScreenshotsService {
     const path = await this.resolvePath(game, id);
     if (!path) throw new Error('Captura não encontrada.');
     await shell.trashItem(path);
+    listingCache.clear();
     if (id.startsWith('steam:')) {
       const thumb = join(dirname(path), 'thumbnails', basename(path));
       if (existsSync(thumb)) await shell.trashItem(thumb).catch(() => undefined);

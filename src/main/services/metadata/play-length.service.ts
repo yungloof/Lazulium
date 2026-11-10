@@ -1,6 +1,7 @@
 import { Game, GamePlayLength, isWeakPlayLength } from '@shared/types/game';
 import { db } from '../../database/db';
 import { isSteamPlaceholderTitle } from '../scanners/steam-names.service';
+import { HttpError, fetchJson, httpRequest, logBackgroundFailure, sleep } from './http';
 
 // Servidor em server/igdb-proxy, que guarda a credencial da Twitch. Vazio enquanto não está publicado: fica só a estimativa da Steam.
 const IGDB_PROXY_URL = 'https://lazulium-igdb.yungloof.workers.dev';
@@ -41,7 +42,6 @@ interface ProxyResponse {
   count?: unknown;
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const quantile = (sorted: number[], q: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))];
 const toHours = (seconds: unknown) => (typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0 ? seconds / 3600 : null);
 
@@ -58,15 +58,10 @@ async function queryIgdb(game: Game): Promise<IgdbResult> {
   if ([...params.keys()].length === 0) return { kind: 'none' };
 
   try {
-    const res = await fetch(`${base}/v1/time-to-beat?${params}`, { signal: AbortSignal.timeout(IGDB_TIMEOUT_MS) });
-    if (!res.ok) {
-      // 400 é título que o servidor não aceita: tentar de novo daria o mesmo resultado
-      if (res.status !== 400) console.warn(`[PlayLength] Servidor do IGDB respondeu ${res.status}`);
-      return res.status === 400 ? { kind: 'none' } : { kind: 'unavailable' };
-    }
-    const data = (await res.json()) as ProxyResponse;
+    const data = await fetchJson<ProxyResponse | null>(`${base}/v1/time-to-beat?${params}`, { timeoutMs: IGDB_TIMEOUT_MS, service: 'o servidor do IGDB' });
+    if (!data || typeof data !== 'object') return { kind: 'unavailable' };
     const [lowHours, typicalHours, completeHours] = [toHours(data.hastily), toHours(data.normally), toHours(data.completely)];
-    if (!data.found || (!lowHours && !typicalHours && !completeHours)) return { kind: 'none' };
+    if (data.found !== true || (!lowHours && !typicalHours && !completeHours)) return { kind: 'none' };
     return {
       kind: 'found',
       length: {
@@ -75,12 +70,14 @@ async function queryIgdb(game: Game): Promise<IgdbResult> {
         typicalHours,
         completeHours,
         openEnded: false,
-        sampleSize: typeof data.count === 'number' ? data.count : 0,
+        sampleSize: typeof data.count === 'number' && Number.isFinite(data.count) ? data.count : 0,
         matchedName: typeof data.name === 'string' ? data.name : undefined
       }
     };
   } catch (err) {
-    console.warn(`[PlayLength] Servidor do IGDB indisponível: ${(err as Error).message}`);
+    // 400 é título que o servidor não aceita: tentar de novo daria o mesmo resultado
+    if (err instanceof HttpError && err.status === 400) return { kind: 'none' };
+    logBackgroundFailure('[PlayLength]', err);
     return { kind: 'unavailable' };
   }
 }
@@ -88,11 +85,15 @@ async function queryIgdb(game: Game): Promise<IgdbResult> {
 async function fetchReviewsPage(appId: string, cursor: string): Promise<ReviewsPage | null> {
   const query = `json=1&filter=recent&language=all&review_type=positive&purchase_type=all&num_per_page=${REVIEWS_PER_PAGE}&cursor=${encodeURIComponent(cursor)}`;
   for (const endpoint of REVIEW_ENDPOINTS) {
-    const res = await fetch(`https://store.steampowered.com/${endpoint}/${encodeURIComponent(appId)}?${query}`, {
+    const res = await httpRequest(`https://store.steampowered.com/${endpoint}/${encodeURIComponent(appId)}?${query}`, {
       redirect: 'manual',
-      signal: AbortSignal.timeout(REVIEW_TIMEOUT_MS)
+      timeoutMs: REVIEW_TIMEOUT_MS,
+      service: 'a loja da Steam'
     });
-    if (!res.ok) continue;
+    if (!res.ok) {
+      await res.body?.cancel().catch(() => undefined);
+      continue;
+    }
     const page = (await res.json().catch(() => null)) as ReviewsPage | null;
     if (page?.success === 1) return page;
   }
@@ -106,16 +107,17 @@ async function measureSteamReviews(appId: string): Promise<GamePlayLength | null
     for (let page = 0; page < PAGES; page++) {
       const result = await fetchReviewsPage(appId, cursor);
       if (!result) break;
-      for (const review of result.reviews ?? []) {
-        const minutes = review.author?.playtime_at_review ?? 0;
-        if (minutes > 0) hours.push(minutes / 60);
+      const reviews = Array.isArray(result.reviews) ? result.reviews : [];
+      for (const review of reviews) {
+        const minutes = Number(review?.author?.playtime_at_review ?? 0);
+        if (Number.isFinite(minutes) && minutes > 0) hours.push(minutes / 60);
       }
-      if (!result.cursor || (result.reviews?.length ?? 0) < REVIEWS_PER_PAGE) break;
+      if (typeof result.cursor !== 'string' || !result.cursor || reviews.length < REVIEWS_PER_PAGE) break;
       cursor = result.cursor;
       await sleep(PAGE_DELAY_MS);
     }
   } catch (err) {
-    console.warn(`[PlayLength] Reviews de ${appId}: ${(err as Error).message}`);
+    logBackgroundFailure(`[PlayLength] Reviews de ${appId}:`, err);
   }
   if (hours.length < MIN_SAMPLE) return null;
   hours.sort((a, b) => a - b);

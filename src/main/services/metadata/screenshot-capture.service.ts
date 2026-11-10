@@ -1,9 +1,11 @@
-import { app, desktopCapturer, globalShortcut, NativeImage, Notification, screen } from 'electron';
+import { desktopCapturer, globalShortcut, NativeImage, Notification, screen } from 'electron';
 import { execFile } from 'child_process';
+import { existsSync } from 'fs';
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { ScreenshotTaken } from '@shared/types/screenshots';
 import { db } from '../../database/db';
+import { customScreenshotsDir } from './screenshots.service';
 
 // Quadro direto da tela: o mesmo pixel do jogo, em PNG sem perda. Um fluxo de vídeo seria instantâneo, mas
 // comprime as cores (medido: só 18% dos pixels iguais); este leva cerca de 0,5 s e sai idêntico.
@@ -16,7 +18,9 @@ const BLACK_FRAME_BRIGHTNESS = 2;
 const SILENT_MODE = process.env.LAZULIUM_SILENT === '1';
 
 // Janela em primeiro plano, em pixels físicos
+// Saída em UTF-8, como nos outros scripts do app (a página de código do console corromperia texto com acento)
 const FOREGROUND_SCRIPT = `
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
 Add-Type -TypeDefinition @"
 using System; using System.Runtime.InteropServices;
 public static class LazuliumForeground {
@@ -43,7 +47,7 @@ interface ForegroundWindow {
 
 function readForegroundWindow(): Promise<ForegroundWindow | null> {
   return new Promise((resolve) => {
-    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', FOREGROUND_SCRIPT], { timeout: FOREGROUND_TIMEOUT_MS, windowsHide: true }, (err, stdout) => {
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', FOREGROUND_SCRIPT], { timeout: FOREGROUND_TIMEOUT_MS, windowsHide: true, encoding: 'utf8' }, (err, stdout) => {
       const parts = err ? [] : stdout.trim().split(/\s+/).map(Number);
       if (parts.length !== 5 || parts.some((n) => !Number.isFinite(n))) return resolve(null);
       const [pid, left, top, right, bottom] = parts;
@@ -65,14 +69,34 @@ function isBlackFrame(image: NativeImage): boolean {
 
 const physicalBounds = (display: Electron.Display) => screen.dipToScreenRect(null, display.bounds);
 
-// Lembra: os arquivos entram na galeria do jogo como capturas anexadas (screenshots.service)
-function gameFolder(gameId: string): string {
-  return join(app.getPath('userData'), 'screenshots', gameId.replace(/[^a-z0-9._-]/gi, '_'));
+// Tecla inválida faz o Electron lançar erro em vez de devolver false: nunca deixa isso chegar ao rastreador de jogos
+function tryRegister(accelerator: string, callback: () => void): boolean {
+  try {
+    return globalShortcut.register(accelerator, callback);
+  } catch {
+    return false;
+  }
+}
+
+function isValidAccelerator(accelerator: string): boolean {
+  try {
+    globalShortcut.isRegistered(accelerator);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function fileStamp(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
+}
+
+// Duas capturas no mesmo segundo teriam o mesmo nome: a segunda apagaria a primeira
+function uniqueBaseName(dir: string, base: string): string {
+  let name = base;
+  for (let n = 2; existsSync(join(dir, `${name}.png`)); n++) name = `${base} (${n})`;
+  return name;
 }
 
 type TakenListener = (result: ScreenshotTaken) => void;
@@ -103,23 +127,33 @@ class ScreenshotCaptureService {
     if (this.registeredKey) globalShortcut.unregister(this.registeredKey);
     this.registeredKey = null;
     if (!wanted) return true;
-    const ok = globalShortcut.register(wanted, () => void this.captureRunningGame());
+    const ok = tryRegister(wanted, () => void this.captureRunningGame());
     if (ok) this.registeredKey = wanted;
     else console.warn(`[Capturas] A tecla ${wanted} já está em uso por outro programa`);
     return ok;
   }
 
   setHotkey(key: string): { ok: boolean } {
-    db.setSetting(HOTKEY_SETTING, key);
+    if (typeof key !== 'string' || !key.trim() || key.length > 60) return { ok: false };
     if (this.registeredKey) globalShortcut.unregister(this.registeredKey);
     this.registeredKey = null;
-    if (key === 'off') return { ok: true };
+    if (key === 'off') {
+      db.setSetting(HOTKEY_SETTING, key);
+      return { ok: true };
+    }
     // Testa agora, para avisar na hora em vez de falhar no meio do jogo
     if (this.runningGames.size === 0) {
-      const free = globalShortcut.register(key, () => undefined);
+      const free = tryRegister(key, () => undefined);
       if (free) globalShortcut.unregister(key);
+      // Tecla que o Electron nem reconhece não é gravada: senão a próxima partida tentaria registrá-la de novo
+      if (free || isValidAccelerator(key)) db.setSetting(HOTKEY_SETTING, key);
       return { ok: free };
     }
+    if (!isValidAccelerator(key)) {
+      this.refreshHotkey();
+      return { ok: false };
+    }
+    db.setSetting(HOTKEY_SETTING, key);
     return { ok: this.refreshHotkey() };
   }
 
@@ -169,13 +203,20 @@ class ScreenshotCaptureService {
         if (width > 0 && height > 0) image = image.crop({ x, y, width, height });
       }
 
-      const blackFrame = isBlackFrame(image);
-      const dir = gameFolder(gameId);
-      await mkdir(dir, { recursive: true });
-      const baseName = `${game.title.replace(/[^\p{L}\p{N} ._-]+/gu, '').trim().slice(0, 60) || 'captura'} ${fileStamp(new Date())}`;
       const { width, height } = image.getSize();
+      if (image.isEmpty() || width === 0 || height === 0) throw new Error('O Windows não entregou a imagem da tela.');
+      const blackFrame = isBlackFrame(image);
+      // Os arquivos entram na galeria do jogo como capturas do Lazulium (screenshots.service)
+      const dir = customScreenshotsDir(gameId);
+      await mkdir(dir, { recursive: true });
+      const baseName = uniqueBaseName(dir, `${game.title.replace(/[^\p{L}\p{N} ._-]+/gu, '').trim().slice(0, 60) || 'captura'} ${fileStamp(new Date())}`);
       await writeFile(join(dir, `${baseName}.png`), image.toPNG());
-      await writeFile(join(dir, `${baseName}.thumb.jpg`), image.resize({ width: Math.min(THUMB_WIDTH, width), quality: 'best' }).toJPEG(THUMB_QUALITY));
+      try {
+        await writeFile(join(dir, `${baseName}.thumb.jpg`), image.resize({ width: Math.min(THUMB_WIDTH, width), quality: 'best' }).toJPEG(THUMB_QUALITY));
+      } catch (err) {
+        // Sem miniatura a galeria usa a imagem inteira: a captura em si já está salva
+        console.warn(`[Capturas] Miniatura não gravada: ${(err as NodeJS.ErrnoException).code ?? (err as Error).message}`);
+      }
 
       const result: ScreenshotTaken = {
         gameId,

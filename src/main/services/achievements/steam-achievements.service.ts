@@ -1,6 +1,13 @@
 import { Game } from '@shared/types/game';
 import { Achievement, GameAchievements } from '@shared/types/achievements';
 import { ApiKeyTestResult } from '@shared/types/ipc';
+import { HttpError, describeError, fetchJson, httpRequest } from '../metadata/http';
+
+const STEAM_API = 'https://api.steampowered.com';
+const API_TIMEOUT_MS = 12_000;
+const COMMUNITY_TIMEOUT_MS = 15_000;
+const PERCENT_TIMEOUT_MS = 10_000;
+const STEAM = { service: 'a Steam' };
 
 interface SteamPlayerAchievement {
   apiname: string;
@@ -10,17 +17,34 @@ interface SteamPlayerAchievement {
 
 interface SteamSchemaAchievement {
   name: string;
-  defaultvalue: number;
-  displayName: string;
-  hidden: number;
+  displayName?: string;
   description?: string;
-  icon: string;
+  icon?: string;
   icongray?: string;
 }
 
-interface SteamGlobalPercent {
-  name: string;
-  percent: number;
+type Result = Omit<GameAchievements, 'gameId' | 'source' | 'syncedAt'>;
+
+const emptyResult = (extra: Partial<Result>): Result => ({ total: 0, unlocked: 0, items: [], ...extra });
+const isHttps = (value: unknown): value is string => typeof value === 'string' && value.startsWith('https://');
+
+// Raridade é opcional: qualquer falha só deixa o mapa vazio
+async function fetchGlobalPercents(appId: string): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  try {
+    const data = await fetchJson<{ achievementpercentages?: { achievements?: unknown } } | null>(
+      `${STEAM_API}/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/?gameid=${encodeURIComponent(appId)}`,
+      { ...STEAM, timeoutMs: PERCENT_TIMEOUT_MS }
+    );
+    const list = data?.achievementpercentages?.achievements;
+    for (const item of Array.isArray(list) ? (list as { name?: unknown; percent?: unknown }[]) : []) {
+      const percent = Number(item?.percent);
+      if (typeof item?.name === 'string' && Number.isFinite(percent)) map.set(item.name.toLowerCase(), Math.round(percent * 10) / 10);
+    }
+  } catch {
+    // Sem raridade: a lista sai do mesmo jeito
+  }
+  return map;
 }
 
 export class SteamAchievementsService {
@@ -32,68 +56,44 @@ export class SteamAchievementsService {
     const id = steamId.trim();
 
     if (!key) return { ok: false, message: 'Informe a chave da Steam Web API.' };
-    if (!id) return { ok: false, message: 'Informe o SteamID64 (número de 17 dígitos).' };
+    if (!/^7656\d{13}$/.test(id)) return { ok: false, message: 'Informe o SteamID64 (número de 17 dígitos que começa com 7656).' };
 
     try {
-      const url = `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${encodeURIComponent(
-        key
-      )}&steamids=${encodeURIComponent(id)}`;
+      const res = await httpRequest(`${STEAM_API}/ISteamUser/GetPlayerSummaries/v2/?key=${encodeURIComponent(key)}&steamids=${encodeURIComponent(id)}`, {
+        ...STEAM,
+        timeoutMs: 10_000
+      });
+      if (res.status === 401 || res.status === 403) return { ok: false, message: 'Chave da Steam Web API inválida.' };
+      if (!res.ok) return { ok: false, message: `A Steam não respondeu agora (erro ${res.status}). Tente de novo em instantes.` };
 
-      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-
-      if (res.status === 403) {
-        return { ok: false, message: 'Chave da Steam Web API inválida (HTTP 403 Forbidden).' };
-      }
-
-      if (!res.ok) {
-        return { ok: false, message: `Erro ao conectar com a Steam API (HTTP ${res.status}).` };
-      }
-
-      const json = await res.json();
+      const json = (await res.json().catch(() => null)) as { response?: { players?: { personaname?: unknown }[] } } | null;
       const players = json?.response?.players;
+      if (!Array.isArray(players) || players.length === 0) return { ok: false, message: 'SteamID64 não encontrado.' };
 
-      if (!players || !Array.isArray(players) || players.length === 0) {
-        return { ok: false, message: 'SteamID64 não encontrado ou formato inválido.' };
-      }
-
-      const player = players[0];
-      const persona = player?.personaname || id;
+      const persona = typeof players[0]?.personaname === 'string' ? players[0].personaname : id;
       return { ok: true, message: `Conectado com sucesso como "${persona}"!` };
     } catch (err) {
-      return { ok: false, message: `Falha de conexão: ${(err as Error).message}` };
+      return { ok: false, message: describeError(err) };
     }
-  }
-
-  private async fetchGlobalPercents(appId: string): Promise<Map<string, number>> {
-    const map = new Map<string, number>();
-    try {
-      const res = await fetch(
-        `https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/?gameid=${encodeURIComponent(appId)}`,
-        { signal: AbortSignal.timeout(10_000) }
-      );
-      const list: SteamGlobalPercent[] = (await res.json())?.achievementpercentages?.achievements ?? [];
-      for (const item of list) map.set(item.name.toLowerCase(), Math.round(Number(item.percent) * 10) / 10);
-    } catch {
-      // Raridade é opcional
-    }
-    return map;
   }
 
   // XML público: https://steamcommunity.com/profiles/<id>/stats/<appid>/achievements/?xml=1
   // closed="1" = desbloqueada; iconClosed é o ícone colorido e iconOpen o cinza.
-  private async fetchFromCommunity(game: Game, appId: string, steamId: string, now: string): Promise<GameAchievements> {
-    const base = { gameId: game.id, source: 'steam' as const, syncedAt: now };
+  private async fetchFromCommunity(appId: string, steamId: string): Promise<Result> {
     let xml: string;
     try {
-      const res = await fetch(
+      const res = await httpRequest(
         `https://steamcommunity.com/profiles/${encodeURIComponent(steamId)}/stats/${encodeURIComponent(appId)}/achievements/?xml=1&l=brazilian`,
-        { signal: AbortSignal.timeout(15_000) }
+        { ...STEAM, timeoutMs: COMMUNITY_TIMEOUT_MS, retries: 1 }
       );
       // Limite de pedidos ou Steam fora do ar não pode virar "este jogo não possui conquistas"
-      if (!res.ok) return { ...base, total: 0, unlocked: 0, items: [], retryable: true, warning: `A Steam não respondeu agora (HTTP ${res.status}).` };
+      if (!res.ok) {
+        await res.body?.cancel().catch(() => undefined);
+        return emptyResult({ retryable: true, warning: `A Steam não respondeu agora (erro ${res.status}).` });
+      }
       xml = await res.text();
     } catch (err) {
-      return { ...base, total: 0, unlocked: 0, items: [], retryable: true, warning: `Sem conexão com a Steam (${(err as Error).message}).` };
+      return emptyResult({ retryable: true, warning: describeError(err) });
     }
 
     const cdata = (block: string, tag: string) =>
@@ -101,261 +101,162 @@ export class SteamAchievementsService {
 
     const blocks = xml.match(/<achievement closed="[01]">[\s\S]*?<\/achievement>/g) ?? [];
     if (blocks.length === 0) {
+      // A Steam responde em HTML (sem as tags do XML) para vários jogos sem página de conquistas: é resposta definitiva
       const privacy = cdata(xml, 'privacyState');
       const error = cdata(xml, 'error');
-      return {
-        ...base,
-        total: 0,
-        unlocked: 0,
-        items: [],
+      return emptyResult({
         warning:
           privacy && privacy !== 'public'
             ? 'Perfil da Steam privado: deixe "Detalhes do jogo" como público na privacidade da Steam para ver as conquistas.'
             : error
-              ? `Steam: ${error}`
+              ? `Steam: ${error.slice(0, 200)}`
               : 'Este jogo não possui conquistas na Steam.'
-      };
+      });
     }
 
-    const globalPercent = await this.fetchGlobalPercents(appId);
-    const items: Achievement[] = blocks.map((block) => {
+    const globalPercent = await fetchGlobalPercents(appId);
+    const items: Achievement[] = blocks.flatMap((block) => {
       const apiName = cdata(block, 'apiname');
+      if (!apiName) return [];
       const unlocked = block.startsWith('<achievement closed="1"');
       const timestamp = Number(cdata(block, 'unlockTimestamp') || 0);
+      const iconClosed = cdata(block, 'iconClosed');
+      const iconOpen = cdata(block, 'iconOpen');
+      return [
+        {
+          id: apiName,
+          name: cdata(block, 'name') || apiName,
+          description: cdata(block, 'description'),
+          iconUrl: isHttps(iconClosed) ? iconClosed : '',
+          iconLockedUrl: isHttps(iconOpen) ? iconOpen : isHttps(iconClosed) ? iconClosed : '',
+          unlocked,
+          unlockedAt: unlocked && Number.isFinite(timestamp) && timestamp > 0 ? new Date(timestamp * 1000).toISOString() : undefined,
+          globalPercent: globalPercent.get(apiName.toLowerCase())
+        }
+      ];
+    });
+
+    return { total: items.length, unlocked: items.filter((i) => i.unlocked).length, items };
+  }
+
+  // Com Web API Key: GetSchemaForGame (nomes e ícones) + GetPlayerAchievements (desbloqueios) + raridade global
+  private async fetchWithApiKey(appId: string, key: string, steamId: string): Promise<Result> {
+    const [schemaRes, playerRes, globalPercent] = await Promise.allSettled([
+      httpRequest(`${STEAM_API}/ISteamUserStats/GetSchemaForGame/v2/?key=${encodeURIComponent(key)}&appid=${encodeURIComponent(appId)}&l=brazilian`, {
+        ...STEAM,
+        timeoutMs: API_TIMEOUT_MS
+      }),
+      httpRequest(
+        `${STEAM_API}/ISteamUserStats/GetPlayerAchievements/v1/?key=${encodeURIComponent(key)}&steamid=${encodeURIComponent(steamId)}&appid=${encodeURIComponent(appId)}&l=brazilian`,
+        { ...STEAM, timeoutMs: API_TIMEOUT_MS }
+      ),
+      fetchGlobalPercents(appId)
+    ]);
+
+    if (schemaRes.status === 'rejected') return emptyResult({ retryable: true, warning: describeError(schemaRes.reason) });
+
+    // Só limite e queda da Steam passam sozinhos: 400/403 (chave inválida, jogo sem dados) repetiriam para sempre
+    const schema = schemaRes.value;
+    if (schema.status === 429 || schema.status >= 500) {
+      await schema.body?.cancel().catch(() => undefined);
+      return emptyResult({ retryable: true, warning: `A Steam não respondeu agora (erro ${schema.status}).` });
+    }
+
+    let schemaList: SteamSchemaAchievement[] = [];
+    if (schema.ok) {
+      try {
+        const data = (await schema.json()) as { game?: { availableGameStats?: { achievements?: unknown } } } | null;
+        const list = data?.game?.availableGameStats?.achievements;
+        schemaList = Array.isArray(list) ? (list as SteamSchemaAchievement[]).filter((s) => typeof s?.name === 'string' && s.name) : [];
+      } catch {
+        return emptyResult({ retryable: true, warning: 'A Steam mandou uma lista de conquistas que o Lazulium não entendeu.' });
+      }
+    } else {
+      await schema.body?.cancel().catch(() => undefined);
+    }
+
+    if (schemaList.length === 0) {
+      return emptyResult({ noList: true, warning: 'Este jogo não possui conquistas na Steam ou o esquema não está disponível.' });
+    }
+
+    // Conquistas do jogador (resiliência contra perfil privado / 403 / 429 / 5xx)
+    const playerMap = new Map<string, SteamPlayerAchievement>();
+    let warning: string | undefined;
+    let retryable: boolean | undefined;
+
+    if (playerRes.status === 'fulfilled') {
+      const res = playerRes.value;
+      if (res.status === 401 || res.status === 403) {
+        warning = 'Perfil da Steam privado ou conquistas ocultas nas configurações de privacidade.';
+      } else if (res.status === 429 || res.status >= 500) {
+        warning = `A Steam não respondeu agora (erro ${res.status}). O Lazulium tenta de novo mais tarde.`;
+        retryable = true;
+      } else if (res.ok) {
+        try {
+          const data = (await res.json()) as { playerstats?: { success?: boolean; error?: unknown; achievements?: unknown } } | null;
+          if (data?.playerstats?.success === false) {
+            warning = typeof data.playerstats.error === 'string' ? data.playerstats.error.slice(0, 200) : 'Perfil da Steam privado ou jogo não pertence à conta.';
+          } else {
+            const list = data?.playerstats?.achievements;
+            for (const ach of Array.isArray(list) ? (list as SteamPlayerAchievement[]) : []) {
+              if (typeof ach?.apiname === 'string') playerMap.set(ach.apiname, ach);
+            }
+          }
+        } catch {
+          warning = 'Não foi possível ler os dados de desbloqueio do jogador.';
+          retryable = true;
+        }
+      } else {
+        warning = `A Steam recusou o pedido do jogador (erro ${res.status}). Confira a privacidade do perfil.`;
+      }
+      if (!res.bodyUsed) await res.body?.cancel().catch(() => undefined);
+    } else {
+      warning = describeError(playerRes.reason);
+      retryable = true;
+    }
+
+    const percents = globalPercent.status === 'fulfilled' ? globalPercent.value : new Map<string, number>();
+    const items: Achievement[] = schemaList.map((s) => {
+      const playerAch = playerMap.get(s.name);
+      const unlocked = Number(playerAch?.achieved) === 1;
+      const unlockTime = Number(playerAch?.unlocktime);
       return {
-        id: apiName,
-        name: cdata(block, 'name') || apiName,
-        description: cdata(block, 'description'),
-        iconUrl: cdata(block, 'iconClosed'),
-        iconLockedUrl: cdata(block, 'iconOpen') || cdata(block, 'iconClosed'),
+        id: s.name,
+        name: typeof s.displayName === 'string' && s.displayName ? s.displayName : s.name,
+        description: typeof s.description === 'string' ? s.description : '',
+        iconUrl: isHttps(s.icon) ? s.icon : '',
+        iconLockedUrl: isHttps(s.icongray) ? s.icongray : isHttps(s.icon) ? s.icon : '',
         unlocked,
-        unlockedAt: unlocked && timestamp > 0 ? new Date(timestamp * 1000).toISOString() : undefined,
-        globalPercent: globalPercent.get(apiName.toLowerCase())
+        unlockedAt: Number.isFinite(unlockTime) && unlockTime > 0 ? new Date(unlockTime * 1000).toISOString() : undefined,
+        globalPercent: percents.get(s.name.toLowerCase())
       };
     });
 
-    return { ...base, total: items.length, unlocked: items.filter((i) => i.unlocked).length, items };
+    return { total: items.length, unlocked: items.filter((i) => i.unlocked).length, items, retryable, warning };
   }
 
   /**
-   * Busca as conquistas de um jogo Steam combinando:
-   * 1. GetSchemaForGame/v2 (nomes, descrições, ícones)
-   * 2. GetPlayerAchievements/v1 (status de desbloqueio e data)
-   * 3. GetGlobalAchievementPercentagesForApp/v2 (raridade global)
+   * Conquistas de um jogo da Steam. Com Web API Key (opção avançada) usa a API oficial;
+   * sem ela, a página pública de conquistas do perfil (só precisa do SteamID).
    */
   async fetchAchievements(game: Game, apiKey: string, steamId: string): Promise<GameAchievements> {
-    const now = new Date().toISOString();
+    const base = { gameId: game.id, source: 'steam' as const, syncedAt: new Date().toISOString() };
     const appId = game.platformGameId || game.id.replace('steam-', '');
 
-    if (game.platform !== 'steam' || !appId) {
-      return {
-        gameId: game.id,
-        source: 'steam',
-        total: 0,
-        unlocked: 0,
-        items: [],
-        syncedAt: now,
-        warning: 'Este jogo não é da plataforma Steam.'
-      };
+    if (game.platform !== 'steam' || !/^\d+$/.test(appId)) {
+      return { ...base, ...emptyResult({ warning: 'Este jogo não é da plataforma Steam.' }) };
     }
 
     const key = apiKey.trim();
     const id = steamId.trim();
-
-    if (!id) {
-      return {
-        gameId: game.id,
-        source: 'steam',
-        total: 0,
-        unlocked: 0,
-        items: [],
-        syncedAt: now,
-        warning: 'Entre com sua conta Steam em Configurações → Contas para ver as conquistas.'
-      };
+    if (!/^7656\d{13}$/.test(id)) {
+      return { ...base, ...emptyResult({ warning: 'Entre com sua conta Steam em Configurações → Contas para ver as conquistas.' }) };
     }
 
-    // Sem Web API Key: usa a página pública de conquistas do perfil (só precisa do SteamID)
-    if (!key) return this.fetchFromCommunity(game, appId, id, now);
-
     try {
-      // 1. Busca o Schema do jogo (definições de conquistas)
-      const schemaUrl = `https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=${encodeURIComponent(
-        key
-      )}&appid=${encodeURIComponent(appId)}&l=brazilian`;
-
-      // 2. Busca conquistas do jogador
-      const playerUrl = `https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key=${encodeURIComponent(
-        key
-      )}&steamid=${encodeURIComponent(id)}&appid=${encodeURIComponent(appId)}&l=brazilian`;
-
-      // 3. Busca porcentagens globais
-      const globalUrl = `https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/?gameid=${encodeURIComponent(
-        appId
-      )}`;
-
-      const [schemaRes, playerRes, globalRes] = await Promise.allSettled([
-        fetch(schemaUrl, { signal: AbortSignal.timeout(12_000) }),
-        fetch(playerUrl, { signal: AbortSignal.timeout(12_000) }),
-        fetch(globalUrl, { signal: AbortSignal.timeout(10_000) })
-      ]);
-
-      // Trata o Schema
-      if (schemaRes.status === 'rejected') {
-        return {
-          gameId: game.id,
-          source: 'steam',
-          total: 0,
-          unlocked: 0,
-          items: [],
-          syncedAt: now,
-          retryable: true,
-          warning: `Sem conexão com a Steam para obter o esquema de conquistas (${(schemaRes.reason as Error)?.message || 'tempo limite'}).`
-        };
-      }
-
-      // Só limite e queda da Steam passam sozinhos: 400/403 (chave inválida, jogo sem dados) repetiriam para sempre
-      if (schemaRes.value.status === 429 || schemaRes.value.status >= 500) {
-        return {
-          gameId: game.id,
-          source: 'steam',
-          total: 0,
-          unlocked: 0,
-          items: [],
-          syncedAt: now,
-          retryable: true,
-          warning: `A Steam não respondeu ao esquema de conquistas (HTTP ${schemaRes.value.status}).`
-        };
-      }
-
-      let schemaList: SteamSchemaAchievement[] = [];
-      if (schemaRes.value.ok) {
-        try {
-          const schemaData = await schemaRes.value.json();
-          schemaList = schemaData?.game?.availableGameStats?.achievements ?? [];
-        } catch {
-          return {
-            gameId: game.id,
-            source: 'steam',
-            total: 0,
-            unlocked: 0,
-            items: [],
-            syncedAt: now,
-            retryable: true,
-            warning: 'Não foi possível ler o esquema de conquistas retornado pela Steam.'
-          };
-        }
-      }
-
-      if (schemaList.length === 0) {
-        return {
-          gameId: game.id,
-          source: 'steam',
-          total: 0,
-          unlocked: 0,
-          items: [],
-          syncedAt: now,
-          noList: true,
-          warning: 'Este jogo não possui conquistas na Steam ou o esquema não está disponível.'
-        };
-      }
-
-      // Trata as porcentagens globais
-      const globalPercentMap = new Map<string, number>();
-      if (globalRes.status === 'fulfilled' && globalRes.value.ok) {
-        try {
-          const globalData = await globalRes.value.json();
-          const list: SteamGlobalPercent[] = globalData?.achievementpercentages?.achievements ?? [];
-          for (const item of list) {
-            globalPercentMap.set(item.name, Math.round(item.percent * 10) / 10);
-          }
-        } catch {
-          // ignora falha nas porcentagens globais
-        }
-      }
-
-      // Trata as conquistas do jogador (resiliência contra perfil privado / 403 / 429 / 5xx)
-      let playerMap = new Map<string, SteamPlayerAchievement>();
-      let warning: string | undefined = undefined;
-      let retryable: boolean | undefined = undefined;
-
-      if (playerRes.status === 'fulfilled') {
-        const pRes = playerRes.value;
-        if (pRes.status === 401 || pRes.status === 403) {
-          warning = 'Perfil da Steam privado ou conquistas ocultas nas configurações de privacidade.';
-        } else if (pRes.status === 429) {
-          warning = 'A Steam limitou pedidos (HTTP 429). Tente de novo mais tarde.';
-          retryable = true;
-        } else if (pRes.status >= 500) {
-          warning = `A Steam retornou HTTP ${pRes.status} para o jogador. Tente de novo mais tarde.`;
-          retryable = true;
-        } else if (pRes.ok) {
-          try {
-            const pData = await pRes.json();
-            if (pData?.playerstats?.success === false) {
-              warning = pData?.playerstats?.error || 'Perfil da Steam privado ou jogo não pertence à conta.';
-            } else {
-              const achs: SteamPlayerAchievement[] = pData?.playerstats?.achievements ?? [];
-              for (const ach of achs) {
-                playerMap.set(ach.apiname, ach);
-              }
-            }
-          } catch {
-            warning = 'Não foi possível ler os dados de desbloqueio do jogador.';
-            retryable = true;
-          }
-        } else {
-          warning = `Steam retornou HTTP ${pRes.status} para o jogador. Verifique a privacidade do perfil.`;
-        }
-      } else {
-        warning = 'Tempo limite ao consultar o perfil do jogador na Steam.';
-        retryable = true;
-      }
-
-      // Monta os itens finais
-      const items: Achievement[] = schemaList.map((s) => {
-        const playerAch = playerMap.get(s.name);
-        const unlocked = playerAch?.achieved === 1;
-        const unlockedAt =
-          playerAch?.unlocktime && playerAch.unlocktime > 0
-            ? new Date(playerAch.unlocktime * 1000).toISOString()
-            : undefined;
-        const globalPercent = globalPercentMap.get(s.name);
-
-        return {
-          id: s.name,
-          name: s.displayName || s.name,
-          description: s.description || '',
-          iconUrl: s.icon,
-          iconLockedUrl: s.icongray || s.icon,
-          unlocked,
-          unlockedAt,
-          globalPercent
-        };
-      });
-
-      const unlockedCount = items.filter((i) => i.unlocked).length;
-
-      return {
-        gameId: game.id,
-        source: 'steam',
-        total: items.length,
-        unlocked: unlockedCount,
-        items,
-        syncedAt: now,
-        retryable,
-        warning
-      };
+      return { ...base, ...(key ? await this.fetchWithApiKey(appId, key, id) : await this.fetchFromCommunity(appId, id)) };
     } catch (err) {
-      return {
-        gameId: game.id,
-        source: 'steam',
-        total: 0,
-        unlocked: 0,
-        items: [],
-        syncedAt: now,
-        retryable: true,
-        warning: `Falha na sincronização com a Steam: ${(err as Error).message}`
-      };
+      return { ...base, ...emptyResult({ retryable: true, warning: err instanceof HttpError ? err.message : 'Falha inesperada ao atualizar as conquistas da Steam.' }) };
     }
   }
 }

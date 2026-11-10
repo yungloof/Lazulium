@@ -20,6 +20,7 @@ import { achievementsService } from '../achievements/achievements.service';
 import { screenshotsService } from '../metadata/screenshots.service';
 import { readSteamProfileStats, SteamAppStats } from '../scanners/steam-scanner.service';
 import { steamProfileService } from './steam-profile.service';
+import { logBackgroundFailure, sleep } from '../metadata/http';
 
 const MAX_ACHIEVEMENT_CHOICES = 300;
 const MAX_FEATURED_GAMES = 12;
@@ -42,8 +43,11 @@ function withNewSections(sections: ProfileSectionId[], version: number): Profile
   return next;
 }
 
-const localDayKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const MIN_REAL_DATE_MS = Date.UTC(1990, 0, 1);
+const isRealDate = (iso?: string): iso is string => !!iso && Date.parse(iso) >= MIN_REAL_DATE_MS;
+const localDayKey =(date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const MAX_BACKGROUND_VIDEO_BYTES = 200 * 1024 * 1024;
+const MAX_PROFILE_IMAGE_BYTES = 30 * 1024 * 1024;
 const LOCAL_PROFILE_MEDIA = /^lazulium-media:\/\/profile\/(avatar|background|artwork)-[a-z0-9]+\.(png|jpe?g|webp|gif|webm|mp4)$/;
 const VIDEO_FILE = /\.(webm|mp4)$/i;
 const TOP_GAMES = 6;
@@ -55,8 +59,6 @@ const SCREENSHOT_SOURCE_GAMES = 8;     // Jogos (mais recentes) consultados para
 const RECENT_WINDOW_MS = 14 * 86_400_000;
 const SYNC_DELAY_MS = 400;             // Espaço entre jogos para não estourar limites das APIs
 const MAX_CONSECUTIVE_TRANSIENT_FAILURES = 8; // Sem rede ou com a Steam fora, interrompe cedo em vez de tentar a biblioteca toda
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Chave do jogo no localconfig.vdf: AppID da Steam ou appid do atalho em int32 com sinal
 function steamStatsKey(game: Game): string | undefined {
@@ -157,7 +159,8 @@ class ProfileService {
         if (!a.unlocked) continue;
         const base = { gameId: game.id, gameTitle: game.title, name: a.name, description: a.description, iconUrl: a.iconUrl, unlockedAt: a.unlockedAt };
         choices.push({ key: `${game.id}|${a.id}`, gameId: game.id, gameTitle: game.title, name: a.name, description: a.description, iconUrl: a.iconUrl, globalPercent: a.globalPercent });
-        if (a.unlockedAt) unlocked.push({ ...base, globalPercent: a.globalPercent });
+        // Data zerada ou inválida (1970) não entra em "recentes" nem no mapa de atividade
+        if (isRealDate(a.unlockedAt)) unlocked.push({ ...base, globalPercent: a.globalPercent });
         if (typeof a.globalPercent === 'number') rare.push({ ...base, globalPercent: a.globalPercent });
       }
     }
@@ -294,7 +297,9 @@ class ProfileService {
     if (!isVideo && !/^\.(png|jpe?g|webp|gif)$/.test(ext)) {
       throw new Error(kind === 'background' ? 'Escolha uma imagem (PNG, JPG, WEBP, GIF) ou um vídeo (WEBM, MP4).' : 'Escolha uma imagem PNG, JPG, WEBP ou GIF.');
     }
-    if (isVideo && (await stat(sourcePath)).size > MAX_BACKGROUND_VIDEO_BYTES) throw new Error('Esse vídeo é grande demais: escolha um de até 200 MB.');
+    const size = (await stat(sourcePath)).size;
+    if (isVideo && size > MAX_BACKGROUND_VIDEO_BYTES) throw new Error('Esse vídeo é grande demais: escolha um de até 200 MB.');
+    if (!isVideo && size > MAX_PROFILE_IMAGE_BYTES) throw new Error('Essa imagem é grande demais: escolha uma de até 30 MB.');
     const dir = join(app.getPath('userData'), 'profile');
     await mkdir(dir, { recursive: true });
     const file = `${kind}-${Date.now().toString(36)}${ext}`;
@@ -321,7 +326,7 @@ class ProfileService {
         if (result.failed === 0) db.setSetting(AUTO_SYNC_SETTING, String(Date.now()));
         console.log(`[Conquistas] Atualização automática: ${result.synced} jogos, ${result.failed} falhas`);
       })
-      .catch((err) => console.warn(`[Conquistas] Atualização automática falhou: ${(err as Error).message}`));
+      .catch((err) => logBackgroundFailure('[Conquistas] Atualização automática falhou:', err));
   }
 
   // Busca conquistas de todos os jogos já jogados (respeita o cache de 6h de cada jogo)
@@ -344,7 +349,8 @@ class ProfileService {
               failed++;
               consecutiveFailures++;
             } else {
-              consecutiveFailures = 0;
+              // Marcos são calculados aqui mesmo: não provam que a rede voltou (sem internet, a biblioteca mista seguiria até o fim)
+              if (result?.source !== 'lazulium') consecutiveFailures = 0;
               if (result && result.total > 0) synced++;
             }
           } catch {

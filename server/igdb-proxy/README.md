@@ -68,6 +68,13 @@ Depois, coloque a URL em `IGDB_PROXY_URL`, em `src/main/services/metadata/play-l
 - Resposta: `{ found, gameId, name, hastily, normally, completely, count }`, com tempos em segundos. Sem dados: `{ "found": false }`.
 - Resultados ficam em cache por 30 dias, e "não encontrado" por 7. Falhas temporárias não entram no cache e respondem 503.
 
+`GET /v1/prices?steamAppIds=420,620` (precisa do segredo `GGDEALS_API_KEY`)
+
+- Repassa só `url`, `currency` e os quatro preços do GG.deals (atual e menor histórico, lojas oficiais e revendedores de chaves), em centavos. Jogo que o GG.deals não conhece vem como `null`.
+- O GG.deals manda os preços como texto decimal (`"91.99"`); texto em outro formato vira `null` em vez de um preço errado.
+- A chave tem limite por jogo consultado (100 por minuto, 1.000 por hora): cada jogo fica 6 horas no cache da borda da Cloudflare e só os que faltam são consultados. Cota esgotada responde 429, ou devolve só a parte em cache com `"incomplete": true`.
+- O GG.deals pede crédito com link para o site em toda tela que mostra os preços.
+
 ## Limites
 
 - **IGDB:** 4 requisições por segundo e até 8 abertas. Com o cache, isso só pesa em jogos ainda não consultados.

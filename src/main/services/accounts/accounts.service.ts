@@ -52,6 +52,11 @@ class AccountsService {
     return listLocalSteamAccounts();
   }
 
+  // Horas e jogos da conta nova em segundo plano: falha no scan não pode virar promise sem tratamento
+  private syncSteamLibrary(): void {
+    scanLibraries(['steam']).catch((err) => console.warn('[Contas] Sincronização da Steam falhou:', (err as Error).message));
+  }
+
   private saveSteam(steamId: string, personaName?: string): void {
     db.setSetting('steamUserId', steamId);
     db.setSetting('steamPersonaName', personaName ?? '');
@@ -64,14 +69,14 @@ class AccountsService {
     if (!account) throw new Error('Conta da Steam não encontrada neste PC.');
     this.saveSteam(account.steamId, account.personaName);
     // Sincroniza horas e jogos da Steam automaticamente
-    void scanLibraries(['steam']);
+    this.syncSteamLibrary();
     return this.getStatus();
   }
 
   async loginSteamInBrowser(): Promise<AccountsStatus> {
     const steamId = await loginWithSteamOpenId();
     this.saveSteam(steamId, await fetchSteamPersona(steamId));
-    void scanLibraries(['steam']);
+    this.syncSteamLibrary();
     return this.getStatus();
   }
 

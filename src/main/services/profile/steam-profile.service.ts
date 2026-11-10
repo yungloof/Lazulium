@@ -6,6 +6,7 @@ import { join } from 'path';
 import { SteamProfileIdentity } from '@shared/types/profile';
 import { db } from '../../database/db';
 import { mediaUrl } from '../metadata/media-cache.service';
+import { fetchText, httpRequest, isConnectionError, logBackgroundFailure } from '../metadata/http';
 
 const CDN = 'https://shared.fastly.steamstatic.com/community_assets/images/';
 const ALLOWED_ASSET_HOST = /(^|\.)(steamstatic\.com|steamusercontent\.com)$/i;
@@ -14,6 +15,7 @@ const CACHED_WAIT_MS = 3_000;           // Com dados guardados, não segura a te
 const REFRESH_AFTER_MS = 10 * 60_000;
 const ASSET_TIMEOUT_MS = 120_000;
 const MAX_ASSET_BYTES = 60 * 1024 * 1024;
+const RETRY_AFTER_FAILURE_MS = 2 * 60_000;
 
 const EXTENSION_BY_MIME: Record<string, string> = {
   'image/png': 'png',
@@ -155,6 +157,8 @@ function collectAssets(identity: SteamProfileIdentity): string[] {
 class SteamProfileService {
   private refreshing?: Promise<SteamProfileIdentity>;
   private downloading = false;
+  private failedAt = 0;
+  private assetsFailedAt = 0;
 
   // Identidade pública do perfil Steam, sem chave de API. Funciona offline com o que já foi guardado.
   async get(steamId: string): Promise<SteamProfileIdentity | undefined> {
@@ -162,26 +166,30 @@ class SteamProfileService {
     const usable = cached?.steamId === steamId ? cached : undefined;
     // Perfil privado consulta sempre: quando o jogador liberar na Steam, aparece assim que ele reabrir a tela
     if (usable && !usable.isPrivate && Date.now() - usable.fetchedAt < REFRESH_AFTER_MS) return this.withLocalAssets(usable);
+    // Falhou há pouco (sem internet): não segura cada abertura do Perfil esperando a rede de novo
+    if (usable && Date.now() - this.failedAt < RETRY_AFTER_FAILURE_MS) return this.withLocalAssets(usable);
 
-    this.refreshing ??= this.refresh(steamId, usable).finally(() => {
-      this.refreshing = undefined;
-    });
+    this.refreshing ??= this.refresh(steamId, usable)
+      .catch((err: unknown) => {
+        this.failedAt = Date.now();
+        throw err;
+      })
+      .finally(() => {
+        this.refreshing = undefined;
+      });
     try {
       const pending = this.refreshing;
       const fresh = usable ? await Promise.race([pending, new Promise<undefined>((r) => setTimeout(() => r(undefined), CACHED_WAIT_MS))]) : await pending;
       return this.withLocalAssets(fresh ?? usable!);
     } catch (err) {
-      console.warn('[Profile] Perfil público da Steam indisponível:', (err as Error).message);
+      this.failedAt = Date.now();
+      logBackgroundFailure('[Profile] Perfil público da Steam indisponível:', err);
       return usable ? this.withLocalAssets(usable) : undefined;
     }
   }
 
   private async refresh(steamId: string, previous?: SteamProfileIdentity): Promise<SteamProfileIdentity> {
-    const text = async (url: string) => {
-      const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.text();
-    };
+    const text = (url: string) => fetchText(url, { service: 'a Steam', timeoutMs: FETCH_TIMEOUT_MS });
     const profileUrl = `https://steamcommunity.com/profiles/${steamId}`;
     const [xml, html, equipped] = await Promise.allSettled([
       text(`${profileUrl}/?xml=1`),
@@ -229,7 +237,8 @@ class SteamProfileService {
   }
 
   private async downloadAssets(identity: SteamProfileIdentity): Promise<void> {
-    if (this.downloading) return;
+    // Sem internet, cada abertura do Perfil tentaria baixar tudo de novo: espera um pouco depois de uma queda
+    if (this.downloading || Date.now() - this.assetsFailedAt < RETRY_AFTER_FAILURE_MS) return;
     this.downloading = true;
     try {
       const dir = assetsDir();
@@ -241,13 +250,18 @@ class SteamProfileService {
         try {
           await this.downloadAsset(url, key, dir);
         } catch (err) {
+          if (isConnectionError(err)) {
+            this.assetsFailedAt = Date.now();
+            logBackgroundFailure('[Profile] Itens do perfil Steam não baixados:', err);
+            break;
+          }
           console.warn('[Profile] Falha ao guardar item do perfil Steam:', (err as Error).message);
         }
       }
-      // Fundo ou moldura trocados na Steam: o arquivo antigo não serve mais
+      // Fundo ou moldura trocados na Steam: o arquivo antigo não serve mais (e .tmp de download interrompido também sai)
       const keys = new Set(urls.map(assetKey));
       for (const file of readdirSync(dir)) {
-        if (!keys.has(file.split('.')[0])) await unlink(join(dir, file)).catch(() => undefined);
+        if (!keys.has(file.split('.')[0]) || file.endsWith('.tmp')) await unlink(join(dir, file)).catch(() => undefined);
       }
     } finally {
       this.downloading = false;
@@ -256,17 +270,37 @@ class SteamProfileService {
 
   private async downloadAsset(url: string, key: string, dir: string): Promise<void> {
     if (!isAllowedAsset(url)) throw new Error('origem não permitida');
-    const res = await fetch(url, { signal: AbortSignal.timeout(ASSET_TIMEOUT_MS) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    if (Number(res.headers.get('content-length') ?? 0) > MAX_ASSET_BYTES) throw new Error('arquivo grande demais');
+    const res = await httpRequest(url, { service: 'a Steam', timeoutMs: ASSET_TIMEOUT_MS });
+    const discard = () => res.body?.cancel().catch(() => undefined);
+    // Redirecionamento não pode levar o download para fora do CDN da Steam
+    if (res.url && !isAllowedAsset(res.url)) {
+      await discard();
+      throw new Error('origem não permitida');
+    }
+    if (!res.ok) {
+      await discard();
+      throw new Error(`erro ${res.status}`);
+    }
+    if (Number(res.headers.get('content-length') ?? 0) > MAX_ASSET_BYTES) {
+      await discard();
+      throw new Error('arquivo grande demais');
+    }
     const mime = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
     const ext = EXTENSION_BY_MIME[mime] ?? new URL(url).pathname.match(/\.(png|jpe?g|webp|gif|webm|mp4)$/i)?.[1].toLowerCase();
-    if (!ext) throw new Error(`formato não suportado (${mime || 'desconhecido'})`);
+    if (!ext) {
+      await discard();
+      throw new Error(`formato não suportado (${mime || 'desconhecido'})`);
+    }
     const buffer = Buffer.from(await res.arrayBuffer());
     if (buffer.byteLength > MAX_ASSET_BYTES) throw new Error('arquivo grande demais');
     const tmp = join(dir, `${key}.${ext}.tmp`);
-    await writeFile(tmp, buffer);
-    await rename(tmp, join(dir, `${key}.${ext}`));
+    try {
+      await writeFile(tmp, buffer);
+      await rename(tmp, join(dir, `${key}.${ext}`));
+    } catch (err) {
+      await unlink(tmp).catch(() => undefined);
+      throw err;
+    }
   }
 }
 

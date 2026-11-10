@@ -1,8 +1,6 @@
-import { app } from 'electron';
-import { readdirSync } from 'fs';
-import { join } from 'path';
 import { Game } from '@shared/types/game';
 import { Achievement, AchievementExtras, GameAchievements } from '@shared/types/achievements';
+import { hasLazuliumCapture } from '../metadata/screenshots.service';
 
 // Todo jogo tem conquistas, venha de onde vier. Sem lista em lugar nenhum (Switch, Wii U, ports), valem os marcos
 // do Lazulium, medidos pelo que o app já registra; e o jogador pode criar as próprias em qualquer jogo fora da Steam.
@@ -35,15 +33,6 @@ const HOUR_MILESTONES: { hours: number; name: string; background: string }[] = [
   { hours: 50, name: 'Veterano', background: AMBER },
   { hours: 100, name: 'Segunda casa', background: AMBER }
 ];
-
-function hasLazuliumCapture(gameId: string): boolean {
-  try {
-    const dir = join(app.getPath('userData'), 'screenshots', gameId.replace(/[^a-z0-9._-]/gi, '_'));
-    return readdirSync(dir).some((file) => /\.(png|jpe?g|webp)$/i.test(file));
-  } catch {
-    return false;
-  }
-}
 
 function buildMilestones(game: Game): Achievement[] {
   const seconds = game.totalPlaytimeSeconds ?? 0;

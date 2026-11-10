@@ -2,6 +2,7 @@ import { Notification } from 'electron';
 import { WishlistDeals, WishlistItem, WishlistState } from '@shared/types/wishlist';
 import { igdbProxyUrl } from './play-length.service';
 import { db } from '../../database/db';
+import { HttpError, describeError, fetchJson, isConnectionError, logBackgroundFailure, sleep } from './http';
 
 const WISHLIST_URL = 'https://api.steampowered.com/IWishlistService/GetWishlist/v1/';
 const APP_DETAILS_URL = 'https://store.steampowered.com/api/appdetails';
@@ -11,11 +12,13 @@ const REQUEST_TIMEOUT_MS = 12_000;
 const LAST_SYNC_SETTING = 'wishlistSyncAt';
 const SYNC_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const SILENT_MODE = process.env.LAZULIUM_SILENT === '1';
-const DEALS_BATCH = 50;
+const DEALS_BATCH = 50;             // O servidor aceita até 50 jogos por pedido (o GG.deals conta cada jogo no limite da chave)
+const STEAM = { service: 'a Steam', timeoutMs: REQUEST_TIMEOUT_MS };
+const STORE = { service: 'a loja da Steam', timeoutMs: REQUEST_TIMEOUT_MS, retries: 1 };
+const OFFLINE_WARNING = 'Sem conexão com a internet: a lista mostra os preços da última atualização. Com a conexão de volta, clique em Atualizar.';
 // O GG.deals leva pelo AppID da Steam à página do jogo, com todas as lojas
 const GGDEALS_GAME_URL = (appId: number) => `https://gg.deals/steam/app/${appId}/`;
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const STEAM_IMAGE = /^https:\/\/[a-z0-9.-]+\.(steamstatic|steampowered)\.com\//;
 
 interface PriceOverview {
   initial?: number;
@@ -24,32 +27,55 @@ interface PriceOverview {
   final_formatted?: string;
 }
 
-async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()) as T;
-}
+const isAppId = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0;
+const cents = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.round(value) : undefined);
 
 async function fetchAccountWishlist(steamId: string): Promise<{ appid: number; date_added?: number }[]> {
-  const data = await getJson<{ response?: { items?: { appid: number; date_added?: number }[] } }>(`${WISHLIST_URL}?steamid=${encodeURIComponent(steamId)}`);
-  return data.response?.items ?? [];
+  const data = await fetchJson<{ response?: { items?: unknown } } | null>(`${WISHLIST_URL}?steamid=${encodeURIComponent(steamId)}`, STEAM);
+  const items = Array.isArray(data?.response?.items) ? (data.response.items as { appid?: unknown; date_added?: unknown }[]) : [];
+  return items.flatMap((item) =>
+    item && isAppId(item.appid) ? [{ appid: item.appid, date_added: typeof item.date_added === 'number' && item.date_added > 0 ? item.date_added : undefined }] : []
+  );
 }
 
 async function fetchDetails(appId: number): Promise<{ name?: string; isFree?: boolean; imageUrl?: string }> {
-  const data = await getJson<Record<string, { success?: boolean; data?: { name?: string; is_free?: boolean; header_image?: string } }>>(`${APP_DETAILS_URL}?appids=${appId}&cc=br&l=portuguese`);
-  const entry = data[String(appId)]?.data;
-  return { name: entry?.name, isFree: entry?.is_free, imageUrl: entry?.header_image };
+  const data = await fetchJson<Record<string, { success?: boolean; data?: { name?: unknown; is_free?: unknown; header_image?: unknown } } | null> | null>(
+    `${APP_DETAILS_URL}?appids=${appId}&cc=br&l=portuguese`,
+    STORE
+  );
+  const entry = data?.[String(appId)]?.data;
+  return {
+    name: typeof entry?.name === 'string' && entry.name.trim() ? entry.name.trim().slice(0, 200) : undefined,
+    isFree: typeof entry?.is_free === 'boolean' ? entry.is_free : undefined,
+    imageUrl: typeof entry?.header_image === 'string' && STEAM_IMAGE.test(entry.header_image) ? entry.header_image : undefined
+  };
+}
+
+function toPrice(value: unknown): PriceOverview | null {
+  if (!value || typeof value !== 'object') return null;
+  const price = value as Record<string, unknown>;
+  const final = cents(price.final);
+  if (final === undefined) return null;
+  return {
+    final,
+    initial: cents(price.initial),
+    discount_percent: typeof price.discount_percent === 'number' && price.discount_percent >= 0 && price.discount_percent <= 100 ? price.discount_percent : undefined,
+    final_formatted: typeof price.final_formatted === 'string' ? price.final_formatted.slice(0, 40) : undefined
+  };
 }
 
 async function fetchPrices(appIds: number[]): Promise<Map<number, PriceOverview | null>> {
   const prices = new Map<number, PriceOverview | null>();
   for (let i = 0; i < appIds.length; i += PRICE_BATCH) {
     const batch = appIds.slice(i, i + PRICE_BATCH);
-    const data = await getJson<Record<string, { success?: boolean; data?: { price_overview?: PriceOverview } | unknown[] }>>(`${APP_DETAILS_URL}?appids=${batch.join(',')}&cc=br&filters=price_overview`);
+    const data = await fetchJson<Record<string, { success?: boolean; data?: { price_overview?: unknown } | unknown[] } | null> | null>(
+      `${APP_DETAILS_URL}?appids=${batch.join(',')}&cc=br&filters=price_overview`,
+      STORE
+    );
     for (const id of batch) {
-      const entry = data[String(id)];
+      const entry = data?.[String(id)];
       // Sem preço a loja responde "data: []": jogo grátis, ainda não lançado ou fora de venda
-      prices.set(id, entry?.data && !Array.isArray(entry.data) ? entry.data.price_overview ?? null : null);
+      prices.set(id, entry?.data && !Array.isArray(entry.data) ? toPrice(entry.data.price_overview) : null);
     }
   }
   return prices;
@@ -59,18 +85,20 @@ interface DealsResponse {
   prices?: Record<string, { url?: unknown; currency?: unknown; retail?: unknown; keyshops?: unknown; lowestRetail?: unknown; lowestKeyshops?: unknown } | null>;
 }
 
-const cents = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.round(value) : undefined);
-
 // Outras lojas, pelo nosso servidor (é ele que guarda a chave do GG.deals). Fora do ar ou sem chave, a lista segue só com a Steam.
 async function fetchDeals(appIds: number[]): Promise<Map<number, WishlistDeals>> {
   const deals = new Map<number, WishlistDeals>();
   const checkedAt = new Date().toISOString();
   for (let i = 0; i < appIds.length; i += DEALS_BATCH) {
     const batch = appIds.slice(i, i + DEALS_BATCH);
-    const data = await getJson<DealsResponse>(`${igdbProxyUrl()}/v1/prices?steamAppIds=${batch.join(',')}`);
+    const data = await fetchJson<DealsResponse | null>(`${igdbProxyUrl()}/v1/prices?steamAppIds=${batch.join(',')}`, {
+      service: 'o servidor de preços do Lazulium',
+      timeoutMs: REQUEST_TIMEOUT_MS
+    });
+    const prices = data?.prices && typeof data.prices === 'object' ? data.prices : {};
     for (const id of batch) {
-      const entry = data.prices?.[String(id)];
-      if (!entry || typeof entry.currency !== 'string') continue;
+      const entry = prices[String(id)];
+      if (!entry || typeof entry !== 'object' || typeof entry.currency !== 'string' || !/^[A-Z]{3}$/.test(entry.currency)) continue;
       deals.set(id, {
         url: typeof entry.url === 'string' && entry.url.startsWith('https://gg.deals/') ? entry.url : undefined,
         currency: entry.currency,
@@ -102,15 +130,17 @@ function shouldNotify(item: WishlistItem): boolean {
 
 class WishlistService {
   private running?: Promise<WishlistState>;
+  private dealsWarned = false;
 
   getState(warning?: string): WishlistState {
     return { items: db.getWishlist(), lastSyncAt: db.getSettings()[LAST_SYNC_SETTING] || undefined, warning };
   }
 
+  // Ao abrir o app: sem internet, só tenta de novo na próxima abertura (a data da última atualização não muda)
   syncInBackground(): void {
     const last = Date.parse(db.getSettings()[LAST_SYNC_SETTING] ?? '');
     if (Date.now() - last < SYNC_INTERVAL_MS) return;
-    this.sync().catch((err) => console.warn(`[Desejos] ${(err as Error).message}`));
+    this.sync().catch((err) => logBackgroundFailure('[Desejos]', err));
   }
 
   sync(): Promise<WishlistState> {
@@ -120,15 +150,16 @@ class WishlistService {
 
   private async runSync(): Promise<WishlistState> {
     const steamId = db.getSettings().steamUserId;
-    const previous = new Map(db.getWishlist().map((item) => [item.appId, item]));
-    const items = new Map([...previous].filter(([, item]) => item.source === 'manual'));
+    // Cópias: a atualização nunca altera os itens do banco no meio do caminho
+    const snapshot = new Map(db.getWishlist().map((item) => [item.appId, { ...item }]));
+    const items = new Map([...snapshot].filter(([, item]) => item.source === 'manual'));
     let warning: string | undefined;
 
     if (steamId) {
       try {
         const account = await fetchAccountWishlist(steamId);
         for (const entry of account) {
-          const known = previous.get(entry.appid);
+          const known = snapshot.get(entry.appid);
           items.set(entry.appid, known ?? {
             appId: entry.appid,
             name: `Jogo ${entry.appid}`,
@@ -138,19 +169,22 @@ class WishlistService {
         }
         // Lista vazia pode ser perfil privado: não apaga o que já estava aqui
         if (account.length === 0) {
-          for (const [id, item] of previous) if (item.source === 'steam') items.set(id, item);
+          for (const [id, item] of snapshot) if (item.source === 'steam') items.set(id, item);
           warning = 'A Steam não mostrou nenhum desejo. Se você tem jogos lá, deixe os detalhes dos jogos do perfil como públicos na privacidade da Steam.';
         }
       } catch (err) {
-        for (const [id, item] of previous) items.set(id, item);
-        warning = `Não foi possível ler a lista da Steam (${(err as Error).message}). Confira a internet e clique em Atualizar.`;
+        // Sem internet não há nada a atualizar: a lista fica como está, sem gravar
+        if (isConnectionError(err)) return this.getState(OFFLINE_WARNING);
+        for (const [id, item] of snapshot) items.set(id, item);
+        warning = `Não foi possível ler a lista da Steam (${describeError(err)}). Clique em Atualizar para tentar de novo.`;
       }
-    } else if (previous.size > 0 || items.size === 0) {
-      for (const [id, item] of previous) items.set(id, item);
+    } else if (snapshot.size > 0 || items.size === 0) {
+      for (const [id, item] of snapshot) items.set(id, item);
       warning = 'Conecte a Steam em Configurações → Contas para trazer sua lista de desejos.';
     }
 
     const list = [...items.values()];
+    let offline = false;
     for (const item of list) {
       if (!item.name.startsWith('Jogo ') && item.isFree !== undefined && item.imageUrl) continue;
       try {
@@ -158,40 +192,64 @@ class WishlistService {
         if (details.name) item.name = details.name;
         item.isFree = !!details.isFree;
         item.imageUrl = details.imageUrl ?? item.imageUrl;
-      } catch {
-        // Fica com o nome provisório; a próxima atualização tenta de novo
+      } catch (err) {
+        // Fica com o nome provisório; a próxima atualização tenta de novo. Sem rede ou no limite da loja, para aqui.
+        if (isConnectionError(err)) offline = true;
+        if (offline || (err instanceof HttpError && err.status === 429)) break;
       }
       await sleep(NAME_DELAY_MS);
     }
 
-    try {
-      const prices = await fetchPrices(list.map((item) => item.appId));
-      const now = new Date().toISOString();
-      for (const item of list) {
-        const price = prices.get(item.appId);
-        item.checkedAt = now;
-        item.noPrice = !price && !item.isFree;
-        item.priceCents = price?.final;
-        item.initialCents = price?.initial;
-        item.discountPercent = price?.discount_percent;
-        item.priceLabel = price?.final_formatted;
-        if (price?.final !== undefined) item.lowestCents = Math.min(item.lowestCents ?? price.final, price.final);
-      }
+    if (!offline) {
       try {
-        const deals = await fetchDeals(list.map((item) => item.appId));
-        for (const item of list) item.deals = deals.get(item.appId) ?? item.deals;
+        const prices = await fetchPrices(list.map((item) => item.appId));
+        const now = new Date().toISOString();
+        for (const item of list) {
+          const price = prices.get(item.appId);
+          item.checkedAt = now;
+          item.noPrice = !price && !item.isFree;
+          item.priceCents = price?.final;
+          item.initialCents = price?.initial;
+          item.discountPercent = price?.discount_percent;
+          item.priceLabel = price?.final_formatted;
+          if (price?.final !== undefined) item.lowestCents = Math.min(item.lowestCents ?? price.final, price.final);
+        }
+        try {
+          const deals = await fetchDeals(list.map((item) => item.appId));
+          for (const item of list) item.deals = deals.get(item.appId) ?? item.deals;
+          this.dealsWarned = false;
+        } catch (err) {
+          // Servidor de preços fora do ar ou sem a chave do GG.deals: avisa uma vez por sessão, não a cada atualização
+          if (!this.dealsWarned) console.warn(`[Desejos] Preços de outras lojas indisponíveis: ${describeError(err)}`);
+          this.dealsWarned = true;
+        }
+        this.notify(list);
       } catch (err) {
-        console.warn(`[Desejos] Preços de outras lojas indisponíveis: ${(err as Error).message}`);
+        if (isConnectionError(err)) offline = true;
+        else warning ??= `Não foi possível atualizar os preços (${describeError(err)}). Clique em Atualizar para tentar de novo.`;
       }
-      this.notify(list);
-    } catch (err) {
-      warning ??= `Não foi possível atualizar os preços (${(err as Error).message}). Confira a internet e clique em Atualizar.`;
     }
+    if (offline) warning ??= OFFLINE_WARNING;
 
-    db.setWishlist(list);
+    this.commit(list, snapshot);
     if (!warning) db.setSetting(LAST_SYNC_SETTING, new Date().toISOString());
     console.log(`[Desejos] ${list.length} jogos; ${list.filter((i) => (i.discountPercent ?? 0) > 0).length} em promoção`);
     return this.getState(warning);
+  }
+
+  // Grava o resultado sem desfazer o que o jogador mudou enquanto a atualização rodava (remover, preço-alvo, adicionar)
+  private commit(list: WishlistItem[], snapshot: Map<number, WishlistItem>): void {
+    const current = new Map(db.getWishlist().map((item) => [item.appId, item]));
+    const merged: WishlistItem[] = [];
+    for (const item of list) {
+      const now = current.get(item.appId);
+      if (!now && snapshot.has(item.appId)) continue;
+      const targetChanged = now && now.targetCents !== snapshot.get(item.appId)?.targetCents;
+      merged.push(targetChanged ? { ...item, targetCents: now.targetCents, notifiedCents: now.notifiedCents } : item);
+    }
+    const kept = new Set(merged.map((item) => item.appId));
+    for (const [appId, item] of current) if (!snapshot.has(appId) && !kept.has(appId)) merged.push(item);
+    db.setWishlist(merged);
   }
 
   private notify(list: WishlistItem[]): void {
@@ -215,9 +273,11 @@ class WishlistService {
 
   async add(appId: number, name: string): Promise<WishlistState> {
     if (!Number.isInteger(appId) || appId <= 0) throw new Error('Jogo inválido.');
+    // Uma atualização em andamento não traria o preço do jogo novo: espera ela e atualiza de novo
+    await this.running?.catch(() => undefined);
     const list = db.getWishlist();
     if (!list.some((item) => item.appId === appId)) {
-      db.setWishlist([{ appId, name: name.trim().slice(0, 200) || `Jogo ${appId}`, source: 'manual', addedAt: new Date().toISOString() }, ...list]);
+      db.setWishlist([{ appId, name: String(name ?? '').trim().slice(0, 200) || `Jogo ${appId}`, source: 'manual', addedAt: new Date().toISOString() }, ...list]);
     }
     return this.sync();
   }

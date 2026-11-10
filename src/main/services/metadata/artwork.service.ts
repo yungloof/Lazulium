@@ -2,6 +2,7 @@ import { Game, GameMedia } from '@shared/types/game';
 import { FetchAssetsOptions, GameAssetsResult, MediaAssetType, SteamGridDBGame } from '@shared/types/ipc';
 import { db } from '../../database/db';
 import { cacheRemoteAsset, isCachedFileMissing, isCachedMediaUrl, removeCachedFile } from './media-cache.service';
+import { HttpError, describeError, httpRequest, isConnectionError, logBackgroundFailure, sleep } from './http';
 import {
   SteamGridDbError,
   getAssets,
@@ -22,8 +23,7 @@ const MEDIA_FIELD: Record<MediaAssetType, keyof GameMedia> = {
 const ASSET_TYPES = Object.keys(MEDIA_FIELD) as MediaAssetType[];
 const QUEUE_DELAY_MS = 300;         // Espaçamento entre jogos na busca automática
 const MAX_CANDIDATES = 8;
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const BROKEN_CHECK_TIMEOUT_MS = 10_000;
 
 function emptyResult(error?: string): GameAssetsResult {
   return { sgdbGame: null, candidates: [], grids: [], heroes: [], logos: [], icons: [], error };
@@ -163,11 +163,14 @@ class ArtworkService {
         try {
           await this.fillMissing(gameId);
         } catch (err) {
-          console.warn(`[Artwork] ${gameId}: ${(err as Error).message}`);
+          const offline = err instanceof SteamGridDbError && err.status === undefined;
+          if (offline) logBackgroundFailure('[Artwork]', new HttpError((err as Error).message, 'network'));
+          else console.warn(`[Artwork] ${gameId}: ${(err as Error).message}`);
           // Chave inválida, limite atingido ou sem conexão (status ausente): não adianta continuar a fila.
           // A fila volta a rodar no próximo scan ou quando o renderer avisa que a conexão voltou.
-          if (err instanceof SteamGridDbError && (err.status === undefined || [401, 403, 429].includes(err.status))) {
+          if (offline || (err instanceof SteamGridDbError && [401, 403, 429].includes(err.status!))) {
             this.queue.clear();
+            break;
           }
         }
         await sleep(QUEUE_DELAY_MS);
@@ -192,16 +195,26 @@ class ArtworkService {
     }
 
     const found: Partial<GameMedia> = {};
+    // A conexão caiu no meio: guarda o que já baixou e para a fila (o erro sobe depois de salvar)
+    let lostConnection: SteamGridDbError | undefined;
     for (const type of missing) {
-      const [best] = await getAssets(apiKey, sgdbGame.id, type);
-      if (!best) continue;
       try {
+        const [best] = await getAssets(apiKey, sgdbGame.id, type);
+        if (!best) continue;
         found[MEDIA_FIELD[type]] = await cacheRemoteAsset(gameId, type, best.url);
       } catch (err) {
+        if (isConnectionError(err) || (err instanceof SteamGridDbError && err.status === undefined)) {
+          lostConnection = err instanceof SteamGridDbError ? err : new SteamGridDbError(describeError(err));
+          break;
+        }
+        if (err instanceof SteamGridDbError) throw err;
         console.warn(`[Artwork] ${game.title} (${type}): ${(err as Error).message}`);
       }
     }
-    if (Object.keys(found).length === 0) return;
+    if (Object.keys(found).length === 0) {
+      if (lostConnection) throw lostConnection;
+      return;
+    }
 
     // Relê o jogo: o usuário pode ter escolhido uma arte enquanto baixávamos
     const current = db.getGameById(gameId);
@@ -216,6 +229,7 @@ class ArtworkService {
     db.upsertGame(updated);
     console.log(`[Artwork] ${game.title}: ${Object.keys(found).join(', ')} -> "${sgdbGame.name}"`);
     this.listener(updated);
+    if (lostConnection) throw lostConnection;
   }
 
   // A UI avisa que uma imagem remota não carregou (ex: Steam sem capa vertical).
@@ -224,15 +238,16 @@ class ArtworkService {
     const game = db.getGameById(gameId);
     const field = MEDIA_FIELD[type];
     const url = game?.media?.[field];
-    if (!game || !url || isCachedMediaUrl(url) || this.checkedBrokenUrls.has(url)) return;
-    this.checkedBrokenUrls.add(url);
+    if (!game || !url || isCachedMediaUrl(url) || this.checkedBrokenUrls.has(url) || !/^https:\/\//i.test(url)) return;
 
     let status: number;
     try {
-      status = (await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(10_000) })).status;
+      status = (await httpRequest(url, { method: 'HEAD', timeoutMs: BROKEN_CHECK_TIMEOUT_MS })).status;
     } catch {
+      // Sem conexão não prova nada: a URL pode ser conferida de novo quando a internet voltar
       return;
     }
+    this.checkedBrokenUrls.add(url);
     if (![403, 404, 410].includes(status)) return;
 
     const updated: Game = { ...game, media: { ...game.media, [field]: undefined } };

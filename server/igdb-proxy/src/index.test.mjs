@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { cleanTitle, normalizeTitle } from './index.js';
+import worker, { cleanTitle, normalizeTitle, toCents, toDeal } from './index.js';
 
 const SECRET = 'segredo-de-teste';
 
@@ -32,6 +32,8 @@ function setup(igdbHandler, { tokenStatus = 200 } = {}) {
     if (href.startsWith('https://id.twitch.tv/')) {
       calls.tokens++;
       assert.equal(options.method, 'POST');
+      assert.ok(!href.includes(SECRET), 'o segredo da Twitch não vai na URL');
+      assert.ok(String(options.body).includes('client_secret='), 'o segredo vai no corpo');
       if (tokenStatus !== 200) return new Response('{}', { status: tokenStatus });
       return ok({ access_token: `token-${calls.tokens}`, expires_in: 5000000, token_type: 'bearer' });
     }
@@ -292,24 +294,144 @@ test('Falha do IGDB na busca não entra no cache', async (t) => {
 });
 
 const GG_SECRET = 'chave-gg-de-teste';
-function setupPrices(handler) {
+
+// Cache da borda falso (caches.default do Worker), por URL da requisição
+function fakeEdgeCache() {
+  const store = new Map();
+  return {
+    store,
+    async match(request) {
+      const hit = store.get(request.url);
+      return hit ? new Response(hit) : undefined;
+    },
+    async put(request, response) {
+      store.set(request.url, await response.text());
+    }
+  };
+}
+
+function setupPrices(handler, { edgeCache } = {}) {
   const original = globalThis.fetch;
+  const originalCaches = globalThis.caches;
+  const originalError = console.error;
+  const logs = [];
+  console.error = (...args) => logs.push(args.join(' '));
+  if (edgeCache) globalThis.caches = { default: edgeCache };
   const calls = [];
   globalThis.fetch = async (url) => {
     const href = String(url);
     assert.ok(href.startsWith('https://api.gg.deals/v1/prices/by-steam-app-id/?'), `chamada inesperada: ${href}`);
-    calls.push(new URL(href).searchParams);
-    return handler();
+    const params = new URL(href).searchParams;
+    calls.push(params);
+    return handler(params);
   };
   const env = { GGDEALS_API_KEY: GG_SECRET };
   const get = async (query, overrideEnv = env) => {
     const res = await worker.fetch(new Request(`https://proxy.test/v1/prices?${query}`), overrideEnv);
     const text = await res.text();
     assert.ok(!text.includes(GG_SECRET), 'a chave vazou na resposta');
-    return { status: res.status, body: JSON.parse(text) };
+    return { status: res.status, body: JSON.parse(text), headers: res.headers };
   };
-  return { calls, get, restore: () => (globalThis.fetch = original) };
+  return {
+    calls,
+    logs,
+    get,
+    restore: () => {
+      globalThis.fetch = original;
+      globalThis.caches = originalCaches;
+      console.error = originalError;
+    }
+  };
 }
+
+// Exemplo no formato da documentação do GG.deals (gg.deals/api/prices): preços em texto decimal, null para o que não existe
+const GG_EXAMPLE = {
+  success: true,
+  data: {
+    1: null,
+    420: {
+      title: 'Half-Life 2: Episode Two',
+      url: 'https://gg.deals/game/half-life-2-episode-two/',
+      prices: { currentRetail: '91.99', currentKeyshops: null, historicalRetail: '5.61', historicalKeyshops: '5.61', currency: 'BRL' }
+    }
+  }
+};
+
+test('Preços: formato documentado do GG.deals (texto decimal, null e id desconhecido)', async (t) => {
+  const s = setupPrices(() => ok(GG_EXAMPLE));
+  t.after(s.restore);
+  const { status, body } = await s.get('steamAppIds=420,1,999');
+  assert.equal(status, 200);
+  assert.deepEqual(body.prices['420'], { url: 'https://gg.deals/game/half-life-2-episode-two/', currency: 'BRL', retail: 9199, keyshops: null, lowestRetail: 561, lowestKeyshops: 561 });
+  assert.equal(body.prices['1'], null, 'id que o GG.deals não conhece vem como null');
+  assert.equal(body.prices['999'], null, 'id ausente na resposta também');
+});
+
+test('Preços: só número decimal simples vira centavos', () => {
+  assert.equal(toCents('8.19'), 819);
+  assert.equal(toCents('0'), 0);
+  assert.equal(toCents(3.5), 350);
+  assert.equal(toCents('1,234.56'), null, 'separador de milhar não vira 1 real');
+  assert.equal(toCents('-1'), null);
+  assert.equal(toCents('abc'), null);
+  assert.equal(toCents(null), null);
+  assert.equal(toCents(undefined), null);
+});
+
+test('Preços: entrada sem moeda ou com link de fora não passa', () => {
+  assert.equal(toDeal({ url: 'https://gg.deals/x/', prices: { currentRetail: '1.00' } }), null);
+  assert.equal(toDeal({ url: 'https://gg.deals/x/', prices: 'x' }), null);
+  assert.equal(toDeal({ url: 'https://evil.example/', prices: { currentRetail: '1.00', currency: 'BRL' } }).url, null);
+});
+
+test('Preços: cache por jogo, e só os que faltam vão ao GG.deals', async (t) => {
+  const edge = fakeEdgeCache();
+  const s = setupPrices((params) => ok({ success: true, data: Object.fromEntries(params.get('ids').split(',').map((id) => [id, GG_EXAMPLE.data[420]])) }), { edgeCache: edge });
+  t.after(s.restore);
+  await s.get('steamAppIds=420,10');
+  const second = await s.get('steamAppIds=10,420,20');
+  assert.equal(s.calls.length, 2);
+  assert.equal(s.calls[1].get('ids'), '20', 'os já guardados não gastam a cota da chave');
+  assert.equal(second.body.prices['10'].retail, 9199);
+  await s.get('steamAppIds=20,10');
+  assert.equal(s.calls.length, 2, 'tudo em cache: nem consulta');
+});
+
+test('Preços: cota do GG.deals esgotada vira 429, ou devolve o que já estava em cache', async (t) => {
+  const edge = fakeEdgeCache();
+  let reply = () => ok(GG_EXAMPLE);
+  const s = setupPrices(() => reply(), { edgeCache: edge });
+  t.after(s.restore);
+  reply = () => new Response('{}', { status: 429, headers: { 'Retry-After': '60' } });
+  const limited = await s.get('steamAppIds=420');
+  assert.equal(limited.status, 429);
+  assert.equal(limited.headers.get('Retry-After'), '60');
+  reply = () => ok(GG_EXAMPLE);
+  await s.get('steamAppIds=420');
+  reply = () => new Response('{}', { status: 429 });
+  const partial = await s.get('steamAppIds=420,7');
+  assert.equal(partial.status, 200);
+  assert.equal(partial.body.incomplete, true);
+  assert.equal(partial.body.prices['420'].retail, 9199);
+  assert.ok(!('7' in partial.body.prices));
+});
+
+test('Preços: falha não vai para o cache nem leva a chave para o log', async (t) => {
+  const edge = fakeEdgeCache();
+  const s = setupPrices(() => {
+    throw new TypeError(`fetch failed for https://api.gg.deals/v1/prices/by-steam-app-id/?ids=1&key=${GG_SECRET}`);
+  }, { edgeCache: edge });
+  t.after(s.restore);
+  assert.equal((await s.get('steamAppIds=420')).status, 503);
+  assert.equal(edge.store.size, 0);
+  assert.ok(s.logs.length > 0 && !s.logs.some((l) => l.includes(GG_SECRET)), 'a chave não aparece no log');
+});
+
+test('Preços: "success" verdadeiro mas sem objeto de dados vira 503', async (t) => {
+  const s = setupPrices(() => ok({ success: true, data: [] }));
+  t.after(s.restore);
+  assert.equal((await s.get('steamAppIds=420')).status, 503);
+});
 
 test('Preços: converte para centavos e só repassa os campos conhecidos', async (t) => {
   const s = setupPrices(() => ok({ success: true, data: { 1: null, 420: { title: 'Jogo', url: 'https://gg.deals/game/jogo/', segredo: 'x', prices: { currentRetail: '8.19', currentKeyshops: 3.5, historicalRetail: '0.81', historicalKeyshops: null, currency: 'BRL' } } } }));

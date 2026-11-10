@@ -6,6 +6,7 @@ import { join } from 'path';
 import { SteamLocalAccount } from '@shared/types/accounts';
 import { findSteamPath } from '../scanners/steam-scanner.service';
 import { parseVdf, vdfGetObject, vdfGetString } from '../scanners/vdf-parser';
+import { describeError, fetchText } from '../metadata/http';
 
 const OPENID_URL = 'https://steamcommunity.com/openid/login';
 const OPENID_NS = 'http://specs.openid.net/auth/2.0';
@@ -49,13 +50,12 @@ export async function listLocalSteamAccounts(): Promise<SteamLocalAccount[]> {
 
 // Nome público do perfil (XML da comunidade, sem chave de API)
 export async function fetchSteamPersona(steamId: string): Promise<string | undefined> {
+  if (!/^7656\d{13}$/.test(steamId)) return undefined;
   try {
-    const res = await fetch(`https://steamcommunity.com/profiles/${steamId}/?xml=1`, {
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
-    });
-    const xml = await res.text();
-    return xml.match(/<steamID><!\[CDATA\[([\s\S]*?)\]\]><\/steamID>/)?.[1]?.trim() || undefined;
+    const xml = await fetchText(`https://steamcommunity.com/profiles/${steamId}/?xml=1`, { service: 'a Steam', timeoutMs: REQUEST_TIMEOUT_MS });
+    return xml.match(/<steamID><!\[CDATA\[([\s\S]*?)\]\]><\/steamID>/)?.[1]?.trim().slice(0, 64) || undefined;
   } catch {
+    // Sem o nome a conta conecta do mesmo jeito: ele aparece na próxima atualização do perfil
     return undefined;
   }
 }
@@ -127,12 +127,18 @@ async function verifyOpenIdResponse(params: URLSearchParams, returnTo: string): 
 
   const body = new URLSearchParams(params);
   body.set('openid.mode', 'check_authentication');
-  const res = await fetch(OPENID_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
-  });
-  if (!/is_valid\s*:\s*true/.test(await res.text())) throw new Error('A Steam não confirmou o login.');
+  let reply: string;
+  try {
+    reply = await fetchText(OPENID_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+      timeoutMs: REQUEST_TIMEOUT_MS,
+      service: 'a Steam'
+    });
+  } catch (err) {
+    throw new Error(`Não foi possível confirmar o login com a Steam. ${describeError(err)}`);
+  }
+  if (!/is_valid\s*:\s*true/.test(reply)) throw new Error('A Steam não confirmou o login.');
   return steamId;
 }

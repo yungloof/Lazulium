@@ -8,6 +8,7 @@ import { retroAchievementsService } from './retroachievements.service';
 import { applyExtras, buildMilestoneList } from './local-achievements.service';
 import { Game, isJournalEntry } from '@shared/types/game';
 import { markPerfectGame } from '../profile/journal.service';
+import { logBackgroundFailure } from '../metadata/http';
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas de validade de cache
 const CATALOG_RECHECK_MS = 30 * 24 * 60 * 60 * 1000; // Jogo sem lista hoje pode ganhar uma depois
@@ -74,9 +75,10 @@ export class AchievementsService {
         const merged: GameAchievements = {
           ...cached,
           retryable: result.retryable,
-          warning: `Não foi possível atualizar agora (${result.warning}). Exibindo a última sincronização.`
+          warning: `${result.warning.replace(/[.\s]+$/, '')}. Mostrando as conquistas da última atualização.`
         };
-        if (result.retryable) db.saveGameAchievements(merged);
+        // Marca para tentar de novo na próxima abertura. Sem internet, a mesma marca não regrava o banco (grande) a cada jogo.
+        if (result.retryable && (!cached.retryable || cached.warning !== merged.warning)) db.saveGameAchievements(merged);
         return merged;
       }
       // Jogo sem conquistas na Steam é como qualquer outro sem lista: ganha os marcos
@@ -128,8 +130,9 @@ export class AchievementsService {
     }
 
     if (result && result.total > 0) return result;
-    // Sem resposta agora: a última lista boa continua valendo
-    return result?.retryable && lastGood ? { ...lastGood, retryable: true } : null;
+    // Sem resposta agora: a última lista boa continua valendo (e o aviso diz por que não atualizou)
+    if (!result?.retryable || !lastGood) return null;
+    return { ...lastGood, retryable: true, warning: result.warning ? `${result.warning.replace(/[.\s]+$/, '')}. Mostrando as conquistas da última atualização.` : undefined };
   }
 
   private async resolveCatalog(game: Game, user: string, key: string): Promise<AchievementExtras['catalog']> {
@@ -138,7 +141,8 @@ export class AchievementsService {
       db.setAchievementExtras(game.id, { ...db.getAchievementExtras(game.id), catalog, catalogCheckedAt: Date.now() });
       return catalog;
     } catch (err) {
-      console.warn(`[Conquistas] ${game.title}: ${(err as Error).message}`);
+      // Nada fica gravado: a próxima abertura do jogo procura de novo (sem internet, o log avisa uma vez só)
+      logBackgroundFailure(`[Conquistas] ${game.title}:`, err);
       return undefined;
     }
   }

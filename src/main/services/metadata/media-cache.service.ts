@@ -5,6 +5,7 @@ import { mkdir, rename, rm, unlink, writeFile } from 'fs/promises';
 import { join, resolve, sep } from 'path';
 import { pathToFileURL } from 'url';
 import { MediaAssetType } from '@shared/types/ipc';
+import { httpRequest } from './http';
 
 export const MEDIA_SCHEME = 'lazulium-media';
 const MEDIA_HOST = 'media';
@@ -60,10 +61,15 @@ export function migrateMediaCache(): void {
 // Arquivo em disco de uma URL de arte em cache (undefined se a URL não for do cache)
 function cachedFilePath(url?: string): string | undefined {
   if (!url?.startsWith(`${MEDIA_SCHEME}://${MEDIA_HOST}/`)) return undefined;
-  const segments = new URL(url).pathname.split('/').filter(Boolean).map(decodeURIComponent);
-  const root = resolve(getCacheRoot());
-  const path = resolve(root, ...segments);
-  return path.startsWith(root + sep) ? path : undefined;
+  try {
+    const segments = new URL(url).pathname.split('/').filter(Boolean).map(decodeURIComponent);
+    const root = resolve(getCacheRoot());
+    const path = resolve(root, ...segments);
+    return path.startsWith(root + sep) ? path : undefined;
+  } catch {
+    // URL malformada no banco: tratada como fora do cache (nunca derruba a abertura do app)
+    return undefined;
+  }
 }
 
 export function isCachedFileMissing(url?: string): boolean {
@@ -77,7 +83,8 @@ export async function removeCachedFile(url?: string): Promise<void> {
   if (path) await unlink(path).catch(() => undefined);
 }
 
-function gameDirName(gameId: string): string {
+// Nome de pasta seguro para um jogo (artes, capturas e backups usam o mesmo)
+export function gameDirName(gameId: string): string {
   return gameId.replace(/[^a-z0-9._-]/gi, '_');
 }
 
@@ -132,20 +139,34 @@ export function isCachedMediaUrl(url?: string): boolean {
   return !!url && url.startsWith(`${MEDIA_SCHEME}://`);
 }
 
+const isAllowedImageUrl = (url: URL) => url.protocol === 'https:' && ALLOWED_HOST.test(url.hostname);
+
 // Baixa a arte para o cache e retorna a URL local (quem chama remove a arte anterior, se houver).
 export async function cacheRemoteAsset(gameId: string, type: MediaAssetType, remoteUrl: string): Promise<string> {
   const url = new URL(remoteUrl);
-  if (url.protocol !== 'https:' || !ALLOWED_HOST.test(url.hostname)) {
-    throw new Error(`Origem de imagem não permitida: ${url.hostname}`);
-  }
+  if (!isAllowedImageUrl(url)) throw new Error(`Origem de imagem não permitida: ${url.hostname}`);
 
-  const res = await fetch(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) });
-  if (!res.ok) throw new Error(`Falha ao baixar imagem (HTTP ${res.status}).`);
+  const res = await httpRequest(url, { timeoutMs: DOWNLOAD_TIMEOUT_MS, retries: 1, service: 'o SteamGridDB' });
+  // Um redirecionamento não pode levar o download para fora do CDN permitido
+  if (res.url && !isAllowedImageUrl(new URL(res.url))) {
+    await res.body?.cancel().catch(() => undefined);
+    throw new Error(`Origem de imagem não permitida: ${new URL(res.url).hostname}`);
+  }
+  if (!res.ok) {
+    await res.body?.cancel().catch(() => undefined);
+    throw new Error(`Não foi possível baixar a imagem (erro ${res.status}).`);
+  }
 
   const mime = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
   const ext = EXTENSION_BY_MIME[mime] ?? url.pathname.split('.').pop()?.toLowerCase();
   if (!mime.startsWith('image/') || !ext || !/^(png|jpe?g|webp|ico)$/.test(ext)) {
+    await res.body?.cancel().catch(() => undefined);
     throw new Error(`Formato de imagem não suportado (${mime || 'desconhecido'}).`);
+  }
+  // Confere o tamanho antes de trazer a imagem para a memória
+  if (Number(res.headers.get('content-length') ?? 0) > MAX_DOWNLOAD_BYTES) {
+    await res.body?.cancel().catch(() => undefined);
+    throw new Error('Imagem grande demais.');
   }
 
   const buffer = Buffer.from(await res.arrayBuffer());
@@ -157,8 +178,14 @@ export async function cacheRemoteAsset(gameId: string, type: MediaAssetType, rem
 
   const fileName = `${type}-${createHash('sha1').update(remoteUrl).digest('hex').slice(0, 12)}.${ext}`;
   const tmpPath = join(dir, `${fileName}.tmp`);
-  await writeFile(tmpPath, buffer);
-  await rename(tmpPath, join(dir, fileName));
+  try {
+    await writeFile(tmpPath, buffer);
+    await rename(tmpPath, join(dir, fileName));
+  } catch (err) {
+    // Disco cheio ou arquivo preso: não deixa o .tmp para trás
+    await unlink(tmpPath).catch(() => undefined);
+    throw err;
+  }
 
   // ?v=: a URL muda a cada aplicação, então o Chromium nunca reaproveita a imagem anterior em cache
   // (o protocolo ignora a query ao achar o arquivo)

@@ -4,6 +4,7 @@ import { createServer, Server } from 'http';
 import { AddressInfo } from 'net';
 import { DriveStatus } from '@shared/types/cloudsync';
 import { db } from '../../database/db';
+import { describeError, httpRequest } from '../metadata/http';
 
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -28,6 +29,7 @@ export const DRIVE_SETTING_KEYS = {
   folderId: 'googleDriveFolderId'
 } as const;
 
+// status ausente = sem conexão (ou o Google demorou demais): o envio fica pendente e tenta de novo depois
 export class DriveError extends Error {
   constructor(
     message: string,
@@ -36,6 +38,8 @@ export class DriveError extends Error {
     super(message);
   }
 }
+
+export const isDriveConnectionError = (err: unknown) => err instanceof DriveError && err.status === undefined;
 
 export interface DriveBackupFile {
   id: string;
@@ -90,6 +94,7 @@ class GoogleDriveService {
   private accessToken?: { value: string; expiresAt: number };
   private cancelPendingAuth?: () => void;
   private gameFolders = new Map<string, string>();
+  private folderTasks = new Map<string, Promise<string>>();
 
   getStatus(): DriveStatus {
     return {
@@ -191,13 +196,19 @@ class GoogleDriveService {
     const refreshToken = setting(DRIVE_SETTING_KEYS.refreshToken);
     this.cancelPendingAuth?.();
     this.accessToken = undefined;
+    this.gameFolders.clear();
+    this.folderTasks.clear();
     for (const key of [DRIVE_SETTING_KEYS.refreshToken, DRIVE_SETTING_KEYS.email, DRIVE_SETTING_KEYS.folderId]) {
       db.setSetting(key, '');
     }
     if (refreshToken) {
-      await fetch(`${REVOKE_URL}?token=${encodeURIComponent(refreshToken)}`, {
+      // Token no corpo do POST, não na URL (URLs acabam em logs de proxy)
+      await httpRequest(REVOKE_URL, {
         method: 'POST',
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ token: refreshToken }).toString(),
+        timeoutMs: REQUEST_TIMEOUT_MS,
+        service: 'o Google'
       }).catch(() => undefined);
     }
     return this.getStatus();
@@ -206,25 +217,28 @@ class GoogleDriveService {
   private async tokenRequest(params: Record<string, string>): Promise<TokenResponse> {
     let res: Response;
     try {
-      res = await fetch(TOKEN_URL, {
+      res = await httpRequest(TOKEN_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams(params).toString(),
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+        timeoutMs: REQUEST_TIMEOUT_MS,
+        retries: 1,
+        service: 'o Google'
       });
     } catch (err) {
-      throw new DriveError(`Sem conexão com o Google (${(err as Error).message}).`);
+      throw new DriveError(describeError(err));
     }
-    const body = (await res.json().catch(() => ({}))) as TokenResponse & { error?: string; error_description?: string };
+    const body = (await res.json().catch(() => ({}))) as Partial<TokenResponse> & { error?: string; error_description?: string };
     if (!res.ok) {
       if (body.error === 'invalid_grant') {
         db.setSetting(DRIVE_SETTING_KEYS.refreshToken, '');
         throw new DriveError('A conexão com o Google Drive expirou ou foi revogada. Conecte novamente.', 401);
       }
       if (body.error === 'invalid_client') throw new DriveError('Client ID ou Client Secret do OAuth inválido.', 401);
-      throw new DriveError(`Google: ${body.error_description || body.error || `HTTP ${res.status}`}`, res.status);
+      throw new DriveError(`O Google recusou o login (${body.error_description || body.error || `erro ${res.status}`}).`, res.status);
     }
-    return body;
+    if (typeof body.access_token !== 'string' || !body.access_token) throw new DriveError('O Google mandou uma resposta que o Lazulium não entendeu.', res.status);
+    return { ...body, access_token: body.access_token, expires_in: Number(body.expires_in) > 0 ? Number(body.expires_in) : 3600 };
   }
 
   private async getAccessToken(forceRefresh = false): Promise<string> {
@@ -242,21 +256,27 @@ class GoogleDriveService {
     return tokens.access_token;
   }
 
-  private async request(url: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
+  // retries: só para pedidos que repetidos não criam nada em dobro (GET, DELETE, sessão de upload)
+  private async request(url: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS, retries = 0): Promise<Response> {
     const send = async (token: string) => {
       try {
-        return await fetch(url, {
+        return await httpRequest(url, {
           ...init,
           headers: { ...(init.headers as Record<string, string>), Authorization: `Bearer ${token}` },
-          signal: AbortSignal.timeout(timeoutMs)
+          timeoutMs,
+          retries,
+          service: 'o Google Drive'
         });
       } catch (err) {
-        throw new DriveError(`Sem conexão com o Google Drive (${(err as Error).message}).`);
+        throw new DriveError(describeError(err));
       }
     };
 
     let res = await send(await this.getAccessToken());
-    if (res.status === 401) res = await send(await this.getAccessToken(true));
+    if (res.status === 401) {
+      await res.body?.cancel().catch(() => undefined);
+      res = await send(await this.getAccessToken(true));
+    }
     if (!res.ok) {
       const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
       // Conta conectada sem a permissão: desconecta para o app oferecer o login em vez de seguir tentando
@@ -267,86 +287,114 @@ class GoogleDriveService {
         console.warn('[GoogleDrive] Conta sem permissão do Drive: desconectada até entrar de novo');
         throw new DriveError(NO_DRIVE_PERMISSION, 403);
       }
-      throw new DriveError(`Google Drive: ${body?.error?.message || `HTTP ${res.status}`}`, res.status);
+      if (res.status === 403 && /storage quota|quota exceeded/i.test(body?.error?.message ?? '')) {
+        throw new DriveError('O Google Drive está sem espaço. Libere espaço na sua conta do Google e tente de novo.', 403);
+      }
+      throw new DriveError(`Google Drive: ${body?.error?.message?.slice(0, 200) || `erro ${res.status}`}`, res.status);
     }
     return res;
   }
 
-  private async ensureFolder(): Promise<string> {
-    const savedId = setting(DRIVE_SETTING_KEYS.folderId);
-    if (savedId) {
-      try {
-        const res = await this.request(`${DRIVE_API}/files/${savedId}?fields=id,trashed`);
-        const folder = (await res.json()) as { trashed?: boolean };
-        if (!folder.trashed) return savedId;
-      } catch (err) {
-        if (!(err instanceof DriveError) || err.status !== 404) throw err;
-      }
+  private async json<T>(res: Response): Promise<T> {
+    try {
+      return (await res.json()) as T;
+    } catch {
+      throw new DriveError('O Google Drive mandou uma resposta que o Lazulium não entendeu.', res.status);
     }
+  }
 
-    const q = `name='${FOLDER_NAME}' and mimeType='${FOLDER_MIME}' and trashed=false`;
-    const list = (await (
-      await this.request(`${DRIVE_API}/files?${new URLSearchParams({ q, fields: 'files(id)', spaces: 'drive' })}`)
-    ).json()) as { files: { id: string }[] };
+  private async findFolder(q: string): Promise<string | undefined> {
+    const list = await this.json<{ files?: { id?: unknown }[] } | null>(
+      await this.request(`${DRIVE_API}/files?${new URLSearchParams({ q, fields: 'files(id)', spaces: 'drive' })}`, {}, REQUEST_TIMEOUT_MS, 2)
+    );
+    const id = Array.isArray(list?.files) ? list.files.find((f) => typeof f?.id === 'string')?.id : undefined;
+    return typeof id === 'string' ? id : undefined;
+  }
 
-    let folderId = list.files[0]?.id;
-    if (!folderId) {
-      const created = await this.request(`${DRIVE_API}/files?fields=id`, {
+  private async createFolder(name: string, parent?: string): Promise<string> {
+    const created = await this.json<{ id?: unknown } | null>(
+      await this.request(`${DRIVE_API}/files?fields=id`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: FOLDER_NAME, mimeType: FOLDER_MIME })
-      });
-      folderId = ((await created.json()) as { id: string }).id;
-    }
-    db.setSetting(DRIVE_SETTING_KEYS.folderId, folderId);
-    return folderId;
+        body: JSON.stringify({ name, mimeType: FOLDER_MIME, ...(parent ? { parents: [parent] } : {}) })
+      })
+    );
+    if (typeof created?.id !== 'string') throw new DriveError('O Google Drive não criou a pasta de backups.', 502);
+    return created.id;
+  }
+
+  // Dois backups ao mesmo tempo (fim de jogo e passada diária) criariam duas pastas iguais: a mesma busca serve aos dois
+  private singleFlight(key: string, task: () => Promise<string>): Promise<string> {
+    const running = this.folderTasks.get(key);
+    if (running) return running;
+    const promise = task().finally(() => this.folderTasks.delete(key));
+    this.folderTasks.set(key, promise);
+    return promise;
+  }
+
+  private ensureFolder(): Promise<string> {
+    return this.singleFlight('root', async () => {
+      const savedId = setting(DRIVE_SETTING_KEYS.folderId);
+      if (savedId) {
+        try {
+          const folder = await this.json<{ trashed?: boolean } | null>(
+            await this.request(`${DRIVE_API}/files/${encodeURIComponent(savedId)}?fields=id,trashed`, {}, REQUEST_TIMEOUT_MS, 2)
+          );
+          if (!folder?.trashed) return savedId;
+        } catch (err) {
+          if (!(err instanceof DriveError) || err.status !== 404) throw err;
+        }
+      }
+
+      const folderId = (await this.findFolder(`name='${FOLDER_NAME}' and mimeType='${FOLDER_MIME}' and trashed=false`)) ?? (await this.createFolder(FOLDER_NAME));
+      if (folderId !== savedId) this.gameFolders.clear();
+      db.setSetting(DRIVE_SETTING_KEYS.folderId, folderId);
+      return folderId;
+    });
   }
 
   // Lazulium Backups/<nome do jogo>/: dá para achar qualquer save também pelo site do Drive
   private async ensureGameFolder(gameTitle: string): Promise<string> {
     const parent = await this.ensureFolder();
-    const name = gameTitle.replace(/[\\/:*?"<>|]/g, '').trim() || 'Jogo';
+    const name = gameTitle.replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 120) || 'Jogo';
     const cacheKey = `${parent}/${name}`;
     const cached = this.gameFolders.get(cacheKey);
     if (cached) return cached;
 
-    const escaped = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    const q = `name='${escaped}' and mimeType='${FOLDER_MIME}' and '${parent}' in parents and trashed=false`;
-    const list = (await (await this.request(`${DRIVE_API}/files?${new URLSearchParams({ q, fields: 'files(id)', spaces: 'drive' })}`)).json()) as { files: { id: string }[] };
-    let folderId = list.files[0]?.id;
-    if (!folderId) {
-      const created = await this.request(`${DRIVE_API}/files?fields=id`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, mimeType: FOLDER_MIME, parents: [parent] })
-      });
-      folderId = ((await created.json()) as { id: string }).id;
-    }
-    this.gameFolders.set(cacheKey, folderId);
-    return folderId;
+    return this.singleFlight(cacheKey, async () => {
+      const escaped = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const folderId =
+        (await this.findFolder(`name='${escaped}' and mimeType='${FOLDER_MIME}' and '${parent}' in parents and trashed=false`)) ?? (await this.createFolder(name, parent));
+      this.gameFolders.set(cacheKey, folderId);
+      return folderId;
+    });
   }
 
   // Upload resumível (funciona para qualquer tamanho de .zip)
   async uploadFile(name: string, data: Uint8Array, appProperties: Record<string, string>, gameTitle: string): Promise<string> {
     const folderId = await this.ensureGameFolder(gameTitle);
-    const session = await this.request(`${UPLOAD_API}/files?uploadType=resumable&fields=id`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json; charset=UTF-8',
-        'X-Upload-Content-Type': 'application/zip',
-        'X-Upload-Content-Length': String(data.byteLength)
+    const session = await this.request(
+      `${UPLOAD_API}/files?uploadType=resumable&fields=id`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'X-Upload-Content-Type': 'application/zip',
+          'X-Upload-Content-Length': String(data.byteLength)
+        },
+        body: JSON.stringify({ name, parents: [folderId], mimeType: 'application/zip', appProperties })
       },
-      body: JSON.stringify({ name, parents: [folderId], mimeType: 'application/zip', appProperties })
-    });
-    const uploadUrl = session.headers.get('location');
-    if (!uploadUrl) throw new DriveError('Google Drive não iniciou o upload.');
-
-    const res = await this.request(
-      uploadUrl,
-      { method: 'PUT', headers: { 'Content-Type': 'application/zip' }, body: data as Uint8Array<ArrayBuffer> },
-      TRANSFER_TIMEOUT_MS
+      REQUEST_TIMEOUT_MS,
+      2
     );
-    return ((await res.json()) as { id: string }).id;
+    const uploadUrl = session.headers.get('location');
+    await session.body?.cancel().catch(() => undefined);
+    if (!uploadUrl?.startsWith('https://')) throw new DriveError('O Google Drive não iniciou o envio.', 502);
+
+    const res = await this.request(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'application/zip' }, body: data as Uint8Array<ArrayBuffer> }, TRANSFER_TIMEOUT_MS);
+    const uploaded = await this.json<{ id?: unknown } | null>(res);
+    if (typeof uploaded?.id !== 'string') throw new DriveError('O Google Drive não confirmou o envio.', 502);
+    return uploaded.id;
   }
 
   async listFiles(appPropertyKey: string, value: string): Promise<DriveBackupFile[]> {
@@ -360,20 +408,37 @@ class GoogleDriveService {
       pageSize: '100',
       spaces: 'drive'
     });
-    const body = (await (await this.request(`${DRIVE_API}/files?${params}`)).json()) as {
-      files: (Omit<DriveBackupFile, 'size'> & { size?: string })[];
-    };
-    return body.files.map((f) => ({ ...f, size: Number(f.size ?? 0), appProperties: f.appProperties ?? {} }));
+    const body = await this.json<{ files?: unknown } | null>(await this.request(`${DRIVE_API}/files?${params}`, {}, REQUEST_TIMEOUT_MS, 2));
+    const files = Array.isArray(body?.files) ? (body.files as (Partial<Omit<DriveBackupFile, 'size'>> & { size?: string })[]) : [];
+    return files.flatMap((f) => {
+      if (!f || typeof f.id !== 'string') return [];
+      const props = f.appProperties && typeof f.appProperties === 'object' ? f.appProperties : {};
+      return [
+        {
+          id: f.id,
+          name: typeof f.name === 'string' ? f.name : '',
+          size: Number(f.size ?? 0) || 0,
+          createdTime: typeof f.createdTime === 'string' ? f.createdTime : new Date(0).toISOString(),
+          appProperties: Object.fromEntries(Object.entries(props).filter(([, v]) => typeof v === 'string')) as Record<string, string>
+        }
+      ];
+    });
   }
 
   async downloadFile(fileId: string): Promise<Uint8Array> {
-    const res = await this.request(`${DRIVE_API}/files/${encodeURIComponent(fileId)}?alt=media`, {}, TRANSFER_TIMEOUT_MS);
-    return new Uint8Array(await res.arrayBuffer());
+    const res = await this.request(`${DRIVE_API}/files/${encodeURIComponent(fileId)}?alt=media`, {}, TRANSFER_TIMEOUT_MS, 1);
+    try {
+      return new Uint8Array(await res.arrayBuffer());
+    } catch (err) {
+      throw new DriveError(describeError(err));
+    }
   }
 
   async deleteFile(fileId: string): Promise<void> {
-    await this.request(`${DRIVE_API}/files/${encodeURIComponent(fileId)}`, { method: 'DELETE' });
+    const res = await this.request(`${DRIVE_API}/files/${encodeURIComponent(fileId)}`, { method: 'DELETE' }, REQUEST_TIMEOUT_MS, 2);
+    await res.body?.cancel().catch(() => undefined);
   }
 }
 
 export const googleDriveService = new GoogleDriveService();
+

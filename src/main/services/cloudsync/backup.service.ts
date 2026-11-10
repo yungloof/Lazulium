@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import { randomUUID } from 'crypto';
 import { existsSync } from 'fs';
-import { mkdir, readFile, rename, unlink, writeFile } from 'fs/promises';
+import { mkdir, readFile, rename, statfs, unlink, writeFile } from 'fs/promises';
 import { isAbsolute, join, normalize } from 'path';
 import {
   BackupEvent,
@@ -15,9 +15,10 @@ import {
   SaveLocationSuggestion
 } from '@shared/types/cloudsync';
 import { db } from '../../database/db';
+import { gameDirName } from '../metadata/media-cache.service';
 import { buildArchive, readArchive, sha256, writeRestoreEntries } from './save-archive.service';
 import { detectSaveLocations, sameLocation } from './save-locator.service';
-import { googleDriveService } from './google-drive.service';
+import { DriveError, googleDriveService, isDriveConnectionError } from './google-drive.service';
 
 type BackupListener = (event: BackupEvent) => void;
 
@@ -30,17 +31,32 @@ const MAX_GUESSED_FOLDER_BYTES = 200 * 1024 * 1024; // Pasta achada pelo nome, s
 const CONSENT_SETTING = 'autoBackupConsent';        // 'on' | 'off' | ausente (ainda não perguntou)
 const LIMIT_SETTING = 'backupLimitGb';
 const DEFAULT_LIMIT_GB = 3;
+const MIN_FREE_DISK_BYTES = 512 * 1024 * 1024;      // Folga que o backup nunca come: o Windows e os jogos precisam do disco
+const DRIVE_OFFLINE_PAUSE_MS = 5 * 60_000;          // Sem internet: os próximos backups nem tentam o Drive por alguns minutos
+const DRIVE_OFFLINE_MESSAGE = 'Sem conexão com o Google Drive. O envio é feito sozinho quando a internet voltar.';
 const DRIVE_PROPS = {
   gameId: 'lazuliumGameId',
   backupId: 'lazuliumBackupId'
 } as const;
 
 function backupDir(gameId: string): string {
-  return join(app.getPath('userData'), 'backups', gameId.replace(/[^a-z0-9._-]/gi, '_'));
+  return join(app.getPath('userData'), 'backups', gameDirName(gameId));
 }
 
 function fileStamp(iso: string): string {
   return iso.replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
+}
+
+const formatMb = (bytes: number) => `${Math.max(1, Math.round(bytes / 1024 / 1024))} MB`;
+
+// Espaço livre no disco da pasta de dados (undefined se o Windows não informar)
+async function freeDiskBytes(dir: string): Promise<number | undefined> {
+  try {
+    const info = await statfs(dir);
+    return Number(info.bavail) * Number(info.bsize);
+  } catch {
+    return undefined;
+  }
 }
 
 export class NoSaveFilesError extends Error {}
@@ -50,6 +66,7 @@ class BackupService {
   private locks = new Map<string, Promise<unknown>>();
   private retrying = false;
   private sweeping = false;
+  private driveOfflineUntil = 0;
 
   setBackupListener(listener: BackupListener): void {
     this.listener = listener;
@@ -63,7 +80,7 @@ class BackupService {
     }
   }
 
-  // Operações do mesmo jogo rodam em fila (backup automático x restauração manual)
+  // Operações do mesmo jogo rodam em fila (backup automático x restauração manual x reenvio ao Drive)
   private withLock<T>(gameId: string, task: () => Promise<T>): Promise<T> {
     const previous = this.locks.get(gameId) ?? Promise.resolve();
     const next = previous.catch(() => undefined).then(task);
@@ -81,13 +98,13 @@ class BackupService {
   setConfig(gameId: string, config: GameSaveConfig): GameSaveConfig {
     if (!db.getGameById(gameId)) throw new Error('Jogo não encontrado.');
     const locations: SaveLocation[] = [];
-    for (const loc of config.locations) {
-      const path = loc.path?.trim();
-      if (!path || !isAbsolute(path)) throw new Error(`Caminho inválido: ${loc.path}`);
-      const clean: SaveLocation = { path: normalize(path), filePrefix: loc.filePrefix?.trim() || undefined };
+    for (const loc of Array.isArray(config?.locations) ? config.locations : []) {
+      const path = typeof loc?.path === 'string' ? loc.path.trim() : '';
+      if (!path || !isAbsolute(path)) throw new Error(`Caminho inválido: ${loc?.path ?? ''}`);
+      const clean: SaveLocation = { path: normalize(path), filePrefix: typeof loc.filePrefix === 'string' ? loc.filePrefix.trim() || undefined : undefined };
       if (!locations.some((l) => sameLocation(l, clean))) locations.push(clean);
     }
-    return db.setSaveConfig(gameId, { locations, autoBackup: !!config.autoBackup });
+    return db.setSaveConfig(gameId, { locations, autoBackup: !!config?.autoBackup });
   }
 
   async detect(gameId: string): Promise<SaveLocationSuggestion[]> {
@@ -119,13 +136,30 @@ class BackupService {
       return null;
     }
 
+    const size = archive.data.byteLength;
+    // Uma cópia sozinha maior que o limite de espaço apagaria todas as outras: a automática não entra
+    if (reason === 'auto' && size > this.getLimitBytes()) {
+      throw new Error(`Os saves de ${game.title} ocupam ${formatMb(size)}, mais que o limite de espaço dos backups. Aumente o limite em Configurações ou faça o backup à mão.`);
+    }
+
     const id = randomUUID();
     const createdAt = new Date().toISOString();
     const dir = backupDir(gameId);
     await mkdir(dir, { recursive: true });
+    const free = await freeDiskBytes(dir);
+    if (free !== undefined && free - size < MIN_FREE_DISK_BYTES) {
+      throw new Error(`Pouco espaço livre no disco para o backup de ${game.title} (${formatMb(size)}). Libere espaço e tente de novo.`);
+    }
+
     const localPath = join(dir, `${fileStamp(createdAt)}_${id.slice(0, 8)}.zip`);
-    await writeFile(`${localPath}.tmp`, archive.data);
-    await rename(`${localPath}.tmp`, localPath);
+    try {
+      await writeFile(`${localPath}.tmp`, archive.data);
+      await rename(`${localPath}.tmp`, localPath);
+    } catch (err) {
+      // Disco cheio no meio da gravação: não deixa um .tmp pela metade ocupando espaço
+      await unlink(`${localPath}.tmp`).catch(() => undefined);
+      throw new Error(`Não foi possível gravar o backup de ${game.title} neste PC (${(err as NodeJS.ErrnoException).code ?? 'erro de disco'}).`);
+    }
 
     const record: BackupRecord = {
       id,
@@ -134,7 +168,7 @@ class BackupService {
       createdAt,
       reason,
       fileCount: archive.fileCount,
-      sizeBytes: archive.data.byteLength,
+      sizeBytes: size,
       sha256: archive.sha256,
       contentHash: archive.contentHash,
       localPath
@@ -150,7 +184,21 @@ class BackupService {
 
   // Preenche driveFileId ou driveError no próprio registro
   private async uploadRecord(record: BackupRecord, data: Uint8Array): Promise<void> {
+    // Acabou de faltar internet: não espera a falha de novo a cada jogo, só marca como pendente
+    if (Date.now() < this.driveOfflineUntil) {
+      record.driveError = DRIVE_OFFLINE_MESSAGE;
+      return;
+    }
     try {
+      // Um envio que caiu depois de o Google receber o arquivo não pode virar cópia dobrada no Drive
+      if (record.driveError) {
+        const existing = await googleDriveService.listFiles(DRIVE_PROPS.backupId, record.id);
+        if (existing[0]) {
+          record.driveFileId = existing[0].id;
+          record.driveError = undefined;
+          return;
+        }
+      }
       record.driveFileId = await googleDriveService.uploadFile(
         `${record.gameTitle.replace(/[\\/:*?"<>|]/g, '')} - ${fileStamp(record.createdAt)}.zip`,
         data,
@@ -166,7 +214,15 @@ class BackupService {
         record.gameTitle
       );
       record.driveError = undefined;
+      this.driveOfflineUntil = 0;
     } catch (err) {
+      if (isDriveConnectionError(err)) {
+        // Sem internet é esperado: um aviso no log por queda, e o reenvio acontece sozinho depois
+        if (!this.driveOfflineUntil) console.warn(`[Backup] ${(err as Error).message} Os backups ficam neste PC até a conexão voltar.`);
+        this.driveOfflineUntil = Date.now() + DRIVE_OFFLINE_PAUSE_MS;
+        record.driveError = DRIVE_OFFLINE_MESSAGE;
+        return;
+      }
       record.driveError = (err as Error).message;
       console.warn(`[Backup] ${record.gameTitle}: envio ao Drive falhou: ${record.driveError}`);
     }
@@ -176,19 +232,33 @@ class BackupService {
   async retryPendingUploads(): Promise<number> {
     if (this.retrying || !googleDriveService.isConnected()) return 0;
     this.retrying = true;
+    // Pedido explícito (internet voltou, botão "Tentar enviar de novo"): tenta agora mesmo
+    this.driveOfflineUntil = 0;
     let sent = 0;
     try {
-      const pending = db
+      const pendingIds = db
         .getAllSaveBackups()
-        .filter((r) => !r.driveFileId && r.localPath && existsSync(r.localPath));
-      for (const record of pending) {
-        await this.withLock(record.gameId, async () => {
-          await this.uploadRecord(record, await readFile(record.localPath!));
-          db.upsertSaveBackup(record);
-          if (record.driveFileId) sent++;
-        });
-        // Continua sem conexão: tenta de novo numa próxima oportunidade
-        if (record.driveError?.startsWith('Sem conexão') || !googleDriveService.isConnected()) break;
+        .filter((r) => !r.driveFileId && r.localPath && existsSync(r.localPath))
+        .map((r) => ({ id: r.id, gameId: r.gameId }));
+      for (const { id, gameId } of pendingIds) {
+        const stillOffline = await this.withLock(gameId, async () => {
+          // Relido dentro da fila: a retenção pode ter apagado este backup, e ele não pode voltar ao banco
+          const record = db.getSaveBackups(gameId).find((r) => r.id === id);
+          if (!record || record.driveFileId || !record.localPath || !existsSync(record.localPath)) return false;
+          let data: Uint8Array;
+          try {
+            data = await readFile(record.localPath);
+          } catch {
+            return false;
+          }
+          const updated = { ...record };
+          await this.uploadRecord(updated, data);
+          db.upsertSaveBackup(updated);
+          if (updated.driveFileId) sent++;
+          return updated.driveError === DRIVE_OFFLINE_MESSAGE;
+        }).catch(() => false);
+        // Continua sem conexão (ou a conta caiu): tenta de novo numa próxima oportunidade
+        if (stillOffline || !googleDriveService.isConnected()) break;
       }
     } finally {
       this.retrying = false;
@@ -215,7 +285,7 @@ class BackupService {
   setAutoEnabled(enabled: boolean): BackupOverview {
     db.setSetting(CONSENT_SETTING, enabled ? 'on' : 'off');
     // Ligar começa a conferir agora, sem segurar quem clicou
-    if (enabled) void this.autoBackupSweep(true);
+    if (enabled) void this.autoBackupSweep(true).catch((err) => console.warn(`[Backup] Passada de backups falhou: ${(err as Error).message}`));
     return this.getOverview();
   }
 
@@ -226,38 +296,50 @@ class BackupService {
     const local = db.getAllSaveBackups().filter((r) => r.localPath && existsSync(r.localPath));
     let total = local.reduce((sum, r) => sum + r.sizeBytes, 0);
     if (total <= limit) return;
-    const newestPerGame = new Set<string>();
-    for (const r of [...local].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
-      if (!newestPerGame.has(r.gameId)) newestPerGame.add(r.gameId);
+
+    const newestPerGame = new Map<string, BackupRecord>();
+    for (const r of local) {
+      const newest = newestPerGame.get(r.gameId);
+      if (!newest || r.createdAt > newest.createdAt) newestPerGame.set(r.gameId, r);
     }
-    const newestIds = new Set(
-      [...newestPerGame].map((gameId) => local.filter((r) => r.gameId === gameId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0].id)
-    );
-    const removable = local.filter((r) => !newestIds.has(r.id)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const keep = new Set([...newestPerGame.values()].map((r) => r.id));
+    const removable = local.filter((r) => !keep.has(r.id)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     const dropped: string[] = [];
+    let handled = 0;
     for (const record of removable) {
       if (total <= limit) break;
       await unlink(record.localPath!).catch(() => undefined);
       total -= record.sizeBytes;
+      handled++;
       if (record.driveFileId) db.upsertSaveBackup({ ...record, localPath: undefined });
       else dropped.push(record.id);
     }
     db.removeSaveBackups(dropped);
     if (total > limit) console.warn('[Backup] O limite de espaço é menor que a cópia mais recente de cada jogo: aumente o limite em Configurações.');
-    else console.log(`[Backup] Limite de espaço: ${removable.length} cópias antigas tratadas`);
+    else console.log(`[Backup] Limite de espaço: ${handled} cópias antigas tratadas`);
   }
 
   private async applyRetention(gameId: string): Promise<void> {
     const expired = db.getSaveBackups(gameId).slice(MAX_BACKUPS_PER_GAME);
+    const removed: string[] = [];
     for (const record of expired) {
       if (record.localPath) await unlink(record.localPath).catch(() => undefined);
       if (record.driveFileId && googleDriveService.isConnected()) {
-        await googleDriveService.deleteFile(record.driveFileId).catch((err) =>
-          console.warn(`[Backup] Falha ao remover backup antigo do Drive: ${(err as Error).message}`)
-        );
+        try {
+          await googleDriveService.deleteFile(record.driveFileId);
+        } catch (err) {
+          // Já sumiu do Drive: some daqui também. Outra falha (sem internet): o registro fica e a próxima retenção tenta
+          // de novo; tirá-lo agora deixaria o arquivo esquecido no Drive, voltando à lista como "backup de outro PC".
+          if (!(err instanceof DriveError && err.status === 404)) {
+            if (record.localPath) db.upsertSaveBackup({ ...record, localPath: undefined });
+            if (!isDriveConnectionError(err)) console.warn(`[Backup] Falha ao remover backup antigo do Drive: ${(err as Error).message}`);
+            continue;
+          }
+        }
       }
+      removed.push(record.id);
     }
-    db.removeSaveBackups(expired.map((r) => r.id));
+    db.removeSaveBackups(removed);
     await this.enforceSpaceLimit();
   }
 
@@ -315,7 +397,7 @@ class BackupService {
         message: record ? undefined : 'Saves sem alteração desde o último backup.'
       });
     } catch (err) {
-      console.warn(`[Backup] Backup automático de ${gameId} falhou: ${(err as Error).message}`);
+      console.warn(`[Backup] Backup automático de ${db.getGameById(gameId)?.title ?? gameId} falhou: ${(err as Error).message}`);
       if (!silent) this.emit({ gameId, state: 'error', message: (err as Error).message });
     }
   }
@@ -353,16 +435,17 @@ class BackupService {
 
     try {
       const knownIds = new Set(local.map((r) => r.id));
+      const knownFiles = new Set(local.map((r) => r.driveFileId).filter(Boolean));
       const title = db.getGameById(gameId)?.title ?? gameId;
       const remote: BackupRecord[] = (await googleDriveService.listFiles(DRIVE_PROPS.gameId, gameId))
-        .filter((f) => !knownIds.has(f.appProperties[DRIVE_PROPS.backupId]))
+        .filter((f) => !knownIds.has(f.appProperties[DRIVE_PROPS.backupId]) && !knownFiles.has(f.id))
         .map((f) => ({
           id: f.appProperties[DRIVE_PROPS.backupId] || f.id,
           gameId,
           gameTitle: title,
           createdAt: f.appProperties.createdAt || f.createdTime,
-          reason: (f.appProperties.reason as BackupReason) || 'manual',
-          fileCount: Number(f.appProperties.fileCount || 0),
+          reason: (['auto', 'manual', 'pre-restore'].includes(f.appProperties.reason) ? f.appProperties.reason : 'manual') as BackupReason,
+          fileCount: Number(f.appProperties.fileCount || 0) || 0,
           sizeBytes: f.size,
           sha256: f.appProperties.sha256 ?? '',
           contentHash: f.appProperties.contentHash ?? '',
@@ -377,8 +460,8 @@ class BackupService {
 
   restore(gameId: string, backupId: string): Promise<RestoreResult> {
     return this.withLock(gameId, async () => {
-      const { backups } = await this.listBackups(gameId);
-      const record = backups.find((b) => b.id === backupId);
+      // Backup deste PC não depende da internet: só procura no Drive o que não está no histórico local
+      const record = db.getSaveBackups(gameId).find((b) => b.id === backupId) ?? (await this.listBackups(gameId)).backups.find((b) => b.id === backupId);
       if (!record) throw new Error('Backup não encontrado.');
 
       let data: Uint8Array;

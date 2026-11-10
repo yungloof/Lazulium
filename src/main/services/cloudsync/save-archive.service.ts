@@ -109,8 +109,8 @@ export async function buildArchive(
     try {
       data = await readFile(file.absPath);
     } catch (err) {
-      // Arquivo bloqueado ou removido durante o backup: segue com os demais
-      console.warn(`[SaveArchive] Ignorando ${file.absPath}: ${(err as Error).message}`);
+      // Arquivo bloqueado ou removido durante o backup: segue com os demais (no log, o caminho sem o nome do usuário do Windows)
+      console.warn(`[SaveArchive] Ignorando ${tokenizePath(file.absPath)}: ${(err as NodeJS.ErrnoException).code ?? 'erro de leitura'}`);
       continue;
     }
     entries[`r${root}/${file.relPath}`] = data;
@@ -137,13 +137,24 @@ export async function buildArchive(
 
 // Valida o .zip (hash de cada arquivo e caminhos) antes de qualquer escrita em disco
 export async function readArchive(data: Uint8Array, expectedGameId: string): Promise<RestoreEntry[]> {
-  const unzipped = await unzipAsync(data);
+  let unzipped: Unzipped;
+  try {
+    unzipped = await unzipAsync(data);
+  } catch {
+    throw new Error('Backup inválido: o arquivo .zip está danificado.');
+  }
   const manifestRaw = unzipped[MANIFEST_NAME];
   if (!manifestRaw) throw new Error('Backup inválido: manifesto ausente.');
 
-  const manifest = JSON.parse(new TextDecoder().decode(manifestRaw)) as SaveManifest;
-  if (manifest.version !== MANIFEST_VERSION) throw new Error(`Versão de backup não suportada (${manifest.version}).`);
+  let manifest: SaveManifest;
+  try {
+    manifest = JSON.parse(new TextDecoder().decode(manifestRaw)) as SaveManifest;
+  } catch {
+    throw new Error('Backup inválido: manifesto danificado.');
+  }
+  if (manifest?.version !== MANIFEST_VERSION) throw new Error(`Versão de backup não suportada (${manifest?.version}).`);
   if (manifest.gameId !== expectedGameId) throw new Error('Este backup pertence a outro jogo.');
+  if (!Array.isArray(manifest.roots) || !Array.isArray(manifest.files)) throw new Error('Backup inválido: manifesto incompleto.');
 
   const rootPaths = new Map(manifest.roots.map((r) => [r.index, expandPath(r.path)]));
   return manifest.files.map((file) => {

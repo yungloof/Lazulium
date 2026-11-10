@@ -25,6 +25,8 @@ export interface PageContent {
 const POLL_INTERVAL_MS = 1_500;
 const LOGIN_TIMEOUT_MS = 10 * 60_000;
 const MAX_VALIDATIONS = 40;
+// Códigos de rede do Chromium: sem internet, nome não resolvido, conexão recusada/caída, tempo esgotado
+const OFFLINE_ERRORS = new Set([-106, -105, -102, -101, -100, -118, -109, -137, -21]);
 
 const READ_PAGE_SCRIPT = `({
   url: location.href,
@@ -59,6 +61,12 @@ export function openWebLogin<T>(options: WebLoginOptions<T>, parent?: BrowserWin
     win.webContents.setUserAgent(win.webContents.getUserAgent().replace(/ (Electron|lazulium)\/\S+/gi, ''));
     win.on('page-title-updated', (e) => e.preventDefault());
 
+    // loadURL rejeita quando a página redireciona ou cai (ERR_ABORTED): sem o catch vira "promise sem tratamento" no log,
+    // com a URL inteira. A falha de verdade chega pelo did-fail-load.
+    const load = (url: string) => {
+      if (!win.isDestroyed()) win.loadURL(url).catch(() => undefined);
+    };
+
     const tested = new Set<string>();
     let validations = 0;
     let checking = false;
@@ -89,7 +97,14 @@ export function openWebLogin<T>(options: WebLoginOptions<T>, parent?: BrowserWin
       if (!onServiceHost(url)) return;
       const { pathname } = new URL(url);
       if (url.split('#')[0] === options.keyPageUrl || options.skipRedirectPaths.test(pathname)) return;
-      if (pathname !== new URL(options.keyPageUrl).pathname) void win.loadURL(options.keyPageUrl);
+      if (pathname !== new URL(options.keyPageUrl).pathname) load(options.keyPageUrl);
+    });
+
+    // Sem internet a janela mostraria a página de erro do Chromium: fecha e explica
+    win.webContents.on('did-fail-load', (_event, errorCode, _description, _url, isMainFrame) => {
+      if (isMainFrame && OFFLINE_ERRORS.has(errorCode)) {
+        finish(new Error('Sem conexão com a internet. Confira a conexão e tente entrar de novo.'));
+      }
     });
 
     // Links para fora (termos, ajuda) abrem no navegador do sistema
@@ -132,7 +147,7 @@ export function openWebLogin<T>(options: WebLoginOptions<T>, parent?: BrowserWin
     const timeout = setTimeout(() => finish(new Error('Tempo esgotado aguardando o login.')), LOGIN_TIMEOUT_MS);
     win.on('closed', () => finish(new Error('Janela de login fechada antes de concluir.')));
 
-    void win.loadURL(options.initialUrl || options.keyPageUrl);
+    load(options.initialUrl || options.keyPageUrl);
   });
 }
 

@@ -1,6 +1,7 @@
 import { GameSearchResult } from '@shared/types/game';
 import { igdbProxyUrl } from './play-length.service';
 import { normalizeKey } from '../cloudsync/save-locator.service';
+import { HttpError, fetchJson, logBackgroundFailure } from './http';
 
 // Catálogo para registrar jogos: IGDB tem console e clássicos; a loja da Steam responde mesmo se o nosso servidor cair.
 const TIMEOUT_MS = 6_000;
@@ -17,24 +18,29 @@ interface SteamSearchResponse {
   items?: { id?: unknown; name?: unknown; type?: unknown; tiny_image?: unknown }[];
 }
 
+// Capas só de endereços conhecidos: a tela carrega a imagem direto da URL
+const IGDB_COVER = /^https:\/\/images\.igdb\.com\//;
+const STEAM_THUMB = /^https:\/\/[a-z0-9.-]+\.(steamstatic|steampowered)\.com\//;
+
 async function searchIgdb(query: string): Promise<GameSearchResult[]> {
-  const res = await fetch(`${igdbProxyUrl()}/v1/search?${new URLSearchParams({ q: query })}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
-  if (!res.ok) return [];
-  const data = (await res.json()) as IgdbSearchResponse;
-  return (data.results ?? []).flatMap((item) =>
-    typeof item.name === 'string'
-      ? [{ source: 'igdb' as const, name: item.name, year: typeof item.year === 'number' ? item.year : undefined, coverUrl: typeof item.coverUrl === 'string' ? item.coverUrl : undefined }]
+  const data = await fetchJson<IgdbSearchResponse | null>(`${igdbProxyUrl()}/v1/search?${new URLSearchParams({ q: query })}`, { timeoutMs: TIMEOUT_MS, service: 'o servidor do Lazulium' });
+  const results = Array.isArray(data?.results) ? data.results : [];
+  return results.flatMap((item) =>
+    item && typeof item.name === 'string'
+      ? [{ source: 'igdb' as const, name: item.name, year: typeof item.year === 'number' ? item.year : undefined, coverUrl: typeof item.coverUrl === 'string' && IGDB_COVER.test(item.coverUrl) ? item.coverUrl : undefined }]
       : []
   );
 }
 
 async function searchSteam(query: string): Promise<GameSearchResult[]> {
-  const res = await fetch(`https://store.steampowered.com/api/storesearch/?${new URLSearchParams({ term: query, l: 'portuguese', cc: 'BR' })}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
-  if (!res.ok) return [];
-  const data = (await res.json()) as SteamSearchResponse;
-  return (data.items ?? []).flatMap((item) =>
-    typeof item.id === 'number' && typeof item.name === 'string' && item.type === 'app' && !NOT_A_GAME.test(item.name)
-      ? [{ source: 'steam' as const, name: item.name, coverUrl: STEAM_COVER(item.id), steamAppId: item.id, thumbUrl: typeof item.tiny_image === 'string' ? item.tiny_image : undefined }]
+  const data = await fetchJson<SteamSearchResponse | null>(`https://store.steampowered.com/api/storesearch/?${new URLSearchParams({ term: query, l: 'portuguese', cc: 'BR' })}`, {
+    timeoutMs: TIMEOUT_MS,
+    service: 'a loja da Steam'
+  });
+  const items = Array.isArray(data?.items) ? data.items : [];
+  return items.flatMap((item) =>
+    item && typeof item.id === 'number' && Number.isInteger(item.id) && item.id > 0 && typeof item.name === 'string' && item.type === 'app' && !NOT_A_GAME.test(item.name)
+      ? [{ source: 'steam' as const, name: item.name, coverUrl: STEAM_COVER(item.id), steamAppId: item.id, thumbUrl: typeof item.tiny_image === 'string' && STEAM_THUMB.test(item.tiny_image) ? item.tiny_image : undefined }]
       : []
   );
 }
@@ -49,7 +55,9 @@ export async function searchGameCatalog(query: string): Promise<GameSearchResult
   const results: GameSearchResult[] = [];
   for (const outcome of settled) {
     if (outcome.status === 'rejected') {
-      console.warn(`[Busca de jogos] ${(outcome.reason as Error).message}`);
+      // Recusa do servidor (ex: busca curta demais) só deixa a lista menor; sem internet, avisa uma vez
+      const reason = outcome.reason;
+      if (!(reason instanceof HttpError) || reason.kind !== 'status') logBackgroundFailure('[Busca de jogos]', reason);
       continue;
     }
     for (const item of outcome.value) {

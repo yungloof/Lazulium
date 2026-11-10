@@ -4,9 +4,11 @@ import { screenshotsService } from '../metadata/screenshots.service';
 
 const TOP_GAMES = 5;
 
+// Data zerada (unlocktime 0 vira 1970) ou inválida não é um ano de verdade: fica fora dos anos, meses e contagens
+const MIN_YEAR = 1990;
 const yearOf = (date?: string): number | undefined => {
   const year = date ? new Date(date).getFullYear() : NaN;
-  return Number.isFinite(year) ? year : undefined;
+  return Number.isFinite(year) && year >= MIN_YEAR ? year : undefined;
 };
 
 // Monta o ano com o que tem data de verdade. Horas por ano só existem nas sessões do Lazulium: a Steam guarda só o total.

@@ -19,6 +19,7 @@ const MAX_PRICE_IDS = 50;
 const PRICES_TTL_SECONDS = 6 * 60 * 60;
 const COVER_URL = (imageId) => `https://images.igdb.com/igdb/image/upload/t_cover_big/${imageId}.jpg`;
 const RETRY_DELAY_MS = 300;
+const UPSTREAM_TIMEOUT_MS = 10_000;  // Twitch, IGDB ou GG.deals travados não seguram o app esperando
 
 class UpstreamError extends Error {}
 
@@ -48,8 +49,14 @@ export function cleanTitle(value) {
 }
 
 async function requestToken(env) {
-  const params = new URLSearchParams({ client_id: env.TWITCH_CLIENT_ID, client_secret: env.TWITCH_CLIENT_SECRET, grant_type: 'client_credentials' });
-  const res = await fetch(`${TOKEN_URL}?${params}`, { method: 'POST' });
+  // Segredo no corpo do POST, não na URL (URLs aparecem em logs)
+  const body = new URLSearchParams({ client_id: env.TWITCH_CLIENT_ID, client_secret: env.TWITCH_CLIENT_SECRET, grant_type: 'client_credentials' });
+  const res = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
+  });
   if (!res.ok) throw new UpstreamError(`Twitch recusou a credencial (${res.status})`);
   const data = await res.json();
   if (!data.access_token) throw new UpstreamError('Twitch não devolveu token');
@@ -65,7 +72,8 @@ async function igdb(env, endpoint, body, state) {
     const res = await fetch(`${IGDB_BASE}/${endpoint}`, {
       method: 'POST',
       headers: { 'Client-ID': env.TWITCH_CLIENT_ID, Authorization: `Bearer ${state.token}`, Accept: 'application/json' },
-      body
+      body,
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
     });
     if (res.ok) return res.json();
     if (res.status === 401 && attempt === 0) {
@@ -132,18 +140,25 @@ async function cached(env, key, load) {
   return result;
 }
 
-const toCents = (value) => {
-  const number = typeof value === 'number' ? value : parseFloat(value);
-  return Number.isFinite(number) && number >= 0 ? Math.round(number * 100) : null;
-};
+// O GG.deals manda preços como texto decimal ("91.99") ou null. Só aceita número simples: "1,234.56" ou "abc" viram null,
+// em vez de um preço errado (parseFloat("1,234.56") daria 1).
+export function toCents(value) {
+  if (typeof value === 'number') return Number.isFinite(value) && value >= 0 ? Math.round(value * 100) : null;
+  if (typeof value !== 'string' || !/^\s*\d+(\.\d+)?\s*$/.test(value)) return null;
+  return Math.round(Number(value) * 100);
+}
 
-// Só os campos que o app usa: a resposta do GG.deals nunca é repassada inteira
-function toDeal(entry) {
-  if (!entry || typeof entry !== 'object' || !entry.prices) return null;
+// Formato documentado em gg.deals/api/prices: { success, data: { "<appId>": { title, url, prices: { currentRetail,
+// currentKeyshops, historicalRetail, historicalKeyshops, currency } } | null } }. Só os campos que o app usa saem daqui.
+export function toDeal(entry) {
+  if (!entry || typeof entry !== 'object' || !entry.prices || typeof entry.prices !== 'object') return null;
   const { prices } = entry;
+  const currency = typeof prices.currency === 'string' && /^[A-Z]{3}$/.test(prices.currency) ? prices.currency : null;
+  if (!currency) return null;
   return {
+    // O link vai como veio (o GG.deals pede o link original), mas só para o próprio site
     url: typeof entry.url === 'string' && entry.url.startsWith('https://gg.deals/') ? entry.url : null,
-    currency: typeof prices.currency === 'string' ? prices.currency : null,
+    currency,
     retail: toCents(prices.currentRetail),
     keyshops: toCents(prices.currentKeyshops),
     lowestRetail: toCents(prices.historicalRetail),
@@ -151,7 +166,10 @@ function toDeal(entry) {
   };
 }
 
-// Preços mudam ao longo do dia: cache curto na borda da Cloudflare, que não gasta a cota de escrita do KV
+const priceCacheKey = (id) => new Request(`https://cache.lazulium/prices/v2/${GGDEALS_REGION}/${id}`);
+
+// A chave do GG.deals tem limite por jogo consultado (100 por minuto, 1.000 por hora), e cada pessoa tem uma lista diferente:
+// o cache é por jogo, na borda da Cloudflare (não gasta a cota de escrita do KV), e só os que faltam vão ao GG.deals.
 async function handlePrices(url, request, env) {
   const raw = url.searchParams.get('steamAppIds') ?? '';
   const ids = [...new Set(raw.split(',').filter(Boolean))];
@@ -161,25 +179,48 @@ async function handlePrices(url, request, env) {
 
   ids.sort((a, b) => Number(a) - Number(b));
   const edgeCache = globalThis.caches?.default;
-  const cacheKey = new Request(`https://cache.lazulium/prices/v1/${GGDEALS_REGION}/${ids.join(',')}`);
-  const hit = await edgeCache?.match(cacheKey);
-  if (hit) return hit;
+  const prices = {};
+  const missing = [];
+  for (const id of ids) {
+    const hit = await edgeCache?.match(priceCacheKey(id)).catch(() => undefined);
+    const cached = hit ? await hit.json().catch(() => undefined) : undefined;
+    if (cached && typeof cached === 'object' && 'deal' in cached) prices[id] = cached.deal;
+    else missing.push(id);
+  }
+  if (missing.length === 0) return json({ source: 'gg.deals', region: GGDEALS_REGION, prices });
 
   try {
-    const params = new URLSearchParams({ ids: ids.join(','), key: env.GGDEALS_API_KEY, region: GGDEALS_REGION });
-    const res = await fetch(`${GGDEALS_URL}?${params}`, { headers: { Accept: 'application/json' } });
-    if (!res.ok) throw new UpstreamError(`GG.deals respondeu ${res.status}`);
-    const body = await res.json();
-    if (!body || typeof body.data !== 'object' || body.data === null) throw new UpstreamError('GG.deals devolveu um formato inesperado');
-    const prices = Object.fromEntries(ids.map((id) => [id, toDeal(body.data[id])]));
-    const response = json({ source: 'gg.deals', region: GGDEALS_REGION, prices });
-    if (edgeCache) {
-      const stored = new Response(response.clone().body, response);
-      stored.headers.set('Cache-Control', `public, max-age=${PRICES_TTL_SECONDS}`);
-      await edgeCache.put(cacheKey, stored).catch(() => undefined);
+    const params = new URLSearchParams({ ids: missing.join(','), key: env.GGDEALS_API_KEY, region: GGDEALS_REGION });
+    const res = await fetch(`${GGDEALS_URL}?${params}`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+    if (res.status === 429) {
+      // Cota da chave esgotada: o app tenta de novo na próxima atualização; o que já estava em cache segue junto
+      const retryAfter = res.headers.get('Retry-After');
+      if (Object.keys(prices).length > 0) return json({ source: 'gg.deals', region: GGDEALS_REGION, prices, incomplete: true });
+      return new Response(JSON.stringify({ error: 'rate_limited' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...(retryAfter && /^\d{1,5}$/.test(retryAfter) ? { 'Retry-After': retryAfter } : {}) }
+      });
     }
-    return response;
+    if (!res.ok) throw new UpstreamError(`GG.deals respondeu ${res.status}`);
+    const body = await res.json().catch(() => null);
+    if (!body || body.success !== true || typeof body.data !== 'object' || body.data === null || Array.isArray(body.data)) {
+      throw new UpstreamError('GG.deals devolveu um formato inesperado');
+    }
+    for (const id of missing) {
+      const deal = toDeal(body.data[id]);
+      prices[id] = deal;
+      if (edgeCache) {
+        const stored = new Response(JSON.stringify({ deal }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${PRICES_TTL_SECONDS}` } });
+        await edgeCache.put(priceCacheKey(id), stored).catch(() => undefined);
+      }
+    }
+    return json({ source: 'gg.deals', region: GGDEALS_REGION, prices });
   } catch (err) {
+    // Parte em cache ainda serve: o app só atualiza os jogos que vieram
+    if (Object.keys(prices).length > 0) {
+      upstreamFailure(err);
+      return json({ source: 'gg.deals', region: GGDEALS_REGION, prices, incomplete: true });
+    }
     return upstreamFailure(err);
   }
 }
@@ -191,8 +232,10 @@ async function isRateLimited(request, env) {
 }
 
 function upstreamFailure(err) {
-  // Falha temporária nunca vai para o cache: a próxima tentativa consulta de novo
-  console.error(err instanceof UpstreamError ? err.message : 'Erro inesperado', err instanceof UpstreamError ? '' : err);
+  // Falha temporária nunca vai para o cache: a próxima tentativa consulta de novo.
+  // No log, só nome e mensagem, sem chave nem segredo que algum erro traga junto (URL com ?key=, client_secret=).
+  const detail = err instanceof UpstreamError ? err.message : `Erro inesperado: ${err?.name ?? 'Error'}: ${String(err?.message ?? '')}`;
+  console.error(detail.replace(/(key|client_secret|access_token)=[^&\s]+/gi, '$1=***'));
   return json({ error: 'upstream_unavailable' }, 503);
 }
 
