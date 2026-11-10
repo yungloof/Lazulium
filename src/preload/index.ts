@@ -49,6 +49,7 @@ const electronAPI: ElectronAPI = {
   openWishlistDeals: (appId: number) => ipcRenderer.invoke(IPC_CHANNELS.WISHLIST_OPEN_DEALS, appId),
   getBackupOverview: () => ipcRenderer.invoke(IPC_CHANNELS.BACKUP_OVERVIEW),
   runBackupSweep: () => ipcRenderer.invoke(IPC_CHANNELS.BACKUP_RUN_SWEEP),
+  setAutoBackup: (enabled: boolean) => ipcRenderer.invoke(IPC_CHANNELS.BACKUP_SET_AUTO, enabled),
   getGameLists: () => ipcRenderer.invoke(IPC_CHANNELS.LISTS_GET),
   saveGameList: (input: GameListInput) => ipcRenderer.invoke(IPC_CHANNELS.LISTS_SAVE, input),
   deleteGameList: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.LISTS_DELETE, id),

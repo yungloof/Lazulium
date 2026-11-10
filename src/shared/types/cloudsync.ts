@@ -50,6 +50,8 @@ export interface BackupOverview {
   pendingUpload: number;
   driveConnected: boolean;
   lastSweepAt?: string;
+  autoEnabled: boolean;             // O jogador deixou o Lazulium procurar e copiar saves sozinho
+  limitBytes: number;               // Espaço máximo das cópias neste PC
 }
 
 export interface RestoreResult {

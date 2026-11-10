@@ -229,6 +229,7 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     await shell.openExternal(wishlistService.dealsUrl(appId));
   });
   ipcMain.handle(IPC_CHANNELS.BACKUP_OVERVIEW, async () => backupService.getOverview());
+  ipcMain.handle(IPC_CHANNELS.BACKUP_SET_AUTO, async (_event, enabled: boolean) => backupService.setAutoEnabled(!!enabled));
   ipcMain.handle(IPC_CHANNELS.BACKUP_RUN_SWEEP, async () => {
     await backupService.autoBackupSweep(true);
     return backupService.getOverview();

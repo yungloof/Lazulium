@@ -133,6 +133,7 @@ export interface ElectronAPI {
   openWishlistDeals: (appId: number) => Promise<void>;
   getBackupOverview: () => Promise<BackupOverview>;
   runBackupSweep: () => Promise<BackupOverview>;
+  setAutoBackup: (enabled: boolean) => Promise<BackupOverview>;
   getGameLists: () => Promise<GameList[]>;
   saveGameList: (input: GameListInput) => Promise<GameList>;
   deleteGameList: (id: string) => Promise<void>;

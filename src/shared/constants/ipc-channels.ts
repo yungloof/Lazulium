@@ -44,6 +44,7 @@ export const IPC_CHANNELS = {
   // Backup: visão geral
   BACKUP_OVERVIEW: 'backup:overview',
   BACKUP_RUN_SWEEP: 'backup:run-sweep',
+  BACKUP_SET_AUTO: 'backup:set-auto',
 
   // Listas
   LISTS_GET: 'lists:get',

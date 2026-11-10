@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import logo from '../assets/logo.png';
 import { Game, GamePlatform } from '@shared/types/game';
 import { AccountsSettings } from './AccountsSettings';
@@ -23,6 +23,7 @@ const PLATFORM_LABEL: Record<GamePlatform, string> = {
 
 // Primeira execução: mostra o que foi encontrado e oferece conectar as contas antes de começar
 export const WelcomeModal: React.FC<WelcomeModalProps> = ({ games, isScanning, onFinish }) => {
+  const [autoBackup, setAutoBackup] = useState(true);
   const installed = useMemo(() => games.filter((g) => g.isInstalled !== false && !g.isHidden), [games]);
   const history = games.length - installed.length;
   const summary = useMemo(() => {
@@ -51,14 +52,27 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ games, isScanning, o
           </p>
         </div>
 
-        <div className="px-6 py-5 overflow-y-auto">
+        <div className="px-6 py-5 overflow-y-auto space-y-5">
           <AccountsSettings />
+
+          <label className="flex items-start gap-3 p-4 rounded-lg bg-slate-900/60 border border-slate-800 cursor-pointer">
+            <input type="checkbox" checked={autoBackup} onChange={(e) => setAutoBackup(e.target.checked)} className={`mt-0.5 w-4 h-4 accent-indigo-500 ${focusRing}`} />
+            <span className="min-w-0">
+              <span className="block text-sm text-slate-100">Fazer backup automático dos saves</span>
+              <span className="block mt-1 text-xs text-slate-400">
+                O Lazulium procura as pastas de save dos seus jogos e guarda cópias neste PC, ao fechar o jogo e uma vez por dia, só quando algo mudou. Usa até 3 GB de disco (dá para mudar em Configurações) e, se você conectar o Google Drive, também envia para lá. Desligado, nada é copiado.
+              </span>
+            </span>
+          </label>
         </div>
 
         <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-slate-800">
           <span className="text-[11px] text-slate-500">Dá para mudar isso depois em Configurações.</span>
           <button
-            onClick={onFinish}
+            onClick={() => {
+              void window.electronAPI?.setAutoBackup(autoBackup);
+              onFinish();
+            }}
             className={`px-6 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-colors ${focusRing}`}
           >
             Começar

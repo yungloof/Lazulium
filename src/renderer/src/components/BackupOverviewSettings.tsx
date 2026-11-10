@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, CloudOff, HardDriveDownload, Loader2, RefreshCw } from 'lucide-react';
 import { BackupOverview } from '@shared/types/cloudsync';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
+import { Select } from './Select';
+
+const LIMITS = ['1', '2', '3', '5', '10', '20'].map((gb) => ({ value: gb, label: `${gb} GB` }));
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 
@@ -18,6 +21,27 @@ export const BackupOverviewSettings: React.FC = () => {
   }, []);
 
   useEffect(load, [load]);
+
+  const [limitGb, setLimitGb] = useState('3');
+
+  useEffect(() => {
+    window.electronAPI?.getSettings().then((s) => setLimitGb(LIMITS.some((l) => l.value === s.backupLimitGb) ? s.backupLimitGb : '3'));
+  }, []);
+
+  const toggleAuto = async (enabled: boolean) => {
+    setError(null);
+    try {
+      setOverview((await window.electronAPI?.setAutoBackup(enabled)) ?? null);
+    } catch (err) {
+      setError(ipcErrorMessage(err));
+    }
+  };
+
+  const changeLimit = async (value: string) => {
+    setLimitGb(value);
+    await window.electronAPI?.setSetting('backupLimitGb', value);
+    load();
+  };
 
   const runNow = async () => {
     setRunning(true);
@@ -38,6 +62,17 @@ export const BackupOverviewSettings: React.FC = () => {
       </h3>
       {overview && (
         <>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" checked={overview.autoEnabled} onChange={(e) => void toggleAuto(e.target.checked)} className={`mt-0.5 w-4 h-4 accent-indigo-500 ${focusRing}`} />
+            <span className="min-w-0">
+              <span className="block text-sm text-slate-100">Backup automático dos saves</span>
+              <span className="block text-xs text-slate-400">Procura as pastas de save e guarda cópias ao fechar o jogo e uma vez por dia. Desligado, só valem as pastas que você configurar em cada jogo.</span>
+            </span>
+          </label>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs text-slate-400">Espaço máximo das cópias neste PC</span>
+            <Select value={limitGb} options={LIMITS} onChange={changeLimit} ariaLabel="Espaço máximo dos backups" />
+          </div>
           <dl className="grid grid-cols-3 gap-3 text-center">
             <div className="px-2 py-2.5 rounded-lg bg-slate-900/60">
               <dd className="text-lg text-white">{overview.games}</dd>
@@ -67,9 +102,9 @@ export const BackupOverviewSettings: React.FC = () => {
           </p>
           <div className="flex items-center justify-between gap-3">
             <span className="text-[11px] text-slate-500">
-              {overview.lastSweepAt ? `Última conferência: ${new Date(overview.lastSweepAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}` : 'Primeira conferência em andamento.'} Roda ao fechar o jogo e uma vez por dia.
+              {!overview.autoEnabled ? 'Automático desligado.' : overview.lastSweepAt ? `Última conferência: ${new Date(overview.lastSweepAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}` : 'Primeira conferência em andamento.'} Roda ao fechar o jogo e uma vez por dia.
             </span>
-            <button onClick={runNow} disabled={running} className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-50 ${focusRing}`}>
+            <button onClick={runNow} disabled={running || !overview.autoEnabled} className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-50 ${focusRing}`}>
               {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} {running ? 'Conferindo...' : 'Conferir agora'}
             </button>
           </div>

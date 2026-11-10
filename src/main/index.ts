@@ -96,6 +96,7 @@ if (!app.requestSingleInstanceLock()) {
         })
         .catch((err) => console.warn('[Startup] Sincronização da Steam falhou:', (err as Error).message));
     }
+    backupService.migrateConsent();
     setTimeout(() => void backupService.retryPendingUploads(), PENDING_UPLOAD_RETRY_DELAY_MS);
     setTimeout(() => void backupService.autoBackupSweep(), SAVES_SWEEP_DELAY_MS);
 

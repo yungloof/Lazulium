@@ -27,6 +27,9 @@ const SWEEP_SETTING = 'savesSweepAt';
 const SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const SWEEP_PAUSE_MS = 200;              // Entre um jogo e outro: nunca disputa o PC com quem está jogando
 const MAX_GUESSED_FOLDER_BYTES = 200 * 1024 * 1024; // Pasta achada pelo nome, sem certeza de ser só de saves
+const CONSENT_SETTING = 'autoBackupConsent';        // 'on' | 'off' | ausente (ainda não perguntou)
+const LIMIT_SETTING = 'backupLimitGb';
+const DEFAULT_LIMIT_GB = 3;
 const DRIVE_PROPS = {
   gameId: 'lazuliumGameId',
   backupId: 'lazuliumBackupId'
@@ -194,6 +197,56 @@ class BackupService {
     return sent;
   }
 
+  // Quem já tinha backups ou pastas configuradas antes de existir a pergunta continua como estava
+  migrateConsent(): void {
+    if (db.getSettings()[CONSENT_SETTING]) return;
+    if (db.getAllSaveBackups().length > 0) db.setSetting(CONSENT_SETTING, 'on');
+  }
+
+  isAutoEnabled(): boolean {
+    return db.getSettings()[CONSENT_SETTING] === 'on';
+  }
+
+  getLimitBytes(): number {
+    const gb = Number(db.getSettings()[LIMIT_SETTING]);
+    return (Number.isFinite(gb) && gb > 0 ? gb : DEFAULT_LIMIT_GB) * 1024 ** 3;
+  }
+
+  setAutoEnabled(enabled: boolean): BackupOverview {
+    db.setSetting(CONSENT_SETTING, enabled ? 'on' : 'off');
+    // Ligar começa a conferir agora, sem segurar quem clicou
+    if (enabled) void this.autoBackupSweep(true);
+    return this.getOverview();
+  }
+
+  // Passou do limite de espaço: tira primeiro as cópias mais antigas deste PC, sempre guardando a mais nova de cada jogo.
+  // O que já está no Drive continua no histórico, só sem o arquivo local.
+  private async enforceSpaceLimit(): Promise<void> {
+    const limit = this.getLimitBytes();
+    const local = db.getAllSaveBackups().filter((r) => r.localPath && existsSync(r.localPath));
+    let total = local.reduce((sum, r) => sum + r.sizeBytes, 0);
+    if (total <= limit) return;
+    const newestPerGame = new Set<string>();
+    for (const r of [...local].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
+      if (!newestPerGame.has(r.gameId)) newestPerGame.add(r.gameId);
+    }
+    const newestIds = new Set(
+      [...newestPerGame].map((gameId) => local.filter((r) => r.gameId === gameId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0].id)
+    );
+    const removable = local.filter((r) => !newestIds.has(r.id)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const dropped: string[] = [];
+    for (const record of removable) {
+      if (total <= limit) break;
+      await unlink(record.localPath!).catch(() => undefined);
+      total -= record.sizeBytes;
+      if (record.driveFileId) db.upsertSaveBackup({ ...record, localPath: undefined });
+      else dropped.push(record.id);
+    }
+    db.removeSaveBackups(dropped);
+    if (total > limit) console.warn('[Backup] O limite de espaço é menor que a cópia mais recente de cada jogo: aumente o limite em Configurações.');
+    else console.log(`[Backup] Limite de espaço: ${removable.length} cópias antigas tratadas`);
+  }
+
   private async applyRetention(gameId: string): Promise<void> {
     const expired = db.getSaveBackups(gameId).slice(MAX_BACKUPS_PER_GAME);
     for (const record of expired) {
@@ -205,6 +258,7 @@ class BackupService {
       }
     }
     db.removeSaveBackups(expired.map((r) => r.id));
+    await this.enforceSpaceLimit();
   }
 
   // Chamado quando uma sessão de jogo termina (tempo contabilizado)
@@ -215,7 +269,7 @@ class BackupService {
   // Jogos abertos fora do Lazulium (pela Steam, pelo atalho) também entram: uma passada por dia, só no que mudou
   async autoBackupSweep(force = false): Promise<void> {
     const last = Number(db.getSettings()[SWEEP_SETTING] ?? 0);
-    if (this.sweeping || (!force && Date.now() - last < SWEEP_INTERVAL_MS)) return;
+    if (!this.isAutoEnabled() || this.sweeping || (!force && Date.now() - last < SWEEP_INTERVAL_MS)) return;
     this.sweeping = true;
     try {
       const games = db.getGames().filter((g) => !g.isHidden && !g.manualEntry && (g.totalPlaytimeSeconds > 0 || g.platform === 'emulator' || db.getSaveConfig(g.id)));
@@ -236,6 +290,8 @@ class BackupService {
     try {
       let config = db.getSaveConfig(gameId);
       if (!config) {
+        // Sem consentimento o app não procura nem copia pasta nenhuma: só vale o que o jogador configurou no painel do jogo
+        if (!this.isAutoEnabled()) return;
         // Primeira vez: pastas confiáveis (Steam Cloud local, emuladores) e as achadas pelo nome, se forem de tamanho razoável
         const found = (await this.detect(gameId)).filter((s) => s.confidence === 'high' || s.sizeBytes <= MAX_GUESSED_FOLDER_BYTES);
         if (found.length === 0) return;
@@ -274,7 +330,9 @@ class BackupService {
       onDrive: backups.filter((b) => b.driveFileId).length,
       pendingUpload: backups.filter((b) => !b.driveFileId && b.localPath && existsSync(b.localPath)).length,
       driveConnected: googleDriveService.isConnected(),
-      lastSweepAt: last ? new Date(last).toISOString() : undefined
+      lastSweepAt: last ? new Date(last).toISOString() : undefined,
+      autoEnabled: this.isAutoEnabled(),
+      limitBytes: this.getLimitBytes()
     };
   }
 
