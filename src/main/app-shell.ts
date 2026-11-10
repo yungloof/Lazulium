@@ -25,8 +25,15 @@ function resourcePath(file: string): string {
   return app.isPackaged ? join(process.resourcesPath, file) : join(app.getAppPath(), 'resources', file);
 }
 
+let sessionEndHandler: () => void = () => {};
+
 export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
+}
+
+// O que fazer quando o Windows encerra a sessão (fechar sessões de jogo e gravar o banco)
+export function setSessionEndHandler(handler: () => void): void {
+  sessionEndHandler = handler;
 }
 
 export function setQuitting(): void {
@@ -79,8 +86,12 @@ function createWindow(show: boolean): BrowserWindow {
     rendererReady = false;
   });
 
+  // Windows desligando/reiniciando com o app aberto: o before-quit pode não chegar a rodar
+  win.on('session-end', () => sessionEndHandler());
+
+  // Links da interface abrem no navegador do sistema; só endereços web (nunca file:// ou outros protocolos)
   win.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url);
+    if (/^https?:\/\//i.test(details.url)) void shell.openExternal(details.url).catch(() => undefined);
     return { action: 'deny' };
   });
 
@@ -116,6 +127,29 @@ function hideToTray(): void {
   destroyTimer = setTimeout(() => {
     if (mainWindow && !mainWindow.isVisible()) mainWindow.destroy();
   }, HIDDEN_DESTROY_MS);
+}
+
+// A biblioteca já foi entregue à interface: o trabalho de abertura em segundo plano pode começar
+// sem disputar o processo principal com a primeira tela
+let libraryServed = false;
+const libraryServedWaiters: Array<() => void> = [];
+
+export function markLibraryServed(): void {
+  if (libraryServed) return;
+  libraryServed = true;
+  for (const resolve of libraryServedWaiters.splice(0)) resolve();
+}
+
+// Resolve quando a biblioteca aparece ou no limite (app aberto direto na bandeja não tem interface)
+export function afterLibraryServed(timeoutMs: number): Promise<void> {
+  if (libraryServed) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, timeoutMs);
+    libraryServedWaiters.push(() => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
 }
 
 // Chamado pelo renderer depois de registrar os ouvintes (a janela pode ter acabado de ser criada)

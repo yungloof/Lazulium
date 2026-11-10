@@ -241,7 +241,8 @@ export function createStandaloneScanner(getDirectories: () => string[]): Platfor
             });
           }
         } catch (err) {
-          warnings.push(`Standalone: falha ao varrer pasta ${rootDir} (${(err as Error).message})`);
+          warnings.push(`Jogos soltos: não consegui abrir a pasta ${rootDir} (sem permissão ou disco desconectado).`);
+          console.warn(`[Scanner:Standalone] ${rootDir}:`, (err as Error).message);
         }
       }
 

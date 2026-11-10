@@ -267,7 +267,7 @@ export const steamScanner: PlatformScanner = {
     const warnings: string[] = [];
     const steamPath = await findSteamPath();
     if (!steamPath) {
-      return { games: [], warnings: ['Steam: instalação não encontrada.'] };
+      return { games: [], warnings: ['Steam: não está instalada neste PC (ou foi instalada numa pasta que o Lazulium não achou).'] };
     }
 
     const steamExe = join(steamPath, 'steam.exe');
@@ -284,7 +284,7 @@ export const steamScanner: PlatformScanner = {
       try {
         files = await readdir(steamapps);
       } catch {
-        warnings.push(`Steam: biblioteca inacessível em ${library}`);
+        warnings.push(`Steam: a biblioteca em ${library} não abriu (disco desconectado?). Os jogos dela voltam quando o disco voltar.`);
         continue;
       }
 
@@ -302,7 +302,8 @@ export const steamScanner: PlatformScanner = {
             games.set(game.id, game);
           }
         } catch (err) {
-          warnings.push(`Steam: falha ao ler ${file} (${(err as Error).message})`);
+          warnings.push(`Steam: o arquivo ${file} está danificado; a Steam o refaz ao verificar o jogo.`);
+          console.warn(`[Scanner:Steam] ${file}:`, (err as Error).message);
         }
       }
     }
@@ -311,7 +312,8 @@ export const steamScanner: PlatformScanner = {
     try {
       shortcuts = await scanShortcuts(accountDirs, localStats);
     } catch (err) {
-      warnings.push(`Steam: falha ao ler atalhos não-Steam (${(err as Error).message})`);
+      warnings.push('Steam: não consegui ler os jogos não-Steam adicionados à Steam.');
+      console.warn('[Scanner:Steam] shortcuts.vdf:', (err as Error).message);
     }
     for (const game of shortcuts) games.set(game.id, game);
 

@@ -8,7 +8,9 @@ const execFileAsync = promisify(execFile);
 
 // Jogos da Microsoft Store / Xbox (Game Pass) são pacotes MSIX com MicrosoftGame.config.
 // Get-AppxPackage é a única forma confiável de listar os pacotes instalados para o usuário.
+// Saída em UTF-8: na página de código padrão do console, pastas com acento chegariam corrompidas.
 const LIST_PACKAGES_SCRIPT = `
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
 $ProgressPreference = 'SilentlyContinue'
 Get-AppxPackage | Where-Object { -not $_.IsFramework -and $_.InstallLocation -and (Test-Path (Join-Path $_.InstallLocation 'MicrosoftGame.config')) } |
   ForEach-Object { [pscustomobject]@{ pfn = $_.PackageFamilyName; location = $_.InstallLocation } } | ConvertTo-Json -Compress
@@ -43,7 +45,16 @@ export const xboxScanner: PlatformScanner = {
     const games: DetectedGame[] = [];
     const warnings: string[] = [];
 
-    for (const pkg of await listGamePackages()) {
+    let packages: PackageInfo[];
+    try {
+      packages = await listGamePackages();
+    } catch (err) {
+      console.warn('[Scanner:Xbox] Get-AppxPackage falhou:', (err as Error).message);
+      return { games, warnings: ['Xbox: não consegui listar os jogos da Microsoft Store agora. Tente escanear de novo.'] };
+    }
+
+    for (const pkg of packages) {
+      if (!pkg?.pfn || !pkg.location) continue;
       try {
         const config = await readFile(join(pkg.location, 'MicrosoftGame.config'), 'utf-8');
         const manifest = await readFile(join(pkg.location, 'AppxManifest.xml'), 'utf-8');
@@ -64,7 +75,10 @@ export const xboxScanner: PlatformScanner = {
           media: {}
         });
       } catch (err) {
-        warnings.push(`Xbox: falha ao ler ${pkg.pfn} (${(err as Error).message})`);
+        // Pacote em atualização ou com arquivo faltando: os outros seguem. O aviso também impede que o
+        // scan marque como desinstalado um jogo que só não pôde ser lido agora.
+        console.warn(`[Scanner:Xbox] ${pkg.pfn}:`, (err as Error).message);
+        warnings.push(`Xbox: um jogo da Microsoft Store não pôde ser lido agora (${pkg.pfn.split('_')[0]}). Talvez esteja atualizando.`);
       }
     }
 

@@ -1,22 +1,24 @@
-import { wishlistService } from './services/metadata/wishlist.service';
-import { screenshotCaptureService } from './services/metadata/screenshot-capture.service';
-import { profileService } from './services/profile/profile.service';
 import { app, BrowserWindow, session } from 'electron';
-import { registerIpcHandlers } from './ipc';
+import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
+import { registerIpcHandlers, sendToRenderer } from './ipc';
 import { db } from './database/db';
+import { setupFileLogging } from './logger';
 import { playtimeService } from './services/tracker/playtime.service';
 import { backupService } from './services/cloudsync/backup.service';
 import { migrateMediaCache, registerMediaProtocol, registerMediaScheme } from './services/metadata/media-cache.service';
 import { registerScreenshotRoots } from './services/metadata/screenshots.service';
-import { scanLibraries } from './services/scanners';
-import { setupFileLogging } from './logger';
+import { screenshotCaptureService } from './services/metadata/screenshot-capture.service';
 import { artworkService } from './services/metadata/artwork.service';
-import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
+import { wishlistService } from './services/metadata/wishlist.service';
+import { profileService } from './services/profile/profile.service';
+import { scanLibrariesWithChanges } from './services/scanners';
 import {
   HIDDEN_LAUNCH_ARG,
+  afterLibraryServed,
   destroyTray,
   getMainWindow,
   setQuitting,
+  setSessionEndHandler,
   setupAppIdentity,
   shouldCloseToTray,
   showMainWindow,
@@ -25,6 +27,12 @@ import {
 
 // Envios ao Drive que falharam (ex: sem internet) são refeitos pouco depois de abrir
 const PENDING_UPLOAD_RETRY_DELAY_MS = 20_000;
+// Varredura diária de saves: depois que a abertura e os scans terminaram
+const SAVES_SWEEP_DELAY_MS = 90_000;
+// O trabalho de abertura espera a biblioteca aparecer; aberto na bandeja, espera no máximo isto
+const STARTUP_WORK_MAX_WAIT_MS = 5_000;
+// Folga para a primeira tela terminar de desenhar antes de ler Steam/Riot/Xbox
+const STARTUP_WORK_SETTLE_MS = 400;
 
 // Testes silenciosos usam outra pasta de dados: não tocam no banco do usuário e não
 // esbarram na trava de instância única (que traria a janela dele para a frente)
@@ -34,6 +42,40 @@ if (process.env.LAZULIUM_SILENT === '1' && process.env.LAZULIUM_USER_DATA) {
 
 // Log em arquivo (userData/logs) para diagnóstico: depois de definir a pasta de dados
 setupFileLogging();
+
+const startupTimers: NodeJS.Timeout[] = [];
+
+// Horas da Steam (localconfig.vdf) e jogos da Riot/Xbox atualizados a cada abertura (leituras rápidas),
+// depois que a biblioteca já está na tela. Só os jogos que mudaram são reenviados à janela.
+async function runStartupSync(hadGames: boolean, repairedArtwork: string[]): Promise<void> {
+  // Biblioteca vazia (primeira execução): a interface já faz o scan completo
+  if (!hadGames) return;
+  await afterLibraryServed(STARTUP_WORK_MAX_WAIT_MS);
+  await new Promise((resolve) => setTimeout(resolve, STARTUP_WORK_SETTLE_MS));
+  try {
+    const { changed } = await scanLibrariesWithChanges(['steam', 'riot', 'xbox']);
+    for (const game of changed) sendToRenderer(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
+    console.log(`[Startup] Sincronização da abertura: ${changed.length} jogo(s) atualizados`);
+  } catch (err) {
+    console.warn('[Startup] Sincronização da Steam falhou:', (err as Error).message);
+  }
+  // Jogos novos sem capa (ex: Riot, Xbox) buscam artes no SteamGridDB em segundo plano
+  artworkService.enqueueMissing();
+  artworkService.enqueueMissing(repairedArtwork);
+  profileService.syncInBackground();
+  wishlistService.syncInBackground();
+}
+
+// Contabiliza sessões em andamento, encerra o worker de processos e grava o que estiver pendente
+let shutDown = false;
+function shutdown(): void {
+  if (shutDown) return;
+  shutDown = true;
+  for (const timer of startupTimers) clearTimeout(timer);
+  screenshotCaptureService.stop();
+  playtimeService.shutdown();
+  db.flush();
+}
 
 // Uma instância só: abrir o atalho de novo traz a janela existente (inclusive da bandeja)
 if (!app.requestSingleInstanceLock()) {
@@ -46,8 +88,6 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', () => {
     showMainWindow();
   });
-
-  const SAVES_SWEEP_DELAY_MS = 90_000; // Depois que a abertura e os scans terminaram
 
   app.whenReady().then(async () => {
     // Content-Security-Policy injetada nos cabeçalhos HTTP (no dev libera HMR/WebSocket e inline do Vite)
@@ -69,7 +109,6 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
 
-    // Initialize local database
     await db.init();
     migrateMediaCache();
     const repairedArtwork = artworkService.repairMissingMedia();
@@ -77,41 +116,33 @@ if (!app.requestSingleInstanceLock()) {
     registerScreenshotRoots();
     playtimeService.recoverInterruptedSessions();
 
-    // Register all typed IPC channels
     registerIpcHandlers(getMainWindow);
+    setSessionEndHandler(shutdown);
 
+    const hadGames = db.getGames().length > 0;
     startApp(process.argv.includes(HIDDEN_LAUNCH_ARG));
-    // Horas da Steam (localconfig.vdf) e jogos da Riot/Xbox atualizados a cada abertura (leituras rápidas);
-    // a janela recebe os jogos atualizados
-    // Biblioteca vazia (primeira execução): a interface já faz o scan completo
-    if (db.getGames().length > 0) {
-      scanLibraries(['steam', 'riot', 'xbox'])
-        .then((result) => {
-          for (const game of result.games) getMainWindow()?.webContents.send(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
-          // Jogos novos sem capa (ex: Riot, Xbox) buscam artes no SteamGridDB em segundo plano
-          artworkService.enqueueMissing();
-          profileService.syncInBackground();
-          wishlistService.syncInBackground();
-          artworkService.enqueueMissing(repairedArtwork);
-        })
-        .catch((err) => console.warn('[Startup] Sincronização da Steam falhou:', (err as Error).message));
-    }
+    void runStartupSync(hadGames, repairedArtwork);
+
     backupService.migrateConsent();
-    setTimeout(() => void backupService.retryPendingUploads(), PENDING_UPLOAD_RETRY_DELAY_MS);
-    setTimeout(() => void backupService.autoBackupSweep(), SAVES_SWEEP_DELAY_MS);
+    startupTimers.push(
+      setTimeout(() => void backupService.retryPendingUploads().catch((err) => console.warn('[Startup] Reenvio ao Drive falhou:', (err as Error).message)), PENDING_UPLOAD_RETRY_DELAY_MS),
+      setTimeout(() => void backupService.autoBackupSweep().catch((err) => console.warn('[Startup] Varredura de saves falhou:', (err as Error).message)), SAVES_SWEEP_DELAY_MS)
+    );
 
     app.on('activate', function () {
       if (BrowserWindow.getAllWindows().length === 0) showMainWindow();
     });
   });
 
-  // Contabiliza sessões em andamento e encerra o worker de processos
   app.on('before-quit', () => {
-    screenshotCaptureService.stop();
     setQuitting();
-    playtimeService.shutdown();
+    shutdown();
     destroyTray();
   });
+
+  // Última garantia: nada pendente fica só na memória
+  app.on('will-quit', () => db.flush());
+  process.on('exit', () => db.flush());
 
   // Com "minimizar para a bandeja" o app segue vivo sem janela (rastreador e backups)
   app.on('window-all-closed', () => {

@@ -14,7 +14,7 @@ export type EmulatorType =
   | 'mgba' 
   | 'ppsspp' 
   | 'bizhawk' 
-  | 'custom'
+  | 'custom'                       // Legado: emuladores do jogador usam custom-<uuid>
   | `custom-${string}`;           // Emulador criado pelo jogador
 
 export interface GameMedia {
@@ -153,7 +153,8 @@ export interface EmulatorProfile {
   defaultExecutableNames: string[]; // Ex: ['Ryujinx.exe']
   supportedExtensions: string[];    // Ex: ['.nsp', '.xci']
   commandTemplate: string;          // Ex: '"{rom}"' ou '-b -e "{rom}"'
-  defaultRomDirectories: string[];
+  /** @deprecated Nunca foi lido: as pastas vêm da configuração de cada emulador (emulator-detect.service). */
+  defaultRomDirectories?: string[];
 }
 
 // Configuração do usuário para cada emulador (persistida no banco local)

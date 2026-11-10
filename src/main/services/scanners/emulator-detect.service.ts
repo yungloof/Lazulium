@@ -149,7 +149,18 @@ async function findExecutables(force: boolean): Promise<Map<EmulatorType, string
 
   const last = Number(db.getSettings()[DISK_SEARCH_SETTING] ?? 0);
   if (force || Date.now() - last > DISK_SEARCH_INTERVAL_MS) {
-    for (const root of searchRoots()) await searchRoot(root, index, found);
+    // Pastas varridas ao mesmo tempo (cada disco responde sozinho); o resultado segue a ordem das raízes,
+    // então o executável escolhido é o mesmo de uma busca uma a uma
+    const perRoot = await Promise.all(
+      searchRoots().map(async (root) => {
+        const inRoot = new Map<EmulatorType, string>();
+        await searchRoot(root, index, inRoot);
+        return inRoot;
+      })
+    );
+    for (const inRoot of perRoot) {
+      for (const [id, path] of inRoot) if (!found.has(id)) found.set(id, path);
+    }
     db.setSetting(DISK_SEARCH_SETTING, String(Date.now()));
   }
   return found;

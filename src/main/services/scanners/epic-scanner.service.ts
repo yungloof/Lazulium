@@ -70,7 +70,7 @@ function manifestToGame(manifest: EpicManifest): DetectedGame | null {
 async function readLauncherInstalled(): Promise<LauncherInstalledEntry[]> {
   const datPath = join(programData, 'Epic', 'UnrealEngineLauncher', 'LauncherInstalled.dat');
   if (!existsSync(datPath)) return [];
-  const parsed = JSON.parse(await readFile(datPath, 'utf-8')) as { InstallationList?: LauncherInstalledEntry[] };
+  const parsed = JSON.parse((await readFile(datPath, 'utf-8')).replace(/^﻿/, '')) as { InstallationList?: LauncherInstalledEntry[] };
   return parsed.InstallationList ?? [];
 }
 
@@ -82,16 +82,23 @@ export const epicScanner: PlatformScanner = {
     const games = new Map<string, DetectedGame>();
     const manifestsDir = await findManifestsDir();
 
-    if (manifestsDir) {
-      for (const file of await readdir(manifestsDir)) {
-        if (!file.toLowerCase().endsWith('.item')) continue;
-        try {
-          const manifest = JSON.parse(await readFile(join(manifestsDir, file), 'utf-8')) as EpicManifest;
-          const game = manifestToGame(manifest);
-          if (game) games.set(game.id, game);
-        } catch (err) {
-          warnings.push(`Epic: falha ao ler ${file} (${(err as Error).message})`);
-        }
+    // Pasta sem permissão de leitura não impede o LauncherInstalled.dat logo abaixo
+    const files = manifestsDir
+      ? await readdir(manifestsDir).catch((err) => {
+          warnings.push('Epic: não consegui abrir a pasta de manifestos da Epic Games.');
+          console.warn(`[Scanner:Epic] ${manifestsDir}:`, (err as Error).message);
+          return [] as string[];
+        })
+      : [];
+    for (const file of files) {
+      if (!file.toLowerCase().endsWith('.item')) continue;
+      try {
+        const manifest = JSON.parse((await readFile(join(manifestsDir!, file), 'utf-8')).replace(/^﻿/, '')) as EpicManifest;
+        const game = manifestToGame(manifest);
+        if (game) games.set(game.id, game);
+      } catch (err) {
+        warnings.push(`Epic: um manifesto de jogo está danificado (${file}). Abra a Epic Games para ela refazê-lo.`);
+        console.warn(`[Scanner:Epic] ${file}:`, (err as Error).message);
       }
     }
 
@@ -114,7 +121,8 @@ export const epicScanner: PlatformScanner = {
         });
       }
     } catch (err) {
-      warnings.push(`Epic: falha ao ler LauncherInstalled.dat (${(err as Error).message})`);
+      warnings.push('Epic: a lista de jogos instalados da Epic Games (LauncherInstalled.dat) está danificada.');
+      console.warn('[Scanner:Epic] LauncherInstalled.dat:', (err as Error).message);
     }
 
     if (!manifestsDir && games.size === 0) {

@@ -4,6 +4,9 @@ import { existsSync } from 'fs';
 import { dirname, extname } from 'path';
 import { Game } from '@shared/types/game';
 
+// Falha já explicada para o jogador (a mensagem vai direto para a interface)
+export class LaunchError extends Error {}
+
 export interface LaunchHandle {
   method: 'uri' | 'spawn';
   pid?: number;                     // Apenas para 'spawn' (processo raiz)
@@ -114,8 +117,11 @@ export async function launchGame(game: Game): Promise<LaunchHandle> {
     return { method: 'uri', launchedAt };
   }
 
-  if (!game.executablePath || !existsSync(game.executablePath)) {
-    throw new Error(`Executável não encontrado: ${game.executablePath || '(vazio)'}`);
+  if (!game.executablePath) {
+    throw new LaunchError(`${game.title} não tem um executável definido. Edite o jogo e escolha o arquivo que abre ele.`);
+  }
+  if (!existsSync(game.executablePath)) {
+    throw new LaunchError(`O executável de ${game.title} não está mais em ${game.executablePath}. Ele pode ter sido movido ou apagado: clique em Escanear ou edite o jogo.`);
   }
 
   const pid = await spawnDetached(game);

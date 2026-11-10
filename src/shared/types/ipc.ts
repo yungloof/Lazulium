@@ -29,8 +29,8 @@ export interface ScanResult {
   added: number;
   updated: number;
   total: number;
-  games: Game[];
-  warnings: string[];               // Falhas isoladas de scanners (não interrompem o scan)
+  games: Game[];                    // A biblioteca inteira depois do scan
+  warnings: string[];               // Falhas isoladas de scanners (não interrompem o scan), já em texto para o jogador
 }
 
 export type MediaAssetType = 'cover' | 'hero' | 'logo' | 'icon';
@@ -94,6 +94,8 @@ export interface GameLaunchStatus {
   error?: string;
 }
 
+// Contrato de window.electronAPI (exposto pelo preload). Erros chegam como Error com mensagem em português;
+// o renderer tira o prefixo "Error invoking remote method" com ipcErrorMessage.
 export interface ElectronAPI {
   // Biblioteca & Scanners
   scanAllLibraries: () => Promise<ScanResult>;
@@ -225,9 +227,9 @@ export interface ElectronAPI {
   selectDirectory: () => Promise<string | null>;
   rendererReady: () => Promise<void>;                          // Ouvintes registrados: libera ações pendentes da bandeja
   onTrayAction: (callback: (action: TrayAction) => void) => () => void;
-  notifyNetworkOnline: () => Promise<void>;
+  notifyNetworkOnline: () => Promise<void>;                    // Conexão voltou: refaz envios ao Drive e buscas de artes pendentes
   getAppInfo: () => Promise<{ version: string; logsDir: string }>;
-  openLogsFolder: () => Promise<void>;                         // Para o usuário enviar o lazulium.log quando algo der errado                    // Conexão voltou: refaz envios/buscas pendentes
+  openLogsFolder: () => Promise<void>;                         // Para o usuário enviar o lazulium.log quando algo der errado
 }
 
 declare global {

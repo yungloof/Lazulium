@@ -1,5 +1,13 @@
 import { CustomEmulatorDefinition, EmulatorConfig, EmulatorProfile, EmulatorType } from '../types/game';
 
+// Emuladores que o Lazulium conhece. Cada perfil diz:
+//  - defaultExecutableNames: nomes do .exe procurados nos atalhos da Steam e na busca limitada no disco
+//    (emulator-detect.service), e reconhecidos em atalhos que abrem ROM (steam-scanner);
+//  - supportedExtensions: arquivos que viram jogo ao varrer as pastas de ROMs (com ponto, minúsculas);
+//  - commandTemplate: argumentos passados ao emulador. Marcadores: {rom} caminho completo da ROM,
+//    {romname} nome sem extensão, {romdir} pasta da ROM, {core} core do RetroArch (EmulatorConfig.corePath).
+// Emuladores criados pelo jogador seguem o mesmo formato (CustomEmulatorDefinition, id custom-<uuid>).
+
 // Perfil de um emulador conhecido ou criado pelo jogador
 export function resolveEmulatorProfile(config: Pick<EmulatorConfig, 'emulatorId' | 'custom'>): EmulatorProfile | undefined {
   const known = DEFAULT_EMULATOR_PROFILES[config.emulatorId];
@@ -11,8 +19,7 @@ export function resolveEmulatorProfile(config: Pick<EmulatorConfig, 'emulatorId'
     system: config.custom.system,
     defaultExecutableNames: [],
     supportedExtensions: config.custom.extensions,
-    commandTemplate: config.custom.commandTemplate,
-    defaultRomDirectories: []
+    commandTemplate: config.custom.commandTemplate
   };
 }
 
@@ -47,6 +54,7 @@ export function hasRetroAchievements(emulatorId?: EmulatorType): boolean {
   return !emulatorId || !WITHOUT_RETROACHIEVEMENTS.includes(emulatorId);
 }
 
+// A ordem é a da tela de Emuladores (db.getEmulatorConfigs). Um .exe pertence a um perfil só.
 export const DEFAULT_EMULATOR_PROFILES: Record<string, EmulatorProfile> = {
   dolphin: {
     id: 'dolphin',
@@ -54,8 +62,7 @@ export const DEFAULT_EMULATOR_PROFILES: Record<string, EmulatorProfile> = {
     system: 'GameCube / Wii',
     defaultExecutableNames: ['Dolphin.exe'],
     supportedExtensions: ['.iso', '.gcm', '.gcz', '.wbfs', '.ciso', '.rvz'],
-    commandTemplate: '-b -e "{rom}"',
-    defaultRomDirectories: []
+    commandTemplate: '-b -e "{rom}"'
   },
   ryujinx: {
     id: 'ryujinx',
@@ -63,8 +70,7 @@ export const DEFAULT_EMULATOR_PROFILES: Record<string, EmulatorProfile> = {
     system: 'Nintendo Switch',
     defaultExecutableNames: ['Ryujinx.exe', 'Ryujinx.Ava.exe'],
     supportedExtensions: ['.nsp', '.xci', '.nca'],
-    commandTemplate: '--fullscreen "{rom}"',
-    defaultRomDirectories: []
+    commandTemplate: '--fullscreen "{rom}"'
   },
   cemu: {
     id: 'cemu',
@@ -72,8 +78,7 @@ export const DEFAULT_EMULATOR_PROFILES: Record<string, EmulatorProfile> = {
     system: 'Wii U',
     defaultExecutableNames: ['Cemu.exe'],
     supportedExtensions: ['.wua', '.rpx', '.wud', '.wux'],
-    commandTemplate: '-g "{rom}" -f',
-    defaultRomDirectories: []
+    commandTemplate: '-g "{rom}" -f'
   },
   pcsx2: {
     id: 'pcsx2',
@@ -81,8 +86,7 @@ export const DEFAULT_EMULATOR_PROFILES: Record<string, EmulatorProfile> = {
     system: 'PlayStation 2',
     defaultExecutableNames: ['pcsx2-qt.exe', 'pcsx2-qtx64.exe', 'pcsx2-qtx64-avx2.exe', 'pcsx2.exe'],
     supportedExtensions: ['.iso', '.bin', '.chd', '.cso', '.gz'],
-    commandTemplate: '-nogui -fullscreen "{rom}"',
-    defaultRomDirectories: []
+    commandTemplate: '-nogui -fullscreen "{rom}"'
   },
   rpcs3: {
     id: 'rpcs3',
@@ -90,8 +94,7 @@ export const DEFAULT_EMULATOR_PROFILES: Record<string, EmulatorProfile> = {
     system: 'PlayStation 3',
     defaultExecutableNames: ['rpcs3.exe'],
     supportedExtensions: ['.bin', '.elf', '.self'],
-    commandTemplate: '"{rom}" --no-gui',
-    defaultRomDirectories: []
+    commandTemplate: '"{rom}" --no-gui'
   },
   duckstation: {
     id: 'duckstation',
@@ -99,8 +102,7 @@ export const DEFAULT_EMULATOR_PROFILES: Record<string, EmulatorProfile> = {
     system: 'PlayStation 1',
     defaultExecutableNames: ['duckstation-qt-x64-ReleaseLTCG.exe', 'duckstation-nogui-x64-ReleaseLTCG.exe', 'duckstation.exe'],
     supportedExtensions: ['.chd', '.cue', '.iso', '.pbp', '.m3u'],
-    commandTemplate: '-batch -fullscreen "{rom}"',
-    defaultRomDirectories: []
+    commandTemplate: '-batch -fullscreen "{rom}"'
   },
   retroarch: {
     id: 'retroarch',
@@ -108,8 +110,7 @@ export const DEFAULT_EMULATOR_PROFILES: Record<string, EmulatorProfile> = {
     system: 'Multi-Sistema Retro',
     defaultExecutableNames: ['retroarch.exe'],
     supportedExtensions: ['.zip', '.7z', '.chd', '.iso', '.nes', '.sfc', '.smc', '.gba', '.gbc', '.gb', '.bin', '.cue'],
-    commandTemplate: '-L "{core}" "{rom}" -f',
-    defaultRomDirectories: []
+    commandTemplate: '-L "{core}" "{rom}" -f'
   },
   eden: {
     id: 'eden',
@@ -117,8 +118,7 @@ export const DEFAULT_EMULATOR_PROFILES: Record<string, EmulatorProfile> = {
     system: 'Nintendo Switch',
     defaultExecutableNames: ['eden.exe', 'yuzu.exe', 'suyu.exe', 'citron.exe', 'sudachi.exe'],
     supportedExtensions: ['.nsp', '.xci'],
-    commandTemplate: '-f -g "{rom}"',
-    defaultRomDirectories: []
+    commandTemplate: '-f -g "{rom}"'
   },
   azahar: {
     id: 'azahar',
@@ -126,8 +126,7 @@ export const DEFAULT_EMULATOR_PROFILES: Record<string, EmulatorProfile> = {
     system: 'Nintendo 3DS',
     defaultExecutableNames: ['azahar.exe', 'lime3ds.exe', 'lime3ds-gui.exe', 'citra-qt.exe'],
     supportedExtensions: ['.3ds', '.cci', '.cxi', '.3dsx'],
-    commandTemplate: '-f "{rom}"',
-    defaultRomDirectories: []
+    commandTemplate: '-f "{rom}"'
   },
   melonds: {
     id: 'melonds',
@@ -135,8 +134,7 @@ export const DEFAULT_EMULATOR_PROFILES: Record<string, EmulatorProfile> = {
     system: 'Nintendo DS',
     defaultExecutableNames: ['melonDS.exe'],
     supportedExtensions: ['.nds', '.dsi'],
-    commandTemplate: '-f "{rom}"',
-    defaultRomDirectories: []
+    commandTemplate: '-f "{rom}"'
   },
   mgba: {
     id: 'mgba',
@@ -144,8 +142,7 @@ export const DEFAULT_EMULATOR_PROFILES: Record<string, EmulatorProfile> = {
     system: 'Game Boy / Color / Advance',
     defaultExecutableNames: ['mGBA.exe'],
     supportedExtensions: ['.gba', '.gbc', '.gb'],
-    commandTemplate: '-f "{rom}"',
-    defaultRomDirectories: []
+    commandTemplate: '-f "{rom}"'
   },
   ppsspp: {
     id: 'ppsspp',
@@ -153,8 +150,7 @@ export const DEFAULT_EMULATOR_PROFILES: Record<string, EmulatorProfile> = {
     system: 'PlayStation Portable',
     defaultExecutableNames: ['PPSSPPWindows64.exe', 'PPSSPPWindows.exe'],
     supportedExtensions: ['.iso', '.cso', '.chd', '.pbp'],
-    commandTemplate: '--fullscreen "{rom}"',
-    defaultRomDirectories: []
+    commandTemplate: '--fullscreen "{rom}"'
   },
   bizhawk: {
     id: 'bizhawk',
@@ -162,7 +158,6 @@ export const DEFAULT_EMULATOR_PROFILES: Record<string, EmulatorProfile> = {
     system: 'Multi-Sistema Retro',
     defaultExecutableNames: ['EmuHawk.exe'],
     supportedExtensions: ['.nes', '.sfc', '.smc', '.gb', '.gbc', '.gba', '.n64', '.z64', '.md', '.sms'],
-    commandTemplate: '"{rom}" --fullscreen',
-    defaultRomDirectories: []
+    commandTemplate: '"{rom}" --fullscreen'
   }
 };

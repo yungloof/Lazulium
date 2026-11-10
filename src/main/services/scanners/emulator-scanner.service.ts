@@ -169,15 +169,15 @@ interface KnownGames {
 async function scanEmulator(config: EmulatorConfig, warnings: string[], known: KnownGames): Promise<DetectedGame[]> {
   const profile = resolveEmulatorProfile(config);
   if (!profile) {
-    warnings.push(`Emuladores: perfil desconhecido "${config.emulatorId}"`);
+    console.warn(`[Scanner:Emuladores] Perfil desconhecido "${config.emulatorId}", ignorado`);
     return [];
   }
   if (!config.executablePath || !existsSync(config.executablePath)) {
-    warnings.push(`${profile.name}: executável não configurado ou inexistente.`);
+    warnings.push(`${profile.name}: o programa do emulador não foi encontrado. Escolha o executável em Emuladores.`);
     return [];
   }
   if (profile.commandTemplate.includes('{core}') && !config.corePath) {
-    warnings.push(`${profile.name}: defina o core (.dll) para gerar o comando de boot.`);
+    warnings.push(`${profile.name}: escolha o core (.dll) em Emuladores para os jogos abrirem.`);
     return [];
   }
 
@@ -185,7 +185,7 @@ async function scanEmulator(config: EmulatorConfig, warnings: string[], known: K
   for (const romDir of config.romDirectories) {
     if (!existsSync(romDir)) {
       // Pasta que veio da lista do próprio emulador: apagar os jogos dela não é erro. Escolhida à mão, vale avisar.
-      if (!config.autoDetected) warnings.push(`${profile.name}: pasta de ROMs não encontrada (${romDir})`);
+      if (!config.autoDetected) warnings.push(`${profile.name}: a pasta de jogos ${romDir} não foi encontrada (disco desconectado ou pasta apagada?).`);
       continue;
     }
     const files: string[] = [];
@@ -228,7 +228,8 @@ export function createEmulatorScanner(getConfigs: () => EmulatorConfig[], getOth
       try {
         await detect();
       } catch (err) {
-        warnings.push(`Emuladores: a busca automática falhou (${(err as Error).message})`);
+        console.warn('[Scanner:Emuladores] Busca automática falhou:', err);
+        warnings.push('Emuladores: a busca automática de emuladores falhou; os já configurados foram escaneados normalmente.');
       }
 
       const allOtherGames = getOtherGames().filter((g) => g.isInstalled !== false);
@@ -249,7 +250,9 @@ export function createEmulatorScanner(getConfigs: () => EmulatorConfig[], getOth
         try {
           games.push(...(await scanEmulator(config, warnings, known)));
         } catch (err) {
-          warnings.push(`${config.emulatorId}: ${(err as Error).message}`);
+          const name = resolveEmulatorProfile(config)?.name ?? config.emulatorId;
+          console.warn(`[Scanner:Emuladores] ${name}:`, err);
+          warnings.push(`${name}: não consegui ler os jogos deste emulador agora.`);
         }
       }
       return { games, warnings };

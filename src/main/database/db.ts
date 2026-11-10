@@ -1,6 +1,6 @@
 import { app, safeStorage } from 'electron';
-import { dirname, join } from 'path';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'fs';
+import { join } from 'path';
+import { copyFileSync, existsSync, mkdirSync, renameSync } from 'fs';
 import { CachedPlayLength, EmulatorConfig, EmulatorType, Game, PlaytimeSession } from '@shared/types/game';
 import { Achievement, AchievementExtras, AchievementSource, GameAchievements } from '@shared/types/achievements';
 import { BackupRecord, GameSaveConfig } from '@shared/types/cloudsync';
@@ -9,9 +9,14 @@ import { GameList } from '@shared/types/lists';
 import { WishlistItem } from '@shared/types/wishlist';
 import { ScreenshotMove } from '@shared/types/screenshots';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
+import { createDefaultData, normalizeData } from './normalize';
+import { ensureDailyBackup, listDailyBackups, readTextWithRetry, writeAtomic } from './storage';
 
-const BACKUPS_DIR = 'backups';
-const MAX_DAILY_BACKUPS = 14;
+// Mudanças em rajada (scan, sincronização de conquistas) viram uma gravação só
+const WRITE_DELAY_MS = 250;
+// Gravação que falhou (arquivo preso por outro programa) é tentada de novo sozinha
+const WRITE_RETRY_MS = 3_000;
+const SLOW_WRITE_MS = 250;
 
 const SECRET_SETTING_KEYS = [
   'steamGridDbApiKey',
@@ -21,38 +26,31 @@ const SECRET_SETTING_KEYS = [
   'googleDriveRefreshToken'
 ] as const;
 
-function decryptSecret(value?: string): string {
-  if (!value) return '';
-  if (!value.startsWith('enc:')) {
-    // Texto puro (migração ou sem cifragem)
-    return value;
-  }
-  const base64Data = value.slice(4);
+const isSecretKey = (key: string): boolean => (SECRET_SETTING_KEYS as readonly string[]).includes(key);
+
+// null: não deu para decifrar neste PC/usuário do Windows (ex: pasta de dados copiada de outro PC)
+function decryptSecret(value: string): string | null {
+  if (!value.startsWith('enc:')) return value; // Texto puro (migração ou sem cifragem)
   if (!safeStorage.isEncryptionAvailable()) {
     console.warn('[Database] safeStorage não está disponível para decifrar credenciais.');
-    return '';
+    return null;
   }
   try {
-    const buffer = Buffer.from(base64Data, 'base64');
-    return safeStorage.decryptString(buffer);
+    return safeStorage.decryptString(Buffer.from(value.slice(4), 'base64'));
   } catch (err) {
     console.error('[Database] Falha ao decifrar segredo:', err);
-    return '';
+    return null;
   }
 }
 
-function encryptSecret(value?: string): string {
-  if (!value) return '';
-  if (value.startsWith('enc:')) {
-    return value;
-  }
+function encryptSecret(value: string): string {
+  if (value.startsWith('enc:')) return value;
   if (!safeStorage.isEncryptionAvailable()) {
     console.warn('[Database] safeStorage não está disponível; mantendo credencial em texto puro.');
     return value;
   }
   try {
-    const buffer = safeStorage.encryptString(value);
-    return `enc:${buffer.toString('base64')}`;
+    return `enc:${safeStorage.encryptString(value).toString('base64')}`;
   } catch (err) {
     console.error('[Database] Falha ao cifrar segredo:', err);
     return value;
@@ -69,9 +67,10 @@ export interface ActiveSessionRecord {
 }
 
 export interface DatabaseSchema {
+  schemaVersion?: number;           // Formato do arquivo (ver normalize.ts); ausente = anterior à 1.0
   games: Game[];
   playtimeSessions: PlaytimeSession[];
-  achievements: Achievement[];
+  achievements: Achievement[];      // Legado: as conquistas ficam em gameAchievements
   gameAchievements?: Record<string, GameAchievements>;
   achievementExtras?: Record<string, AchievementExtras>;
   emulatorConfigs: EmulatorConfig[];
@@ -89,148 +88,118 @@ export interface DatabaseSchema {
   settings: Record<string, string>;
 }
 
-const DEFAULT_DATA: DatabaseSchema = {
-  games: [],
-  playtimeSessions: [],
-  achievements: [],
-  gameAchievements: {},
-  emulatorConfigs: [],
-  standaloneDirectories: [],
-  activeSessions: [],
-  saveConfigs: {},
-  saveBackups: [],
-  settings: {
-    steamGridDbApiKey: '',
-    steamWebApiKey: '',
-    steamUserId: '',
-    retroAchievementsUser: '',
-    retroAchievementsApiKey: '',
-    googleClientId: '',
-    googleClientSecret: '',
-    googleDriveRefreshToken: '',
-    discountIdleTime: 'true',
-    idleThresholdMinutes: '15',
-    theme: 'dark-oled'
-  }
-};
-
 class DatabaseService {
-  private dataFilePath: string = '';
-  private data: DatabaseSchema = DEFAULT_DATA;
-  private initialized: boolean = false;
+  private dataFilePath = '';
+  private data: DatabaseSchema = createDefaultData();
+  private initialized = false;
+  private writeTimer: NodeJS.Timeout | undefined;
+  private dirty = false;
+  private backupDay: string | undefined;
+  // Segredos cifrados que este PC não abre: voltam ao arquivo intactos até o jogador conectar de novo.
+  // Gravar vazio no lugar apagaria a conta de vez (ex: chave do Windows recriada, perfil restaurado).
+  private undecryptable = new Map<string, string>();
 
   async init(): Promise<void> {
     if (this.initialized) return;
 
     try {
-      const userDataDir = app.getPath('userData');
-      const storageDir = join(userDataDir, 'storage');
-      
-      if (!existsSync(storageDir)) {
-        mkdirSync(storageDir, { recursive: true });
-      }
-
+      const storageDir = join(app.getPath('userData'), 'storage');
+      mkdirSync(storageDir, { recursive: true });
       this.dataFilePath = join(storageDir, 'lazulium_db.json');
 
-      if (existsSync(this.dataFilePath)) {
-        const parsed = this.loadWithRecovery(storageDir);
-        if (parsed.settings) {
-          for (const key of SECRET_SETTING_KEYS) {
-            if (parsed.settings[key]) {
-              parsed.settings[key] = decryptSecret(parsed.settings[key]);
-            }
-          }
+      const loaded = this.load();
+      if (loaded) {
+        for (const key of SECRET_SETTING_KEYS) {
+          const stored = loaded.settings[key];
+          if (!stored) continue;
+          const plain = decryptSecret(stored);
+          if (plain === null) this.undecryptable.set(key, stored);
+          loaded.settings[key] = plain ?? '';
         }
-        if (!parsed.gameAchievements) {
-          parsed.gameAchievements = {};
-        }
-        this.data = parsed;
+        this.data = loaded;
       } else {
-        this.data = { ...DEFAULT_DATA };
-        this.persist();
+        this.data = createDefaultData();
+        this.dirty = true;
+        this.flush();
       }
 
       this.initialized = true;
-      console.log(`[Database] Initialized at: ${this.dataFilePath}`);
+      console.log(`[Database] Initialized at: ${this.dataFilePath} (${this.data.games.length} jogos)`);
     } catch (err) {
       console.error('[Database] Failed to initialize database:', err);
       // Sem caminho nada é gravado: uma falha ao abrir nunca pode sobrescrever o histórico com um banco vazio
       this.dataFilePath = '';
-      this.data = { ...DEFAULT_DATA };
+      this.data = createDefaultData();
     }
   }
 
   private readDataFile(path: string): DatabaseSchema {
-    const parsed = JSON.parse(readFileSync(path, 'utf-8'));
-    if (!parsed || !Array.isArray(parsed.games)) throw new Error('Formato inválido');
-    return { ...DEFAULT_DATA, ...parsed };
+    return normalizeData(JSON.parse(readTextWithRetry(path).replace(/^﻿/, '')));
   }
 
-  // Banco corrompido: guarda o arquivo ruim e volta para a cópia diária mais recente que abrir
-  private loadWithRecovery(storageDir: string): DatabaseSchema {
-    try {
-      return this.readDataFile(this.dataFilePath);
-    } catch (err) {
-      console.error('[Database] Banco corrompido, tentando as cópias de segurança:', err);
-    }
-    renameSync(this.dataFilePath, `${this.dataFilePath}.corrupt-${Date.now()}`);
-
-    const backupsDir = join(storageDir, BACKUPS_DIR);
-    const backups = existsSync(backupsDir) ? readdirSync(backupsDir).filter((f) => f.endsWith('.json')).sort().reverse() : [];
-    for (const file of backups) {
+  // Abre o banco. Arquivo ilegível vira <nome>.corrupt-<data> e a cópia diária mais recente que abrir
+  // assume; arquivo sumido com cópias guardadas também volta da cópia. null: primeira execução.
+  private load(): DatabaseSchema | null {
+    const path = this.dataFilePath;
+    if (existsSync(path)) {
       try {
-        const restored = this.readDataFile(join(backupsDir, file));
-        copyFileSync(join(backupsDir, file), this.dataFilePath);
-        console.warn(`[Database] Biblioteca restaurada da cópia ${file}`);
+        return this.readDataFile(path);
+      } catch (err) {
+        // Erro de trava persistente não é corrupção: o init desiste sem gravar nada
+        if ((err as NodeJS.ErrnoException).code) throw err;
+        console.error('[Database] Banco corrompido, tentando as cópias de segurança:', err);
+      }
+      renameSync(path, `${path}.corrupt-${Date.now()}`);
+    } else if (listDailyBackups(path).length === 0) {
+      return null;
+    } else {
+      console.warn('[Database] Banco não encontrado, mas há cópias de segurança: restaurando a mais recente');
+    }
+
+    for (const backup of listDailyBackups(path)) {
+      try {
+        const restored = this.readDataFile(backup);
+        copyFileSync(backup, path);
+        console.warn(`[Database] Biblioteca restaurada da cópia ${backup}`);
         return restored;
       } catch {
         // Cópia também ruim: tenta a anterior
       }
     }
     console.error('[Database] Nenhuma cópia de segurança válida; iniciando um banco novo');
-    return { ...DEFAULT_DATA };
+    return createDefaultData();
   }
 
-  // Uma cópia por dia antes da primeira gravação do dia, mantendo as últimas MAX_DAILY_BACKUPS
-  private ensureDailyBackup(): void {
-    if (!existsSync(this.dataFilePath)) return;
-    const backupsDir = join(dirname(this.dataFilePath), BACKUPS_DIR);
-    const today = join(backupsDir, `lazulium_db-${new Date().toISOString().slice(0, 10)}.json`);
-    if (existsSync(today)) return;
-    try {
-      mkdirSync(backupsDir, { recursive: true });
-      copyFileSync(this.dataFilePath, today);
-      const old = readdirSync(backupsDir).filter((f) => f.endsWith('.json')).sort().reverse().slice(MAX_DAILY_BACKUPS);
-      for (const file of old) unlinkSync(join(backupsDir, file));
-    } catch (err) {
-      console.warn('[Database] Falha na cópia diária:', err);
-    }
-  }
-
+  // Marca para gravar: as mudanças do mesmo instante saem juntas pouco depois
   private persist(): void {
+    if (!this.dataFilePath) return;
+    this.dirty = true;
+    this.writeTimer ??= setTimeout(() => this.flush(), WRITE_DELAY_MS);
+  }
+
+  // Grava agora o que estiver pendente (encerramento do app e testes)
+  flush(): void {
+    clearTimeout(this.writeTimer);
+    this.writeTimer = undefined;
+    if (!this.dirty || !this.dataFilePath) return;
+    this.dirty = false;
+    const startedAt = Date.now();
     try {
-      if (!this.dataFilePath) return;
-
-      const encryptedSettings = { ...this.data.settings };
+      const settings = { ...this.data.settings };
       for (const key of SECRET_SETTING_KEYS) {
-        if (encryptedSettings[key]) {
-          encryptedSettings[key] = encryptSecret(encryptedSettings[key]);
-        }
+        const value = settings[key];
+        if (value) settings[key] = encryptSecret(value);
+        else if (this.undecryptable.has(key)) settings[key] = this.undecryptable.get(key)!;
       }
-
-      const dataToPersist: DatabaseSchema = {
-        ...this.data,
-        settings: encryptedSettings
-      };
-
-      this.ensureDailyBackup();
-
-      // Grava num temporário e troca de uma vez: queda de energia no meio não estraga o banco
-      const tmpPath = `${this.dataFilePath}.tmp`;
-      writeFileSync(tmpPath, JSON.stringify(dataToPersist, null, 2), 'utf-8');
-      renameSync(tmpPath, this.dataFilePath);
+      const text = JSON.stringify({ ...this.data, settings });
+      this.backupDay = ensureDailyBackup(this.dataFilePath, this.backupDay);
+      writeAtomic(this.dataFilePath, text);
+      const elapsed = Date.now() - startedAt;
+      if (elapsed > SLOW_WRITE_MS) console.warn(`[Database] Gravação lenta: ${elapsed} ms (${(text.length / 1048576).toFixed(1)} MB)`);
     } catch (err) {
-      console.error('[Database] Persist error:', err);
+      console.error('[Database] Falha ao gravar o banco (nova tentativa em instantes):', err);
+      this.dirty = true;
+      this.writeTimer = setTimeout(() => this.flush(), WRITE_RETRY_MS);
     }
   }
 
@@ -251,7 +220,7 @@ class DatabaseService {
       this.data.games.push(game);
     }
     this.persist();
-    return game;
+    return index >= 0 ? this.data.games[index] : game;
   }
 
   // Upsert em lote com uma única escrita em disco (usado pelos scanners)
@@ -385,9 +354,7 @@ class DatabaseService {
   }
 
   saveGameAchievements(achievements: GameAchievements): void {
-    if (!this.data.gameAchievements) {
-      this.data.gameAchievements = {};
-    }
+    this.data.gameAchievements ??= {};
     this.data.gameAchievements[achievements.gameId] = achievements;
     this.persist();
   }
@@ -454,7 +421,7 @@ class DatabaseService {
     this.persist();
   }
 
-  // Emulator Configs (sempre retorna um item por perfil conhecido)
+  // Lista de desejos
   getWishlist(): WishlistItem[] {
     return this.data.wishlist ?? [];
   }
@@ -464,6 +431,7 @@ class DatabaseService {
     this.persist();
   }
 
+  // Listas de jogos (a mais recente primeiro)
   getGameLists(): GameList[] {
     return this.data.gameLists ?? [];
   }
@@ -497,6 +465,7 @@ class DatabaseService {
     this.persist();
   }
 
+  // Emulator Configs (sempre retorna um item por perfil conhecido, seguido dos personalizados)
   getEmulatorConfigs(): EmulatorConfig[] {
     const stored = new Map((this.data.emulatorConfigs ?? []).map((c) => [c.emulatorId, c]));
     const builtIn = (Object.keys(DEFAULT_EMULATOR_PROFILES) as EmulatorType[]).map(
@@ -539,6 +508,8 @@ class DatabaseService {
 
   setSetting(key: string, value: string): void {
     this.data.settings[key] = value;
+    // O jogador conectou de novo (ou saiu): a credencial antiga que não abria deixa de valer
+    if (isSecretKey(key)) this.undecryptable.delete(key);
     this.persist();
   }
 }

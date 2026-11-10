@@ -82,6 +82,9 @@ class ProcessSnapshotWorker {
       { windowsHide: true }
     );
 
+    // Escrever num worker que acabou de morrer dá EPIPE no stdin: sem ouvinte, viraria exceção não tratada.
+    // A consulta pendente falha pelo 'exit' (ou pelo timeout) e o worker é recriado na próxima.
+    child.stdin.on('error', (err) => console.warn('[ProcessSnapshot] stdin:', err.message));
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk: string) => this.onData(chunk));
     child.stderr.on('data', (chunk) => {

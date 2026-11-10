@@ -101,37 +101,73 @@ function hasNoPlayerData(game: Game): boolean {
   return !game.totalPlaytimeSeconds && !game.isFavorite && !game.tags?.length && !isJournalEntry(game) && !db.getGameAchievements(game.id)?.unlocked && !db.getPlaytimeSessions(game.id).length;
 }
 
+const PLATFORM_LABELS: Record<GamePlatform, string> = {
+  steam: 'Steam',
+  epic: 'Epic Games',
+  gog: 'GOG',
+  riot: 'Riot',
+  xbox: 'Xbox',
+  emulator: 'Emuladores',
+  standalone: 'Jogos soltos'
+};
+
+type ScanOutcome = { platform: GamePlatform; ms: number } & ({ games: DetectedGame[]; warnings: string[] } | { error: Error });
+
+// Cada scanner isolado: um que quebre vira um aviso e os outros seguem
+async function runScanner(scanner: PlatformScanner): Promise<ScanOutcome> {
+  const startedAt = Date.now();
+  try {
+    const result = await scanner.scan();
+    return { platform: scanner.platform, ms: Date.now() - startedAt, games: result.games, warnings: result.warnings };
+  } catch (err) {
+    return { platform: scanner.platform, ms: Date.now() - startedAt, error: err as Error };
+  }
+}
+
+export interface ScanWithChanges {
+  result: ScanResult;
+  changed: Game[];                  // Jogos criados ou alterados por este scan (para avisar a interface)
+}
+
 // Scans rodam em fila: o da abertura do app e o do botão "Escanear" (ou o da primeira execução)
-// não disputam o PowerShell/registro nem gravam o banco ao mesmo tempo
+// não gravam o banco ao mesmo tempo nem juntam resultados de leituras diferentes
 let scanQueue: Promise<unknown> = Promise.resolve();
 
-export function scanLibraries(platforms?: GamePlatform[]): Promise<ScanResult> {
+export function scanLibrariesWithChanges(platforms?: GamePlatform[]): Promise<ScanWithChanges> {
   const run = scanQueue.catch(() => undefined).then(() => runScan(platforms));
   scanQueue = run;
   return run;
 }
 
-async function runScan(platforms?: GamePlatform[]): Promise<ScanResult> {
+export async function scanLibraries(platforms?: GamePlatform[]): Promise<ScanResult> {
+  return (await scanLibrariesWithChanges(platforms)).result;
+}
+
+async function runScan(platforms?: GamePlatform[]): Promise<ScanWithChanges> {
   const scanners = platforms ? SCANNERS.filter((s) => platforms.includes(s.platform)) : SCANNERS;
   const warnings: string[] = [];
   let detectedGames: DetectedGame[] = [];
   const completedPlatforms = new Set<GamePlatform>();
+  const changed: Game[] = [];
   let added = 0;
   let updated = 0;
+  const scanStartedAt = Date.now();
 
-  for (const scanner of scanners) {
-    try {
-      const result = await scanner.scan();
-      warnings.push(...result.warnings);
-      detectedGames.push(...result.games);
-      // Lista vazia com aviso (ex: Steam não encontrada) não prova que os jogos saíram do PC
-      if (result.games.length > 0 || result.warnings.length === 0) completedPlatforms.add(scanner.platform);
-    } catch (err) {
-      const message = `${scanner.platform}: falha no scanner (${(err as Error).message})`;
-      console.warn(`[Scanner] ${message}`);
-      warnings.push(message);
+  // Os scanners leem fontes independentes (registro, pastas, PowerShell do Xbox): rodam ao mesmo tempo e
+  // o tempo total vira o do mais lento. O resultado é juntado na ordem fixa da lista, como antes.
+  const outcomes = await Promise.all(scanners.map(runScanner));
+  for (const outcome of outcomes) {
+    if ('error' in outcome) {
+      console.warn(`[Scanner] ${outcome.platform} falhou:`, outcome.error);
+      warnings.push(`${PLATFORM_LABELS[outcome.platform]}: a busca falhou desta vez. Os jogos já listados continuam como estavam.`);
+      continue;
     }
+    warnings.push(...outcome.warnings);
+    detectedGames.push(...outcome.games);
+    // Lista vazia com aviso (ex: Steam não encontrada) não prova que os jogos saíram do PC
+    if (outcome.games.length > 0 || outcome.warnings.length === 0) completedPlatforms.add(outcome.platform);
   }
+  const timings = outcomes.map((o) => `${o.platform} ${o.ms} ms`).join(', ');
 
   detectedGames = dropCoveredFolders(detectedGames);
 
@@ -168,8 +204,13 @@ async function runScan(platforms?: GamePlatform[]): Promise<ScanResult> {
     }
 
     const game = mergeGame(detected, existing);
-    if (!existing) added++;
-    else if (JSON.stringify(existing) !== JSON.stringify(game)) updated++;
+    if (!existing) {
+      added++;
+      changed.push(game);
+    } else if (JSON.stringify(existing) !== JSON.stringify(game)) {
+      updated++;
+      changed.push(game);
+    }
     merged.push(game);
   }
 
@@ -186,7 +227,9 @@ async function runScan(platforms?: GamePlatform[]): Promise<ScanResult> {
     const stillThere = owner ? !completedPlatforms.has(owner) : !game.executablePath || existsSync(game.executablePath);
     const installed = game.isInstalled !== false && stillThere;
     if (installed !== (game.isInstalled !== false)) {
-      merged.push({ ...game, isInstalled: installed });
+      const flipped = { ...game, isInstalled: installed };
+      merged.push(flipped);
+      changed.push(flipped);
       updated++;
     }
   }
@@ -194,7 +237,8 @@ async function runScan(platforms?: GamePlatform[]): Promise<ScanResult> {
   db.upsertGames(merged);
   void steamNamesService.resolveMissing();
   for (const w of warnings) console.warn(`[Scanner] ${w}`);
+  console.log(`[Scanner] Concluído em ${Date.now() - scanStartedAt} ms (${timings})`);
 
   const games = db.getGames();
-  return { added, updated, total: games.length, games, warnings };
+  return { result: { added, updated, total: games.length, games, warnings }, changed };
 }

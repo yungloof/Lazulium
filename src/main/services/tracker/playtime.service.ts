@@ -5,7 +5,7 @@ import { powerMonitor, shell } from 'electron';
 import { Game } from '@shared/types/game';
 import { GameLaunchState, GameLaunchStatus } from '@shared/types/ipc';
 import { db } from '../../database/db';
-import { launchGame, runGameCommand } from './launcher.service';
+import { LaunchError, launchGame, runGameCommand } from './launcher.service';
 import { ProcessMonitor } from './process-monitor.service';
 import { processSnapshot } from './process-snapshot';
 
@@ -49,9 +49,22 @@ function getMatchDirs(game: Game, spawned: boolean): string[] {
   return dir ? [dir] : [];
 }
 
+// Erro de abertura em português claro, com o que o jogador pode fazer
+function launchErrorMessage(err: unknown, game: Game): string {
+  if (err instanceof LaunchError) return err.message;
+  const code = (err as NodeJS.ErrnoException)?.code;
+  if (code === 'ENOENT') return `O executável de ${game.title} não foi encontrado. Ele pode ter sido movido ou apagado: clique em Escanear ou edite o jogo.`;
+  if (code === 'EACCES' || code === 'EPERM')
+    return `O Windows não deixou abrir ${game.title}. O jogo pode pedir para rodar como administrador ou ter sido bloqueado pelo antivírus.`;
+  if (game.launchUri && /^(steam|com\.epicgames|goggalaxy):/i.test(game.launchUri))
+    return `O lançador de ${game.title} não abriu. Confira se ele está instalado e tente de novo.`;
+  return `Não foi possível abrir ${game.title}. Veja o motivo no log (Configurações → Abrir pasta de logs).`;
+}
+
 class PlaytimeService {
   private listener: StatusListener = () => {};
   private active = new Map<string, ActiveGame>();
+  private launching = new Set<string>();
 
   private monitor = new ProcessMonitor({
     onDetected: (id, pid, firstSeenAt) => {
@@ -127,13 +140,30 @@ class PlaytimeService {
   async launch(gameId: string): Promise<boolean> {
     const game = db.getGameById(gameId);
     if (!game) return false;
-    if (this.active.has(gameId)) return true;
+    // Clique duplo (ou A repetido no controle) enquanto o primeiro lançamento ainda não terminou:
+    // sem esta trava os dois passavam pela verificação e o jogo abria duas vezes
+    if (this.active.has(gameId) || this.launching.has(gameId)) return true;
+    this.launching.add(gameId);
+    try {
+      return await this.launchUnlocked(game);
+    } finally {
+      this.launching.delete(gameId);
+    }
+  }
 
+  private async launchUnlocked(game: Game): Promise<boolean> {
+    const gameId = game.id;
     // Desinstalado: a Steam oferece a instalação; nos outros casos só informa
     if (game.isInstalled === false || game.manualEntry) {
       if (game.platform === 'steam' && game.platformGameId) {
-        await shell.openExternal(`steam://install/${game.platformGameId}`);
-        return true;
+        try {
+          await shell.openExternal(`steam://install/${game.platformGameId}`);
+          return true;
+        } catch (err) {
+          console.warn(`[Playtime] steam://install de ${game.title} falhou:`, (err as Error).message);
+          this.emit({ gameId, state: 'stopped', isRunning: false, error: 'A Steam não abriu para instalar o jogo. Confira se ela está instalada neste PC.' });
+          return false;
+        }
       }
       this.emit({
         gameId,
@@ -150,9 +180,8 @@ class PlaytimeService {
     try {
       handle = await launchGame(game);
     } catch (err) {
-      const message = (err as Error).message;
-      console.error(`[Playtime] Falha ao lançar ${game.title}:`, message);
-      this.emit({ gameId, state: 'stopped', isRunning: false, error: message });
+      console.error(`[Playtime] Falha ao lançar ${game.title}:`, err);
+      this.emit({ gameId, state: 'stopped', isRunning: false, error: launchErrorMessage(err, game) });
       return false;
     }
 
