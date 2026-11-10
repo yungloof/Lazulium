@@ -50,6 +50,7 @@ const electronAPI: ElectronAPI = {
   getBackupOverview: () => ipcRenderer.invoke(IPC_CHANNELS.BACKUP_OVERVIEW),
   runBackupSweep: () => ipcRenderer.invoke(IPC_CHANNELS.BACKUP_RUN_SWEEP),
   setAutoBackup: (enabled: boolean) => ipcRenderer.invoke(IPC_CHANNELS.BACKUP_SET_AUTO, enabled),
+  exportLaunchScript: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.GAME_EXPORT_BAT, gameId),
   getGameLists: () => ipcRenderer.invoke(IPC_CHANNELS.LISTS_GET),
   saveGameList: (input: GameListInput) => ipcRenderer.invoke(IPC_CHANNELS.LISTS_SAVE, input),
   deleteGameList: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.LISTS_DELETE, id),

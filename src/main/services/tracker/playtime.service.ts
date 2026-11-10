@@ -5,7 +5,7 @@ import { powerMonitor, shell } from 'electron';
 import { Game } from '@shared/types/game';
 import { GameLaunchState, GameLaunchStatus } from '@shared/types/ipc';
 import { db } from '../../database/db';
-import { launchGame } from './launcher.service';
+import { launchGame, runGameCommand } from './launcher.service';
 import { ProcessMonitor } from './process-monitor.service';
 import { processSnapshot } from './process-snapshot';
 
@@ -224,6 +224,8 @@ class PlaytimeService {
         seconds < MIN_SESSION_SECONDS ? ' (descartado)' : ''
       }`
     );
+    const closed = db.getGameById(id);
+    if (closed?.postExitCommand) void runGameCommand(closed.postExitCommand, closed, 'Comando depois de fechar');
     this.emit({
       gameId: id,
       state: 'stopped',

@@ -134,6 +134,7 @@ export interface ElectronAPI {
   getBackupOverview: () => Promise<BackupOverview>;
   runBackupSweep: () => Promise<BackupOverview>;
   setAutoBackup: (enabled: boolean) => Promise<BackupOverview>;
+  exportLaunchScript: (gameId: string) => Promise<string | null>; // Caminho do .bat salvo, ou null se cancelou
   getGameLists: () => Promise<GameList[]>;
   saveGameList: (input: GameListInput) => Promise<GameList>;
   deleteGameList: (id: string) => Promise<void>;

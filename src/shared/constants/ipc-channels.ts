@@ -45,6 +45,7 @@ export const IPC_CHANNELS = {
   BACKUP_OVERVIEW: 'backup:overview',
   BACKUP_RUN_SWEEP: 'backup:run-sweep',
   BACKUP_SET_AUTO: 'backup:set-auto',
+  GAME_EXPORT_BAT: 'game:export-bat',
 
   // Listas
   LISTS_GET: 'lists:get',

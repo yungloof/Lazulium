@@ -57,6 +57,9 @@ export interface Game {
   launchArguments?: string;         // Argumentos passados via CLI
   customLaunchArguments?: string;   // Escolhidos pelo jogador: valem no lugar dos detectados, e nenhum scan troca
   launchMode?: GameLaunchMode;
+  launchEnv?: string;               // Variáveis de ambiente do jogo, uma por linha (CHAVE=valor)
+  preLaunchCommand?: string;        // Roda e termina antes de abrir o jogo
+  postExitCommand?: string;         // Roda quando o jogo fecha
   workingDirectory?: string;        // Diretório de execução
   launchUri?: string;               // Protocolo do launcher (ex: steam://rungameid/123)
   installPath?: string;             // Pasta de instalação detectada pelo scanner

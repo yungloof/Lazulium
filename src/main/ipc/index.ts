@@ -1,5 +1,6 @@
 import { app, clipboard, ipcMain, BrowserWindow, dialog, nativeImage, shell } from 'electron';
 import { getLogsDir } from '../logger';
+import { buildLaunchScript } from '../services/tracker/launcher.service';
 import { statSync } from 'fs';
 import { dirname } from 'path';
 import { writeFile } from 'fs/promises';
@@ -112,6 +113,17 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     if (!existing) throw new Error(`Game with id ${id} not found`);
     const updated = { ...existing, ...updates };
     return db.upsertGame(updated);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GAME_EXPORT_BAT, async (_event, id: string) => {
+    const game = db.getGameById(id);
+    if (!game) throw new Error('Jogo não encontrado.');
+    const win = BrowserWindow.getFocusedWindow();
+    const options = { title: 'Salvar atalho .bat', defaultPath: `${game.title.replace(/[<>:"/\\|?*]/g, '').trim() || 'jogo'}.bat`, filters: [{ name: 'Script do Windows', extensions: ['bat'] }] };
+    const res = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
+    if (res.canceled || !res.filePath) return null;
+    await writeFile(res.filePath, buildLaunchScript(game), 'utf-8');
+    return res.filePath;
   });
 
   ipcMain.handle(IPC_CHANNELS.LIBRARY_DELETE_GAME, async (_event, id: string) => {

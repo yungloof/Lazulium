@@ -1,5 +1,5 @@
 import { shell } from 'electron';
-import { spawn } from 'child_process';
+import { spawn, execFile } from 'child_process';
 import { existsSync } from 'fs';
 import { dirname, extname } from 'path';
 import { Game } from '@shared/types/game';
@@ -30,10 +30,52 @@ function splitArguments(commandLine: string): string[] {
   return matches ? matches.map((m) => m.replace(/"/g, '')) : [];
 }
 
+const COMMAND_TIMEOUT_MS = 60_000;
+
+// "CHAVE=valor" por linha; linhas vazias, comentários (#) e nomes inválidos são ignorados
+export function parseLaunchEnv(text: string | undefined): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const line of (text ?? '').split(/\r?\n/)) {
+    const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/.exec(line);
+    if (match) env[match[1]] = match[2].trim();
+  }
+  return env;
+}
+
+// Comando do jogador (pré-lançamento ou pós-fechamento): roda escondido pelo cmd, com limite de tempo
+export function runGameCommand(command: string | undefined, game: Game, label: string): Promise<void> {
+  const clean = command?.trim();
+  if (!clean) return Promise.resolve();
+  const cwd = game.workingDirectory && existsSync(game.workingDirectory) ? game.workingDirectory : game.executablePath ? dirname(game.executablePath) : undefined;
+  return new Promise((resolve) => {
+    execFile('cmd.exe', ['/d', '/s', '/c', '"' + clean + '"'], { cwd, windowsHide: true, windowsVerbatimArguments: true, timeout: COMMAND_TIMEOUT_MS, env: { ...process.env, ...parseLaunchEnv(game.launchEnv) } }, (err) => {
+      if (err) console.warn(`[Launcher] ${label} de ${game.title} falhou: ${err.message}`);
+      else console.log(`[Launcher] ${label} de ${game.title} concluído`);
+      resolve();
+    });
+  });
+}
+
+// Texto de um .bat que repete a abertura do jogo, para usar fora do Lazulium
+export function buildLaunchScript(game: Game): string {
+  const exe = game.executablePath ?? '';
+  const args = (game.customLaunchArguments ?? game.launchArguments)?.trim() ?? '';
+  const cwd = game.workingDirectory || (exe ? dirname(exe) : '');
+  const lines = ['@echo off', `rem ${game.title} (gerado pelo Lazulium)`];
+  if (cwd) lines.push(`cd /d "${cwd}"`);
+  for (const [key, value] of Object.entries(parseLaunchEnv(game.launchEnv))) lines.push(`set "${key}=${value}"`);
+  if (game.preLaunchCommand?.trim()) lines.push(game.preLaunchCommand.trim());
+  const target = game.launchUri && !exe ? game.launchUri : `"${exe}"${args ? ' ' + args : ''}`;
+  lines.push(game.postExitCommand?.trim() ? `start "" /wait ${target}` : `start "" ${target}`);
+  if (game.postExitCommand?.trim()) lines.push(game.postExitCommand.trim());
+  return lines.join('\r\n') + '\r\n';
+}
+
 function spawnDetached(game: Game): Promise<number> {
   const exe = game.executablePath;
   const rawArgs = (game.customLaunchArguments ?? game.launchArguments)?.trim() ?? '';
   const cwd = game.workingDirectory && existsSync(game.workingDirectory) ? game.workingDirectory : dirname(exe);
+  const env = { ...process.env, ...parseLaunchEnv(game.launchEnv) };
   const isScript = ['.bat', '.cmd'].includes(extname(exe).toLowerCase());
 
   // Scripts (.bat/.cmd) rodam via cmd.exe. Executáveis normais recebem argumentos separados para evitar corrupção de aspas no Windows.
@@ -42,12 +84,14 @@ function spawnDetached(game: Game): Promise<number> {
         cwd,
         detached: true,
         stdio: 'ignore',
-        windowsVerbatimArguments: true
+        windowsVerbatimArguments: true,
+        env
       })
     : spawn(exe, splitArguments(rawArgs), {
         cwd,
         detached: true,
-        stdio: 'ignore'
+        stdio: 'ignore',
+        env
       });
 
   return new Promise((resolve, reject) => {
@@ -61,6 +105,7 @@ function spawnDetached(game: Game): Promise<number> {
 }
 
 export async function launchGame(game: Game): Promise<LaunchHandle> {
+  await runGameCommand(game.preLaunchCommand, game, 'Comando antes de abrir');
   const launchedAt = Date.now();
 
   if (shouldUseUri(game)) {
