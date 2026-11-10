@@ -3,11 +3,9 @@ import { Check, Loader2, NotebookPen } from 'lucide-react';
 import { Game, GameLog } from '@shared/types/game';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
-import { StarRating, StatusPicker } from './GameLogFields';
+import { DateField, StarRating, StatusPicker } from './GameLogFields';
+import { Notice, cardClass, inputClass, labelClass } from './ui';
 
-const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
-const fieldClass = `w-full px-3 py-2 text-sm bg-slate-950/60 border border-slate-700/80 rounded-lg text-slate-100 placeholder-slate-500 hover:border-slate-600 focus:border-indigo-400 ${focusRing}`;
-const labelClass = 'block mb-2 text-[13px] font-medium text-slate-300';
 const SAVE_DELAY_MS = 700;
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -65,8 +63,10 @@ export const GameLogCard: React.FC<{ game: Game }> = ({ game }) => {
     timerRef.current = setTimeout(flush, SAVE_DELAY_MS);
   };
 
+  const textArea = `${inputClass} resize-y leading-relaxed select-text`;
+
   return (
-    <section className="rounded-lg bg-slate-900/60 border border-slate-800/80">
+    <section className={cardClass}>
       <header className="flex items-start justify-between gap-3 px-5 pt-4">
         <div>
           <h3 className="flex items-center gap-2 text-base text-white">
@@ -74,7 +74,7 @@ export const GameLogCard: React.FC<{ game: Game }> = ({ game }) => {
           </h3>
           <p className="mt-0.5 text-xs text-slate-400">Fica guardado no Diário, mesmo se você desinstalar o jogo.</p>
         </div>
-        <span className="flex items-center gap-1 text-xs text-slate-400" aria-live="polite">
+        <span className="flex items-center gap-1 h-5 text-xs text-slate-400" aria-live="polite">
           {saveState === 'saving' && (
             <>
               <Loader2 className="w-3 h-3 animate-spin" /> Salvando
@@ -94,20 +94,14 @@ export const GameLogCard: React.FC<{ game: Game }> = ({ game }) => {
           <StatusPicker value={game.log?.status} onChange={(status) => save(game.id, { status })} />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[auto_minmax(0,1fr)] gap-5 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-[auto_minmax(0,1fr)] gap-5 items-end">
           <div>
             <p className={labelClass}>Sua nota</p>
             <StarRating value={game.log?.rating} onChange={(rating) => save(game.id, { rating })} size="w-6 h-6" showLabel />
           </div>
-          <div className="grid grid-cols-2 gap-3 md:max-w-md md:justify-self-end w-full">
-            <label className="block">
-              <span className={labelClass}>Comecei em</span>
-              <input type="date" value={game.log?.startedOn ?? ''} onChange={(e) => save(game.id, { startedOn: e.target.value || undefined })} className={fieldClass} />
-            </label>
-            <label className="block">
-              <span className={labelClass}>Terminei em</span>
-              <input type="date" value={game.log?.finishedOn ?? ''} onChange={(e) => save(game.id, { finishedOn: e.target.value || undefined })} className={fieldClass} />
-            </label>
+          <div className="grid grid-cols-2 gap-3 md:max-w-lg md:justify-self-end w-full">
+            <DateField label="Comecei em" value={game.log?.startedOn} onChange={(startedOn) => save(game.id, { startedOn })} />
+            <DateField label="Terminei em" value={game.log?.finishedOn} onChange={(finishedOn) => save(game.id, { finishedOn })} />
           </div>
         </div>
 
@@ -123,7 +117,7 @@ export const GameLogCard: React.FC<{ game: Game }> = ({ game }) => {
               onBlur={flush}
               rows={8}
               placeholder="O que achou do jogo? História, gameplay, o que ficou na memória..."
-              className={`${fieldClass} resize-y leading-relaxed select-text`}
+              className={textArea}
             />
           </label>
           <label className="block">
@@ -137,11 +131,11 @@ export const GameLogCard: React.FC<{ game: Game }> = ({ game }) => {
               onBlur={flush}
               rows={8}
               placeholder="Onde parou, o que falta fazer, com quem jogou..."
-              className={`${fieldClass} resize-y leading-relaxed select-text`}
+              className={textArea}
             />
           </label>
         </div>
-        {error && <p className="text-xs text-amber-300">{error}</p>}
+        <Notice>{error}</Notice>
       </div>
     </section>
   );

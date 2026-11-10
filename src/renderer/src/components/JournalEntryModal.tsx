@@ -1,18 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Gamepad2, Loader2, NotebookPen, Search, X } from 'lucide-react';
+import { Loader2, NotebookPen, Search } from 'lucide-react';
 import { Game, GameLogStatus, GameSearchResult } from '@shared/types/game';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
-import { StarRating, StatusPicker } from './GameLogFields';
+import { DateField, StarRating, StatusPicker } from './GameLogFields';
+import { Button, Modal, Notice, focusRing, inputClass, labelClass } from './ui';
+import { GameCover } from './journal/CoverCard';
 
 interface JournalEntryModalProps {
   onClose: () => void;
   onAdded: (game: Game) => void;
 }
 
-const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
-const inputClass = `w-full px-3 py-2 text-sm bg-slate-950/60 border border-slate-700/80 rounded-lg text-slate-100 placeholder-slate-500 hover:border-slate-600 focus:border-indigo-400 ${focusRing}`;
-const labelClass = 'block mb-1.5 text-[13px] font-medium text-slate-300';
 const SEARCH_DELAY_MS = 350;
 const MIN_SEARCH_LENGTH = 2;
 const MAX_LIBRARY_MATCHES = 5;
@@ -36,12 +35,6 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
   const [finishedOn, setFinishedOn] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   // Busca enquanto digita; escolher é opcional, o nome digitado continua valendo
   useEffect(() => {
@@ -78,9 +71,8 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
   const m = Number(minutes || 0);
   const valid = !!title.trim() && Number.isInteger(h) && Number.isInteger(m) && h >= 0 && m >= 0 && m < 60;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!valid) return;
+  const handleSubmit = async () => {
+    if (!valid || saving) return;
     setSaving(true);
     setError(null);
     try {
@@ -98,22 +90,23 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" onClick={onClose}>
-      <form
-        onSubmit={handleSubmit}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-lg bg-steam-bg border border-slate-700/60 shadow-lg"
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-          <h2 className="flex items-center gap-2 text-base text-white">
-            <NotebookPen className="w-4 h-4 text-indigo-400" /> Registrar jogo no Diário
-          </h2>
-          <button type="button" onClick={onClose} aria-label="Fechar" className={`p-1.5 rounded-sm text-slate-400 hover:text-white hover:bg-slate-800 ${focusRing}`}>
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="p-5 space-y-4 overflow-y-auto">
-          <p className="text-xs text-slate-500">Para jogos de console, de outro PC ou que você já zerou há tempos.</p>
+    <Modal
+      title="Registrar jogo no Diário"
+      subtitle="Para jogos de console, de outro PC ou que você já zerou há tempos."
+      icon={<NotebookPen className="w-4 h-4 text-indigo-400" />}
+      size="md"
+      onClose={onClose}
+      onSubmit={() => void handleSubmit()}
+      footer={
+        <>
+          <Notice className="mr-auto">{error}</Notice>
+          <Button onClick={onClose}>Cancelar</Button>
+          <Button type="submit" variant="primary" size="md" loading={saving} disabled={!valid}>
+            Registrar
+          </Button>
+        </>
+      }
+    >
           <div>
             <label htmlFor="journal-title" className={labelClass}>Nome do jogo</label>
             <div className="relative">
@@ -151,7 +144,7 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
                       className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-left hover:bg-slate-800 ${focusRing}`}
                     >
                       <span className="w-7 aspect-[2/3] flex-shrink-0 flex items-center justify-center overflow-hidden bg-slate-800">
-                        {game.media?.coverUrl ? <img src={game.media.coverUrl} alt="" loading="lazy" className="w-full h-full object-contain" /> : <Gamepad2 className="w-3.5 h-3.5 text-slate-600" />}
+                        <GameCover src={game.media?.coverUrl} title={game.title} compact />
                       </span>
                       <span className="flex-1 min-w-0 text-[13px] text-slate-100 truncate">{game.title}</span>
                       <span className="text-[11px] text-indigo-300 flex-shrink-0">Na biblioteca</span>
@@ -169,7 +162,7 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
                       className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-left hover:bg-slate-800 ${focusRing}`}
                     >
                       <span className="w-7 aspect-[2/3] flex-shrink-0 flex items-center justify-center overflow-hidden bg-slate-800">
-                        {item.thumbUrl || item.coverUrl ? <img src={item.thumbUrl ?? item.coverUrl} alt="" loading="lazy" className="w-full h-full object-cover" /> : <Gamepad2 className="w-3.5 h-3.5 text-slate-600" />}
+                        <GameCover src={item.thumbUrl ?? item.coverUrl} title={item.name} compact />
                       </span>
                       <span className="flex-1 min-w-0 text-[13px] text-slate-100 truncate">
                         {item.name}
@@ -209,14 +202,8 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
             <StarRating value={rating} onChange={setRating} size="w-6 h-6" showLabel />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className={labelClass}>Comecei em</span>
-              <input type="date" value={startedOn} onChange={(e) => setStartedOn(e.target.value)} className={inputClass} />
-            </label>
-            <label className="block">
-              <span className={labelClass}>Terminei em</span>
-              <input type="date" value={finishedOn} onChange={(e) => setFinishedOn(e.target.value)} className={inputClass} />
-            </label>
+            <DateField label="Comecei em" value={startedOn} onChange={(day) => setStartedOn(day ?? '')} />
+            <DateField label="Terminei em" value={finishedOn} onChange={(day) => setFinishedOn(day ?? '')} />
           </div>
           <label className="block">
             <span className={labelClass}>Minha resenha</span>
@@ -226,21 +213,6 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ onClose, o
             <span className={labelClass}>Anotações de progresso</span>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Onde parou, o que falta fazer, com quem jogou..." className={`${inputClass} resize-y leading-relaxed select-text`} />
           </label>
-          {error && (
-            <p className="flex items-center gap-1.5 text-xs text-amber-300">
-              <AlertTriangle className="w-3.5 h-3.5" /> {error}
-            </p>
-          )}
-        </div>
-        <div className="flex justify-end gap-2 px-5 py-4 border-t border-slate-800">
-          <button type="button" onClick={onClose} className={`px-3 py-2 text-xs rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
-            Cancelar
-          </button>
-          <button type="submit" disabled={!valid || saving} className={`px-4 py-2 text-xs font-semibold rounded-sm bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 ${focusRing}`}>
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Registrar'}
-          </button>
-        </div>
-      </form>
-    </div>
+    </Modal>
   );
 };

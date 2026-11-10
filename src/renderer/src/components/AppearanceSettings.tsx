@@ -1,9 +1,9 @@
 import React, { useRef, useState } from 'react';
-import { Download, Palette, RotateCcw, Upload } from 'lucide-react';
+import { Check, ChevronDown, Download, RotateCcw, Upload } from 'lucide-react';
 import { Select } from './Select';
+import { Button, Notice, focusRing, inputClass } from './ui';
 import { FONT_CHOICES, PRESETS, ThemeSettings, applyTheme, loadTheme, sanitizeTheme, saveTheme } from '../utils/theme';
-
-const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
+import { Segmented, SettingRow, SettingsGroup } from './settings/controls';
 
 type ColorKey = 'base' | 'accent' | 'textMain' | 'textSoft' | 'success' | 'warn' | 'danger' | 'bg' | 'panel' | 'header' | 'sidebar';
 
@@ -29,66 +29,76 @@ const MAIN_COLORS: { key: ColorKey; label: string; hint: string }[] = [
   { key: 'textSoft', label: 'Texto secundário', hint: 'Descrições e detalhes' }
 ];
 
-const STATUS_COLORS: { key: ColorKey; label: string }[] = [
+const EXTRA_COLORS: { key: ColorKey; label: string }[] = [
+  { key: 'bg', label: 'Fundo do app' },
+  { key: 'panel', label: 'Painéis' },
+  { key: 'header', label: 'Barra do topo' },
+  { key: 'sidebar', label: 'Barra lateral' },
   { key: 'success', label: 'Sucesso' },
   { key: 'warn', label: 'Aviso' },
   { key: 'danger', label: 'Erro' }
 ];
 
-const PART_COLORS: { key: ColorKey; label: string }[] = [
-  { key: 'bg', label: 'Fundo do app' },
-  { key: 'panel', label: 'Painéis' },
-  { key: 'header', label: 'Barra do topo' },
-  { key: 'sidebar', label: 'Barra lateral' }
-];
-
-const RADIUS_OPTIONS = [
+const RADIUS_OPTIONS: { value: NonNullable<ThemeSettings['radius']>; label: string }[] = [
   { value: 'square', label: 'Retos' },
-  { value: 'soft', label: 'Suaves (padrão)' },
-  { value: 'round', label: 'Bem redondos' }
+  { value: 'soft', label: 'Suaves' },
+  { value: 'round', label: 'Redondos' }
 ];
 
 const SIZE_OPTIONS = [
-  { value: '0.9', label: 'Pequeno' },
-  { value: '1', label: 'Normal (padrão)' },
-  { value: '1.1', label: 'Grande' },
-  { value: '1.2', label: 'Bem grande' }
+  { value: '0.9', label: 'P' },
+  { value: '1', label: 'Normal' },
+  { value: '1.1', label: 'G' },
+  { value: '1.2', label: 'GG' }
 ];
 
-const ColorPicker: React.FC<{ label: string; hint?: string; value: string | undefined; fallback: string; onChange: (hex: string) => void; onClear: () => void }> = ({
+const FONT_OPTIONS = [...FONT_CHOICES, { value: '__custom', label: 'Outra (digite abaixo)' }];
+
+// Amostra da cor: o botão abre o seletor do sistema (o campo de cor sozinho não abre pelo controle)
+const ColorRow: React.FC<{ label: string; hint?: string; value: string | undefined; fallback: string; onChange: (hex: string) => void; onClear: () => void }> = ({
   label,
   hint,
   value,
   fallback,
   onChange,
   onClear
-}) => (
-  <div className="flex items-center justify-between gap-3">
-    <span className="min-w-0">
-      <span className="block text-sm text-slate-200">{label}</span>
-      {hint && <span className="block text-[11px] text-slate-500">{hint}</span>}
-    </span>
-    <span className="flex items-center gap-2 flex-shrink-0">
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const shown = value ?? fallback;
+  return (
+    <SettingRow label={label} hint={hint}>
       {value && (
-        <button type="button" onClick={onClear} className={`text-[11px] text-slate-400 hover:text-white rounded px-1 ${focusRing}`}>
-          padrão
-        </button>
+        <Button variant="ghost" onClick={onClear} title="Voltar à cor do tema">
+          Padrão
+        </Button>
       )}
-      <input
-        type="color"
-        aria-label={label}
-        value={value ?? fallback}
-        onChange={(e) => onChange(e.target.value)}
-        className={`w-9 h-7 rounded border border-slate-700 bg-transparent cursor-pointer ${focusRing}`}
-      />
-    </span>
-  </div>
-);
+      <span className="relative">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          aria-label={`${label}: ${shown}`}
+          className={`flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-lg border border-slate-700 bg-slate-950/50 hover:border-slate-500 transition-colors ${focusRing}`}
+        >
+          <span className="w-6 h-6 rounded-md border border-black/30" style={{ backgroundColor: shown }} />
+          <span className="font-mono text-[11px] uppercase text-slate-400">{shown}</span>
+        </button>
+        {/* Invisível embaixo da amostra: o seletor do sistema abre ali. Opacidade 0 tira do caminho do controle. */}
+        <input ref={inputRef} type="color" tabIndex={-1} aria-hidden="true" value={shown} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
+      </span>
+    </SettingRow>
+  );
+};
+
+const samePreset = (theme: ThemeSettings, preset: ThemeSettings) => {
+  const keys = new Set([...Object.keys(theme), ...Object.keys(preset)]) as Set<keyof ThemeSettings>;
+  return [...keys].every((k) => theme[k] === preset[k]);
+};
 
 // Editor de aparência: todas as mudanças valem na hora e ficam guardadas neste PC
 export const AppearanceSettings: React.FC = () => {
   const [theme, setTheme] = useState<ThemeSettings>(loadTheme);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  const [showExtra, setShowExtra] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const commit = (next: ThemeSettings) => {
@@ -127,108 +137,108 @@ export const AppearanceSettings: React.FC = () => {
     try {
       const imported = sanitizeTheme(JSON.parse(await file.text()));
       commit(imported);
-      setMessage(Object.keys(imported).length ? 'Tema importado.' : 'O arquivo não tinha nenhuma configuração de aparência válida.');
+      setMessage(Object.keys(imported).length ? { tone: 'success', text: 'Tema importado.' } : { tone: 'error', text: 'O arquivo não tinha nenhuma configuração de aparência válida.' });
     } catch {
-      setMessage('Não consegui ler esse arquivo de tema.');
+      setMessage({ tone: 'error', text: 'Não consegui ler esse arquivo de tema.' });
     }
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  const colorRow = (c: { key: ColorKey; label: string; hint?: string }) => (
+    <ColorRow key={c.key} label={c.label} hint={c.hint} value={theme[c.key]} fallback={DEFAULT_COLORS[c.key]} onChange={(hex) => setColor(c.key, hex)} onClear={() => setColor(c.key, undefined)} />
+  );
+
   return (
-    <section className="space-y-4 pb-5 border-b border-slate-800/80">
-      <h3 className="flex items-center gap-2 text-xs font-semibold text-slate-300 uppercase tracking-wider">
-        <Palette className="w-3.5 h-3.5 text-indigo-400" /> Aparência
-      </h3>
-
-      <div className="flex flex-wrap gap-2">
-        {PRESETS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => commit({ ...p.theme })}
-            className={`px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="space-y-2.5">
-        {MAIN_COLORS.map((c) => (
-          <ColorPicker key={c.key} label={c.label} hint={c.hint} value={theme[c.key]} fallback={DEFAULT_COLORS[c.key]} onChange={(hex) => setColor(c.key, hex)} onClear={() => setColor(c.key, undefined)} />
-        ))}
-      </div>
-
-      <details className="group">
-        <summary className={`cursor-pointer text-xs text-slate-400 hover:text-white rounded ${focusRing}`}>Cor de cada parte e dos avisos</summary>
-        <div className="mt-3 space-y-2.5">
-          {PART_COLORS.map((c) => (
-            <ColorPicker key={c.key} label={c.label} value={theme[c.key]} fallback={DEFAULT_COLORS[c.key]} onChange={(hex) => setColor(c.key, hex)} onClear={() => setColor(c.key, undefined)} />
-          ))}
-          {STATUS_COLORS.map((c) => (
-            <ColorPicker key={c.key} label={c.label} value={theme[c.key]} fallback={DEFAULT_COLORS[c.key]} onChange={(hex) => setColor(c.key, hex)} onClear={() => setColor(c.key, undefined)} />
-          ))}
+    <div className="space-y-6">
+      <section>
+        <h3 className="mb-2.5 px-1 text-[13px] font-semibold text-slate-200">Temas prontos</h3>
+        <div className="grid grid-cols-3 gap-2.5">
+          {PRESETS.map((p) => {
+            const active = samePreset(theme, p.theme);
+            const base = p.theme.base ?? DEFAULT_COLORS.base;
+            const accent = p.theme.accent ?? DEFAULT_COLORS.accent;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => commit({ ...p.theme })}
+                aria-pressed={active}
+                className={`group relative flex items-center gap-3 p-2.5 rounded-lg border text-left transition-colors ${active ? 'border-indigo-400 bg-indigo-500/10' : 'border-slate-800 bg-slate-900/50 hover:border-slate-600'} ${focusRing}`}
+              >
+                {/* Prévia do tema com as cores dele mesmo */}
+                <span className="relative w-11 h-9 flex-shrink-0 rounded-md overflow-hidden border border-black/30 bg-black" style={{ backgroundImage: `linear-gradient(135deg, ${base}66, ${base}22)` }}>
+                  <span className="absolute left-1.5 top-1.5 right-1.5 h-1.5 rounded-sm" style={{ backgroundColor: `${base}88` }} />
+                  <span className="absolute left-1.5 bottom-1.5 w-5 h-2.5 rounded-sm" style={{ backgroundColor: accent }} />
+                </span>
+                <span className="min-w-0 text-[13px] text-slate-200 truncate">{p.label}</span>
+                {active && <Check className="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-indigo-300" />}
+              </button>
+            );
+          })}
         </div>
-      </details>
+      </section>
 
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-slate-200">Fonte do texto</span>
-          <Select value={fontValue(theme.fontSans)} options={[...FONT_CHOICES, { value: '__custom', label: 'Outra (digite abaixo)' }]} onChange={(v) => setFont('fontSans', v)} ariaLabel="Fonte do texto" />
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-slate-200">Fonte dos títulos</span>
-          <Select value={fontValue(theme.fontDisplay)} options={[...FONT_CHOICES, { value: '__custom', label: 'Outra (digite abaixo)' }]} onChange={(v) => setFont('fontDisplay', v)} ariaLabel="Fonte dos títulos" />
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="min-w-0">
-            <span className="block text-sm text-slate-200">Outra fonte instalada</span>
-            <span className="block text-[11px] text-slate-500">Nome exato da fonte do Windows, para o texto</span>
-          </span>
+      <SettingsGroup title="Cores">
+        {MAIN_COLORS.map(colorRow)}
+        <button
+          type="button"
+          onClick={() => setShowExtra((v) => !v)}
+          aria-expanded={showExtra}
+          className={`w-full flex items-center justify-between px-4 py-2.5 text-xs text-slate-400 hover:text-white rounded-b-lg transition-colors ${focusRing}`}
+        >
+          Cor de cada parte e dos avisos
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showExtra ? 'rotate-180' : ''}`} />
+        </button>
+        {showExtra && EXTRA_COLORS.map(colorRow)}
+      </SettingsGroup>
+
+      <SettingsGroup title="Texto e formas">
+        <SettingRow label="Fonte do texto">
+          <Select value={fontValue(theme.fontSans)} options={FONT_OPTIONS} onChange={(v) => setFont('fontSans', v)} ariaLabel="Fonte do texto" />
+        </SettingRow>
+        <SettingRow label="Fonte dos títulos">
+          <Select value={fontValue(theme.fontDisplay)} options={FONT_OPTIONS} onChange={(v) => setFont('fontDisplay', v)} ariaLabel="Fonte dos títulos" />
+        </SettingRow>
+        <SettingRow label="Outra fonte instalada" hint="Nome exato da fonte do Windows, para o texto">
           <input
             type="text"
             placeholder="ex.: Bahnschrift"
+            aria-label="Outra fonte instalada"
             defaultValue={theme.fontSans && fontValue(theme.fontSans) === '__custom' ? theme.fontSans.replace(/'/g, '').split(',')[0] : ''}
             onBlur={(e) => {
               const name = e.target.value.trim();
               if (name) setFont('fontSans', `'${name.replace(/[^\w\s-]/g, '')}', 'Segoe UI', sans-serif`);
             }}
-            className={`w-44 px-2 py-1 text-sm rounded-lg bg-slate-900 border border-slate-700 text-slate-100 ${focusRing}`}
+            className={`${inputClass} w-44`}
           />
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-slate-200">Tamanho do texto</span>
-          <Select
-            value={String(SIZE_OPTIONS.find((o) => Number(o.value) === (theme.fontScale ?? 1))?.value ?? '1')}
+        </SettingRow>
+        <SettingRow label="Tamanho do texto">
+          <Segmented
+            ariaLabel="Tamanho do texto"
+            value={SIZE_OPTIONS.find((o) => Number(o.value) === (theme.fontScale ?? 1))?.value ?? '1'}
             options={SIZE_OPTIONS}
             onChange={(v) => commit(sanitizeTheme({ ...theme, fontScale: Number(v) === 1 ? undefined : Number(v) }))}
-            ariaLabel="Tamanho do texto"
           />
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-slate-200">Cantos</span>
-          <Select
-            value={theme.radius ?? 'soft'}
-            options={RADIUS_OPTIONS}
-            onChange={(v) => commit(sanitizeTheme({ ...theme, radius: v === 'soft' ? undefined : v }))}
-            ariaLabel="Cantos"
-          />
-        </div>
-      </div>
+        </SettingRow>
+        <SettingRow label="Cantos">
+          <Segmented ariaLabel="Cantos" value={theme.radius ?? 'soft'} options={RADIUS_OPTIONS} onChange={(v) => commit(sanitizeTheme({ ...theme, radius: v === 'soft' ? undefined : v }))} />
+        </SettingRow>
+      </SettingsGroup>
 
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => commit({})} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
-          <RotateCcw className="w-3.5 h-3.5" /> Voltar ao padrão
-        </button>
-        <button type="button" onClick={exportTheme} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
-          <Download className="w-3.5 h-3.5" /> Exportar tema
-        </button>
-        <button type="button" onClick={() => fileRef.current?.click()} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
-          <Upload className="w-3.5 h-3.5" /> Importar tema
-        </button>
+        <Button icon={<RotateCcw className="w-3.5 h-3.5" />} onClick={() => commit({})}>
+          Voltar ao padrão
+        </Button>
+        <span className="flex-1" />
+        <Button variant="ghost" icon={<Download className="w-3.5 h-3.5" />} onClick={exportTheme}>
+          Exportar tema
+        </Button>
+        <Button variant="ghost" icon={<Upload className="w-3.5 h-3.5" />} onClick={() => fileRef.current?.click()}>
+          Importar tema
+        </Button>
         <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void importTheme(e.target.files?.[0])} />
       </div>
-      {message && <p className="text-xs text-amber-300">{message}</p>}
-    </section>
+      {message && <Notice tone={message.tone}>{message.text}</Notice>}
+    </div>
   );
 };

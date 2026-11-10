@@ -1,17 +1,18 @@
 import React from 'react';
-import { ChevronDown, Star } from 'lucide-react';
+import { CalendarCheck, ChevronDown, Star, X } from 'lucide-react';
 import { GameLogStatus } from '@shared/types/game';
 import { Select, SelectOption } from './Select';
+import { focusRing, inputClass } from './ui';
+import { todayDay } from './journal/format';
 
-const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
-
+// Cores só dos tokens do tema: o editor de aparência troca todas juntas
 export const LOG_STATUS: { id: GameLogStatus; label: string; dot: string; active: string }[] = [
   { id: 'playing', label: 'Jogando', dot: 'bg-emerald-400', active: 'bg-emerald-400/15 border-emerald-400/60 text-emerald-200' },
   { id: 'finished', label: 'Zerado', dot: 'bg-indigo-400', active: 'bg-indigo-400/15 border-indigo-400/60 text-indigo-200' },
   { id: 'completed', label: '100%', dot: 'bg-amber-400', active: 'bg-amber-400/15 border-amber-400/60 text-amber-200' },
   { id: 'paused', label: 'Pausado', dot: 'bg-slate-400', active: 'bg-slate-400/15 border-slate-400/60 text-slate-100' },
   { id: 'dropped', label: 'Abandonado', dot: 'bg-red-400', active: 'bg-red-400/15 border-red-400/60 text-red-200' },
-  { id: 'backlog', label: 'Quero jogar', dot: 'bg-cyan-400', active: 'bg-cyan-400/15 border-cyan-400/60 text-cyan-200' }
+  { id: 'backlog', label: 'Quero jogar', dot: 'bg-transparent ring-2 ring-inset ring-indigo-200', active: 'bg-indigo-200/10 border-indigo-200/60 text-indigo-100' }
 ];
 
 const RATING_LABEL = ['', 'Ruim', 'Fraco', 'Bom', 'Ótimo', 'Obra-prima'];
@@ -27,7 +28,7 @@ export const StatusPicker: React.FC<{ value?: GameLogStatus; onChange: (status: 
           type="button"
           onClick={() => onChange(on ? undefined : s.id)}
           aria-pressed={on}
-          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[13px] transition-colors ${on ? s.active : 'border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white'} ${focusRing}`}
+          className={`inline-flex items-center gap-2 h-8 px-3 rounded-full border text-[13px] transition-colors ${on ? s.active : 'border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white'} ${focusRing}`}
         >
           <span className={`w-2 h-2 rounded-full ${s.dot}`} />
           {s.label}
@@ -54,6 +55,18 @@ export const StatusPill: React.FC<{ value?: GameLogStatus; onChange: (status: Ga
       {current?.label ?? 'Sem status'}
       <ChevronDown className="w-3 h-3 opacity-70" />
     </Select>
+  );
+};
+
+// Ponto do status, para cartões e linhas
+export const StatusDot: React.FC<{ status?: GameLogStatus; withLabel?: boolean }> = ({ status, withLabel = true }) => {
+  const s = LOG_STATUS.find((item) => item.id === status);
+  if (!s) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-400" title={s.label}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+      {withLabel && s.label}
+    </span>
   );
 };
 
@@ -100,7 +113,7 @@ export const StarRating: React.FC<{ value?: number; onChange: (rating: number | 
           }}
           aria-label={`${n} de 5 estrelas`}
           aria-pressed={!!value && Math.ceil(value) === n}
-          className={`rounded-sm p-0.5 ${focusRing}`}
+          className={`rounded-sm p-0.5 transition-transform hover:scale-110 ${focusRing}`}
         >
           <StarIcon fill={starFill(value, n)} size={size} emptyClass="text-slate-600 hover:text-slate-400 transition-colors" />
         </button>
@@ -108,4 +121,23 @@ export const StarRating: React.FC<{ value?: number; onChange: (rating: number | 
     </span>
     {showLabel && <span className="text-[13px] text-slate-400">{value ? `${String(value).replace('.', ',')} · ${RATING_LABEL[Math.ceil(value)]}` : 'Sem nota'}</span>}
   </span>
+);
+
+// Data com atalho "Hoje": o campo de data nativo não abre pelo controle
+export const DateField: React.FC<{ label: string; value?: string; onChange: (day: string | undefined) => void }> = ({ label, value, onChange }) => (
+  <div className="min-w-0">
+    <span className="block mb-1.5 text-[13px] font-medium text-slate-300">{label}</span>
+    <div className="flex items-center gap-1.5">
+      <input type="date" aria-label={label} value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)} className={`${inputClass} min-w-0`} />
+      {value ? (
+        <button type="button" onClick={() => onChange(undefined)} aria-label={`Limpar ${label.toLowerCase()}`} title="Limpar" className={`flex-shrink-0 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 ${focusRing}`}>
+          <X className="w-3.5 h-3.5" />
+        </button>
+      ) : (
+        <button type="button" onClick={() => onChange(todayDay())} title="Usar a data de hoje" className={`flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-2 rounded-lg text-xs text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white ${focusRing}`}>
+          <CalendarCheck className="w-3.5 h-3.5" /> Hoje
+        </button>
+      )}
+    </div>
+  </div>
 );

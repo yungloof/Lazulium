@@ -1,24 +1,28 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, Download, Gamepad2, LayoutGrid, List, Loader2, Pencil, Plus, Search, AlertTriangle } from 'lucide-react';
-import { Game, GameLog, GameLogStatus, isJournalEntry } from '@shared/types/game';
+import { Download, LayoutGrid, List, NotebookPen, Pencil, Plus, Search, SearchX } from 'lucide-react';
+import { Game, GameLog, isJournalEntry } from '@shared/types/game';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
+import { PLATFORM_FULL } from '../utils/platform';
 import { JournalEntryModal } from './JournalEntryModal';
-import { LOG_STATUS, StarRating, Stars, StatusPill } from './GameLogFields';
+import { StarRating, Stars, StatusDot, StatusPill } from './GameLogFields';
 import { Select, SelectOption } from './Select';
+import { Button, EmptyState, Notice, focusRing, inputClass } from './ui';
+import { CoverCard, GameCover } from './journal/CoverCard';
+import { PageHeader, StatStrip, emptyBox, pageClass } from './journal/PageLayout';
+import { StatusChips, StatusFilter, countByStatus, matchesStatus } from './journal/StatusChips';
+import { formatDay, formatHours, formatNumber } from './journal/format';
 
 interface JournalPageProps {
   onOpenGame: (game: Game) => void;
   onEditPlaytime: (game: Game) => void;
 }
 
-type StatusFilter = 'all' | 'none' | GameLogStatus;
 type InstallFilter = 'all' | 'installed' | 'removed';
 type SortKey = 'hours' | 'recent' | 'title' | 'rating';
 type ViewMode = 'grid' | 'list';
 
 const VIEW_STORAGE_KEY = 'lazulium.journalView';
-const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
 
 const INSTALL_OPTIONS: SelectOption<InstallFilter>[] = [
   { value: 'all', label: 'Instalados e não instalados' },
@@ -32,22 +36,6 @@ const SORT_OPTIONS: SelectOption<SortKey>[] = [
   { value: 'rating', label: 'Melhor nota' },
   { value: 'title', label: 'Nome' }
 ];
-
-const PLATFORM_LABEL: Record<Game['platform'], string> = {
-  steam: 'Steam',
-  epic: 'Epic',
-  gog: 'GOG',
-  riot: 'Riot',
-  xbox: 'Xbox',
-  emulator: 'Emulador',
-  standalone: 'PC'
-};
-
-const formatHours = (seconds = 0) => {
-  if (seconds < 60) return '—';
-  const h = seconds / 3600;
-  return h < 1 ? `${Math.round(seconds / 60)} min` : `${h.toFixed(1).replace('.', ',')} h`;
-};
 
 // A data que conta no diário: quando terminou, quando começou ou quando jogou por último
 const entryDate = (game: Game) => game.log?.finishedOn ?? game.log?.startedOn ?? game.lastPlayedAt?.slice(0, 10) ?? '';
@@ -66,48 +54,6 @@ function loadView(): ViewMode {
   }
 }
 
-const Cover: React.FC<{ game: Game; iconSize?: string }> = ({ game, iconSize = 'w-5 h-5' }) => {
-  const [failed, setFailed] = useState<string | null>(null);
-  const cover = game.media?.coverUrl;
-  return cover && failed !== cover ? (
-    <img
-      src={cover}
-      alt=""
-      loading="lazy"
-      onError={() => {
-        setFailed(cover);
-        window.electronAPI?.reportBrokenArtwork(game.id, 'cover');
-      }}
-      className="w-full h-full object-contain"
-    />
-  ) : (
-    <span className="w-full h-full flex flex-col items-center justify-center gap-1 p-2 text-center bg-gradient-to-b from-slate-800 to-slate-950">
-      <Gamepad2 className={`${iconSize} text-slate-600`} />
-    </span>
-  );
-};
-
-const JournalCard: React.FC<{ game: Game; onOpen: () => void }> = ({ game, onOpen }) => {
-  const status = LOG_STATUS.find((s) => s.id === game.log?.status);
-  return (
-    <button onClick={onOpen} title={game.title} className={`group min-w-0 text-left rounded-sm ${focusRing}`}>
-      <span className="block aspect-[2/3] overflow-hidden bg-slate-900 border border-slate-800 group-hover:border-slate-500 transition-colors">
-        <Cover game={game} iconSize="w-7 h-7" />
-      </span>
-      <span className="block mt-2 text-[13px] text-slate-100 truncate">{game.title}</span>
-      <span className="mt-1 flex items-center justify-between gap-2 min-h-4">
-        {game.log?.rating ? <Stars value={game.log.rating} /> : <span className="text-[11px] text-slate-600">Sem nota</span>}
-        <span className="text-[11px] text-slate-500 whitespace-nowrap">{formatHours(game.totalPlaytimeSeconds)}</span>
-      </span>
-      {status && (
-        <span className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-400">
-          <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} /> {status.label}
-        </span>
-      )}
-    </button>
-  );
-};
-
 const JournalRow: React.FC<{
   game: Game;
   onOpen: () => void;
@@ -115,20 +61,18 @@ const JournalRow: React.FC<{
   onSaveLog: (changes: Partial<GameLog>) => void;
 }> = ({ game, onOpen, onEditPlaytime, onSaveLog }) => {
   const removed = game.isInstalled === false;
+  const date = entryDate(game);
   return (
-    <li
-      onClick={onOpen}
-      className="grid grid-cols-[64px_minmax(0,1fr)_auto_auto] items-center gap-4 p-3 pr-4 border-b border-slate-800/80 last:border-b-0 hover:bg-slate-800/40 transition-colors cursor-pointer"
-    >
-      <span className="w-16 aspect-[2/3] overflow-hidden bg-slate-800">
-        <Cover game={game} />
-      </span>
+    <li className="group grid grid-cols-[56px_minmax(0,1fr)_auto_auto] items-center gap-4 px-3 py-3 pr-4 border-b border-slate-800/70 last:border-b-0 hover:bg-slate-800/30 transition-colors">
+      <button type="button" onClick={onOpen} tabIndex={-1} aria-hidden="true" className="w-14 aspect-[2/3] overflow-hidden rounded-sm bg-slate-800">
+        <GameCover src={game.media?.coverUrl} title={game.title} gameId={game.id} compact />
+      </button>
       <span className="min-w-0">
-        <button onClick={onOpen} className={`block max-w-full text-left text-[15px] text-white truncate rounded-sm ${focusRing}`} title={game.title}>
+        <button type="button" onClick={onOpen} className={`block max-w-full text-left text-[15px] text-white truncate rounded-sm hover:text-indigo-200 ${focusRing}`} title={game.title}>
           {game.title}
         </button>
         <span className="block mt-0.5 text-xs text-slate-400 truncate">
-          {game.manualPlatform ?? PLATFORM_LABEL[game.platform]}
+          {game.manualPlatform ?? PLATFORM_FULL[game.platform]}
           {game.id.startsWith('steam-shortcut-') && ' · atalho da Steam'}
           {game.familyShared && ' · Família Steam'}
           {removed && !game.manualEntry && ' · não instalado'}
@@ -140,24 +84,17 @@ const JournalRow: React.FC<{
         )}
       </span>
       <span className="text-right whitespace-nowrap">
-        <span className="block text-[15px] text-slate-100">
+        <span className="block text-[15px] text-slate-100 tabular-nums">
           {game.platform === 'steam' ? (
-            formatHours(game.totalPlaytimeSeconds)
+            formatHours(game.totalPlaytimeSeconds, '—')
           ) : (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditPlaytime();
-              }}
-              title="Ajustar tempo jogado"
-              className={`inline-flex items-center gap-1 rounded-sm hover:text-white ${focusRing}`}
-            >
-              {formatHours(game.totalPlaytimeSeconds)}
+            <button type="button" onClick={onEditPlaytime} title="Ajustar tempo jogado" className={`inline-flex items-center gap-1 rounded-sm hover:text-white ${focusRing}`}>
+              {formatHours(game.totalPlaytimeSeconds, '—')}
               <Pencil className="w-3 h-3 text-slate-500" />
             </button>
           )}
         </span>
-        <span className="block mt-0.5 text-xs text-slate-400">{entryDate(game) ? new Date(`${entryDate(game)}T12:00:00`).toLocaleDateString('pt-BR') : 'sem data'}</span>
+        <span className="block mt-0.5 text-xs text-slate-400">{date ? formatDay(date) : 'sem data'}</span>
       </span>
       <span className="w-[132px] flex flex-col items-end gap-1.5">
         <StatusPill value={game.log?.status} onChange={(status) => onSaveLog({ status })} />
@@ -178,7 +115,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
   const [view, setView] = useState<ViewMode>(loadView);
   const [showAdd, setShowAdd] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [feedback, setFeedback] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(null);
+  const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
 
   const changeView = (next: ViewMode) => {
     setView(next);
@@ -190,34 +127,26 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
   };
 
   const entries = useMemo(() => games.filter((g) => !g.isHidden && isJournalEntry(g)), [games]);
+  const statusCounts = useMemo(() => countByStatus(entries), [entries]);
   const year = new Date().getFullYear();
 
   const stats = useMemo(() => {
     const finished = entries.filter((g) => g.log?.status === 'finished' || g.log?.status === 'completed');
     return [
-      { label: 'Jogos registrados', value: entries.length },
-      { label: 'Zerados', value: finished.length },
-      { label: `Zerados em ${year}`, value: finished.filter((g) => g.log?.finishedOn?.startsWith(String(year))).length },
-      { label: 'Quero jogar', value: entries.filter((g) => g.log?.status === 'backlog').length },
-      { label: 'Horas jogadas', value: Math.round(entries.reduce((sum, g) => sum + (g.totalPlaytimeSeconds ?? 0), 0) / 3600) }
+      { label: 'Registrados', value: formatNumber(entries.length) },
+      { label: 'Zerados', value: formatNumber(finished.length) },
+      { label: `Zerados em ${year}`, value: formatNumber(finished.filter((g) => g.log?.finishedOn?.startsWith(String(year))).length), accent: true },
+      { label: 'Quero jogar', value: formatNumber(statusCounts.backlog ?? 0) },
+      { label: 'Horas jogadas', value: formatNumber(Math.round(entries.reduce((sum, g) => sum + (g.totalPlaytimeSeconds ?? 0), 0) / 3600)) }
     ];
-  }, [entries, year]);
-
-  const statusCounts = useMemo(() => {
-    const counts: Partial<Record<StatusFilter, number>> = { all: entries.length, none: 0 };
-    for (const g of entries) {
-      const key: StatusFilter = g.log?.status ?? 'none';
-      counts[key] = (counts[key] ?? 0) + 1;
-    }
-    return counts;
-  }, [entries]);
+  }, [entries, statusCounts, year]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return entries
       .filter((g) => {
         if (q && !g.title.toLowerCase().includes(q)) return false;
-        if (statusFilter === 'none' ? g.log?.status : statusFilter !== 'all' && g.log?.status !== statusFilter) return false;
+        if (!matchesStatus(g.log?.status, statusFilter)) return false;
         if (installFilter === 'installed' && g.isInstalled === false) return false;
         if (installFilter === 'removed' && g.isInstalled !== false) return false;
         return true;
@@ -246,7 +175,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
       const updated = await window.electronAPI?.setGameLog(game.id, { ...game.log, ...changes });
       if (updated) upsertGameLocal(updated);
     } catch (err) {
-      setFeedback({ tone: 'warn', text: `Não foi possível salvar: ${ipcErrorMessage(err)}` });
+      setFeedback({ tone: 'error', text: `Não foi possível salvar: ${ipcErrorMessage(err)}` });
     }
   };
 
@@ -255,114 +184,146 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
     setFeedback(null);
     try {
       const path = await window.electronAPI?.exportJournal();
-      if (path) setFeedback({ tone: 'ok', text: `Diário exportado para ${path}` });
+      if (path) setFeedback({ tone: 'success', text: `Diário exportado para ${path}` });
     } catch (err) {
-      setFeedback({ tone: 'warn', text: ipcErrorMessage(err) });
+      setFeedback({ tone: 'error', text: ipcErrorMessage(err) });
     } finally {
       setExporting(false);
     }
   };
 
+  const clearFilters = () => {
+    setQuery('');
+    setStatusFilter('all');
+    setInstallFilter('all');
+  };
+
+  const addButton = (
+    <Button variant="primary" size="md" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowAdd(true)}>
+      Registrar jogo
+    </Button>
+  );
+
   return (
-    <div className="max-w-6xl mx-auto px-8 py-6 space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl text-white">Diário de jogos</h1>
-          <p className="mt-1 text-sm text-slate-400">Os jogos que você registrou. Continuam aqui mesmo depois de desinstalar.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={handleExport} disabled={exporting} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-50 ${focusRing}`}>
-            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} Exportar
-          </button>
-          <button onClick={() => setShowAdd(true)} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white ${focusRing}`}>
-            <Plus className="w-3.5 h-3.5" /> Registrar jogo
-          </button>
-        </div>
-      </header>
+    <div className={pageClass}>
+      <PageHeader
+        title="Diário de jogos"
+        subtitle="Tudo que você registrou, com nota, status e resenha. Continua aqui mesmo depois de desinstalar."
+        actions={
+          <>
+            <Button icon={<Download className="w-3.5 h-3.5" />} loading={exporting} onClick={handleExport} disabled={entries.length === 0}>
+              Exportar
+            </Button>
+            {addButton}
+          </>
+        }
+      />
 
-      <dl className="grid grid-cols-2 md:grid-cols-5 gap-y-4 py-4 border-y border-slate-800">
-        {stats.map((s) => (
-          <div key={s.label} className="text-center">
-            <dd className="text-4xl font-light text-white tabular-nums">{s.value.toLocaleString('pt-BR')}</dd>
-            <dt className="mt-1 text-xs text-slate-400">{s.label}</dt>
-          </div>
-        ))}
-      </dl>
-
-      {feedback && (
-        <p className={`flex items-start gap-2 px-3 py-2 rounded-lg border text-xs break-all ${feedback.tone === 'ok' ? 'bg-emerald-950/60 border-emerald-500/30 text-emerald-300' : 'bg-amber-950/60 border-amber-500/30 text-amber-300'}`}>
-          {feedback.tone === 'ok' ? <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />}
-          {feedback.text}
-        </p>
-      )}
-
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar no diário"
-            className={`w-full pl-8 pr-3 py-2 text-[13px] bg-slate-900 border border-slate-700/80 rounded-lg text-slate-200 placeholder-slate-500 hover:border-slate-600 ${focusRing}`}
-          />
-        </div>
-        <Select value={installFilter} options={INSTALL_OPTIONS} onChange={setInstallFilter} ariaLabel="Filtrar por instalação" />
-        <Select value={sort} options={SORT_OPTIONS} onChange={setSort} ariaLabel="Ordenar" />
-        <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-900 border border-slate-700/80" role="group" aria-label="Forma de ver">
-          {[
-            { id: 'grid' as ViewMode, label: 'Capas', icon: <LayoutGrid className="w-4 h-4" /> },
-            { id: 'list' as ViewMode, label: 'Lista', icon: <List className="w-4 h-4" /> }
-          ].map((v) => (
-            <button key={v.id} onClick={() => changeView(v.id)} aria-pressed={view === v.id} aria-label={v.label} title={v.label} className={`p-1.5 rounded-md transition-colors ${view === v.id ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'} ${focusRing}`}>
-              {v.icon}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por status">
-        {[{ id: 'all' as StatusFilter, label: 'Todos', dot: '' }, ...LOG_STATUS.map((s) => ({ id: s.id as StatusFilter, label: s.label, dot: s.dot })), ...(statusCounts.none ? [{ id: 'none' as StatusFilter, label: 'Sem status', dot: '' }] : [])].map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setStatusFilter(f.id)}
-            aria-pressed={statusFilter === f.id}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[13px] transition-colors ${statusFilter === f.id ? 'bg-indigo-600 border-indigo-500 text-white' : 'border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white'} ${focusRing}`}
-          >
-            {f.dot && <span className={`w-2 h-2 rounded-full ${f.dot}`} />}
-            {f.label}
-            <span className={statusFilter === f.id ? 'text-indigo-100' : 'text-slate-500'}>{statusCounts[f.id] ?? 0}</span>
-          </button>
-        ))}
-      </div>
-
-      {visible.length === 0 ? (
-        <div className="py-14 flex flex-col items-center gap-3 text-center rounded-lg bg-slate-900/50">
-          <p className="max-w-md text-sm text-slate-400">{entries.length === 0 ? 'Nada registrado ainda. Dê uma nota ou um status a um jogo e ele aparece aqui.' : 'Nenhum jogo com esses filtros.'}</p>
-          {entries.length === 0 && (
-            <button onClick={() => setShowAdd(true)} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white ${focusRing}`}>
-              <Plus className="w-3.5 h-3.5" /> Registrar jogo
-            </button>
-          )}
-        </div>
+      {entries.length === 0 ? (
+        <EmptyState
+          icon={NotebookPen}
+          title="Seu diário começa aqui"
+          description="Dê um status ou uma nota a qualquer jogo (na página dele, em “Meu registro”) e ele aparece aqui. Jogou no console ou há muito tempo? Registre à mão."
+          actions={addButton}
+          className={emptyBox}
+        />
       ) : (
-        groups.map((group) => (
-          <section key={group.label || 'todos'}>
-            {group.label && <h2 className="mb-3 text-sm font-semibold text-slate-300">{group.label}</h2>}
-            {view === 'grid' ? (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-4 gap-y-5">
-                {group.games.map((game) => (
-                  <JournalCard key={game.id} game={game} onOpen={() => onOpenGame(game)} />
+        <>
+          <StatStrip stats={stats} className="py-5 rounded-xl bg-slate-900/40 border border-slate-800/80" />
+
+          <Notice tone={feedback?.tone} className="break-all">
+            {feedback?.text}
+          </Notice>
+
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-[220px]">
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar no diário" aria-label="Buscar no diário" className={`${inputClass} pl-8 hover:border-slate-600`} />
+              </div>
+              <Select value={installFilter} options={INSTALL_OPTIONS} onChange={setInstallFilter} ariaLabel="Filtrar por instalação" />
+              <Select value={sort} options={SORT_OPTIONS} onChange={setSort} ariaLabel="Ordenar" />
+              <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-900 border border-slate-700/80" role="group" aria-label="Forma de ver">
+                {[
+                  { id: 'grid' as ViewMode, label: 'Capas', icon: <LayoutGrid className="w-4 h-4" /> },
+                  { id: 'list' as ViewMode, label: 'Lista', icon: <List className="w-4 h-4" /> }
+                ].map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => changeView(v.id)}
+                    aria-pressed={view === v.id}
+                    aria-label={v.label}
+                    title={v.label}
+                    className={`p-1.5 rounded-md transition-colors ${view === v.id ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'} ${focusRing}`}
+                  >
+                    {v.icon}
+                  </button>
                 ))}
               </div>
-            ) : (
-              <ul className="rounded-lg bg-slate-900/50 border border-slate-800 overflow-hidden">
-                {group.games.map((game) => (
-                  <JournalRow key={game.id} game={game} onOpen={() => onOpenGame(game)} onEditPlaytime={() => onEditPlaytime(game)} onSaveLog={(changes) => saveLog(game, changes)} />
-                ))}
-              </ul>
-            )}
-          </section>
-        ))
+            </div>
+            <StatusChips value={statusFilter} counts={statusCounts} onChange={setStatusFilter} />
+          </div>
+
+          {visible.length === 0 ? (
+            <EmptyState
+              icon={SearchX}
+              title="Nada com esses filtros"
+              description={query.trim() ? `Nenhum jogo do diário tem “${query.trim()}” no nome.` : 'Tente outro status ou mostre os não instalados.'}
+              className={emptyBox}
+              actions={
+                <Button onClick={clearFilters} variant="secondary">
+                  Limpar filtros
+                </Button>
+              }
+            />
+          ) : (
+            groups.map((group, groupIndex) => (
+              <section key={group.label || 'todos'}>
+                {group.label && (
+                  <h2 className="flex items-center gap-3 mb-4 text-sm font-semibold text-slate-200">
+                    {group.label}
+                    <span className="text-xs font-normal text-slate-500">{group.games.length}</span>
+                    <span className="flex-1 h-px bg-slate-800" />
+                  </h2>
+                )}
+                {view === 'grid' ? (
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-4 gap-y-6">
+                    {group.games.map((game, index) => (
+                      <CoverCard
+                        key={game.id}
+                        navStart={groupIndex === 0 && index === 0}
+                        title={game.title}
+                        coverUrl={game.media?.coverUrl}
+                        gameId={game.id}
+                        onOpen={() => onOpenGame(game)}
+                        meta={
+                          <>
+                            {game.log?.rating ? <Stars value={game.log.rating} /> : <StatusDot status={game.log?.status} />}
+                            <span className="whitespace-nowrap tabular-nums">{formatHours(game.totalPlaytimeSeconds, '—')}</span>
+                          </>
+                        }
+                        badge={
+                          game.log?.rating && game.log.status ? (
+                            <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/75">
+                              <StatusDot status={game.log.status} />
+                            </span>
+                          ) : undefined
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <ul className="rounded-xl bg-slate-900/40 border border-slate-800/80 overflow-hidden">
+                    {group.games.map((game) => (
+                      <JournalRow key={game.id} game={game} onOpen={() => onOpenGame(game)} onEditPlaytime={() => onEditPlaytime(game)} onSaveLog={(changes) => saveLog(game, changes)} />
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ))
+          )}
+        </>
       )}
 
       {showAdd && (
@@ -370,7 +331,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
           onClose={() => setShowAdd(false)}
           onAdded={(game) => {
             upsertGameLocal(game);
-            setFeedback({ tone: 'ok', text: `${game.title} registrado no diário.` });
+            setFeedback({ tone: 'success', text: `${game.title} registrado no diário.` });
           }}
         />
       )}

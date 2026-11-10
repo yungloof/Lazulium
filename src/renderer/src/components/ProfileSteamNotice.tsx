@@ -3,6 +3,7 @@ import { AlertTriangle, ExternalLink, Loader2, LogIn, RefreshCw, X } from 'lucid
 import { SteamLocalAccount } from '@shared/types/accounts';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
+import { buttonClass, iconButtonClass } from './ui';
 
 interface ProfileSteamNoticeProps {
   isPrivate: boolean;
@@ -11,9 +12,8 @@ interface ProfileSteamNoticeProps {
   onOpenSettings: () => void;
 }
 
-const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400';
-const primary = `flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 ${focusRing}`;
-const secondary = `flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs bg-white/10 hover:bg-white/20 text-slate-100 disabled:opacity-50 ${focusRing}`;
+const primary = buttonClass('primary');
+const secondary = buttonClass('secondary');
 const DISMISS_KEY = 'lazulium.profile.steamNoticeDismissed';
 
 function wasDismissed(): boolean {
@@ -108,7 +108,7 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
     setBusy(false);
   };
 
-  const box = 'col-span-2 p-4 rounded-lg bg-black/75 border border-white/10 text-sm text-slate-200';
+  const box = 'p-4 rounded-xl bg-steam-bg/90 border border-indigo-400/25 shadow-xl shadow-black/30 text-sm text-slate-200';
 
   if (isSyncingAchievements) {
     return (
@@ -173,7 +173,7 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
 
   return (
     <div className={`${box} relative pr-10`} role="status">
-      <button onClick={dismiss} aria-label="Não mostrar de novo" title="Não uso a Steam: não mostrar de novo" className={`absolute top-2 right-2 p-1.5 rounded-sm text-slate-400 hover:text-white ${focusRing}`}>
+      <button onClick={dismiss} aria-label="Não mostrar de novo" title="Não uso a Steam: não mostrar de novo" className={`absolute top-2 right-2 ${iconButtonClass}`}>
         <X className="w-4 h-4" />
       </button>
       <p className="font-medium text-white">Deixe este perfil com a sua cara</p>
