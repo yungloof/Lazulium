@@ -468,3 +468,20 @@ test('Preços: falha ou formato estranho do GG.deals vira 503, sem repassar o co
   reply = () => ok({ success: false, message: 'x' });
   assert.equal((await s.get('steamAppIds=420')).status, 503);
 });
+
+test('páginas públicas: início e política de privacidade em HTML', async () => {
+  const { default: worker } = await import('./index.js');
+  for (const path of ['/', '/privacidade', '/privacidade/']) {
+    const res = await worker.fetch(new Request(`https://x.dev${path}`), {});
+    assert.equal(res.status, 200, path);
+    assert.match(res.headers.get('content-type'), /text\/html/);
+    const body = await res.text();
+    assert.match(body, /Lazulium/);
+  }
+  const policy = await (await worker.fetch(new Request('https://x.dev/privacidade'), {})).text();
+  assert.match(policy, /drive\.file/);
+  assert.match(policy, /Uso Limitado/);
+  assert.doesNotMatch(policy, /\*\*/);
+  const post = await worker.fetch(new Request('https://x.dev/privacidade', { method: 'POST' }), {});
+  assert.equal(post.status, 404);
+});
