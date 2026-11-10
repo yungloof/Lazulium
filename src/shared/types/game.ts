@@ -65,6 +65,7 @@ export interface Game {
   launchUri?: string;               // Protocolo do launcher (ex: steam://rungameid/123)
   installPath?: string;             // Pasta de instalação detectada pelo scanner
   isInstalled?: boolean;            // false: desinstalado, histórico preservado (ausente = instalado)
+  isSoftware?: boolean;             // Steam: programa, não jogo (Wallpaper Engine, Lossless Scaling). Fica fora de "Continuar jogando" e das sugestões.
   familyShared?: boolean;           // Steam: o dono é outra conta (Família Steam). Só se sabe com o jogo instalado.
   manualEntry?: boolean;            // Registrado à mão no Diário (ex: jogo de console); não é iniciado pelo app
   manualPlatform?: string;          // Onde jogou, em texto livre (ex: PS5, Switch)

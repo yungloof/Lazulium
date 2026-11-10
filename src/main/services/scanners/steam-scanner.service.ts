@@ -319,6 +319,11 @@ export const steamScanner: PlatformScanner = {
 
     // Histórico: jogos que a conta já jogou e não estão instalados (o localconfig guarda as horas)
     const appInfo = await readSteamAppInfo(steamPath);
+    // Programas instalados (aplicativos e ferramentas) continuam na biblioteca, mas não contam como jogo para sugestões
+    for (const game of games.values()) {
+      const type = game.platformGameId ? appInfo.get(game.platformGameId)?.type : undefined;
+      if (type) game.isSoftware = type === 'application' || type === 'tool';
+    }
     let historyCount = 0;
     for (const [appId, stats] of localStats) {
       if (!/^\d+$/.test(appId) || !stats.playtimeSeconds || IGNORED_APP_IDS.has(appId) || games.has(`steam-${appId}`)) continue;

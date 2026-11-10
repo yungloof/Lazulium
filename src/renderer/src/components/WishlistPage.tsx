@@ -107,6 +107,12 @@ const WishlistCard: React.FC<{
                 <dd className="text-slate-400">{money(deals.lowestRetailCents, deals.currency)}</dd>
               </div>
             )}
+            <div className="pt-0.5 text-right text-[10px] text-slate-500">
+              Preços por{' '}
+              <button type="button" onClick={onOpenDeals} className={`text-indigo-300 hover:text-white underline-offset-2 hover:underline rounded-sm ${focusRing}`}>
+                GG.deals
+              </button>
+            </div>
           </dl>
         )}
         {editing ? (

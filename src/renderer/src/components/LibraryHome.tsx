@@ -117,7 +117,7 @@ const ContinueShelf: React.FC<{ recent: Game[] }> = ({ recent }) => {
       <div ref={ref} className="grid" style={{ gridTemplateColumns: `repeat(${Math.max(1, columns)}, minmax(0, 1fr))`, gap }}>
         {columns > 0 && (
           <>
-            <FeaturedTile game={recent[0]} span={featuredSpan} />
+            <FeaturedTile key={recent[0].id} game={recent[0]} span={featuredSpan} />
             {others.map((game) => (
               <GameCard key={game.id} game={game} />
             ))}
@@ -326,7 +326,7 @@ export const LibraryHome: React.FC = () => {
       isFiltered
         ? []
         : filtered
-            .filter((g) => g.lastPlayedAt)
+            .filter((g) => g.lastPlayedAt && !g.isSoftware)
             .sort((a, b) => b.lastPlayedAt!.localeCompare(a.lastPlayedAt!))
             .slice(0, 12),
     [filtered, isFiltered]

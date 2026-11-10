@@ -24,7 +24,7 @@ function scoreGame(game: Game): GameSuggestion & { weight: number } {
 
 export function pickSuggestion(games: Game[], excludeId?: string): GameSuggestion | null {
   const pool = games
-    .filter((g) => g.isInstalled !== false && !g.manualEntry && !g.isHidden && !g.skipSuggestions && !SUGGESTION_DONE.includes(g.log?.status ?? ''))
+    .filter((g) => g.isInstalled !== false && !g.isSoftware && !g.manualEntry && !g.isHidden && !g.skipSuggestions && !SUGGESTION_DONE.includes(g.log?.status ?? ''))
     .map(scoreGame);
   const options = pool.length > 1 ? pool.filter((s) => s.game.id !== excludeId) : pool;
   const total = options.reduce((sum, s) => sum + s.weight, 0);

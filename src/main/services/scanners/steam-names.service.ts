@@ -1,5 +1,6 @@
 import { Game } from '@shared/types/game';
 import { db } from '../../database/db';
+import { logBackgroundFailure } from '../metadata/http';
 
 // Jogos antigos que não estão no appinfo.vdf recebem o nome pela loja da Steam, em segundo plano
 const STORE_URL = 'https://store.steampowered.com/api/appdetails';
@@ -52,7 +53,7 @@ class SteamNamesService {
         await sleep(REQUEST_SPACING_MS);
       }
     } catch (err) {
-      console.warn('[SteamNames] Sem acesso à loja da Steam:', (err as Error).message);
+      logBackgroundFailure('[SteamNames] Sem acesso à loja da Steam', err);
     } finally {
       this.running = false;
     }
