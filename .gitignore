@@ -55,3 +55,6 @@ web/profile/lazulium-perfil.json
 # Servidor do IGDB
 .wrangler/
 .dev.vars
+
+# Builds de teste dos agentes
+out-agents/
