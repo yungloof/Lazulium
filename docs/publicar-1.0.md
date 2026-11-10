@@ -86,6 +86,8 @@ Se o repositório do código for privado, publique a pasta `docs/` no repositór
 
 ## 4. Tirar o login do Google do modo de teste
 
+> **Feito em 10/11/2026.** O app está **Em produção**, sem logo e sem escopos registrados. A página inicial (`https://lazulium-igdb.yungloof.workers.dev/`) e a política (`https://lazulium-igdb.yungloof.workers.dev/privacidade`) são servidas pelo próprio Worker (`server/igdb-proxy`, `npm run site` regenera a partir de `docs/privacidade.md`), com `yungloof.workers.dev` como domínio autorizado. Se trocar de endereço ou publicar o GitHub Pages, atualize esses três campos no Branding. O texto abaixo fica como referência.
+
 **Por que é urgente:** em modo de teste, só as contas cadastradas como testadoras conseguem entrar, e o Google **derruba a conexão do Drive a cada 7 dias** (o acesso expira e o amigo precisa entrar de novo).
 
 O Lazulium só pede escopos **não sensíveis** (`openid`, `email` e `drive.file`), então normalmente não há revisão de segurança, só a publicação (e, se o Google pedir, a verificação da marca, que leva poucos dias).
