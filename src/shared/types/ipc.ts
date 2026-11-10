@@ -109,6 +109,9 @@ export interface ElectronAPI {
   getEmulatorConfigs: () => Promise<EmulatorConfig[]>;
   saveEmulatorConfig: (config: EmulatorConfig) => Promise<EmulatorConfig[]>;
   detectEmulators: () => Promise<EmulatorConfig[]>;
+  deleteEmulatorConfig: (emulatorId: string) => Promise<EmulatorConfig[]>;
+  exportEmulatorPresets: () => Promise<string | null>;   // Caminho salvo, ou null se cancelou
+  importEmulatorPresets: () => Promise<{ added: number; configs: EmulatorConfig[] } | null>;
 
   // Jogos Standalone / Pastas de PC
   getStandaloneDirectories: () => Promise<string[]>;

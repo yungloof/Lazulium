@@ -499,14 +499,22 @@ class DatabaseService {
 
   getEmulatorConfigs(): EmulatorConfig[] {
     const stored = new Map((this.data.emulatorConfigs ?? []).map((c) => [c.emulatorId, c]));
-    return (Object.keys(DEFAULT_EMULATOR_PROFILES) as EmulatorType[]).map(
+    const builtIn = (Object.keys(DEFAULT_EMULATOR_PROFILES) as EmulatorType[]).map(
       (id) => stored.get(id) ?? { emulatorId: id, enabled: false, romDirectories: [] }
     );
+    const custom = (this.data.emulatorConfigs ?? []).filter((c) => c.custom && !DEFAULT_EMULATOR_PROFILES[c.emulatorId]);
+    return [...builtIn, ...custom];
   }
 
   saveEmulatorConfig(config: EmulatorConfig): EmulatorConfig[] {
     const others = (this.data.emulatorConfigs ?? []).filter((c) => c.emulatorId !== config.emulatorId);
     this.data.emulatorConfigs = [...others, config];
+    this.persist();
+    return this.getEmulatorConfigs();
+  }
+
+  deleteEmulatorConfig(emulatorId: string): EmulatorConfig[] {
+    this.data.emulatorConfigs = (this.data.emulatorConfigs ?? []).filter((c) => !(c.emulatorId === emulatorId && c.custom));
     this.persist();
     return this.getEmulatorConfigs();
   }

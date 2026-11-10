@@ -14,7 +14,8 @@ export type EmulatorType =
   | 'mgba' 
   | 'ppsspp' 
   | 'bizhawk' 
-  | 'custom';
+  | 'custom'
+  | `custom-${string}`;           // Emulador criado pelo jogador
 
 export interface GameMedia {
   coverUrl?: string; // Capa vertical (ex: 600x900)
@@ -164,4 +165,13 @@ export interface EmulatorConfig {
   corePath?: string;                // RetroArch: caminho do core (.dll) usado em {core}
   autoDetected?: boolean;           // O executável foi achado pelo app, não escolhido à mão
   dismissedRomDirectories?: string[]; // Pastas que o usuário tirou: a detecção não as traz de volta
+  custom?: CustomEmulatorDefinition;  // Só nos emuladores criados pelo jogador
+}
+
+// Receita de um emulador que o app não conhece: serve também como preset compartilhável (sem caminhos do PC)
+export interface CustomEmulatorDefinition {
+  name: string;
+  system: string;
+  extensions: string[];             // Com ponto: ['.iso', '.xex']
+  commandTemplate: string;          // Aceita {rom}, {romname}, {romdir} e {core}
 }

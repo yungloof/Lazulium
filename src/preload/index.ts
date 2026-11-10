@@ -22,6 +22,9 @@ const electronAPI: ElectronAPI = {
   // Emuladores
   getEmulatorConfigs: () => ipcRenderer.invoke(IPC_CHANNELS.EMULATORS_GET_CONFIGS),
   saveEmulatorConfig: (config: EmulatorConfig) => ipcRenderer.invoke(IPC_CHANNELS.EMULATORS_SAVE_CONFIG, config),
+  deleteEmulatorConfig: (emulatorId: string) => ipcRenderer.invoke(IPC_CHANNELS.EMULATORS_DELETE_CONFIG, emulatorId),
+  exportEmulatorPresets: () => ipcRenderer.invoke(IPC_CHANNELS.EMULATORS_EXPORT_PRESETS),
+  importEmulatorPresets: () => ipcRenderer.invoke(IPC_CHANNELS.EMULATORS_IMPORT_PRESETS),
   detectEmulators: () => ipcRenderer.invoke(IPC_CHANNELS.EMULATORS_DETECT),
 
   // Jogos Standalone / Pastas de PC

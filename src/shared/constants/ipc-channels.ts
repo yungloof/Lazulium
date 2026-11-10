@@ -13,6 +13,9 @@ export const IPC_CHANNELS = {
   EMULATORS_GET_CONFIGS: 'emulators:get-configs',
   EMULATORS_SAVE_CONFIG: 'emulators:save-config',
   EMULATORS_DETECT: 'emulators:detect',
+  EMULATORS_DELETE_CONFIG: 'emulators:delete-config',
+  EMULATORS_EXPORT_PRESETS: 'emulators:export-presets',
+  EMULATORS_IMPORT_PRESETS: 'emulators:import-presets',
 
   // Standalone / PC Game Folders
   STANDALONE_GET_DIRECTORIES: 'standalone:get-directories',

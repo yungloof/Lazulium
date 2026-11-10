@@ -176,6 +176,6 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 - [x] Perfil não conta mais os marcos do Lazulium como conquistas.
 - [x] Editor de aparência: presets, cores de superfície, destaque, texto, partes e avisos, fontes, tamanho, cantos, importar/exportar tema.
 - [x] Receitas de lançamento por jogo: variáveis de ambiente, comando antes/depois e exportação para .bat.
-- [ ] Emuladores personalizados com modelos de linha de comando e presets compartilháveis em JSON.
+- [x] Emuladores personalizados com modelo de comando ({rom}, {romname}, {romdir}, {core}) e presets compartilháveis em JSON.
 - [ ] "Adicionar à Steam" (atalho não-Steam) a partir do Lazulium.
 - [ ] Atualização automática (precisa de hospedagem das versões) e assinatura do instalador.

@@ -67,6 +67,9 @@ O Diário é a sua linha do tempo permanente de jogos:
 - **Capturas em tempo real:** com um jogo aberto pelo Lazulium, aperte **Ctrl+F12**. A captura aparece na galeria do jogo, e dá para copiar, abrir a pasta, mover para outro jogo ou apagar. Se a imagem sair preta, o jogo provavelmente está em tela cheia exclusiva: use o modo janela sem bordas.
 - **Listas, Desejos e busca:** crie listas (no menu do jogo, **Adicionar à lista**), acompanhe preços na aba **Desejos** e aperte **Ctrl+K** para buscar qualquer jogo rápido.
 - **Renomear e ocultar jogos:** botão direito no jogo.
+- **Emulador que o app não conhece:** em Emuladores, **Novo emulador** (há modelos de Xemu, Xenia, Flycast e outros). Informe o executável, as extensões e o comando; dá para exportar e importar os presets em JSON e trocar com amigos.
+- **Receitas por jogo:** em Opções de inicialização, variáveis de ambiente, comando antes/depois e **Exportar como .bat**.
+- **Aparência:** Configurações → Aparência muda cores, fontes e cantos.
 - **Conquistas:** todos os jogos têm o mesmo destaque. Jogos de emulador usam o RetroAchievements (entre com a conta em Contas).
 
 ---

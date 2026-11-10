@@ -1,4 +1,44 @@
-import { EmulatorProfile, EmulatorType } from '../types/game';
+import { CustomEmulatorDefinition, EmulatorConfig, EmulatorProfile, EmulatorType } from '../types/game';
+
+// Perfil de um emulador conhecido ou criado pelo jogador
+export function resolveEmulatorProfile(config: Pick<EmulatorConfig, 'emulatorId' | 'custom'>): EmulatorProfile | undefined {
+  const known = DEFAULT_EMULATOR_PROFILES[config.emulatorId];
+  if (known) return known;
+  if (!config.custom) return undefined;
+  return {
+    id: config.emulatorId,
+    name: config.custom.name,
+    system: config.custom.system,
+    defaultExecutableNames: [],
+    supportedExtensions: config.custom.extensions,
+    commandTemplate: config.custom.commandTemplate,
+    defaultRomDirectories: []
+  };
+}
+
+// Pontos de partida para o formulário de novo emulador
+export const CUSTOM_EMULATOR_TEMPLATES: CustomEmulatorDefinition[] = [
+  { name: 'Xemu', system: 'Xbox', extensions: ['.iso'], commandTemplate: '-dvd_path "{rom}"' },
+  { name: 'Xenia', system: 'Xbox 360', extensions: ['.iso', '.xex', '.zar'], commandTemplate: '"{rom}"' },
+  { name: 'Flycast', system: 'Dreamcast', extensions: ['.gdi', '.cdi', '.chd', '.cue'], commandTemplate: '"{rom}"' },
+  { name: 'Project64', system: 'Nintendo 64', extensions: ['.z64', '.n64', '.v64'], commandTemplate: '"{rom}"' },
+  { name: 'Snes9x', system: 'Super Nintendo', extensions: ['.sfc', '.smc'], commandTemplate: '"{rom}"' },
+  { name: 'Redream', system: 'Dreamcast', extensions: ['.gdi', '.cdi', '.chd'], commandTemplate: '"{rom}"' }
+];
+
+// Aceita só definições bem formadas (arquivo importado não é confiável)
+export function sanitizeCustomEmulator(input: unknown): CustomEmulatorDefinition | null {
+  if (!input || typeof input !== 'object') return null;
+  const src = input as Record<string, unknown>;
+  const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const name = text(src.name, 60);
+  const commandTemplate = text(src.commandTemplate, 300);
+  const extensions = Array.isArray(src.extensions)
+    ? src.extensions.filter((e): e is string => typeof e === 'string').map((e) => (e.trim().startsWith('.') ? e.trim() : '.' + e.trim()).toLowerCase()).filter((e) => /^\.[a-z0-9]{1,8}$/.test(e)).slice(0, 20)
+    : [];
+  if (!name || !commandTemplate || extensions.length === 0) return null;
+  return { name, system: text(src.system, 60) || 'Personalizado', extensions, commandTemplate };
+}
 
 // O RetroAchievements não tem conquistas para estes consoles (Switch, Wii U, 3DS, PS3)
 const WITHOUT_RETROACHIEVEMENTS: EmulatorType[] = ['ryujinx', 'eden', 'cemu', 'azahar', 'rpcs3'];

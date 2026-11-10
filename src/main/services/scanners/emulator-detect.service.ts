@@ -2,7 +2,7 @@ import { existsSync, readFileSync, statSync } from 'fs';
 import { readdir } from 'fs/promises';
 import { basename, dirname, join, normalize } from 'path';
 import { homedir } from 'os';
-import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
+import { DEFAULT_EMULATOR_PROFILES, resolveEmulatorProfile } from '@shared/constants/emulators';
 import { EmulatorConfig, EmulatorType } from '@shared/types/game';
 import { db } from '../../database/db';
 
@@ -160,7 +160,7 @@ export async function detectEmulators(force = false): Promise<void> {
   const found = await findExecutables(force);
 
   for (const config of db.getEmulatorConfigs()) {
-    const profile = DEFAULT_EMULATOR_PROFILES[config.emulatorId];
+    const profile = resolveEmulatorProfile(config);
     if (!profile) continue;
     const next: EmulatorConfig = { ...config };
 

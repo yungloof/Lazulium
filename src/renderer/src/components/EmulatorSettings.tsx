@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { EmulatorConfig } from '@shared/types/game';
-import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
-import { AlertTriangle, FolderPlus, FileCog, Loader2, Search, Trash2, X, Cpu } from 'lucide-react';
+import { CustomEmulatorDefinition, EmulatorConfig } from '@shared/types/game';
+import { CUSTOM_EMULATOR_TEMPLATES, resolveEmulatorProfile, sanitizeCustomEmulator } from '@shared/constants/emulators';
+import { AlertTriangle, Download, FolderPlus, FileCog, Loader2, Pencil, Plus, Search, Trash2, Upload, X, Cpu } from 'lucide-react';
+import { Select } from './Select';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 
 interface EmulatorSettingsProps {
@@ -11,10 +12,23 @@ interface EmulatorSettingsProps {
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500';
 
+interface DraftEmulator {
+  id?: EmulatorConfig['emulatorId'];   // Preenchido ao editar um que já existe
+  name: string;
+  system: string;
+  extensions: string;
+  commandTemplate: string;
+}
+
+const EMPTY_DRAFT: DraftEmulator = { name: '', system: '', extensions: '', commandTemplate: '"{rom}"' };
+const inputClass = `w-full px-2.5 py-1.5 text-sm bg-slate-950/60 border border-slate-700/80 rounded-lg text-slate-100 placeholder-slate-600 ${focusRing}`;
+
 export const EmulatorSettings: React.FC<EmulatorSettingsProps> = ({ onClose, onConfigChanged }) => {
   const [configs, setConfigs] = useState<EmulatorConfig[]>([]);
   const [detecting, setDetecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [draft, setDraft] = useState<DraftEmulator | null>(null);
   const changed = useRef(false);
   const notifyChanged = useRef(onConfigChanged);
   notifyChanged.current = onConfigChanged;
@@ -62,6 +76,62 @@ export const EmulatorSettings: React.FC<EmulatorSettingsProps> = ({ onClose, onC
     }
   };
 
+  const saveDraft = async () => {
+    if (!draft) return;
+    const definition: CustomEmulatorDefinition | null = sanitizeCustomEmulator({
+      name: draft.name,
+      system: draft.system,
+      extensions: draft.extensions.split(/[\s,;]+/).filter(Boolean),
+      commandTemplate: draft.commandTemplate
+    });
+    if (!definition) {
+      setError('Preencha o nome, ao menos uma extensão (como .iso) e o comando.');
+      return;
+    }
+    const existing = draft.id ? configs.find((c) => c.emulatorId === draft.id) : undefined;
+    const config: EmulatorConfig = existing
+      ? { ...existing, custom: definition }
+      : { emulatorId: ('custom-' + crypto.randomUUID()) as EmulatorConfig['emulatorId'], enabled: false, romDirectories: [], custom: definition };
+    await save(config);
+    setDraft(null);
+  };
+
+  const removeCustom = async (config: EmulatorConfig) => {
+    setError(null);
+    try {
+      const updated = await window.electronAPI?.deleteEmulatorConfig(config.emulatorId);
+      if (updated) setConfigs(updated);
+      changed.current = true;
+    } catch (err) {
+      setError(ipcErrorMessage(err));
+    }
+  };
+
+  const exportPresets = async () => {
+    setError(null);
+    setNotice(null);
+    try {
+      const path = await window.electronAPI?.exportEmulatorPresets();
+      if (path) setNotice('Presets salvos em ' + path);
+    } catch (err) {
+      setError(ipcErrorMessage(err));
+    }
+  };
+
+  const importPresets = async () => {
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await window.electronAPI?.importEmulatorPresets();
+      if (!result) return;
+      setConfigs(result.configs);
+      changed.current = true;
+      setNotice(result.added > 0 ? result.added + ' emulador(es) importado(s). Escolha o executável de cada um para ativar.' : 'Nada novo: esses emuladores já estavam na lista.');
+    } catch (err) {
+      setError(ipcErrorMessage(err));
+    }
+  };
+
   const pickExecutable = async (config: EmulatorConfig) => {
     const path = await window.electronAPI?.selectFile([{ name: 'Executáveis', extensions: ['exe'] }]);
     if (path) save({ ...config, executablePath: path, autoDetected: false, enabled: true });
@@ -93,6 +163,9 @@ export const EmulatorSettings: React.FC<EmulatorSettingsProps> = ({ onClose, onC
             <Cpu className="w-4 h-4 text-indigo-400" /> Emuladores & Pastas de ROMs
           </h2>
           <div className="flex items-center gap-2">
+            <button onClick={() => setDraft({ ...EMPTY_DRAFT })} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+              <Plus className="w-3.5 h-3.5" /> Novo emulador
+            </button>
             <button onClick={detect} disabled={detecting} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 ${focusRing}`}>
               {detecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />} Procurar no PC
             </button>
@@ -106,13 +179,61 @@ export const EmulatorSettings: React.FC<EmulatorSettingsProps> = ({ onClose, onC
           <p className="text-xs text-slate-400">
             O app acha os emuladores sozinho e usa as pastas de jogos configuradas neles. Emuladores sem lista de jogos, como mGBA e melonDS, precisam que você adicione a pasta das ROMs.
           </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={importPresets} className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+              <Upload className="w-3.5 h-3.5" /> Importar presets
+            </button>
+            {configs.some((c) => c.custom) && (
+              <button onClick={exportPresets} className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+                <Download className="w-3.5 h-3.5" /> Exportar presets
+              </button>
+            )}
+            {notice && <span className="text-xs text-emerald-300">{notice}</span>}
+          </div>
+          {draft && (
+            <div className="p-4 rounded-md bg-slate-900/60 border border-indigo-500/40 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-slate-100">{draft.id ? 'Editar emulador' : 'Novo emulador'}</span>
+                {!draft.id && (
+                  <Select
+                    value=""
+                    options={[{ value: '', label: 'Começar de um modelo...' }, ...CUSTOM_EMULATOR_TEMPLATES.map((t) => ({ value: t.name, label: t.name + ' (' + t.system + ')' }))]}
+                    onChange={(name) => {
+                      const t = CUSTOM_EMULATOR_TEMPLATES.find((x) => x.name === name);
+                      if (t) setDraft({ name: t.name, system: t.system, extensions: t.extensions.join(' '), commandTemplate: t.commandTemplate });
+                    }}
+                    ariaLabel="Modelo de emulador"
+                  />
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Nome (ex.: Xemu)" className={inputClass} />
+                <input value={draft.system} onChange={(e) => setDraft({ ...draft, system: e.target.value })} placeholder="Sistema (ex.: Xbox)" className={inputClass} />
+              </div>
+              <input value={draft.extensions} onChange={(e) => setDraft({ ...draft, extensions: e.target.value })} placeholder="Extensões das ROMs (ex.: .iso .xex)" className={inputClass} />
+              <div>
+                <input value={draft.commandTemplate} onChange={(e) => setDraft({ ...draft, commandTemplate: e.target.value })} placeholder='Comando (ex.: -dvd_path "{rom}")' spellCheck={false} className={`${inputClass} font-mono`} />
+                <p className="mt-1.5 text-[11px] text-slate-500">
+                  Vale {'{rom}'} (caminho da ROM), {'{romname}'} (nome sem extensão), {'{romdir}'} (pasta da ROM) e {'{core}'}. Caminhos com espaço vão entre aspas.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setDraft(null)} className={`px-3 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 ${focusRing}`}>
+                  Cancelar
+                </button>
+                <button onClick={saveDraft} className={`px-4 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white ${focusRing}`}>
+                  Salvar
+                </button>
+              </div>
+            </div>
+          )}
           {error && (
             <p className="flex items-start gap-1.5 text-xs text-amber-300">
               <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /> <span>{error}</span>
             </p>
           )}
           {configs.map((config) => {
-            const profile = DEFAULT_EMULATOR_PROFILES[config.emulatorId];
+            const profile = resolveEmulatorProfile(config);
             if (!profile) return null;
             const needsCore = profile.commandTemplate.includes('{core}');
 
@@ -125,6 +246,20 @@ export const EmulatorSettings: React.FC<EmulatorSettingsProps> = ({ onClose, onC
                       {profile.system} · {profile.supportedExtensions.join(' ')}
                     </div>
                   </div>
+                  {config.custom && (
+                    <span className="flex items-center gap-1">
+                      <button
+                        onClick={() => setDraft({ id: config.emulatorId, name: config.custom!.name, system: config.custom!.system, extensions: config.custom!.extensions.join(' '), commandTemplate: config.custom!.commandTemplate })}
+                        aria-label="Editar emulador"
+                        className={`p-1 rounded text-slate-500 hover:text-white ${focusRing}`}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => removeCustom(config)} aria-label="Remover emulador" className={`p-1 rounded text-slate-500 hover:text-red-400 ${focusRing}`}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  )}
                   <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
                     <input
                       type="checkbox"
@@ -144,7 +279,7 @@ export const EmulatorSettings: React.FC<EmulatorSettingsProps> = ({ onClose, onC
                     <FileCog className="w-3.5 h-3.5" /> Executável
                   </button>
                   <span className="text-slate-400 truncate max-w-md" title={config.executablePath}>
-                    {config.executablePath || 'Não encontrado neste PC'}
+                    {config.executablePath || (config.custom ? 'Escolha o executável' : 'Não encontrado neste PC')}
                   </span>
                   {config.executablePath && config.autoDetected && <span className="text-[11px] text-emerald-400">Achado automaticamente</span>}
                 </div>

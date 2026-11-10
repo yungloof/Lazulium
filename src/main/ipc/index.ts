@@ -3,7 +3,8 @@ import { getLogsDir } from '../logger';
 import { buildLaunchScript } from '../services/tracker/launcher.service';
 import { statSync } from 'fs';
 import { dirname } from 'path';
-import { writeFile } from 'fs/promises';
+import { readFile, writeFile } from 'fs/promises';
+import { sanitizeCustomEmulator } from '@shared/constants/emulators';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { db } from '../database/db';
 import { EmulatorConfig, Game, GameLog, GamePlatform } from '@shared/types/game';
@@ -157,6 +158,43 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
 
   ipcMain.handle(IPC_CHANNELS.EMULATORS_SAVE_CONFIG, async (_event, config: EmulatorConfig) => {
     return db.saveEmulatorConfig(config);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.EMULATORS_DELETE_CONFIG, async (_event, emulatorId: string) => db.deleteEmulatorConfig(emulatorId));
+
+  ipcMain.handle(IPC_CHANNELS.EMULATORS_EXPORT_PRESETS, async () => {
+    const presets = db.getEmulatorConfigs().filter((c) => c.custom).map((c) => c.custom);
+    if (presets.length === 0) throw new Error('Nenhum emulador personalizado para exportar.');
+    const win = BrowserWindow.getFocusedWindow();
+    const options = { title: 'Salvar presets de emuladores', defaultPath: 'lazulium-emuladores.json', filters: [{ name: 'Presets do Lazulium', extensions: ['json'] }] };
+    const res = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
+    if (res.canceled || !res.filePath) return null;
+    await writeFile(res.filePath, JSON.stringify({ lazulium: 'emulators', version: 1, emulators: presets }, null, 2), 'utf-8');
+    return res.filePath;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.EMULATORS_IMPORT_PRESETS, async () => {
+    const win = BrowserWindow.getFocusedWindow();
+    const options = { title: 'Importar presets de emuladores', properties: ['openFile' as const], filters: [{ name: 'Presets do Lazulium', extensions: ['json'] }] };
+    const res = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    if (res.canceled || !res.filePaths[0]) return null;
+    let parsed: { emulators?: unknown };
+    try {
+      parsed = JSON.parse(await readFile(res.filePaths[0], 'utf-8'));
+    } catch {
+      throw new Error('Não consegui ler esse arquivo de presets.');
+    }
+    const list = Array.isArray(parsed.emulators) ? parsed.emulators : [];
+    const existing = new Set(db.getEmulatorConfigs().filter((c) => c.custom).map((c) => (c.custom!.name + "|" + c.custom!.commandTemplate).toLowerCase()));
+    let added = 0;
+    for (const item of list.slice(0, 50)) {
+      const definition = sanitizeCustomEmulator(item);
+      if (!definition || existing.has((definition.name + "|" + definition.commandTemplate).toLowerCase())) continue;
+      db.saveEmulatorConfig({ emulatorId: ("custom-" + randomUUID()) as `custom-${string}`, enabled: false, romDirectories: [], custom: definition });
+      added++;
+    }
+    if (list.length > 0 && added === 0 && !list.some((i) => sanitizeCustomEmulator(i))) throw new Error('O arquivo não tem nenhum emulador válido.');
+    return { added, configs: db.getEmulatorConfigs() };
   });
 
   ipcMain.handle(IPC_CHANNELS.EMULATORS_DETECT, async () => {

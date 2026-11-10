@@ -2,7 +2,7 @@ import { createHash } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { readdir } from 'fs/promises';
 import { basename, dirname, extname, join } from 'path';
-import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
+import { resolveEmulatorProfile } from '@shared/constants/emulators';
 import { EmulatorConfig, EmulatorProfile, Game, GamePlatform } from '@shared/types/game';
 import { DetectedGame, PlatformScanner, PlatformScanResult } from './scanner.types';
 import { normalizeKey } from '../cloudsync/save-locator.service';
@@ -140,7 +140,11 @@ function isRomCandidate(profile: EmulatorProfile, file: string, siblings: Set<st
 }
 
 function buildArguments(profile: EmulatorProfile, config: EmulatorConfig, romPath: string): string {
-  return profile.commandTemplate.replace(/\{rom\}/g, romPath).replace(/\{core\}/g, config.corePath ?? '');
+  return profile.commandTemplate
+    .replace(/\{romname\}/g, basename(romPath, extname(romPath)))
+    .replace(/\{romdir\}/g, dirname(romPath))
+    .replace(/\{rom\}/g, romPath)
+    .replace(/\{core\}/g, config.corePath ?? '');
 }
 
 function romId(emulatorId: string, romPath: string): string {
@@ -163,7 +167,7 @@ interface KnownGames {
 }
 
 async function scanEmulator(config: EmulatorConfig, warnings: string[], known: KnownGames): Promise<DetectedGame[]> {
-  const profile = DEFAULT_EMULATOR_PROFILES[config.emulatorId];
+  const profile = resolveEmulatorProfile(config);
   if (!profile) {
     warnings.push(`Emuladores: perfil desconhecido "${config.emulatorId}"`);
     return [];
