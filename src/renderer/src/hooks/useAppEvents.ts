@@ -4,6 +4,7 @@ import { useLibraryStore } from '../stores/useLibraryStore';
 import { useUiStore } from '../stores/useUiStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { scanLibraries } from '../utils/gameActions';
+import { isNewerVersion } from '@shared/utils/version';
 
 const GAME_UPDATE_BATCH_MS = 120;
 const ASK_STATUS_AFTER_SECONDS = 10 * 60;
@@ -32,11 +33,19 @@ export function useAppEvents(): void {
     })();
   }, []);
 
-  // Primeira execução (sem conta Steam conectada): boas-vindas com as contas
+  // Primeira execução (sem conta Steam conectada): boas-vindas com as contas.
+  // Depois de uma atualização: as novidades da versão nova, uma vez só.
   useEffect(() => {
-    Promise.all([window.electronAPI?.getSettings(), window.electronAPI?.getAccountsStatus()])
-      .then(([settings, accounts]) => {
-        if (settings?.onboardingDone !== 'true' && !accounts?.steam.connected) useUiStore.getState().setWelcomeOpen(true);
+    Promise.all([window.electronAPI?.getSettings(), window.electronAPI?.getAccountsStatus(), window.electronAPI?.getAppInfo()])
+      .then(([settings, accounts, info]) => {
+        const firstRun = settings?.onboardingDone !== 'true' && !accounts?.steam.connected;
+        if (firstRun) useUiStore.getState().setWelcomeOpen(true);
+        const version = info?.version;
+        const seen = settings?.lastSeenVersion;
+        if (!version || seen === version) return;
+        void window.electronAPI?.setSetting('lastSeenVersion', version);
+        // Sem registro = veio da 1.0, que ainda não guardava a versão vista
+        if (!firstRun && (!seen || isNewerVersion(version, seen))) useUiStore.getState().openModal({ kind: 'whatsNew', afterUpdate: true });
       })
       .catch(() => undefined);
   }, []);

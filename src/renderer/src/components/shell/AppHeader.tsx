@@ -5,6 +5,7 @@ import { AppView, useUiStore } from '../../stores/useUiStore';
 import { useLibraryStore } from '../../stores/useLibraryStore';
 import { scanLibraries } from '../../utils/gameActions';
 import { focusRing } from '../ui';
+import { UpdateIndicator } from './UpdateIndicator';
 
 const TABS: { label: string; view: AppView }[] = [
   { label: 'Biblioteca', view: 'home' },
@@ -53,6 +54,7 @@ export const AppHeader: React.FC = () => {
         })}
       </nav>
       <div className="titlebar-no-drag flex items-center gap-1 flex-shrink-0">
+        <UpdateIndicator />
         <button
           onClick={() => useUiStore.getState().setQuickSearchOpen(true)}
           title="Buscar jogo (Ctrl+K)"

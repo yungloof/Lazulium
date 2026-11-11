@@ -2,7 +2,7 @@ import { ScreenshotTaken } from '../shared/types/screenshots';
 import { GameListInput } from '../shared/types/lists';
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
-import { ElectronAPI, JournalEntryInput, FetchAssetsOptions, GameLaunchStatus, MediaAssetType, TrayAction } from '@shared/types/ipc';
+import { ElectronAPI, JournalEntryInput, FetchAssetsOptions, GameLaunchStatus, MediaAssetType, TrayAction, UpdateStatus } from '@shared/types/ipc';
 import { EmulatorConfig, Game, GameLog, GamePlatform } from '@shared/types/game';
 import { BackupEvent, GameSaveConfig } from '@shared/types/cloudsync';
 import { AccountService } from '@shared/types/accounts';
@@ -191,8 +191,8 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.UPDATER_READY, subscription);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.UPDATER_READY, subscription);
   },
-  onUpdateStatus: (callback: (status: any) => void) => {
-    const subscription = (_event: Electron.IpcRendererEvent, status: any) => callback(status);
+  onUpdateStatus: (callback: (status: UpdateStatus) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, status: UpdateStatus) => callback(status);
     ipcRenderer.on(IPC_CHANNELS.UPDATER_STATUS, subscription);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.UPDATER_STATUS, subscription);
   },

@@ -20,7 +20,8 @@ import {
   SaveBackupPanel,
   ScreenshotsPanel,
   SettingsModal,
-  WelcomeModal
+  WelcomeModal,
+  WhatsNewModal
 } from './lazy';
 
 const close = () => useUiStore.getState().closeModal();
@@ -53,6 +54,8 @@ const ModalContent: React.FC<{ modal: AppModal }> = ({ modal }) => {
       return <EmulatorSettings onClose={close} onConfigChanged={rescan} />;
     case 'addGame':
       return <AddCustomGameModal onClose={close} onGameAdded={onGameAdded} onScanComplete={onScanComplete} />;
+    case 'whatsNew':
+      return <WhatsNewModal onClose={close} afterUpdate={modal.afterUpdate} />;
   }
   if (!game) return null;
   switch (modal.kind) {

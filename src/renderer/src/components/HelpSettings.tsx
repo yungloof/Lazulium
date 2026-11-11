@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, RefreshCw, RotateCcw } from 'lucide-react';
+import { Download, FileText, RefreshCw, RotateCcw, Sparkles } from 'lucide-react';
 import type { UpdateStatus } from '@shared/types/ipc';
 import logo from '../assets/logo.png';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
-import { Button, Notice } from './ui';
+import { Button, Notice, buttonClass } from './ui';
+import { useUiStore } from '../stores/useUiStore';
 import { SettingsGroup } from './settings/controls';
 
 function formatUpdateError(raw: string): string {
@@ -96,13 +97,17 @@ export const HelpSettings: React.FC = () => {
     if (updateStatus?.downloaded) {
       return { tone: 'success' as const, text: `Lazulium ${updateStatus.version ?? ''} baixado e pronto para instalar.` };
     }
+    if (updateStatus?.available && updateStatus.manualDownload) {
+      return { tone: 'info' as const, text: `A versão ${updateStatus.version ?? ''} já saiu. Esta é a versão portátil: baixe a nova e substitua o arquivo.` };
+    }
     if (updateStatus?.available) {
-      return { tone: 'info' as const, text: `Nova versão ${updateStatus.version ?? ''} encontrada. Baixando em segundo plano...` };
+      const progress = typeof updateStatus.progress === 'number' ? ` (${updateStatus.progress}%)` : '';
+      return { tone: 'info' as const, text: `Nova versão ${updateStatus.version ?? ''} encontrada. Baixando em segundo plano${progress}...` };
     }
     if (updateStatus?.error) {
       return { tone: 'error' as const, text: formatUpdateError(updateStatus.error) };
     }
-    if (manualCheckDone && updateStatus?.supported === false) {
+    if (manualCheckDone && updateStatus?.supported === false && !updateStatus.manualDownload) {
       return { tone: 'info' as const, text: 'Atualização automática disponível apenas na versão instalada (Setup).' };
     }
     if (manualCheckDone && updateStatus?.checked && !updateStatus.checking) {
@@ -127,11 +132,18 @@ export const HelpSettings: React.FC = () => {
               <Button variant="primary" icon={<RotateCcw className="w-3.5 h-3.5" />} onClick={installUpdate}>
                 Reiniciar e instalar
               </Button>
+            ) : updateStatus?.available && updateStatus.downloadUrl ? (
+              <a href={updateStatus.downloadUrl} target="_blank" rel="noreferrer" className={`${buttonClass('primary', 'sm')}`}>
+                <Download className="w-3.5 h-3.5" /> Baixar a {updateStatus.version}
+              </a>
             ) : (
               <Button icon={<RefreshCw className="w-3.5 h-3.5" />} loading={Boolean(updateStatus?.checking)} onClick={checkUpdates}>
                 Verificar atualizações
               </Button>
             )}
+            <Button icon={<Sparkles className="w-3.5 h-3.5" />} onClick={() => useUiStore.getState().openModal({ kind: 'whatsNew' })}>
+              Novidades
+            </Button>
             <Button icon={<FileText className="w-3.5 h-3.5" />} onClick={openLogs}>
               Pasta de logs
             </Button>

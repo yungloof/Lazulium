@@ -105,6 +105,9 @@ export interface UpdateStatus {
   supported?: boolean;
   version?: string;
   error?: string;
+  progress?: number;                // 0 a 100 enquanto baixa
+  manualDownload?: boolean;         // Versão portátil: não se atualiza sozinha, só avisa
+  downloadUrl?: string;             // Página da versão nova (portátil)
 }
 
 export interface ElectronAPI {

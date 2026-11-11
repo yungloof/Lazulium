@@ -13,6 +13,7 @@ export type GameModalKind = 'artwork' | 'achievements' | 'saves' | 'screenshots'
 
 export type AppModal =
   | { kind: 'settings' | 'emulators' | 'addGame' }
+  | { kind: 'whatsNew'; afterUpdate?: boolean }
   // A janela guarda o jogo dela: abrir pelo menu de outro jogo não troca a página que está por trás
   | { kind: GameModalKind; gameId: string; screenshotId?: string };
 
