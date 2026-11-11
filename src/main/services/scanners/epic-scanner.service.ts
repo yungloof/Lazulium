@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { readdir, readFile } from 'fs/promises';
+import { readdir, readFile, stat } from 'fs/promises';
 import { basename, join, normalize } from 'path';
 import { readRegistryValue } from './registry';
 import { readEpicManifest } from './epic-manifest';
@@ -27,6 +27,7 @@ interface LauncherInstalledEntry {
   AppVersion?: string;
 }
 
+const DRIVE_CHECK_TIMEOUT_MS = 1500;
 const programData = process.env['PROGRAMDATA'] || 'C:\\ProgramData';
 
 // --- Launcher novo da Epic (com.epicgames.eglv2, 2026) ---
@@ -357,16 +358,15 @@ async function scanLibraryRoots(knownGames: Map<string, DetectedGame>): Promise<
   addRoot('C:\\Epic Games');
   addRoot('C:\\EpicGames');
 
-  // 4. Varredura rápida em unidades existentes
+  // 4. Varredura rápida em unidades existentes. Checagem assíncrona com limite de tempo:
+  // uma unidade de rede desconectada (ou um leitor de cartão vazio) não pode travar o app
+  const existsSoon = (p: string) =>
+    Promise.race([stat(p).then(() => true, () => false), new Promise<boolean>((resolve) => setTimeout(() => resolve(false), DRIVE_CHECK_TIMEOUT_MS))]);
   const driveLetters = 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-  for (const letter of driveLetters) {
-    const driveRoot = `${letter}:\\`;
-    if (!existsSync(driveRoot)) continue;
-    addRoot(`${letter}:\\Epic Games`);
-    addRoot(`${letter}:\\EpicGames`);
-    addRoot(`${letter}:\\Games\\Epic Games`);
-    addRoot(`${letter}:\\Jogos\\Epic Games`);
-  }
+  const drives = (await Promise.all(driveLetters.map(async (letter) => ((await existsSoon(`${letter}:\\`)) ? letter : null)))).filter((l): l is string => l !== null);
+  const driveFolders = drives.flatMap((letter) => [`${letter}:\\Epic Games`, `${letter}:\\EpicGames`, `${letter}:\\Games\\Epic Games`, `${letter}:\\Jogos\\Epic Games`]);
+  const folderExists = await Promise.all(driveFolders.map(existsSoon));
+  driveFolders.forEach((folder, i) => folderExists[i] && candidateRoots.add(normalize(folder)));
 
   const foundGames: DetectedGame[] = [];
   const ignoredFolders = new Set(['launcher', 'directxredist', 'unrealengine', 'vaultcache', 'fablibrary']);
