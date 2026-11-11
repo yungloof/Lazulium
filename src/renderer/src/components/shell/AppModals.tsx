@@ -21,7 +21,8 @@ import {
   ScreenshotsPanel,
   SettingsModal,
   WelcomeModal,
-  WhatsNewModal
+  WhatsNewModal,
+  FriendProfileModal
 } from './lazy';
 
 const close = () => useUiStore.getState().closeModal();
@@ -56,6 +57,8 @@ const ModalContent: React.FC<{ modal: AppModal }> = ({ modal }) => {
       return <AddCustomGameModal onClose={close} onGameAdded={onGameAdded} onScanComplete={onScanComplete} />;
     case 'whatsNew':
       return <WhatsNewModal onClose={close} afterUpdate={modal.afterUpdate} />;
+    case 'friendProfile':
+      return <FriendProfileModal key={modal.friendId} friendId={modal.friendId} onClose={close} />;
   }
   if (!game) return null;
   switch (modal.kind) {

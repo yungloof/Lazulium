@@ -6,7 +6,7 @@ import { focusRing } from '../ui';
 
 const TIMELINE_ROWS = 12;
 
-const ICON: Record<ActivityKind, React.ReactNode> = {
+export const ACTIVITY_ICON: Record<ActivityKind, React.ReactNode> = {
   played: <Gamepad2 className="w-3.5 h-3.5 text-indigo-300" />,
   started: <PlayCircle className="w-3.5 h-3.5 text-sky-300" />,
   finished: <Flag className="w-3.5 h-3.5 text-emerald-300" />,
@@ -20,7 +20,10 @@ const ICON: Record<ActivityKind, React.ReactNode> = {
 
 const stars = (rating?: number) => (rating ? `${String(rating).replace('.', ',')} ${rating === 1 ? 'estrela' : 'estrelas'}` : '');
 
-function describe(e: ActivityEvent): React.ReactNode {
+// Também usado no feed dos amigos (mesmos campos)
+export type DescribableActivity = Pick<ActivityEvent, 'kind' | 'gameTitle' | 'rating' | 'count' | 'seconds'>;
+
+export function describeActivity(e: DescribableActivity): React.ReactNode {
   const title = <span className="font-semibold text-slate-100">{e.gameTitle}</span>;
   switch (e.kind) {
     case 'played':
@@ -71,8 +74,8 @@ export const ActivityTimeline: React.FC<{ onSelectGame: (gameId: string) => void
               onClick={() => onSelectGame(e.gameId)}
               className={`w-full flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-slate-800/50 ${focusRing}`}
             >
-              <span className="w-6 h-6 rounded-md bg-slate-800/80 flex items-center justify-center flex-shrink-0">{ICON[e.kind]}</span>
-              <span className="min-w-0 flex-1 truncate text-sm text-slate-300">{describe(e)}</span>
+              <span className="w-6 h-6 rounded-md bg-slate-800/80 flex items-center justify-center flex-shrink-0">{ACTIVITY_ICON[e.kind]}</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-slate-300">{describeActivity(e)}</span>
               <span className="text-xs text-slate-500 flex-shrink-0">{formatLastPlayed(e.at)}</span>
             </button>
           </li>

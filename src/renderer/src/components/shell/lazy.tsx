@@ -36,6 +36,8 @@ export const ListsPage: LazyComponent<typeof import('../ListsPage')['ListsPage']
 export const WishlistPage: LazyComponent<typeof import('../WishlistPage')['WishlistPage']> = lazyNamed(() => import('../WishlistPage').then((m) => m.WishlistPage));
 export const GalleryPage: LazyComponent<typeof import('../GalleryPage')['GalleryPage']> = lazyNamed(() => import('../GalleryPage').then((m) => m.GalleryPage));
 
+export const FriendsPage: LazyComponent<typeof import('../FriendsPage')['FriendsPage']> = lazyNamed(() => import('../FriendsPage').then((m) => m.FriendsPage));
+export const FriendProfileModal: LazyComponent<typeof import('../FriendProfileModal')['FriendProfileModal']> = lazyNamed(() => import('../FriendProfileModal').then((m) => m.FriendProfileModal));
 export const WhatsNewModal: LazyComponent<typeof import('../WhatsNewModal')['WhatsNewModal']> = lazyNamed(() => import('../WhatsNewModal').then((m) => m.WhatsNewModal));
 export const SettingsModal: LazyComponent<typeof import('../SettingsModal')['SettingsModal']> = lazyNamed(() => import('../SettingsModal').then((m) => m.SettingsModal));
 export const EmulatorSettings: LazyComponent<typeof import('../EmulatorSettings')['EmulatorSettings']> = lazyNamed(() => import('../EmulatorSettings').then((m) => m.EmulatorSettings));

@@ -4,16 +4,17 @@ import { ScanResult } from '@shared/types/ipc';
 // Estado da casca do app: tela atual, jogo aberto, janelas, menu e avisos.
 // Antes tudo isso morava no App.tsx e descia por props.
 
-export type AppView = 'home' | 'game' | 'profile' | 'journal' | 'gallery' | 'lists' | 'wishlist';
+export type AppView = 'home' | 'game' | 'profile' | 'journal' | 'gallery' | 'lists' | 'wishlist' | 'friends';
 
 // Ordem das seções no LT/RT do controle (a página do jogo conta como a biblioteca)
-export const SECTION_ORDER = ['home', 'journal', 'lists', 'wishlist', 'gallery', 'profile'] as const;
+export const SECTION_ORDER = ['home', 'journal', 'lists', 'wishlist', 'gallery', 'friends', 'profile'] as const;
 
 export type GameModalKind = 'artwork' | 'achievements' | 'saves' | 'screenshots' | 'playtime' | 'addToList' | 'rename' | 'launchOptions';
 
 export type AppModal =
   | { kind: 'settings' | 'emulators' | 'addGame' }
   | { kind: 'whatsNew'; afterUpdate?: boolean }
+  | { kind: 'friendProfile'; friendId: string }
   // A janela guarda o jogo dela: abrir pelo menu de outro jogo não troca a página que está por trás
   | { kind: GameModalKind; gameId: string; screenshotId?: string };
 

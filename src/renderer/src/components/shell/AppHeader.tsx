@@ -13,6 +13,7 @@ const TABS: { label: string; view: AppView }[] = [
   { label: 'Listas', view: 'lists' },
   { label: 'Desejos', view: 'wishlist' },
   { label: 'Capturas', view: 'gallery' },
+  { label: 'Amigos', view: 'friends' },
   { label: 'Perfil', view: 'profile' }
 ];
 

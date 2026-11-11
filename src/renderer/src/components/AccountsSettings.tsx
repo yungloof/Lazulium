@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Cloud, Gamepad2, Image as ImageIcon, Loader2, LogIn, LogOut, Store, Trophy, UserRound, Users } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { CheckCircle2, Cloud, Gamepad2, Image as ImageIcon, Loader2, LogIn, LogOut, Store, Trophy, UserRound } from 'lucide-react';
 import { AccountService } from '@shared/types/accounts';
 import { GamePlatform } from '@shared/types/game';
 import { useLibraryStore } from '../stores/useLibraryStore';
@@ -7,6 +7,7 @@ import { PLATFORM_GROUP } from '../utils/platform';
 import { AccountsController, useAccounts } from '../hooks/useAccounts';
 import { Button, Notice } from './ui';
 import { SettingsSkeleton } from './settings/controls';
+import { SocialAccountCard } from './settings/SocialAccountCard';
 
 interface RowProps {
   icon: React.ReactNode;
@@ -77,42 +78,6 @@ const Group: React.FC<{ title: string; description?: string; children: React.Rea
   </section>
 );
 
-// Quem você é no Lazulium. Hoje o perfil fica só neste PC; na 2.0 vira a conta com amigos (entrando pela Steam).
-const YouCard: React.FC<{ steamName?: string }> = ({ steamName }) => {
-  const [profile, setProfile] = useState<{ name: string; avatarUrl?: string } | null>(null);
-  useEffect(() => {
-    let alive = true;
-    window.electronAPI
-      ?.getPlayerProfile()
-      .then((p) => {
-        if (alive && p) setProfile({ name: p.displayName, avatarUrl: p.avatarUrl });
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, []);
-  const name = profile?.name || steamName || 'Jogador';
-  return (
-    <div className="flex items-center gap-4 rounded-xl bg-gradient-to-r from-indigo-500/15 to-slate-900/40 border border-indigo-400/20 px-4 py-3.5">
-      {profile?.avatarUrl ? (
-        <img src={profile.avatarUrl} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-      ) : (
-        <span className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0">
-          <UserRound className="w-6 h-6 text-slate-400" />
-        </span>
-      )}
-      <div className="min-w-0 flex-1">
-        <p className="text-base font-semibold text-slate-100 truncate">{name}</p>
-        <p className="text-xs text-slate-400">Seu perfil fica só neste PC. Amigos, feed e reviews dos amigos chegam na versão 2.0, entrando com a Steam.</p>
-      </div>
-      <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-2.5 py-1 text-[11px] font-semibold text-indigo-200 flex-shrink-0">
-        <Users className="w-3 h-3" /> Em breve
-      </span>
-    </div>
-  );
-};
-
 const DetectedStores: React.FC = () => {
   const games = useLibraryStore((s) => s.games);
   const counts = useMemo(() => {
@@ -166,7 +131,7 @@ export const AccountsSettings: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <YouCard steamName={status.steam.personaName} />
+      <SocialAccountCard fallbackName={status.steam.personaName} />
 
       <Group title="Seu progresso" description="Conquistas e horas guardadas nesses sites. Cada pessoa entra com a própria conta.">
         <AccountRow

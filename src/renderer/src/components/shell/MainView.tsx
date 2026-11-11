@@ -9,7 +9,7 @@ import { LibraryHome } from '../LibraryHome';
 import { LibrarySidebar } from '../LibrarySidebar';
 import { FocusOnReady } from './FocusOnReady';
 import { PageSkeleton } from './PageSkeleton';
-import { GalleryPage, GamePage, JournalPage, ListsPage, ProfilePage, WishlistPage } from './lazy';
+import { FriendsPage, GalleryPage, GamePage, JournalPage, ListsPage, ProfilePage, WishlistPage } from './lazy';
 
 // Funções fixas passadas às páginas (não mudam a cada render)
 const openSettings = () => useUiStore.getState().openModal({ kind: 'settings' });
@@ -35,6 +35,8 @@ const PageContent: React.FC<{ view: AppView }> = ({ view }) => {
       return <GalleryPage version={screenshotsVersion} onOpenGallery={openShots} />;
     case 'wishlist':
       return <WishlistPage />;
+    case 'friends':
+      return <FriendsPage />;
     case 'lists':
       return <ListsPage openListId={openListId} onOpenList={setOpenListId} onOpenGame={openGame} />;
     case 'journal':
