@@ -1,6 +1,6 @@
 # Conta Lazulium (2.0): amigos, feed e perfil gamer
 
-Plano da camada social. Nada disto está no ar ainda. A 1.1 deixou prontas as peças que rodam no PC (veja "O que já existe").
+Plano da camada social. **Feito na 2.0.0** (fases 1 a 3): servidor em `server/social`, aba Amigos no app. Falta publicar o servidor (veja `server/social/README.md`) e as fases 4 e 5.
 
 ## A ideia em uma frase
 

@@ -15,6 +15,7 @@ Este documento define padrões de engenharia, arquitetura e convenções de cód
      - `services/achievements/`: Consome Steam Web API e RetroAchievements.
      - `services/profile/`: Perfil do jogador (estatísticas e exportação).
      - `services/accounts/`: Login nas contas (Steam local/OpenID, janelas de login do SteamGridDB/RetroAchievements, Google).
+     - `services/social/`: Conta Lazulium (amigos, feed, jogando agora), falando com `server/social`.
      - `services/cloudsync/`: Compacta saves e comunica com Google Drive.
      - `database/` (`src/main/database/db.ts`): Banco de dados JSON (`lazulium_db.json`), gravação atômica, histórico de 14 dias de backups e recuperação contra corrupção.
 
@@ -57,7 +58,8 @@ Lazulium/
 │       └── constants/           # Enums, canais IPC, configurações padrão
 ├── resources/                   # Logo do dono (logo.png, não alterar), ícones e imagens do instalador gerados dela
 ├── scripts/                     # generate-icons.mjs (npm run icons) e check-package.mjs (conferência antes do empacotamento)
-├── server/igdb-proxy/           # Cloudflare Worker: tempo para zerar, busca (IGDB) e preços (GG.deals)
+├── server/igdb-proxy/           # Cloudflare Worker: tempo para zerar, busca e capas (IGDB) e preços (GG.deals)
+├── server/social/               # Cloudflare Worker + D1: conta Lazulium (login pela Steam, amigos, feed)
 ├── web/profile/                 # Página web estática do perfil
 ├── docs/                        # Guia de teste, política de privacidade e checklist de publicação
 ├── ARCHITECTURE.md              # Documentação detalhada da arquitetura

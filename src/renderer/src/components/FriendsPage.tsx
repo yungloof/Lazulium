@@ -283,7 +283,7 @@ export const FriendsPage: React.FC = () => {
               <p className="px-1 py-2 text-xs text-slate-500">Ninguém ainda. Use o convite abaixo.</p>
             ) : (
               <ul>
-                {friends.filter((f) => !f.nowPlaying).map((f) => (
+                {friends.map((f) => (
                   <FriendRow key={f.id} friend={f} />
                 ))}
               </ul>

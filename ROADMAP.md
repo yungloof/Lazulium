@@ -193,6 +193,16 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 
 ---
 
+## 👥 Versão 2.0.0: conta Lazulium com amigos (11/11/2026)
+- [x] Servidor `server/social` (Cloudflare Worker + D1; `server.mjs` com SQLite para VPS e testes): login pela Steam verificado no servidor, convites, amizades, jogando agora, feed, perfil de amigo e apagar conta. 16 testes.
+- [x] App: `services/social/social.service.ts` (login com retorno em `127.0.0.1`, envio da linha do tempo e do resumo, jogando agora pelo tracker), aba Amigos, perfil de amigo e conta em Configurações → Contas com as chaves de privacidade.
+- [x] Capa pública guardada junto com a capa baixada (`media.coverSourceUrl`) para aparecer no feed dos amigos.
+- [x] Política de privacidade com a seção da conta Lazulium.
+- [ ] Publicar: criar o D1, aplicar o `schema.sql`, `wrangler deploy` do `server/social` e regenerar a página `/privacidade` do `igdb-proxy`.
+- [ ] Depois: comparar conquistas lado a lado, notas dos amigos na página do jogo, listas compartilhadas, sincronizar o Diário entre PCs.
+
+---
+
 ## 🔭 Depois da 1.0
 Passos que só o dono pode fazer estão detalhados em [docs/publicar-1.0.md](docs/publicar-1.0.md).
 

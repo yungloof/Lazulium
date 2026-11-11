@@ -4,6 +4,26 @@ O que mudou em cada versão, da mais nova para a mais antiga.
 
 ---
 
+## 2.0.0 — 11 de novembro de 2026
+
+Agora o Lazulium tem amigos. Entre com a Steam e veja o que a sua turma está jogando, de qualquer loja, e eles veem o seu. É opcional: sem entrar, tudo continua só no seu PC.
+
+### Novidades
+
+- **Aba Amigos.** Um feed com o que seus amigos jogaram, zeraram, fizeram 100%, as conquistas do dia e as notas e resenhas que escreveram. Vale para Steam, Epic, GOG, emuladores e jogos avulsos.
+- **Jogando agora.** Quem está em jogo neste momento aparece no topo da aba, com o nome do jogo.
+- **Perfil dos amigos.** Jogos, horas, zerados, conquistas e os mais jogados, com um selo nos que você também tem e as suas horas ao lado.
+- **Convite por código.** Gere o seu código de 8 letras na aba Amigos e mande para quem quiser. Quem colar o código vira seu amigo.
+- **Conta Lazulium em Configurações → Contas.** Entra com a Steam (sem senha nova nem e-mail), escolhe o nome que os amigos veem e decide o que mostrar: atividade, jogando agora, horas, conquistas, notas e resenhas.
+
+### Privacidade
+
+- Só seus amigos veem, e cada chave desligada some na hora do feed deles.
+- *Apagar conta Lazulium* remove tudo do servidor na hora. O que está no seu PC continua.
+- A política de privacidade ganhou uma seção só sobre a conta: o que vai, quem vê e por quanto tempo.
+
+---
+
 ## 1.1.0 — 11 de novembro de 2026
 
 Menos contas para conectar, um aviso claro quando sai versão nova e o começo do que vem por aí: a linha do tempo que vai virar o feed dos amigos na 2.0.

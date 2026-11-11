@@ -114,10 +114,10 @@ export const FriendProfileModal: React.FC<{ friendId: string; onClose: () => voi
                       <p className="mt-1.5 text-xs font-semibold text-slate-200 truncate" title={g.title}>
                         {g.title}
                       </p>
-                      <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                      <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-slate-500 whitespace-nowrap">
                         {g.playtimeSeconds > 0 && <span>{formatPlaytimeShort(g.playtimeSeconds)}</span>}
                         {g.rating && (
-                          <span className="flex items-center gap-0.5 text-amber-300">
+                          <span className="inline-flex items-center gap-0.5 text-amber-300">
                             <Star className="w-3 h-3 fill-current" />
                             {String(g.rating).replace('.', ',')}
                           </span>

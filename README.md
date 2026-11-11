@@ -4,7 +4,7 @@
 
 **Todos os seus jogos de PC num lugar só: Steam, Epic, GOG, Battle.net, EA App, Ubisoft Connect, Riot, Xbox, emuladores e jogos avulsos, com horas jogadas, conquistas, capturas e backup dos saves.**
 
-> Versão **1.1.0** · Windows 10 e 11 (64 bits) · Grátis e de código aberto (licença MIT)
+> Versão **2.0.0** · Windows 10 e 11 (64 bits) · Grátis e de código aberto (licença MIT)
 
 ---
 
@@ -20,9 +20,10 @@ Você não precisa largar a Steam nem nenhuma outra loja: o Lazulium abre os jog
 - **Horas de verdade em qualquer jogo.** As horas da Steam vêm da própria Steam; nos outros jogos, o Lazulium conta o tempo quando você joga por ele, e desconta o tempo em que você saiu do PC.
 - **Seu histórico não some.** Desinstalou um jogo? As horas, conquistas e anotações continuam no Diário. Reinstalou, continua de onde parou.
 - **Conquistas para todos os jogos**, inclusive de emulador (RetroAchievements).
+- **Seus amigos junto.** Com a conta Lazulium (opcional, entra com a Steam), veja o que a turma está jogando agora, o que zeraram e as notas que deram, de qualquer loja.
 - **Saves protegidos.** Backup automático ao fechar o jogo, com cópia opcional no seu Google Drive.
 - **Sem senha e sem chave de API.** Você entra nas contas pelos sites oficiais, com um clique.
-- **Seus dados ficam no seu PC.** Não tem propaganda, nem cadastro, nem rastreamento.
+- **Seus dados ficam no seu PC.** Não tem propaganda nem rastreamento. A conta de amigos é opcional, e só vai para os amigos o que você escolher mostrar.
 
 ## Como baixar e instalar
 
@@ -30,8 +31,8 @@ Você não precisa largar a Steam nem nenhuma outra loja: o Lazulium abre os jog
 
    | Arquivo | Para quem |
    |---|---|
-   | **`Lazulium-Setup-1.1.0.exe`** *(recomendado)* | Instala no PC, com atalhos na Área de Trabalho e no Menu Iniciar. Não precisa ser administrador. |
-   | `Lazulium-Portable-1.1.0.exe` | Não instala nada: é um arquivo só, que abre com dois cliques. Demora um pouco mais para abrir. |
+   | **`Lazulium-Setup-2.0.0.exe`** *(recomendado)* | Instala no PC, com atalhos na Área de Trabalho e no Menu Iniciar. Não precisa ser administrador. |
+   | `Lazulium-Portable-2.0.0.exe` | Não instala nada: é um arquivo só, que abre com dois cliques. Demora um pouco mais para abrir. |
 
 2. **Se o navegador avisar** que o arquivo "não é baixado com frequência", escolha **Manter** (no Edge: **…** → **Manter** → **Mostrar mais** → **Manter mesmo assim**).
 

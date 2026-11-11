@@ -1,12 +1,12 @@
 # Política de privacidade do Lazulium
 
-*Última atualização: 11 de novembro de 2026 · vale para o Lazulium 1.1.0 e posteriores*
+*Última atualização: 11 de novembro de 2026 · vale para o Lazulium 2.0.0 e posteriores*
 
 O Lazulium é um aplicativo para Windows que reúne seus jogos de PC numa biblioteca só. Ele é feito por um desenvolvedor independente, Lazuli Fool, que responde por esta política. Contato: **yungloof06@gmail.com**.
 
 ## Em resumo
 
-- O Lazulium roda no seu computador. **Não existe conta do Lazulium** nem servidor com os seus dados.
+- O Lazulium roda no seu computador. **A conta Lazulium (amigos e feed) é opcional.** Sem ela, nenhum dado seu fica em servidor nosso. Com ela, vai só o que você escolher mostrar, e só seus amigos veem (seção 4).
 - **Não coletamos telemetria**: nada de estatísticas de uso, anúncios, rastreadores ou relatórios de erro automáticos.
 - O app só conversa com serviços de terceiros para fazer o que você pediu (capas, conquistas, preços, backup), mandando o mínimo necessário.
 - **Seu Google Drive só é usado se você conectar**, e o Lazulium só enxerga os arquivos que ele mesmo criou.
@@ -46,6 +46,7 @@ O Lazulium só se conecta a estes serviços, cada um com a própria política de
 | **SteamGridDB** (opcional) | Se você conectar a conta, ao buscar capas, logos e ícones | O nome ou o código Steam do jogo e a sua chave de API do SteamGridDB. |
 | **RetroAchievements** | Ao buscar conquistas de jogos de emulador | Seu nome de usuário, sua chave de API do RetroAchievements e uma "impressão digital" (hash MD5) ou o nome do jogo, para reconhecê-lo. O arquivo do jogo nunca é enviado. |
 | **Servidor do Lazulium** (Cloudflare Workers) | Tempo para zerar, busca de jogos ao registrar, capas de jogos fora da Steam (sem conta do SteamGridDB) e preços em outras lojas | O nome e/ou código Steam do jogo, o texto que você digitou na busca e os códigos Steam da sua lista de desejos. **Nenhum dado que identifique você.** O servidor consulta o IGDB (Twitch) e o GG.deals com credenciais próprias e guarda as respostas por jogo (até 30 dias), sem relação com quem perguntou. A Cloudflare recebe o seu endereço IP, como qualquer site; o Lazulium o usa só para limitar abusos e não o guarda. |
+| **Conta Lazulium** (Cloudflare Workers + D1) | Só se você entrar na conta Lazulium (aba *Amigos*) | O que aparece para os seus amigos. Veja a seção 4. |
 | **Google** (Drive) | Só se você clicar em *Entrar com Google* | Veja a seção 3. |
 | **GitHub** (atualizações) | Ao procurar versão nova (ao abrir e a cada 4 horas) | O pedido do arquivo da versão mais recente e, na versão instalada, o download do instalador novo. Nenhum dado seu vai junto. |
 | **GitHub** | Só se você usar *Perfil → Publicar na web* | A página do perfil e o arquivo com os dados públicos do perfil (nome, avatar, horas, conquistas, listas e resenhas que você escolheu mostrar), enviados para um repositório **seu**, com o seu login do Git. Fica público na internet. O seu e-mail não vai no envio. |
@@ -56,8 +57,8 @@ Links externos (lojas, perfis, páginas de ajuda) abrem no seu navegador, fora d
 ### O que nunca é enviado
 
 - **Suas senhas.** Os logins acontecem nas páginas oficiais (Steam e Google no seu navegador; SteamGridDB e RetroAchievements numa janela com a página do próprio site). O Lazulium não lê nem guarda a senha: depois do login, ele só lê a chave de API na página de configurações do site.
-- Seus saves, capturas, anotações, diário e o log, a não ser que você mesmo envie (o backup no Drive manda **só os saves**, e só se você conectou o Drive).
-- Nenhum dado vai para o desenvolvedor do Lazulium. Não há estatísticas nem relatórios automáticos.
+- Seus saves, capturas, anotações e o log, a não ser que você mesmo envie (o backup no Drive manda **só os saves**, e só se você conectou o Drive). Do Diário, só as notas e resenhas vão para os amigos, e só com a conta Lazulium e a chave *Notas e resenhas* ligadas.
+- Sem a conta Lazulium, nenhum dado seu vai para o desenvolvedor do Lazulium. Não há estatísticas nem relatórios automáticos, com ou sem conta.
 
 ## 3. Google Drive
 
@@ -71,18 +72,42 @@ O Lazulium usa o Google Drive só para guardar uma cópia dos backups dos seus s
 
 O uso e a transferência de informações recebidas das APIs do Google pelo Lazulium seguem a [Política de Dados do Usuário dos Serviços de API do Google](https://developers.google.com/terms/api-services-user-data-policy), incluindo os requisitos de Uso Limitado. Os dados do Google não são usados para anúncios, não são vendidos, não são transferidos a terceiros e não são lidos por pessoas.
 
-## 4. O log de diagnóstico
+## 4. Conta Lazulium (amigos e feed)
+
+A conta é **opcional** e serve para você ver o que seus amigos jogam e eles verem o seu. Sem entrar nela, o Lazulium funciona igual e nada desta seção acontece.
+
+**Como você entra.** Pela Steam, no seu navegador. A Steam só confirma ao servidor do Lazulium qual é o seu SteamID; a senha fica na Steam. Não pedimos e-mail nem criamos senha.
+
+**O que fica no servidor** (Cloudflare Workers e banco D1):
+
+- seu SteamID, o nome e o avatar públicos da sua conta Steam e, se você escolher, outro nome para os amigos;
+- as suas escolhas do que mostrar (as chaves em *Configurações → Contas*);
+- os eventos que vão para o feed: jogou (o jogo e quanto tempo no dia), começou, zerou, 100%, largou, conquistas do dia, nota e resenha. Cada evento leva o nome do jogo, a data e, quando existe, o endereço público da capa (Steam, IGDB ou SteamGridDB). Ficam os 2.000 mais recentes;
+- o jogo aberto agora ("jogando agora"), que some sozinho 15 minutos depois do último sinal do app;
+- um resumo do seu perfil: número de jogos, horas, zerados, conquistas e os 12 mais jogados;
+- a lista de amigos e os códigos de convite (valem 7 dias);
+- a sessão de login, guardada só como uma impressão (hash) do código, que vence em 180 dias.
+
+**O que nunca vai:** e-mail, senha, nome de registro, caminhos e arquivos do seu PC, saves, capturas, anotações do Diário e a lista de desejos.
+
+**Quem vê.** Só as pessoas que viraram suas amigas com o seu código de convite (ou você com o delas). Não existe perfil público nem busca de pessoas. Cada chave desligada some do feed e do seu perfil para os amigos na hora, e o app para de enviar aquele tipo de evento.
+
+**Sair e apagar.** *Sair* encerra a sessão neste PC e mantém a conta. *Apagar conta Lazulium* (em *Configurações → Contas*) remove do servidor, na hora, tudo da lista acima, inclusive as amizades. O que está no seu PC continua.
+
+A Cloudflare recebe o seu endereço IP, como em qualquer site; o servidor o usa só para limitar abusos e não o guarda.
+
+## 5. O log de diagnóstico
 
 O arquivo `lazulium.log` registra erros e eventos técnicos (versões, falhas de conexão, caminhos de pastas de jogos). Ele não tem senhas nem chaves. Fica no seu PC e só sai de lá se **você** enviar para alguém, por exemplo para pedir ajuda.
 
-## 5. Crianças
+## 6. Crianças
 
-O Lazulium não é direcionado a crianças menores de 13 anos e não coleta dados de ninguém.
+O Lazulium não é direcionado a crianças menores de 13 anos. A conta Lazulium entra pela Steam, que já exige 13 anos ou mais, e não deve ser usada por quem tem menos.
 
-## 6. Seus direitos
+## 7. Seus direitos
 
-Como os dados ficam no seu computador, você tem controle total: pode ver, exportar (Diário e Perfil exportam em JSON/CSV) e apagar tudo a qualquer momento. Nos serviços de terceiros (Steam, Google, SteamGridDB, RetroAchievements, GitHub), os seus direitos seguem as políticas de cada um. Para dúvidas sobre esta política ou sobre a Lei Geral de Proteção de Dados (LGPD), escreva para **yungloof06@gmail.com**.
+Como os dados ficam no seu computador, você tem controle total: pode ver, exportar (Diário e Perfil exportam em JSON/CSV) e apagar tudo a qualquer momento. Na conta Lazulium, você decide o que os amigos veem e pode apagar a conta, com tudo o que está no servidor, em *Configurações → Contas*, sem precisar pedir a ninguém. Nos serviços de terceiros (Steam, Google, SteamGridDB, RetroAchievements, GitHub), os seus direitos seguem as políticas de cada um. Para dúvidas sobre esta política ou sobre a Lei Geral de Proteção de Dados (LGPD), escreva para **yungloof06@gmail.com**.
 
-## 7. Mudanças nesta política
+## 8. Mudanças nesta política
 
 Se o Lazulium passar a usar dados de outro jeito, esta página será atualizada antes, com a data no topo, e a mudança aparecerá nas novidades da versão.

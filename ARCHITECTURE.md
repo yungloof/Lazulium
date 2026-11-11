@@ -160,6 +160,13 @@ Unifica conquistas de plataformas de PC e retroemulação:
 * **SteamGridDB e RetroAchievements (`web-login.service.ts`):** janela do Electron com sessão isolada (`persist:login-<serviço>`). Após o login, abre a página da chave, lê o DOM renderizado, testa as candidatas contra a API e fecha sozinha. O RetroAchievements pode pedir a verificação do Cloudflare (o usuário marca a caixa).
 * **Google:** client OAuth do app embutido no build (`MAIN_VITE_GOOGLE_CLIENT_ID`/`SECRET` no `.env`, ver `.env.example`).
 
+### 3.5.1.1 Conta Lazulium (`services/social/`, servidor em `server/social/`)
+* **Opcional.** Sem token (`socialToken`, cifrado como as outras credenciais), nada é enviado e a aba Amigos só mostra o convite para entrar.
+* **Login:** o app sobe um servidor em `127.0.0.1:<porta>` e abre `/v1/auth/steam/start` no navegador. Quem fala com a Steam (OpenID + `check_authentication`) é o servidor social, nunca o app; ele devolve um código de uso único preso ao `state`, trocado por um token. O token só existe no PC e, no servidor, como hash.
+* **Envio:** `social.service.ts` lê a linha do tempo (`activity.service.ts`) e manda os eventos novos (com 2 dias de sobra, porque "jogou" é agrupado por dia e cresce), mais um resumo do perfil. Roda 20 s depois de abrir, a cada 10 min e 20 s depois de mudar o Diário ou terminar uma sessão. As chaves de privacidade são aplicadas no app e de novo no servidor.
+* **Jogando agora:** o listener do tracker (`ipc/events.ts`) avisa o serviço; ele manda o jogo e renova a cada 5 min, e o servidor esconde depois de 15 min sem sinal.
+* **Jogo entre lojas:** `gameKey` é `steam:<appid>` ou `t:<título normalizado>` (mesma regra do `igdb-proxy`), para o mesmo jogo bater entre amigos com lojas diferentes. Capa só com endereço público: CDN da Steam pelo AppID ou `media.coverSourceUrl` (de onde a capa foi baixada).
+
 ---
 
 ### 3.5.2 Capturas e Perfil
@@ -295,6 +302,7 @@ Toda conexão de rede sai do processo main; o renderer só carrega imagens (CSP 
 | Google (OAuth + Drive v3) | backup de saves | client OAuth do build (`.env`) + refresh token cifrado |
 | GitHub (via `git` do sistema) | Perfil → Publicar na web | login do Git do jogador |
 | GitHub Releases (`electron-updater`; `latest.yml` na portátil) | atualização automática | nenhuma |
+| Servidor próprio `server/social` (Cloudflare Worker + D1, `SOCIAL_SERVER_URL` em `social.service.ts`) | conta Lazulium: amigos, jogando agora, feed | token de sessão do jogador (login pela Steam, verificado no servidor) |
 
 Não há telemetria nem envio automático de erros: o `lazulium.log` (`userData/logs`, rotação em 2 MB) só sai do PC pelas mãos do jogador.
 
