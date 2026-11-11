@@ -1,0 +1,19 @@
+name = "lazulium-social"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# Crie o banco com `npx wrangler d1 create lazulium-social`, troque o id abaixo pelo que aparecer
+# e aplique o schema: `npx wrangler d1 execute lazulium-social --remote --file=schema.sql`
+[[d1_databases]]
+binding = "DB"
+database_name = "lazulium-social"
+database_id = "TROQUE-PELO-ID-DO-D1"
+
+# Por local da Cloudflare e aproximado: segura abuso, não é um limite exato
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1002"
+
+  [ratelimits.simple]
+  limit = 120
+  period = 60

@@ -1,0 +1,9 @@
+{
+  "name": "lazulium-social",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test src/index.test.mjs",
+    "start": "node server.mjs"
+  }
+}
