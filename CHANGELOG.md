@@ -10,6 +10,10 @@ A primeira versão para todo mundo. Seus dados das versões de teste continuam o
 
 ### Novidades
 
+- **Atualiza sozinho.** Quem instalou pelo instalador recebe as próximas versões automaticamente: o Lazulium baixa em segundo plano e avisa quando é só reiniciar. Dá para procurar atualização na hora em *Configurações → Ajuda*. A versão portátil continua sendo atualizada baixando a nova.
+- **Adicionar à Steam.** No menu de qualquer jogo, *Adicionar à Steam* cria o atalho na Steam já com as artes do Lazulium (capa, fundo, logo e ícone). *Remover da Steam* desfaz.
+- **Mais lojas na biblioteca.** Jogos instalados pela Battle.net, pelo EA App (e Origin) e pelo Ubisoft Connect aparecem sozinhos.
+- **Horas do GOG Galaxy.** O tempo que você já jogou pelo Galaxy vem junto quando o jogo é importado.
 - **Emuladores que o Lazulium ainda não conhece.** Em *Emuladores → Novo emulador*, cadastre qualquer emulador informando o programa, os tipos de arquivo e o comando. Há modelos prontos para Xemu, Xenia, Flycast, Project64, Snes9x e Redream, e dá para exportar seus emuladores num arquivo e mandar para os amigos importarem.
 - **Instalador em português**, com a logo do Lazulium, que deixa escolher a pasta e já abre o app no final.
 
