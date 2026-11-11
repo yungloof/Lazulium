@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { CheckCircle2, Cloud, Gamepad2, Image as ImageIcon, Loader2, LogIn, LogOut, Trophy, UserRound } from 'lucide-react';
-import { AccountService, AccountsStatus, SteamLocalAccount } from '@shared/types/accounts';
-import { ipcErrorMessage } from '../utils/ipcErrorMessage';
+import { AccountService } from '@shared/types/accounts';
+import { AccountsController, useAccounts } from '../hooks/useAccounts';
 import { Button, Notice } from './ui';
 import { SettingsSkeleton } from './settings/controls';
 
@@ -40,62 +40,48 @@ const AccountRow: React.FC<RowProps> = ({ icon, tint, name, purpose, connectedLa
   </div>
 );
 
+// Contas da Steam já logadas neste PC: um clique escolhe, sem senha
+export const SteamAccountChoices: React.FC<{ accounts: AccountsController; className?: string }> = ({ accounts, className = '' }) => {
+  if (!accounts.steamChoices || accounts.isConnected('steam')) return null;
+  return (
+    <div className={className}>
+      <p className="mb-2 text-xs text-slate-400">Contas da Steam neste PC. Escolha a sua:</p>
+      <div className="flex flex-wrap items-center gap-2">
+        {accounts.steamChoices.map((account) => (
+          <Button key={account.steamId} icon={<UserRound className="w-3.5 h-3.5" />} onClick={() => accounts.pickLocalSteam(account.steamId)} disabled={accounts.busy !== null}>
+            {account.personaName}
+          </Button>
+        ))}
+        <Button variant="ghost" onClick={accounts.loginSteamInBrowser} disabled={accounts.busy !== null}>
+          Outra conta...
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export const WAITING_WINDOW = 'Entre na janela que abriu...';
+export const WAITING_BROWSER = 'Entre no navegador que abriu...';
+
 // Login em cada serviço pelo próprio site: nenhuma chave de API é pedida aqui
 export const AccountsSettings: React.FC = () => {
-  const [status, setStatus] = useState<AccountsStatus | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<AccountService | null>(null);
-  const [errors, setErrors] = useState<Partial<Record<AccountService, string>>>({});
-  const [steamChoices, setSteamChoices] = useState<SteamLocalAccount[] | null>(null);
-
-  useEffect(() => {
-    window.electronAPI
-      ?.getAccountsStatus()
-      .then(setStatus)
-      .catch((err) => setLoadError(ipcErrorMessage(err)));
-  }, []);
-
-  const run = async (service: AccountService, action: () => Promise<AccountsStatus> | undefined) => {
-    setBusy(service);
-    setErrors((prev) => ({ ...prev, [service]: undefined }));
-    try {
-      const next = await action();
-      if (next) setStatus(next);
-    } catch (err) {
-      setErrors((prev) => ({ ...prev, [service]: ipcErrorMessage(err) }));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  // Steam: usa a conta já logada no cliente da Steam; sem nenhuma, vai direto para o login no navegador
-  const handleSteam = async () => {
-    try {
-      const local = (await window.electronAPI?.listLocalSteamAccounts()) ?? [];
-      if (local.length === 0) await run('steam', () => window.electronAPI?.loginSteam());
-      else setSteamChoices(local);
-    } catch (err) {
-      setErrors((prev) => ({ ...prev, steam: ipcErrorMessage(err) }));
-    }
-  };
+  const accounts = useAccounts();
+  const { status, loadError, busy, errors } = accounts;
 
   if (loadError) return <Notice>Não foi possível ler suas contas: {loadError}</Notice>;
   if (!status) return <SettingsSkeleton rows={4} />;
 
   const logoutButton = (service: AccountService) => (
-    <Button variant="ghost" icon={<LogOut className="w-3.5 h-3.5" />} onClick={() => run(service, () => window.electronAPI?.logoutAccount(service))} disabled={busy !== null}>
+    <Button variant="ghost" icon={<LogOut className="w-3.5 h-3.5" />} onClick={() => accounts.logout(service)} disabled={busy !== null}>
       Sair
     </Button>
   );
 
-  const loginButton = (service: AccountService, label: string, onClick: () => void, disabled = false) => (
-    <Button variant="primary" icon={<LogIn className="w-3.5 h-3.5" />} loading={busy === service} onClick={onClick} disabled={busy !== null || disabled}>
+  const loginButton = (service: AccountService, label: string, disabled = false) => (
+    <Button variant="primary" icon={<LogIn className="w-3.5 h-3.5" />} loading={busy === service} onClick={() => accounts.login(service)} disabled={busy !== null || disabled}>
       {label}
     </Button>
   );
-
-  const waitingWindow = 'Entre na janela que abriu...';
-  const waitingBrowser = 'Entre no navegador que abriu...';
 
   return (
     <div className="rounded-lg bg-slate-900/50 border border-slate-800/90 divide-y divide-slate-800/90">
@@ -105,31 +91,12 @@ export const AccountsSettings: React.FC = () => {
         name="Steam"
         purpose="Conquistas, perfil e lista de desejos"
         connectedLabel={status.steam.connected ? `Conectado como ${status.steam.personaName || status.steam.steamId}` : undefined}
-        busyLabel={busy === 'steam' ? waitingBrowser : undefined}
+        busyLabel={busy === 'steam' ? WAITING_BROWSER : undefined}
         error={errors.steam}
       >
-        {status.steam.connected ? logoutButton('steam') : loginButton('steam', 'Entrar com a Steam', handleSteam)}
+        {status.steam.connected ? logoutButton('steam') : loginButton('steam', 'Entrar com a Steam')}
       </AccountRow>
-      {steamChoices && !status.steam.connected && (
-        <div className="px-4 py-3 bg-slate-950/30">
-          <p className="mb-2 text-xs text-slate-400">Contas da Steam neste PC. Escolha a sua:</p>
-          <div className="flex flex-wrap items-center gap-2">
-            {steamChoices.map((account) => (
-              <Button
-                key={account.steamId}
-                icon={<UserRound className="w-3.5 h-3.5" />}
-                onClick={() => run('steam', () => window.electronAPI?.useLocalSteamAccount(account.steamId)).then(() => setSteamChoices(null))}
-                disabled={busy !== null}
-              >
-                {account.personaName}
-              </Button>
-            ))}
-            <Button variant="ghost" onClick={() => run('steam', () => window.electronAPI?.loginSteam()).then(() => setSteamChoices(null))} disabled={busy !== null}>
-              Outra conta...
-            </Button>
-          </div>
-        </div>
-      )}
+      <SteamAccountChoices accounts={accounts} className="px-4 py-3 bg-slate-950/30" />
 
       <AccountRow
         icon={<ImageIcon className="w-5 h-5 text-indigo-300" />}
@@ -137,10 +104,10 @@ export const AccountsSettings: React.FC = () => {
         name="SteamGridDB"
         purpose="Capas, banners e logos para jogos fora da Steam (dá para entrar com a Steam no site)"
         connectedLabel={status.steamgriddb.connected ? 'Conectado' : undefined}
-        busyLabel={busy === 'steamgriddb' ? waitingWindow : undefined}
+        busyLabel={busy === 'steamgriddb' ? WAITING_WINDOW : undefined}
         error={errors.steamgriddb}
       >
-        {status.steamgriddb.connected ? logoutButton('steamgriddb') : loginButton('steamgriddb', 'Entrar', () => run('steamgriddb', () => window.electronAPI?.loginSteamGridDb()))}
+        {status.steamgriddb.connected ? logoutButton('steamgriddb') : loginButton('steamgriddb', 'Entrar')}
       </AccountRow>
 
       <AccountRow
@@ -149,12 +116,10 @@ export const AccountsSettings: React.FC = () => {
         name="RetroAchievements"
         purpose="Conquistas dos jogos de emulador"
         connectedLabel={status.retroachievements.connected ? `Conectado como ${status.retroachievements.username}` : undefined}
-        busyLabel={busy === 'retroachievements' ? waitingWindow : undefined}
+        busyLabel={busy === 'retroachievements' ? WAITING_WINDOW : undefined}
         error={errors.retroachievements}
       >
-        {status.retroachievements.connected
-          ? logoutButton('retroachievements')
-          : loginButton('retroachievements', 'Entrar', () => run('retroachievements', () => window.electronAPI?.loginRetroAchievements()))}
+        {status.retroachievements.connected ? logoutButton('retroachievements') : loginButton('retroachievements', 'Entrar')}
       </AccountRow>
 
       <AccountRow
@@ -163,12 +128,10 @@ export const AccountsSettings: React.FC = () => {
         name="Google Drive"
         purpose={!status.google.available ? 'Login do Google não configurado nesta versão (veja Avançado)' : 'Cópia dos backups de saves na nuvem'}
         connectedLabel={status.google.connected ? `Conectado${status.google.email ? ` como ${status.google.email}` : ''}` : undefined}
-        busyLabel={busy === 'google' ? waitingBrowser : undefined}
+        busyLabel={busy === 'google' ? WAITING_BROWSER : undefined}
         error={errors.google}
       >
-        {status.google.connected
-          ? logoutButton('google')
-          : loginButton('google', 'Entrar com Google', () => run('google', () => window.electronAPI?.loginGoogle()), !status.google.available)}
+        {status.google.connected ? logoutButton('google') : loginButton('google', 'Entrar com Google', !status.google.available)}
       </AccountRow>
     </div>
   );

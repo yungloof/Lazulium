@@ -4,7 +4,7 @@ import logo from '../assets/logo.png';
 import { Game, GamePlatform } from '@shared/types/game';
 import { PLATFORM_GROUP } from '../utils/platform';
 import { isNavActive } from '../utils/spatialNav';
-import { AccountsSettings } from './AccountsSettings';
+import { AccountsGuide } from './onboarding/AccountsGuide';
 import { Button, focusRing } from './ui';
 
 interface WelcomeModalProps {
@@ -174,7 +174,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ games, isScanning, o
               <p className="mt-2 mb-5 max-w-xl text-sm leading-relaxed text-slate-300">
                 Com elas chegam as conquistas, capas para todos os jogos e a cópia dos saves na nuvem. Você entra pelo site de cada serviço: nenhuma senha ou chave é digitada aqui.
               </p>
-              <AccountsSettings />
+              <AccountsGuide />
               <p className="mt-3 text-xs text-slate-500">Pode pular: tudo isso fica em Configurações → Contas.</p>
             </>
           )}
