@@ -7,7 +7,7 @@ compatibility_date = "2026-10-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "lazulium-social"
-database_id = "TROQUE-PELO-ID-DO-D1"
+database_id = "19d70090-513f-4db0-8a51-b1773bed53b4"
 
 # Por local da Cloudflare e aproximado: segura abuso, não é um limite exato
 [[ratelimits]]
