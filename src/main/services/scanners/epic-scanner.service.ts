@@ -23,10 +23,11 @@ interface LauncherInstalledEntry {
   NamespaceId?: string;
   ItemId?: string;
   AppName?: string;
+  ArtifactId?: string;
+  AppVersion?: string;
 }
 
 const programData = process.env['PROGRAMDATA'] || 'C:\\ProgramData';
-
 
 // --- Launcher novo da Epic (com.epicgames.eglv2, 2026) ---
 // installations.jsonl: 1ª linha é um cabeçalho; cada linha seguinte é um estado de uma instalação (a última vale).
@@ -89,6 +90,16 @@ async function findLaunchExe(installPath: string, installationId?: string): Prom
     }
   }
   return '';
+}
+
+async function findItemManifestInFolder(folder: string): Promise<EpicManifest | null> {
+  if (!existsSync(folder)) return null;
+  const files = (await readdir(folder).catch(() => [] as string[])).filter((f) => f.toLowerCase().endsWith('.item'));
+  for (const file of files) {
+    const manifest = await readJson<EpicManifest>(join(folder, file));
+    if (manifest) return manifest;
+  }
+  return null;
 }
 
 async function scanLauncherV2(): Promise<DetectedGame[]> {
@@ -179,7 +190,7 @@ async function scanV2ImportedItems(): Promise<DetectedGame[]> {
       if (!file.toLowerCase().endsWith('.item')) continue;
       const manifest = await readJson<EpicManifest>(join(folder, file));
       if (!manifest?.InstallLocation || !existsSync(manifest.InstallLocation)) continue;
-      const game = manifestToGame(manifest);
+      const game = await manifestToGame(manifest);
       if (game) games.push(game);
     }
   }
@@ -187,39 +198,87 @@ async function scanV2ImportedItems(): Promise<DetectedGame[]> {
   return games;
 }
 
-async function findManifestsDir(): Promise<string | undefined> {
-  const appDataPath = await readRegistryValue('HKLM\\SOFTWARE\\WOW6432Node\\Epic Games\\EpicGamesLauncher', 'AppDataPath');
-  const candidates = [
-    appDataPath ? join(appDataPath, 'Manifests') : undefined,
-    await readRegistryValue('HKCU\\Software\\Epic Games\\EOS', 'ModSdkMetadataDir'),
-    join(programData, 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests')
+async function findManifestDirs(): Promise<string[]> {
+  const dirs = new Set<string>();
+  const add = (p?: string) => {
+    if (p && existsSync(p)) dirs.add(normalize(p));
+  };
+
+  // 1. Registro (32 e 64-bit, HKLM e HKCU)
+  const regKeys = [
+    'HKLM\\SOFTWARE\\WOW6432Node\\Epic Games\\EpicGamesLauncher',
+    'HKLM\\SOFTWARE\\Epic Games\\EpicGamesLauncher',
+    'HKCU\\Software\\Epic Games\\EpicGamesLauncher'
   ];
-  for (const candidate of candidates) {
-    if (candidate && existsSync(candidate)) return normalize(candidate);
+  for (const key of regKeys) {
+    const appData = await readRegistryValue(key, 'AppDataPath');
+    if (appData) {
+      add(join(appData, 'Manifests'));
+      add(join(appData, 'Data', 'Manifests'));
+      add(appData);
+    }
+  }
+
+  const eosManifestDir = await readRegistryValue('HKCU\\Software\\Epic Games\\EOS', 'ModSdkMetadataDir');
+  if (eosManifestDir) add(eosManifestDir);
+
+  // 2. ProgramData
+  add(join(programData, 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests'));
+  add(join(programData, 'Epic', 'EpicGamesLauncher', 'Manifests'));
+  add(join(programData, 'Epic', 'Manifests'));
+
+  // 3. LocalAppData e AppData
+  const localAppData = process.env['LOCALAPPDATA'] || join(process.env['USERPROFILE'] || '', 'AppData', 'Local');
+  add(join(localAppData, 'EpicGamesLauncher', 'Saved', 'Manifests'));
+  add(join(localAppData, 'EpicGamesLauncher', 'Data', 'Manifests'));
+  const appData = process.env['APPDATA'] || join(process.env['USERPROFILE'] || '', 'AppData', 'Roaming');
+  add(join(appData, 'EpicGamesLauncher', 'Data', 'Manifests'));
+
+  return [...dirs];
+}
+
+function buildLaunchUri(namespace?: string, itemId?: string, appName?: string): string | undefined {
+  if (namespace && itemId && appName) {
+    return `com.epicgames.launcher://apps/${namespace}%3A${itemId}%3A${appName}?action=launch&silent=true`;
+  }
+  if (appName) {
+    return `com.epicgames.launcher://apps/${appName}?action=launch&silent=true`;
   }
   return undefined;
 }
 
-function buildLaunchUri(namespace?: string, itemId?: string, appName?: string): string | undefined {
-  if (!namespace || !itemId || !appName) return undefined;
-  return `com.epicgames.launcher://apps/${namespace}%3A${itemId}%3A${appName}?action=launch&silent=true`;
-}
-
-function manifestToGame(manifest: EpicManifest): DetectedGame | null {
+async function manifestToGame(manifest: EpicManifest): Promise<DetectedGame | null> {
   const { AppName, DisplayName, InstallLocation } = manifest;
   if (!AppName || !DisplayName || !InstallLocation) return null;
-  if (manifest.bIsIncompleteInstall) return null;
-  // DLCs têm MainGameAppName apontando para o jogo base
-  if (manifest.MainGameAppName && manifest.MainGameAppName !== AppName) return null;
-  if (manifest.AppCategories && !manifest.AppCategories.includes('games')) return null;
+  if (!existsSync(InstallLocation)) return null;
 
   const installPath = normalize(InstallLocation);
+  let executablePath = manifest.LaunchExecutable ? join(installPath, manifest.LaunchExecutable) : '';
+
+  // Se tiver atualização pendente (bIsIncompleteInstall), não descarta se o executável ou arquivos já existirem
+  if (manifest.bIsIncompleteInstall && (!executablePath || !existsSync(executablePath))) {
+    const fallbackExe = await findLaunchExe(installPath);
+    if (!fallbackExe) return null;
+    executablePath = fallbackExe;
+  }
+
+  // DLCs têm MainGameAppName apontando para o jogo base
+  if (manifest.MainGameAppName && manifest.MainGameAppName !== AppName) return null;
+  if (manifest.AppCategories && manifest.AppCategories.length > 0 && !manifest.AppCategories.some((c) => c.toLowerCase() === 'games')) {
+    return null;
+  }
+
+  if (!executablePath || !existsSync(executablePath)) {
+    const fallbackExe = await findLaunchExe(installPath);
+    if (fallbackExe) executablePath = fallbackExe;
+  }
+
   return {
     id: `epic-${AppName}`,
     title: DisplayName,
     platform: 'epic',
     platformGameId: AppName,
-    executablePath: manifest.LaunchExecutable ? join(installPath, manifest.LaunchExecutable) : '',
+    executablePath,
     launchArguments: manifest.LaunchCommand?.trim() || undefined,
     launchUri: buildLaunchUri(manifest.CatalogNamespace, manifest.CatalogItemId, AppName),
     workingDirectory: installPath,
@@ -229,10 +288,154 @@ function manifestToGame(manifest: EpicManifest): DetectedGame | null {
 
 // LauncherInstalled.dat lista instalações mesmo quando o .item foi perdido
 async function readLauncherInstalled(): Promise<LauncherInstalledEntry[]> {
-  const datPath = join(programData, 'Epic', 'UnrealEngineLauncher', 'LauncherInstalled.dat');
-  if (!existsSync(datPath)) return [];
-  const parsed = JSON.parse((await readFile(datPath, 'utf-8')).replace(/^﻿/, '')) as { InstallationList?: LauncherInstalledEntry[] };
-  return parsed.InstallationList ?? [];
+  const localAppData = process.env['LOCALAPPDATA'] || join(process.env['USERPROFILE'] || '', 'AppData', 'Local');
+  const candidates = [
+    join(programData, 'Epic', 'UnrealEngineLauncher', 'LauncherInstalled.dat'),
+    join(programData, 'Epic', 'EpicGamesLauncher', 'Data', 'LauncherInstalled.dat'),
+    join(programData, 'Epic', 'EpicGamesLauncher', 'LauncherInstalled.dat'),
+    join(localAppData, 'EpicGamesLauncher', 'Saved', 'LauncherInstalled.dat')
+  ];
+  const list: LauncherInstalledEntry[] = [];
+  for (const datPath of candidates) {
+    if (!existsSync(datPath)) continue;
+    try {
+      const parsed = JSON.parse((await readFile(datPath, 'utf-8')).replace(/^﻿/, '')) as { InstallationList?: LauncherInstalledEntry[] };
+      if (Array.isArray(parsed.InstallationList)) {
+        list.push(...parsed.InstallationList);
+      }
+    } catch {
+      // Ignora arquivo corrompido
+    }
+  }
+  return list;
+}
+
+// Varre pastas de bibliotecas e discos em busca de jogos instalados (.egstore)
+async function scanLibraryRoots(knownGames: Map<string, DetectedGame>): Promise<DetectedGame[]> {
+  const candidateRoots = new Set<string>();
+  const addRoot = (p?: string) => {
+    if (p && existsSync(p)) candidateRoots.add(normalize(p));
+  };
+
+  // 1. Configurações do launcher antigo (GameUserSettings.ini)
+  const localAppData = process.env['LOCALAPPDATA'] || join(process.env['USERPROFILE'] || '', 'AppData', 'Local');
+  const iniPath = join(localAppData, 'EpicGamesLauncher', 'Saved', 'Config', 'Windows', 'GameUserSettings.ini');
+  if (existsSync(iniPath)) {
+    try {
+      const content = await readFile(iniPath, 'utf-8');
+      for (const line of content.split(/\r?\n/)) {
+        const match = line.match(/^\s*(?:DefaultAppInstallLocation|CreatedProjectPaths|AppInstallPaths|InstallLocation)\s*=\s*(.+)$/i);
+        if (match) {
+          const val = match[1].trim().replace(/^["']|["']$/g, '');
+          addRoot(val);
+        }
+      }
+    } catch {
+      // segue
+    }
+  }
+
+  // 2. Pasta ao lado do executável do launcher (do registro EOS)
+  try {
+    const modSdkCommand = await readRegistryValue('HKCU\\Software\\Epic Games\\EOS', 'ModSdkCommand');
+    if (modSdkCommand) {
+      const normalized = normalize(modSdkCommand);
+      const parts = normalized.split(/[\\/]/);
+      const epicGamesIdx = parts.findIndex((p) => p.toLowerCase() === 'epic games');
+      if (epicGamesIdx !== -1) {
+        addRoot(parts.slice(0, epicGamesIdx + 1).join('\\'));
+      }
+    }
+  } catch {
+    // segue
+  }
+
+  // 3. Pastas padrão do sistema
+  addRoot(join(process.env['ProgramFiles'] || 'C:\\Program Files', 'Epic Games'));
+  addRoot(join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Epic Games'));
+  addRoot(join(process.env['USERPROFILE'] || '', 'Epic Games'));
+  addRoot('C:\\Epic Games');
+  addRoot('C:\\EpicGames');
+
+  // 4. Varredura rápida em unidades existentes
+  const driveLetters = 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  for (const letter of driveLetters) {
+    const driveRoot = `${letter}:\\`;
+    if (!existsSync(driveRoot)) continue;
+    addRoot(`${letter}:\\Epic Games`);
+    addRoot(`${letter}:\\EpicGames`);
+    addRoot(`${letter}:\\Games\\Epic Games`);
+    addRoot(`${letter}:\\Jogos\\Epic Games`);
+  }
+
+  const foundGames: DetectedGame[] = [];
+  const ignoredFolders = new Set(['launcher', 'directxredist', 'unrealengine', 'vaultcache', 'fablibrary']);
+  const knownPaths = new Set([...knownGames.values()].map((g) => (g.installPath ? normalize(g.installPath).toLowerCase() : '')));
+
+  for (const root of candidateRoots) {
+    try {
+      const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        if (ignoredFolders.has(entry.name.toLowerCase())) continue;
+
+        const gameDir = join(root, entry.name);
+        const normDir = normalize(gameDir).toLowerCase();
+        if (knownPaths.has(normDir) || foundGames.some((g) => g.installPath && normalize(g.installPath).toLowerCase() === normDir)) continue;
+
+        const storeDir = join(gameDir, '.egstore');
+        if (!existsSync(storeDir)) continue;
+
+        const manifestInStore = (await findItemManifestInFolder(storeDir)) || (await findItemManifestInFolder(gameDir));
+        const launchExe = await findLaunchExe(gameDir);
+
+        let appName = manifestInStore?.AppName;
+        if (!appName) {
+          const manifestFiles = (await readdir(storeDir).catch(() => [] as string[])).filter((f) => f.toLowerCase().endsWith('.manifest'));
+          for (const mf of manifestFiles) {
+            try {
+              const meta = await readEpicManifest(join(storeDir, mf));
+              if (meta?.appName) {
+                appName = meta.appName;
+                break;
+              }
+            } catch {
+              // segue
+            }
+          }
+        }
+        if (!appName) appName = entry.name;
+        if (appName.endsWith('ReleaseBuilds')) {
+          appName = appName.replace(/ReleaseBuilds$/, '') || appName;
+        }
+
+        const id = `epic-${appName}`;
+        if (knownGames.has(id) || foundGames.some((g) => g.id === id)) continue;
+
+        let title = manifestInStore?.DisplayName || entry.name;
+        if (title.endsWith('ReleaseBuilds') && entry.name && !entry.name.endsWith('ReleaseBuilds')) {
+          title = entry.name;
+        }
+
+        const installPath = normalize(gameDir);
+        foundGames.push({
+          id,
+          title,
+          platform: 'epic',
+          platformGameId: appName,
+          executablePath: launchExe || (manifestInStore?.LaunchExecutable ? join(installPath, manifestInStore.LaunchExecutable) : ''),
+          launchArguments: manifestInStore?.LaunchCommand?.trim() || undefined,
+          launchUri: buildLaunchUri(manifestInStore?.CatalogNamespace, manifestInStore?.CatalogItemId, appName),
+          workingDirectory: installPath,
+          installPath
+        });
+      }
+    } catch {
+      // segue
+    }
+  }
+
+  return foundGames;
 }
 
 export const epicScanner: PlatformScanner = {
@@ -241,29 +444,8 @@ export const epicScanner: PlatformScanner = {
   async scan(): Promise<PlatformScanResult> {
     const warnings: string[] = [];
     const games = new Map<string, DetectedGame>();
-    const manifestsDir = await findManifestsDir();
 
-    // Pasta sem permissão de leitura não impede o LauncherInstalled.dat logo abaixo
-    const files = manifestsDir
-      ? await readdir(manifestsDir).catch((err) => {
-          warnings.push('Epic: não consegui abrir a pasta de manifestos da Epic Games.');
-          console.warn(`[Scanner:Epic] ${manifestsDir}:`, (err as Error).message);
-          return [] as string[];
-        })
-      : [];
-    for (const file of files) {
-      if (!file.toLowerCase().endsWith('.item')) continue;
-      try {
-        const manifest = JSON.parse((await readFile(join(manifestsDir!, file), 'utf-8')).replace(/^﻿/, '')) as EpicManifest;
-        const game = manifestToGame(manifest);
-        if (game) games.set(game.id, game);
-      } catch (err) {
-        warnings.push(`Epic: um manifesto de jogo está danificado (${file}). Abra a Epic Games para ela refazê-lo.`);
-        console.warn(`[Scanner:Epic] ${file}:`, (err as Error).message);
-      }
-    }
-
-    // Launcher novo (2026, com.epicgames.eglv2): instalações em JSONL, nomes no cache do catálogo
+    // 1. Launcher novo (2026, com.epicgames.eglv2): instalações em JSONL, nomes no cache do catálogo
     try {
       for (const game of await scanLauncherV2()) if (!games.has(game.id)) games.set(game.id, game);
       for (const game of await scanV2ImportedItems()) if (!games.has(game.id)) games.set(game.id, game);
@@ -272,20 +454,66 @@ export const epicScanner: PlatformScanner = {
       console.warn('[Scanner:Epic] launcher novo:', (err as Error).message);
     }
 
+    // 2. Launcher clássico: pastas de manifestos (.item)
+    const manifestDirs = await findManifestDirs();
+    const knownPaths = new Set([...games.values()].filter((g) => !!g.installPath).map((g) => normalize(g.installPath!).toLowerCase()));
+    for (const manifestsDir of manifestDirs) {
+      try {
+        const files = await readdir(manifestsDir).catch(() => [] as string[]);
+        for (const file of files) {
+          if (!file.toLowerCase().endsWith('.item')) continue;
+          try {
+            const manifest = JSON.parse((await readFile(join(manifestsDir, file), 'utf-8')).replace(/^﻿/, '')) as EpicManifest;
+            const game = await manifestToGame(manifest);
+            const pathKey = game?.installPath ? normalize(game.installPath).toLowerCase() : undefined;
+            if (game && !games.has(game.id) && (!pathKey || !knownPaths.has(pathKey))) {
+              games.set(game.id, game);
+              if (pathKey) knownPaths.add(pathKey);
+            }
+          } catch (err) {
+            warnings.push(`Epic: um manifesto de jogo está danificado (${file}).`);
+            console.warn(`[Scanner:Epic] ${file}:`, (err as Error).message);
+          }
+        }
+      } catch (err) {
+        console.warn(`[Scanner:Epic] pasta ${manifestsDir}:`, (err as Error).message);
+      }
+    }
+
+    // 3. LauncherInstalled.dat (detecta mesmo quando .item foi perdido)
     try {
+      const knownPaths = new Set([...games.values()].filter((g) => !!g.installPath).map((g) => normalize(g.installPath!).toLowerCase()));
       for (const entry of await readLauncherInstalled()) {
-        if (!entry.AppName || !entry.InstallLocation) continue;
-        const id = `epic-${entry.AppName}`;
-        if (games.has(id) || entry.AppName.startsWith('UE_')) continue;
+        let appName = entry.AppName || entry.ArtifactId || entry.ItemId;
+        if (!appName || !entry.InstallLocation) continue;
+        if (appName.startsWith('UE_')) continue;
         if (!existsSync(entry.InstallLocation)) continue;
+
         const installPath = normalize(entry.InstallLocation);
+        if (knownPaths.has(installPath.toLowerCase())) continue;
+
+        if (appName.endsWith('ReleaseBuilds')) {
+          appName = appName.replace(/ReleaseBuilds$/, '') || appName;
+        }
+        const id = `epic-${appName}`;
+        if (games.has(id)) continue;
+        const exe = await findLaunchExe(installPath, appName);
+        const storeDir = join(installPath, '.egstore');
+        const manifestInStore = (await findItemManifestInFolder(storeDir)) || (await findItemManifestInFolder(installPath));
+
+        let title = manifestInStore?.DisplayName || basename(installPath);
+        if (title.endsWith('ReleaseBuilds') && basename(installPath) && !basename(installPath).endsWith('ReleaseBuilds')) {
+          title = basename(installPath);
+        }
+
         games.set(id, {
           id,
-          title: basename(installPath),
+          title,
           platform: 'epic',
-          platformGameId: entry.AppName,
-          executablePath: '',
-          launchUri: buildLaunchUri(entry.NamespaceId, entry.ItemId, entry.AppName),
+          platformGameId: appName,
+          executablePath: exe || (manifestInStore?.LaunchExecutable ? join(installPath, manifestInStore.LaunchExecutable) : ''),
+          launchArguments: manifestInStore?.LaunchCommand?.trim() || undefined,
+          launchUri: buildLaunchUri(manifestInStore?.CatalogNamespace || entry.NamespaceId, manifestInStore?.CatalogItemId || entry.ItemId, appName),
           workingDirectory: installPath,
           installPath
         });
@@ -295,12 +523,24 @@ export const epicScanner: PlatformScanner = {
       console.warn('[Scanner:Epic] LauncherInstalled.dat:', (err as Error).message);
     }
 
+    // 4. Varredura de bibliotecas conhecidas e unidades por pastas com .egstore
+    try {
+      const libraryGames = await scanLibraryRoots(games);
+      for (const game of libraryGames) {
+        if (!games.has(game.id)) games.set(game.id, game);
+      }
+    } catch (err) {
+      console.warn('[Scanner:Epic] varredura de bibliotecas:', (err as Error).message);
+    }
+
     if (games.size === 0) {
       const v2 = existsSync(join(eglV2Dir(), 'installations.jsonl')) ? 'lista do launcher novo existe' : 'sem launcher novo';
-      console.log(`[Scanner:Epic] Nenhum jogo instalado pela Epic encontrado (${manifestsDir ? 'pasta de manifestos antiga existe' : 'sem launcher antigo'}; ${v2})`);
+      const v1 = manifestDirs.length > 0 ? `${manifestDirs.length} pasta(s) de manifestos verificada(s)` : 'sem launcher antigo';
+      console.log(`[Scanner:Epic] Nenhum jogo instalado pela Epic encontrado (${v1}; ${v2})`);
     } else {
       console.log(`[Scanner:Epic] ${games.size} jogos`);
     }
+
     return { games: [...games.values()], warnings };
   }
 };
