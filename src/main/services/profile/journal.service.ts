@@ -3,6 +3,7 @@ import { Game, GameLog, GameLogStatus } from '@shared/types/game';
 import { GameAchievements } from '@shared/types/achievements';
 import { JournalEntryInput } from '@shared/types/ipc';
 import { db } from '../../database/db';
+import { recordLogChange } from './activity.service';
 
 const STATUS_VALUES: GameLogStatus[] = ['backlog', 'playing', 'paused', 'finished', 'completed', 'dropped'];
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -55,6 +56,7 @@ export function setGameLog(gameId: string, log: GameLog): Game {
   if (!game) throw new Error('Jogo não encontrado.');
   const updated: Game = { ...game, log: sanitizeLog(log) };
   db.upsertGame(updated);
+  recordLogChange(gameId, game.log, updated.log);
   return updated;
 }
 
@@ -120,6 +122,7 @@ export function addJournalEntry(entry: JournalEntryInput): Game {
     updatedAt: now
   };
   db.upsertGame(game);
+  recordLogChange(game.id, undefined, game.log);
   return game;
 }
 

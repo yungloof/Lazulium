@@ -485,3 +485,62 @@ test('páginas públicas: início e política de privacidade em HTML', async () 
   const post = await worker.fetch(new Request('https://x.dev/privacidade', { method: 'POST' }), {});
   assert.equal(post.status, 404);
 });
+
+// Artes para quem não entrou no SteamGridDB
+async function getArtwork(s, query) {
+  const res = await worker.fetch(new Request(`https://proxy.test/v1/artwork?${query}`), s.env);
+  return { status: res.status, body: await res.json() };
+}
+
+test('artwork: nome igual devolve capa e arte oficial como fundo', async (t) => {
+  const s = setup(() =>
+    ok([
+      { id: 1, name: 'Hollow Knight: Silksong', cover: { image_id: 'zzz111' } },
+      { id: 2, name: 'Hollow Knight', cover: { image_id: 'co93cr' }, artworks: [{ image_id: 'ar5x2' }], screenshots: [{ image_id: 'sc6ab' }] }
+    ])
+  );
+  t.after(s.restore);
+  const { status, body } = await getArtwork(s, 'title=Hollow%20Knight');
+  assert.equal(status, 200);
+  assert.deepEqual(body, {
+    found: true,
+    name: 'Hollow Knight',
+    cover: 'https://images.igdb.com/igdb/image/upload/t_cover_big_2x/co93cr.jpg',
+    hero: 'https://images.igdb.com/igdb/image/upload/t_1080p/ar5x2.jpg'
+  });
+  assert.match(s.calls.igdb[0].body, /cover\.image_id/);
+  assert.ok(s.kv.store.has('art:v1:hollowknight'), 'resultado vai para o cache');
+});
+
+test('artwork: sem arte oficial usa captura; sem nada fica sem fundo', async (t) => {
+  const s = setup(() => ok([{ id: 2, name: 'Celeste', cover: { image_id: 'co1abc' }, screenshots: [{ image_id: 'sc9' + 'xyz' }] }]));
+  t.after(s.restore);
+  const { body } = await getArtwork(s, 'title=Celeste');
+  assert.equal(body.hero, 'https://images.igdb.com/igdb/image/upload/t_1080p/sc9xyz.jpg');
+
+  const s2 = setup(() => ok([{ id: 3, name: 'Celeste', cover: { image_id: 'co1abc' } }]));
+  t.after(s2.restore);
+  assert.equal((await getArtwork(s2, 'title=Celeste')).body.hero, null);
+});
+
+test('artwork: nome só parecido, sem capa ou com id de imagem estranho não devolve nada', async (t) => {
+  const s = setup(() =>
+    ok([
+      { id: 1, name: 'Celeste Classic', cover: { image_id: 'co1abc' } },
+      { id: 2, name: 'Celeste' },
+      { id: 3, name: 'Celeste', cover: { image_id: '../../x' } }
+    ])
+  );
+  t.after(s.restore);
+  const { status, body } = await getArtwork(s, 'title=Celeste');
+  assert.equal(status, 200);
+  assert.deepEqual(body, { found: false });
+});
+
+test('artwork: título inválido responde 400 sem consultar o IGDB', async (t) => {
+  const s = setup(() => ok([]));
+  t.after(s.restore);
+  assert.equal((await getArtwork(s, 'title=x')).status, 400);
+  assert.equal((await getArtwork(s, `title=${'a'.repeat(200)}`)).status, 400);
+  assert.equal(s.calls.igdb.length, 0);
+});

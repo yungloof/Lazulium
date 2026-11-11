@@ -4,6 +4,7 @@ import { ProfileCustom, ProfileMediaKind, ProfileWebLink } from '@shared/types/p
 import { profileService } from '../services/profile/profile.service';
 import { profileWebService } from '../services/profile/profile-web.service';
 import { buildYearReview } from '../services/profile/year-review.service';
+import { getRecentActivity } from '../services/profile/activity.service';
 import { askOpenPaths, handle, saveTextAs } from './helpers';
 
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
@@ -32,6 +33,7 @@ function webLinkTarget(link: ProfileWebLink): string | undefined {
 
 export function registerProfileHandlers(): void {
   handle(IPC_CHANNELS.PROFILE_GET, () => profileService.build());
+  handle(IPC_CHANNELS.PROFILE_ACTIVITY, (_event, limit?: number) => getRecentActivity(typeof limit === 'number' ? limit : undefined));
   handle(IPC_CHANNELS.PROFILE_YEAR_REVIEW, (_event, year?: number) => buildYearReview(year));
   handle(IPC_CHANNELS.PROFILE_SYNC_ACHIEVEMENTS, () => profileService.syncAllAchievements());
   handle(IPC_CHANNELS.PROFILE_SAVE_CUSTOM, (_event, custom: ProfileCustom) => profileService.saveCustom(custom));

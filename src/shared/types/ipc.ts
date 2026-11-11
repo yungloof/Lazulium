@@ -4,6 +4,7 @@ import { WishlistState } from './wishlist';
 import { Achievement, GameAchievements } from './achievements';
 import { AccountService, AccountsStatus, SteamLocalAccount } from './accounts';
 import { GameScreenshots, Screenshot, ScreenshotTaken } from './screenshots';
+import { ActivityEvent } from './activity';
 import { AchievementsSyncResult, PlayerProfile, YearReview, ProfileCustom, ProfileMediaKind, ProfileWebLink, ProfileWebStatus } from './profile';
 import {
   BackupEvent,
@@ -204,6 +205,7 @@ export interface ElectronAPI {
 
   // Perfil do jogador
   getPlayerProfile: () => Promise<PlayerProfile>;
+  getRecentActivity: (limit?: number) => Promise<ActivityEvent[]>; // Linha do tempo (base do feed de amigos da 2.0)
   getYearReview: (year?: number) => Promise<YearReview>;
   syncAllAchievements: () => Promise<AchievementsSyncResult>;
   saveProfileCustom: (custom: ProfileCustom) => Promise<ProfileCustom>;

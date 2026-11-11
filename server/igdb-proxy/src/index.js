@@ -1,7 +1,7 @@
 import { SITE_PAGES } from './site.js';
 // Intermediário entre o Lazulium e o IGDB. A credencial da Twitch fica só aqui: o app nunca a vê.
 // Também guarda a chave do GG.deals e responde "quanto custa este jogo nas lojas".
-// Só responde "quanto tempo leva este jogo" e "quais jogos têm esse nome": não aceita consulta livre, então a URL pública não serve para mais nada.
+// Só responde "quanto tempo leva este jogo", "quais jogos têm esse nome" e "qual a capa deste jogo": não aceita consulta livre, então a URL pública não serve para mais nada.
 
 const IGDB_BASE = 'https://api.igdb.com/v4';
 const TOKEN_URL = 'https://id.twitch.tv/oauth2/token';
@@ -18,7 +18,9 @@ const GGDEALS_URL = 'https://api.gg.deals/v1/prices/by-steam-app-id/';
 const GGDEALS_REGION = 'br';
 const MAX_PRICE_IDS = 50;
 const PRICES_TTL_SECONDS = 6 * 60 * 60;
-const COVER_URL = (imageId) => `https://images.igdb.com/igdb/image/upload/t_cover_big/${imageId}.jpg`;
+const IMAGE_URL = (size, imageId) => `https://images.igdb.com/igdb/image/upload/${size}/${imageId}.jpg`;
+const COVER_URL = (imageId) => IMAGE_URL('t_cover_big', imageId);
+const IMAGE_ID = /^[a-z0-9]{4,40}$/i;
 const RETRY_DELAY_MS = 300;
 const UPSTREAM_TIMEOUT_MS = 10_000;  // Twitch, IGDB ou GG.deals travados não seguram o app esperando
 
@@ -130,6 +132,38 @@ async function searchGames(env, query, state) {
       coverUrl: g.cover?.image_id ? COVER_URL(g.cover.image_id) : undefined
     }));
   return { found: results.length > 0, results };
+}
+
+// Capa e fundo de jogos fora da Steam, para quem não entrou no SteamGridDB. Mesmo critério do tempo para zerar:
+// só nome igual (ignorando pontuação), senão a capa seria de outro jogo. O fundo é uma arte oficial; sem ela, uma captura.
+async function lookupArtwork(env, title, state) {
+  const wanted = normalizeTitle(title);
+  if (wanted.length < 2) return { found: false };
+  const games = await igdb(env, 'games', `search "${title}"; fields name,alternative_names.name,cover.image_id,artworks.image_id,screenshots.image_id; where version_parent = null; limit 50;`, state);
+  const validId = (img) => (typeof img?.image_id === 'string' && IMAGE_ID.test(img.image_id) ? img.image_id : undefined);
+  const match = games.find(
+    (g) => validId(g.cover) && (normalizeTitle(g.name ?? '') === wanted || g.alternative_names?.some((alt) => normalizeTitle(alt.name ?? '') === wanted))
+  );
+  if (!match) return { found: false };
+  const heroId = (match.artworks ?? []).map(validId).find(Boolean) ?? (match.screenshots ?? []).map(validId).find(Boolean);
+  return {
+    found: true,
+    name: match.name,
+    cover: IMAGE_URL('t_cover_big_2x', validId(match.cover)),
+    hero: heroId ? IMAGE_URL('t_1080p', heroId) : null
+  };
+}
+
+async function handleArtwork(url, request, env) {
+  const raw = url.searchParams.get('title') ?? '';
+  const title = cleanTitle(raw);
+  if (raw.length > MAX_TITLE_LENGTH || title.length < MIN_SEARCH_LENGTH) return json({ error: 'invalid_title' }, 400);
+  if (await isRateLimited(request, env)) return json({ error: 'rate_limited' }, 429);
+  try {
+    return json(await cached(env, `art:v1:${normalizeTitle(title)}`, () => lookupArtwork(env, title, {})));
+  } catch (err) {
+    return upstreamFailure(err);
+  }
 }
 
 async function cached(env, key, load) {
@@ -264,11 +298,13 @@ export default {
     }
     const isSearch = url.pathname === '/v1/search';
     const isPrices = url.pathname === '/v1/prices';
-    if (!isSearch && !isPrices && url.pathname !== '/v1/time-to-beat') return json({ error: 'not_found' }, 404);
+    const isArtwork = url.pathname === '/v1/artwork';
+    if (!isSearch && !isPrices && !isArtwork && url.pathname !== '/v1/time-to-beat') return json({ error: 'not_found' }, 404);
     if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
     if (isPrices) return handlePrices(url, request, env);
     if (!env.TWITCH_CLIENT_ID || !env.TWITCH_CLIENT_SECRET || !env.IGDB_CACHE) return json({ error: 'not_configured' }, 503);
     if (isSearch) return handleSearch(url, request, env);
+    if (isArtwork) return handleArtwork(url, request, env);
 
     const appId = url.searchParams.get('steamAppId');
     const rawTitle = url.searchParams.get('title');

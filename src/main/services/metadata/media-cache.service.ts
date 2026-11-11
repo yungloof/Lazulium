@@ -13,7 +13,8 @@ const DOWNLOAD_TIMEOUT_MS = 30_000;
 const MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024;
 
 // Downloads só do CDN do SteamGridDB: o renderer nunca faz o main baixar URLs arbitrárias
-const ALLOWED_HOST = /(^|\.)steamgriddb\.com$/i;
+// SteamGridDB (conta do jogador) e IGDB (capas pelo servidor do Lazulium)
+const ALLOWED_HOST = /(^|\.)steamgriddb\.com$|^images\.igdb\.com$/i;
 
 const EXTENSION_BY_MIME: Record<string, string> = {
   'image/png': 'png',
@@ -146,7 +147,7 @@ export async function cacheRemoteAsset(gameId: string, type: MediaAssetType, rem
   const url = new URL(remoteUrl);
   if (!isAllowedImageUrl(url)) throw new Error(`Origem de imagem não permitida: ${url.hostname}`);
 
-  const res = await httpRequest(url, { timeoutMs: DOWNLOAD_TIMEOUT_MS, retries: 1, service: 'o SteamGridDB' });
+  const res = await httpRequest(url, { timeoutMs: DOWNLOAD_TIMEOUT_MS, retries: 1, service: url.hostname.endsWith('igdb.com') ? 'o IGDB' : 'o SteamGridDB' });
   // Um redirecionamento não pode levar o download para fora do CDN permitido
   if (res.url && !isAllowedImageUrl(new URL(res.url))) {
     await res.body?.cancel().catch(() => undefined);

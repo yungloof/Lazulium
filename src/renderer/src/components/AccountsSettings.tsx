@@ -1,6 +1,9 @@
-import React from 'react';
-import { CheckCircle2, Cloud, Gamepad2, Image as ImageIcon, Loader2, LogIn, LogOut, Trophy, UserRound } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, Cloud, Gamepad2, Image as ImageIcon, Loader2, LogIn, LogOut, Store, Trophy, UserRound, Users } from 'lucide-react';
 import { AccountService } from '@shared/types/accounts';
+import { GamePlatform } from '@shared/types/game';
+import { useLibraryStore } from '../stores/useLibraryStore';
+import { PLATFORM_GROUP } from '../utils/platform';
 import { AccountsController, useAccounts } from '../hooks/useAccounts';
 import { Button, Notice } from './ui';
 import { SettingsSkeleton } from './settings/controls';
@@ -63,6 +66,84 @@ export const SteamAccountChoices: React.FC<{ accounts: AccountsController; class
 export const WAITING_WINDOW = 'Entre na janela que abriu...';
 export const WAITING_BROWSER = 'Entre no navegador que abriu...';
 
+// Lojas que o Lazulium encontra sozinho no PC: nada para entrar
+const DETECTED_PLATFORMS: GamePlatform[] = ['epic', 'gog', 'xbox', 'battlenet', 'ea', 'ubisoft', 'riot', 'emulator', 'standalone'];
+
+const Group: React.FC<{ title: string; description?: string; children: React.ReactNode }> = ({ title, description, children }) => (
+  <section>
+    <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h3>
+    {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
+    <div className="mt-2 rounded-lg bg-slate-900/50 border border-slate-800/90 divide-y divide-slate-800/90">{children}</div>
+  </section>
+);
+
+// Quem você é no Lazulium. Hoje o perfil fica só neste PC; na 2.0 vira a conta com amigos (entrando pela Steam).
+const YouCard: React.FC<{ steamName?: string }> = ({ steamName }) => {
+  const [profile, setProfile] = useState<{ name: string; avatarUrl?: string } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    window.electronAPI
+      ?.getPlayerProfile()
+      .then((p) => {
+        if (alive && p) setProfile({ name: p.displayName, avatarUrl: p.avatarUrl });
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const name = profile?.name || steamName || 'Jogador';
+  return (
+    <div className="flex items-center gap-4 rounded-xl bg-gradient-to-r from-indigo-500/15 to-slate-900/40 border border-indigo-400/20 px-4 py-3.5">
+      {profile?.avatarUrl ? (
+        <img src={profile.avatarUrl} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+      ) : (
+        <span className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0">
+          <UserRound className="w-6 h-6 text-slate-400" />
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="text-base font-semibold text-slate-100 truncate">{name}</p>
+        <p className="text-xs text-slate-400">Seu perfil fica só neste PC. Amigos, feed e reviews dos amigos chegam na versão 2.0, entrando com a Steam.</p>
+      </div>
+      <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-2.5 py-1 text-[11px] font-semibold text-indigo-200 flex-shrink-0">
+        <Users className="w-3 h-3" /> Em breve
+      </span>
+    </div>
+  );
+};
+
+const DetectedStores: React.FC = () => {
+  const games = useLibraryStore((s) => s.games);
+  const counts = useMemo(() => {
+    const map = new Map<GamePlatform, number>();
+    for (const g of games) map.set(g.platform, (map.get(g.platform) ?? 0) + 1);
+    return map;
+  }, [games]);
+  const found = DETECTED_PLATFORMS.filter((p) => (counts.get(p) ?? 0) > 0);
+  return (
+    <div className="px-4 py-3.5 flex items-start gap-3.5">
+      <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-sky-500/15">
+        <Store className="w-5 h-5 text-sky-300" />
+      </span>
+      <div className="min-w-0 flex-1">
+        {found.length === 0 ? (
+          <p className="text-xs text-slate-500 pt-2.5">Nenhum jogo de outra loja encontrado ainda. Eles aparecem sozinhos quando estiverem instalados.</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {found.map((p) => (
+              <span key={p} className="inline-flex items-center gap-1.5 rounded-full bg-slate-800/80 px-2.5 py-1 text-xs text-slate-200">
+                {PLATFORM_GROUP[p]}
+                <span className="tabular-nums text-slate-400">{counts.get(p)}</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Login em cada serviço pelo próprio site: nenhuma chave de API é pedida aqui
 export const AccountsSettings: React.FC = () => {
   const accounts = useAccounts();
@@ -77,62 +158,74 @@ export const AccountsSettings: React.FC = () => {
     </Button>
   );
 
-  const loginButton = (service: AccountService, label: string, disabled = false) => (
-    <Button variant="primary" icon={<LogIn className="w-3.5 h-3.5" />} loading={busy === service} onClick={() => accounts.login(service)} disabled={busy !== null || disabled}>
+  const loginButton = (service: AccountService, label: string, disabled = false, primary = true) => (
+    <Button variant={primary ? 'primary' : undefined} icon={<LogIn className="w-3.5 h-3.5" />} loading={busy === service} onClick={() => accounts.login(service)} disabled={busy !== null || disabled}>
       {label}
     </Button>
   );
 
   return (
-    <div className="rounded-lg bg-slate-900/50 border border-slate-800/90 divide-y divide-slate-800/90">
-      <AccountRow
-        icon={<Trophy className="w-5 h-5 text-slate-100" />}
-        tint="bg-slate-700/60"
-        name="Steam"
-        purpose="Conquistas, perfil e lista de desejos"
-        connectedLabel={status.steam.connected ? `Conectado como ${status.steam.personaName || status.steam.steamId}` : undefined}
-        busyLabel={busy === 'steam' ? WAITING_BROWSER : undefined}
-        error={errors.steam}
-      >
-        {status.steam.connected ? logoutButton('steam') : loginButton('steam', 'Entrar com a Steam')}
-      </AccountRow>
-      <SteamAccountChoices accounts={accounts} className="px-4 py-3 bg-slate-950/30" />
+    <div className="space-y-5">
+      <YouCard steamName={status.steam.personaName} />
 
-      <AccountRow
-        icon={<ImageIcon className="w-5 h-5 text-indigo-300" />}
-        tint="bg-indigo-500/15"
-        name="SteamGridDB"
-        purpose="Capas, banners e logos para jogos fora da Steam (dá para entrar com a Steam no site)"
-        connectedLabel={status.steamgriddb.connected ? 'Conectado' : undefined}
-        busyLabel={busy === 'steamgriddb' ? WAITING_WINDOW : undefined}
-        error={errors.steamgriddb}
-      >
-        {status.steamgriddb.connected ? logoutButton('steamgriddb') : loginButton('steamgriddb', 'Entrar')}
-      </AccountRow>
+      <Group title="Seu progresso" description="Conquistas e horas guardadas nesses sites. Cada pessoa entra com a própria conta.">
+        <AccountRow
+          icon={<Trophy className="w-5 h-5 text-slate-100" />}
+          tint="bg-slate-700/60"
+          name="Steam"
+          purpose="Conquistas, horas, perfil e lista de desejos"
+          connectedLabel={status.steam.connected ? `Conectado como ${status.steam.personaName || status.steam.steamId}` : undefined}
+          busyLabel={busy === 'steam' ? WAITING_BROWSER : undefined}
+          error={errors.steam}
+        >
+          {status.steam.connected ? logoutButton('steam') : loginButton('steam', 'Entrar com a Steam')}
+        </AccountRow>
+        <SteamAccountChoices accounts={accounts} className="px-4 py-3 bg-slate-950/30" />
 
-      <AccountRow
-        icon={<Gamepad2 className="w-5 h-5 text-amber-300" />}
-        tint="bg-amber-500/15"
-        name="RetroAchievements"
-        purpose="Conquistas dos jogos de emulador"
-        connectedLabel={status.retroachievements.connected ? `Conectado como ${status.retroachievements.username}` : undefined}
-        busyLabel={busy === 'retroachievements' ? WAITING_WINDOW : undefined}
-        error={errors.retroachievements}
-      >
-        {status.retroachievements.connected ? logoutButton('retroachievements') : loginButton('retroachievements', 'Entrar')}
-      </AccountRow>
+        <AccountRow
+          icon={<Gamepad2 className="w-5 h-5 text-amber-300" />}
+          tint="bg-amber-500/15"
+          name="RetroAchievements"
+          purpose="Conquistas dos jogos de emulador"
+          connectedLabel={status.retroachievements.connected ? `Conectado como ${status.retroachievements.username}` : undefined}
+          busyLabel={busy === 'retroachievements' ? WAITING_WINDOW : undefined}
+          error={errors.retroachievements}
+        >
+          {status.retroachievements.connected ? logoutButton('retroachievements') : loginButton('retroachievements', 'Entrar')}
+        </AccountRow>
+      </Group>
 
-      <AccountRow
-        icon={<Cloud className="w-5 h-5 text-emerald-300" />}
-        tint="bg-emerald-500/15"
-        name="Google Drive"
-        purpose={!status.google.available ? 'Login do Google não configurado nesta versão (veja Avançado)' : 'Cópia dos backups de saves na nuvem'}
-        connectedLabel={status.google.connected ? `Conectado${status.google.email ? ` como ${status.google.email}` : ''}` : undefined}
-        busyLabel={busy === 'google' ? WAITING_BROWSER : undefined}
-        error={errors.google}
-      >
-        {status.google.connected ? logoutButton('google') : loginButton('google', 'Entrar com Google', !status.google.available)}
-      </AccountRow>
+      <Group title="Lojas neste PC" description="Encontradas sozinhas, sem precisar entrar. As horas de fora da Steam são contadas pelo Lazulium.">
+        <DetectedStores />
+      </Group>
+
+      <Group title="Nuvem">
+        <AccountRow
+          icon={<Cloud className="w-5 h-5 text-emerald-300" />}
+          tint="bg-emerald-500/15"
+          name="Google Drive"
+          purpose={!status.google.available ? 'Login do Google não configurado nesta versão (veja Avançado)' : 'Cópia dos backups de saves no seu Drive'}
+          connectedLabel={status.google.connected ? `Conectado${status.google.email ? ` como ${status.google.email}` : ''}` : undefined}
+          busyLabel={busy === 'google' ? WAITING_BROWSER : undefined}
+          error={errors.google}
+        >
+          {status.google.connected ? logoutButton('google') : loginButton('google', 'Entrar com Google', !status.google.available)}
+        </AccountRow>
+      </Group>
+
+      <Group title="Opcional">
+        <AccountRow
+          icon={<ImageIcon className="w-5 h-5 text-indigo-300" />}
+          tint="bg-indigo-500/15"
+          name="SteamGridDB"
+          purpose="As capas já vêm sozinhas. Conecte para escolher entre mais artes, logos e ícones"
+          connectedLabel={status.steamgriddb.connected ? 'Conectado: mais artes, logos e ícones' : undefined}
+          busyLabel={busy === 'steamgriddb' ? WAITING_WINDOW : undefined}
+          error={errors.steamgriddb}
+        >
+          {status.steamgriddb.connected ? logoutButton('steamgriddb') : loginButton('steamgriddb', 'Conectar', false, false)}
+        </AccountRow>
+      </Group>
     </div>
   );
 };

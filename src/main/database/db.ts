@@ -8,12 +8,14 @@ import { ProfileCustom, SteamProfileIdentity } from '@shared/types/profile';
 import { GameList } from '@shared/types/lists';
 import { WishlistItem } from '@shared/types/wishlist';
 import { ScreenshotMove } from '@shared/types/screenshots';
+import { StoredActivity } from '@shared/types/activity';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
 import { createDefaultData, normalizeData } from './normalize';
 import { ensureDailyBackup, listDailyBackups, readTextWithRetry, writeAtomic } from './storage';
 
 // Mudanças em rajada (scan, sincronização de conquistas) viram uma gravação só
 const WRITE_DELAY_MS = 250;
+const MAX_ACTIVITY_LOG = 1_000;
 // Gravação que falhou (arquivo preso por outro programa) é tentada de novo sozinha
 const WRITE_RETRY_MS = 3_000;
 const SLOW_WRITE_MS = 250;
@@ -85,6 +87,7 @@ export interface DatabaseSchema {
   wishlist?: WishlistItem[];
   screenshotMoves?: ScreenshotMove[];
   profileWeb?: { repoUrl: string; lastPublishedAt?: string };
+  activityLog?: StoredActivity[];   // Mudanças do Diário (status, nota, resenha), da mais nova para a mais antiga
   settings: Record<string, string>;
 }
 
@@ -293,6 +296,9 @@ class DatabaseService {
     for (const backup of this.data.saveBackups ?? []) {
       if (backup.gameId === oldId) backup.gameId = newId;
     }
+    for (const entry of this.data.activityLog ?? []) {
+      if (entry.gameId === oldId) entry.gameId = newId;
+    }
     this.data.games = this.data.games.filter((g) => g.id !== oldId);
     this.persist();
   }
@@ -432,6 +438,18 @@ class DatabaseService {
   }
 
   // Listas de jogos (a mais recente primeiro)
+  getActivityLog(): StoredActivity[] {
+    return this.data.activityLog ?? [];
+  }
+
+  // Troca eventos antigos pelos novos (edições seguidas viram um só) e guarda só os mais recentes
+  replaceActivity(removeIds: string[], entries: StoredActivity[]): void {
+    if (entries.length === 0 && removeIds.length === 0) return;
+    const removed = new Set(removeIds);
+    this.data.activityLog = [...entries, ...this.getActivityLog().filter((e) => !removed.has(e.id))].slice(0, MAX_ACTIVITY_LOG);
+    this.persist();
+  }
+
   getGameLists(): GameList[] {
     return this.data.gameLists ?? [];
   }

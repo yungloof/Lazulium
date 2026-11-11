@@ -1,4 +1,5 @@
 import { EmulatorConfig, Game, PlaytimeSession } from '@shared/types/game';
+import { StoredActivity } from '@shared/types/activity';
 import type { ActiveSessionRecord, DatabaseSchema } from './db';
 
 // Versão do formato do banco. Sobe quando um dado guardado precisa ser convertido;
@@ -100,6 +101,9 @@ export function normalizeData(raw: unknown): DatabaseSchema {
   data.gameAchievements = isObject(raw.gameAchievements) ? data.gameAchievements : {};
   data.saveConfigs = isObject(raw.saveConfigs) ? data.saveConfigs : {};
   data.settings = normalizeSettings(raw.settings);
+  if ('activityLog' in raw) {
+    data.activityLog = objects(raw.activityLog).filter((e) => isText(e.id) && isText(e.gameId) && isText(e.kind) && isText(e.at)) as unknown as StoredActivity[];
+  }
   for (const key of ['achievementExtras', 'playLengthCache', 'profileCustom'] as const) {
     if (key in raw && !isObject(raw[key])) delete data[key];
   }

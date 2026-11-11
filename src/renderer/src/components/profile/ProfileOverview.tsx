@@ -9,6 +9,7 @@ import { formatHours } from '../journal/format';
 import { ListCard } from '../ListsPage';
 import { SECTION_LABEL } from '../ProfileEditModal';
 import { AchievementTile, ActivityRow, LinkButton, Panel, ReviewCard } from './parts';
+import { ActivityTimeline } from './ActivityTimeline';
 
 const FEATURED_SIZE = 5;
 const OVERVIEW_REVIEWS = 3;
@@ -120,6 +121,7 @@ export const ProfileOverview: React.FC<ProfileOverviewProps> = ({ profile, secti
                 ))}
               </div>
             )}
+            <ActivityTimeline onSelectGame={onSelectGame} />
           </Panel>
         );
       }

@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Check, ChevronRight, Cloud, ExternalLink, Gamepad2, Image as ImageIcon, Loader2, LogIn, Trophy } from 'lucide-react';
+import { Check, ChevronRight, Cloud, ExternalLink, Gamepad2, Loader2, LogIn, Trophy } from 'lucide-react';
 import { AccountService, AccountsStatus } from '@shared/types/accounts';
 import { useAccounts } from '../../hooks/useAccounts';
 import { SteamAccountChoices, WAITING_BROWSER, WAITING_WINDOW } from '../AccountsSettings';
+
+// O SteamGridDB não entra aqui: as capas já vêm pelo servidor do Lazulium, e ele fica como opção em Configurações → Contas
 import { Button, Notice, Skeleton, focusRing } from '../ui';
 
 interface GuideStep {
@@ -41,22 +43,6 @@ const STEPS: GuideStep[] = [
     button: 'Entrar com a Steam',
     waiting: WAITING_BROWSER,
     connectedLabel: (s) => `Conectado como ${s.steam.personaName || s.steam.steamId}`
-  },
-  {
-    service: 'steamgriddb',
-    name: 'SteamGridDB',
-    icon: <ImageIcon className="w-5 h-5 text-indigo-300" />,
-    tint: 'bg-indigo-500/15',
-    gives: 'Capas, banners e logos para os jogos que não são da Steam (emuladores, Epic, jogos avulsos).',
-    how: [
-      'Clique em Entrar. Abre uma janela do SteamGridDB.',
-      'Clique em Login e entre com a sua conta da Steam (é o jeito mais rápido, não precisa criar conta).',
-      'Se aparecer uma verificação "você é humano", marque a caixa.',
-      'Se a página pedir, clique em gerar a chave da API. O Lazulium percebe sozinho e fecha a janela.'
-    ],
-    button: 'Entrar no SteamGridDB',
-    waiting: WAITING_WINDOW,
-    connectedLabel: () => 'Conectado'
   },
   {
     service: 'retroachievements',

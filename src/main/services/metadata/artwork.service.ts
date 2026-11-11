@@ -11,6 +11,7 @@ import {
   searchGames,
   testApiKey
 } from './steamgriddb.service';
+import { ArtworkServerUnavailable, fetchIgdbArtwork } from './igdb-artwork.service';
 
 type GameUpdatedListener = (game: Game) => void;
 
@@ -24,6 +25,8 @@ const ASSET_TYPES = Object.keys(MEDIA_FIELD) as MediaAssetType[];
 const QUEUE_DELAY_MS = 300;         // Espaçamento entre jogos na busca automática
 const MAX_CANDIDATES = 8;
 const BROKEN_CHECK_TIMEOUT_MS = 10_000;
+// Sem conta do SteamGridDB, o servidor do Lazulium (IGDB) só tem capa e fundo
+const KEYLESS_TYPES: MediaAssetType[] = ['cover', 'hero'];
 
 function emptyResult(error?: string): GameAssetsResult {
   return { sgdbGame: null, candidates: [], grids: [], heroes: [], logos: [], icons: [], error };
@@ -34,6 +37,8 @@ class ArtworkService {
   private queue = new Set<string>();
   private draining = false;
   private checkedBrokenUrls = new Set<string>();
+  // Jogos que o IGDB não conhece: não pergunta de novo até o app reabrir
+  private keylessMisses = new Set<string>();
 
   setGameUpdatedListener(listener: GameUpdatedListener): void {
     this.listener = listener;
@@ -79,7 +84,9 @@ class ArtworkService {
 
   async fetchAssets(gameId: string, options: FetchAssetsOptions = {}): Promise<GameAssetsResult> {
     const apiKey = this.getApiKey();
-    if (!apiKey) return emptyResult('Entre na sua conta do SteamGridDB em Configurações → Contas para buscar artes.');
+    if (!apiKey) {
+      return emptyResult('A capa e o fundo vêm sozinhos. Para escolher entre várias artes, logos e ícones, conecte o SteamGridDB (opcional) em Configurações → Contas.');
+    }
     const game = db.getGameById(gameId);
     if (!game) return emptyResult('Jogo não encontrado.');
 
@@ -135,14 +142,15 @@ class ArtworkService {
 
   // Sem `gameIds`: jogos sem capa. Com `gameIds`: jogos com qualquer arte faltando.
   enqueueMissing(gameIds?: string[]): number {
-    if (!this.getApiKey()) return 0;
+    const keyless = !this.getApiKey();
     const games = gameIds
       ? gameIds.map((id) => db.getGameById(id)).filter((g): g is Game => g !== null)
       : db.getGames().filter((g) => !g.media?.coverUrl);
 
     let added = 0;
     for (const game of games) {
-      const missing = ASSET_TYPES.some((t) => !game.media?.[MEDIA_FIELD[t]]);
+      if (keyless && this.keylessMisses.has(game.id)) continue;
+      const missing = (keyless ? KEYLESS_TYPES : ASSET_TYPES).some((t) => !game.media?.[MEDIA_FIELD[t]]);
       if (missing && !this.queue.has(game.id)) {
         this.queue.add(game.id);
         added++;
@@ -163,6 +171,12 @@ class ArtworkService {
         try {
           await this.fillMissing(gameId);
         } catch (err) {
+          if (err instanceof ArtworkServerUnavailable) {
+            // Servidor fora do ar ou limite atingido: volta no próximo scan
+            logBackgroundFailure('[Artwork]', new HttpError(err.message, 'network'));
+            this.queue.clear();
+            break;
+          }
           const offline = err instanceof SteamGridDbError && err.status === undefined;
           if (offline) logBackgroundFailure('[Artwork]', new HttpError((err as Error).message, 'network'));
           else console.warn(`[Artwork] ${gameId}: ${(err as Error).message}`);
@@ -183,7 +197,8 @@ class ArtworkService {
   private async fillMissing(gameId: string): Promise<void> {
     const apiKey = this.getApiKey();
     const game = db.getGameById(gameId);
-    if (!apiKey || !game) return;
+    if (!game) return;
+    if (!apiKey) return this.fillFromServer(game);
 
     const missing = ASSET_TYPES.filter((t) => !game.media?.[MEDIA_FIELD[t]]);
     if (missing.length === 0) return;
@@ -216,20 +231,52 @@ class ArtworkService {
       return;
     }
 
-    // Relê o jogo: o usuário pode ter escolhido uma arte enquanto baixávamos
+    await this.saveFound(gameId, found);
+    console.log(`[Artwork] ${game.title}: ${Object.keys(found).join(', ')} -> "${sgdbGame.name}"`);
+    if (lostConnection) throw lostConnection;
+  }
+
+  // Sem conta do SteamGridDB: capa e fundo pelo servidor do Lazulium
+  private async fillFromServer(game: Game): Promise<void> {
+    const missing = KEYLESS_TYPES.filter((t) => !game.media?.[MEDIA_FIELD[t]]);
+    if (missing.length === 0) return;
+    const art = await fetchIgdbArtwork(game);
+    if (!art) {
+      this.keylessMisses.add(game.id);
+      console.log(`[Artwork] ${game.title}: sem correspondência no IGDB`);
+      return;
+    }
+    const found: Partial<GameMedia> = {};
+    for (const type of missing) {
+      const remote = type === 'cover' ? art.cover : art.hero;
+      if (!remote) continue;
+      try {
+        found[MEDIA_FIELD[type]] = await cacheRemoteAsset(game.id, type, remote);
+      } catch (err) {
+        if (isConnectionError(err)) throw new ArtworkServerUnavailable(describeError(err));
+        console.warn(`[Artwork] ${game.title} (${type}): ${(err as Error).message}`);
+      }
+    }
+    if (Object.keys(found).length === 0) return;
+    await this.saveFound(game.id, found);
+    console.log(`[Artwork] ${game.title}: ${Object.keys(found).join(', ')} -> "${art.name}" (IGDB)`);
+  }
+
+  // Relê o jogo: o usuário pode ter escolhido uma arte enquanto baixávamos, e a dele fica
+  private async saveFound(gameId: string, found: Partial<GameMedia>): Promise<void> {
     const current = db.getGameById(gameId);
-    if (!current) return;
+    if (!current) {
+      for (const url of Object.values(found)) if (url) await removeCachedFile(url);
+      return;
+    }
     const media = { ...current.media };
     for (const [field, url] of Object.entries(found) as [keyof GameMedia, string][]) {
-      // O usuário escolheu outra arte enquanto esta baixava: a dele fica
       if (!media[field]) media[field] = url;
       else if (media[field]?.split('?')[0] !== url.split('?')[0]) await removeCachedFile(url);
     }
     const updated = { ...current, media };
     db.upsertGame(updated);
-    console.log(`[Artwork] ${game.title}: ${Object.keys(found).join(', ')} -> "${sgdbGame.name}"`);
     this.listener(updated);
-    if (lostConnection) throw lostConnection;
   }
 
   // A UI avisa que uma imagem remota não carregou (ex: Steam sem capa vertical).
