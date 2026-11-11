@@ -12,6 +12,7 @@ export interface SteamShortcut {
   startDir: string;
   launchOptions: string;
   hidden: boolean;
+  tags: string[];
   lastPlayedAt?: string;
 }
 
@@ -72,6 +73,8 @@ export async function readSteamShortcuts(accountDir: string): Promise<SteamShort
       const appId = s.appid as number;
       const { path, args } = splitExe(String(s.exe ?? ''));
       const lastPlayed = Number(s.lastplaytime ?? 0);
+      const rawTags = s.tags && typeof s.tags === 'object' ? Object.values(s.tags as Record<string, unknown>) : [];
+      const tags = rawTags.filter((v): v is string => typeof v === 'string' && v.trim().length > 0).map((v) => v.trim());
       return {
         appId,
         gameId: ((BigInt(appId) << 32n) | SHORTCUT_GAMEID_FLAG).toString(),
@@ -81,6 +84,7 @@ export async function readSteamShortcuts(accountDir: string): Promise<SteamShort
         startDir: unquote(String(s.startdir ?? '')),
         launchOptions: String(s.launchoptions ?? '').trim(),
         hidden: Number(s.ishidden ?? 0) === 1,
+        tags,
         lastPlayedAt: lastPlayed > 0 ? new Date(lastPlayed * 1000).toISOString() : undefined
       };
     });

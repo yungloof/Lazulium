@@ -1,9 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, RefreshCw, RotateCcw } from 'lucide-react';
+import type { UpdateStatus } from '@shared/types/ipc';
 import logo from '../assets/logo.png';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { Button, Notice } from './ui';
 import { SettingsGroup } from './settings/controls';
+
+function formatUpdateError(raw: string): string {
+  if (/404|Cannot find latest\.yml/i.test(raw)) {
+    return 'Nenhuma atualização publicada encontrada no repositório.';
+  }
+  if (/ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ENOTFOUND|ETIMEDOUT/i.test(raw)) {
+    return 'Não foi possível verificar atualizações: sem conexão ou servidor indisponível.';
+  }
+  return `Falha ao verificar atualizações: ${raw}`;
+}
 
 // Os mesmos atalhos do useGamepad e das teclas do App
 const GAMEPAD: [string, string][] = [
@@ -42,9 +53,14 @@ const Shortcuts: React.FC<{ rows: [string, string][] }> = ({ rows }) => (
 export const HelpSettings: React.FC = () => {
   const [version, setVersion] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
+  const [manualCheckDone, setManualCheckDone] = useState(false);
 
   useEffect(() => {
     window.electronAPI?.getAppInfo().then((info) => setVersion(info.version)).catch(() => undefined);
+    window.electronAPI?.getUpdateStatus().then((status) => setUpdateStatus(status)).catch(() => undefined);
+    const unsubscribe = window.electronAPI?.onUpdateStatus((status) => setUpdateStatus(status));
+    return () => unsubscribe?.();
   }, []);
 
   const openLogs = async () => {
@@ -56,10 +72,49 @@ export const HelpSettings: React.FC = () => {
     }
   };
 
+  const checkUpdates = async () => {
+    setError(null);
+    try {
+      const next = await window.electronAPI?.checkForUpdates();
+      if (next) setUpdateStatus(next);
+      setManualCheckDone(true);
+    } catch (err) {
+      setError(ipcErrorMessage(err));
+    }
+  };
+
+  const installUpdate = async () => {
+    setError(null);
+    try {
+      await window.electronAPI?.quitAndInstallUpdate();
+    } catch (err) {
+      setError(ipcErrorMessage(err));
+    }
+  };
+
+  const updateNotice = (() => {
+    if (updateStatus?.downloaded) {
+      return { tone: 'success' as const, text: `Lazulium ${updateStatus.version ?? ''} baixado e pronto para instalar.` };
+    }
+    if (updateStatus?.available) {
+      return { tone: 'info' as const, text: `Nova versão ${updateStatus.version ?? ''} encontrada. Baixando em segundo plano...` };
+    }
+    if (updateStatus?.error) {
+      return { tone: 'error' as const, text: formatUpdateError(updateStatus.error) };
+    }
+    if (manualCheckDone && updateStatus?.supported === false) {
+      return { tone: 'info' as const, text: 'Atualização automática disponível apenas na versão instalada (Setup).' };
+    }
+    if (manualCheckDone && updateStatus?.checked && !updateStatus.checking) {
+      return { tone: 'success' as const, text: 'Você já está na versão mais recente.' };
+    }
+    return null;
+  })();
+
   return (
     <div className="space-y-6">
       <SettingsGroup>
-        <div className="flex items-center gap-4 px-4 py-4">
+        <div className="flex flex-wrap items-center gap-4 px-4 py-4">
           <img src={logo} alt="" className="w-12 h-12 rounded-xl" />
           <div className="flex-1 min-w-0">
             <p className="font-display text-lg text-white">Lazulium {version && <span className="text-sm text-slate-400">v{version}</span>}</p>
@@ -67,13 +122,25 @@ export const HelpSettings: React.FC = () => {
               Se algo der errado, abra a pasta de logs e envie o arquivo <code className="text-slate-300">lazulium.log</code> para quem te passou o app.
             </p>
           </div>
-          <Button icon={<FileText className="w-3.5 h-3.5" />} onClick={openLogs} className="flex-shrink-0">
-            Pasta de logs
-          </Button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {updateStatus?.downloaded ? (
+              <Button variant="primary" icon={<RotateCcw className="w-3.5 h-3.5" />} onClick={installUpdate}>
+                Reiniciar e instalar
+              </Button>
+            ) : (
+              <Button icon={<RefreshCw className="w-3.5 h-3.5" />} loading={Boolean(updateStatus?.checking)} onClick={checkUpdates}>
+                Verificar atualizações
+              </Button>
+            )}
+            <Button icon={<FileText className="w-3.5 h-3.5" />} onClick={openLogs}>
+              Pasta de logs
+            </Button>
+          </div>
         </div>
-        {error && (
-          <div className="px-4 py-2.5">
-            <Notice>{error}</Notice>
+        {(error || updateNotice) && (
+          <div className="px-4 pb-3 space-y-1.5">
+            {updateNotice && <Notice tone={updateNotice.tone}>{updateNotice.text}</Notice>}
+            {error && <Notice>{error}</Notice>}
           </div>
         )}
       </SettingsGroup>

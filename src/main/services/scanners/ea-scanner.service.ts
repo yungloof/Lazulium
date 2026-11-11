@@ -1,13 +1,7 @@
 import { existsSync, readdirSync } from 'fs';
 import { join, normalize, basename } from 'path';
-import { listRegistrySubkeys, readRegistryKeyValues, readRegistryValue } from './registry';
+import { listRegistrySubkeys, readRegistryKeyValues, readRegistryValue, readUninstallEntries } from './registry';
 import { DetectedGame, PlatformScanner, PlatformScanResult } from './scanner.types';
-
-const UNINSTALL_KEYS = [
-  'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
-  'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
-  'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall'
-];
 
 const EA_REGISTRY_KEYS = [
   'HKLM\\SOFTWARE\\WOW6432Node\\Electronic Arts\\EA Games',
@@ -87,46 +81,51 @@ export const eaScanner: PlatformScanner = {
     }
 
     // 2. Varredura via Registro de Desinstalação do Windows
-    for (const root of UNINSTALL_KEYS) {
-      try {
-        const subkeys = await listRegistrySubkeys(root);
-        for (const subkey of subkeys) {
-          try {
-            const values = await readRegistryKeyValues(subkey);
-            const pub = (values.publisher || '').toLowerCase();
-            const disp = (values.displayname || '').trim();
+    try {
+      const uninstallEntries = await readUninstallEntries();
+      for (const [subkey, values] of uninstallEntries) {
+        try {
+          const pub = (values.publisher || '').toLowerCase();
+          const unins = (values.uninstallstring || '').toLowerCase();
+          const disp = (values.displayname || '').trim();
 
-            const isEA = pub.includes('electronic arts') || pub.includes('ea games') || pub.includes('ea swiss sarl') || pub.includes('bioware');
-            if (!isEA) continue;
+          const isEA =
+            pub.includes('electronic arts') ||
+            pub.includes('ea games') ||
+            pub.includes('ea swiss sarl') ||
+            pub.includes('bioware') ||
+            unins.includes('eadesktop') ||
+            unins.includes('originuninstall') ||
+            /[\\/]origin(?:\.exe|[\\/]|")/.test(unins);
+          if (!isEA) continue;
 
-            // Pula os inicializadores
-            if (/^(?:ea\s*app|origin|ea\s*desktop|electronic\s*arts)$/i.test(disp)) continue;
+          // Pula os inicializadores
+          if (!disp || /^(?:ea\s*app|origin|ea\s*desktop|electronic\s*arts)$/i.test(disp)) continue;
 
-            const installLocation = values.installlocation ? normalize(values.installlocation) : '';
-            if (!installLocation || !existsSync(installLocation)) continue;
+          const installLocation = values.installlocation ? normalize(values.installlocation) : '';
+          if (!installLocation || !existsSync(installLocation)) continue;
 
-            const title = cleanTitle(disp);
-            const id = `ea-${title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+          const title = cleanTitle(disp);
+          const id = `ea-${title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
 
-            if (!games.has(id)) {
-              const exe = findMainExecutable(installLocation, values.displayicon);
-              games.set(id, {
-                id,
-                title,
-                platform: 'ea',
-                platformGameId: subkey.split('\\').pop() || title,
-                executablePath: exe || installLocation,
-                workingDirectory: installLocation,
-                installPath: installLocation,
-                opensViaLauncher: true,
-                media: {}
-              });
-            }
-          } catch {}
-        }
-      } catch (err) {
-        console.warn('[Scanner:EA] Falha ao consultar chaves de desinstalação:', (err as Error).message);
+          if (!games.has(id)) {
+            const exe = findMainExecutable(installLocation, values.displayicon);
+            games.set(id, {
+              id,
+              title,
+              platform: 'ea',
+              platformGameId: subkey.split('\\').pop() || title,
+              executablePath: exe || installLocation,
+              workingDirectory: installLocation,
+              installPath: installLocation,
+              opensViaLauncher: true,
+              media: {}
+            });
+          }
+        } catch {}
       }
+    } catch (err) {
+      console.warn('[Scanner:EA] Falha ao consultar chaves de desinstalação:', (err as Error).message);
     }
 
     console.log(games.size === 0 ? '[Scanner:EA] Nenhum jogo do EA App encontrado' : `[Scanner:EA] ${games.size} jogos`);

@@ -100,6 +100,8 @@ export interface UpdateStatus {
   checking: boolean;
   available: boolean;
   downloaded: boolean;
+  checked?: boolean;
+  supported?: boolean;
   version?: string;
   error?: string;
 }

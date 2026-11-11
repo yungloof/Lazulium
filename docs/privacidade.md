@@ -29,7 +29,7 @@ Desinstalar o Lazulium não apaga essa pasta, para você não perder o históric
 
 Para encontrar seus jogos e contar o tempo, o app **lê** (sem alterar):
 
-- as pastas e arquivos de configuração da Steam, Epic Games, GOG Galaxy, Riot Games, Xbox / Microsoft Store e dos emuladores, incluindo as contas da Steam que já entraram neste PC (nome público e SteamID, para o login de um clique) e as capturas da Steam e da Xbox Game Bar;
+- as pastas e arquivos de configuração e instalação da Steam, Epic Games, GOG Galaxy, Battle.net, EA App, Ubisoft Connect, Riot Games, Xbox / Microsoft Store e dos emuladores, incluindo as contas da Steam que já entraram neste PC (nome público e SteamID, para o login de um clique) e as capturas da Steam e da Xbox Game Bar;
 - a lista de programas abertos, só para saber quando o jogo que você abriu começou e terminou;
 - **há quanto tempo** não há uso do teclado, mouse ou controle, para descontar o tempo ausente. O Lazulium não registra o que você digita nem onde clica;
 - as pastas de saves dos jogos, **só se você ligar o backup** (na tela de boas-vindas ou em Configurações) ou escolher uma pasta.

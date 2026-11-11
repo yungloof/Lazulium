@@ -192,7 +192,7 @@ async function scanShortcuts(accountDirs: string[], localStats: Map<string, Stea
 
     for (const s of await readSteamShortcuts(accountDir)) {
       const id = `steam-shortcut-${s.appId}`;
-      if (s.hidden || games.has(id)) continue;
+      if (s.hidden || games.has(id) || s.tags.some((t) => t.toLowerCase() === 'lazulium')) continue;
       const installPath = s.startDir || (s.exe ? dirname(s.exe) : undefined);
       const stats = localStats.get(String(s.appId | 0)) ?? localStats.get(String(s.appId));
       const launchArguments = [s.exeArgs, s.launchOptions].filter(Boolean).join(' ') || undefined;

@@ -1,6 +1,6 @@
 # Lazulium
 
-**Todos os seus jogos de PC num lugar só: Steam, Epic, GOG, Riot, Xbox, emuladores e jogos avulsos, com horas jogadas, conquistas, capturas e backup dos saves.**
+**Todos os seus jogos de PC num lugar só: Steam, Epic, GOG, Battle.net, EA App, Ubisoft Connect, Riot, Xbox, emuladores e jogos avulsos, com horas jogadas, conquistas, capturas e backup dos saves.**
 
 O Lazulium é um aplicativo gratuito e de código aberto para Windows 10 e 11. Ele encontra os jogos instalados no seu PC, baixa capas para todos, conta as horas de qualquer jogo e guarda o seu histórico, mesmo dos jogos que você desinstalou. Funciona com mouse, teclado ou controle.
 

@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, writeFile } from 'fs/promises';
+import { copyFile, mkdir, readFile, rename, unlink, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { dirname, extname, join } from 'path';
 import { Game } from '@shared/types/game';
@@ -78,7 +78,7 @@ interface RawShortcut {
   exe: string;
   startdir: string;
   icon: string;
-  ShortcutPath?: string;
+  shortcutpath?: string;
   launchoptions: string;
   ishidden: number;
   allowdesktopconfig?: number;
@@ -91,6 +91,17 @@ interface RawShortcut {
   flatpakappid?: string;
   tags?: Record<string, string>;
   [key: string]: unknown;
+}
+
+async function writeFileAtomic(filePath: string, data: Buffer): Promise<void> {
+  const tmpPath = `${filePath}.tmp-${process.pid}-${Date.now()}`;
+  try {
+    await writeFile(tmpPath, data);
+    await rename(tmpPath, filePath);
+  } catch (err) {
+    await unlink(tmpPath).catch(() => {});
+    throw err;
+  }
 }
 
 export async function addGameToSteam(game: Game): Promise<{ ok: boolean; appId?: number; error?: string }> {
@@ -123,7 +134,8 @@ export async function addGameToSteam(game: Game): Promise<{ ok: boolean; appId?:
     const startDir = quote(game.workingDirectory || dirname(rawExe));
     const launchOptions = (game.customLaunchArguments ?? game.launchArguments)?.trim() || '';
     const appName = game.title.trim();
-    const appId = generateShortcutAppId(rawExe, appName);
+    const appId = generateShortcutAppId(exe, appName);
+    const legacyAppId = generateShortcutAppId(rawExe, appName);
 
     // Lê os atalhos existentes para não sobrescrever a lista
     let root: Record<string, unknown> = {};
@@ -145,22 +157,28 @@ export async function addGameToSteam(game: Game): Promise<{ ok: boolean; appId?:
     let foundIndex: string | null = null;
     const entries = Object.entries(shortcutsMap);
     for (const [idx, item] of entries) {
-      if (item.appid === appId || (item.appname === appName && (item.exe === exe || item.exe === rawExe))) {
+      if (
+        item.appid === appId ||
+        item.appid === legacyAppId ||
+        (item.appname === appName && (item.exe === exe || item.exe === rawExe))
+      ) {
         foundIndex = idx;
         break;
       }
     }
 
     const shortcutIndex = foundIndex ?? String(entries.length);
+    const existing = foundIndex ? { ...shortcutsMap[foundIndex] } : {};
+    delete (existing as Record<string, unknown>).ShortcutPath;
 
     const newShortcut: RawShortcut = {
-      ...(foundIndex ? shortcutsMap[foundIndex] : {}),
+      ...existing,
       appid: appId,
       appname: appName,
       exe: exe,
       startdir: startDir,
       icon: rawExe,
-      ShortcutPath: '',
+      shortcutpath: '',
       launchoptions: launchOptions,
       ishidden: 0,
       allowdesktopconfig: 1,
@@ -177,9 +195,9 @@ export async function addGameToSteam(game: Game): Promise<{ ok: boolean; appId?:
     shortcutsMap[shortcutIndex] = newShortcut;
     root.shortcuts = shortcutsMap;
 
-    // Salva o novo shortcuts.vdf
+    // Salva o novo shortcuts.vdf de forma atômica
     const serialized = serializeBinaryVdf(root);
-    await writeFile(shortcutsPath, serialized);
+    await writeFileAtomic(shortcutsPath, serialized);
     console.log(`[Steam:Shortcuts] Atalho "${appName}" (appId ${appId}) gravado em ${shortcutsPath}`);
 
     // Copia as artes em cache para a pasta grid da Steam
@@ -208,12 +226,18 @@ export async function removeGameFromSteam(game: Game): Promise<{ ok: boolean; er
     const root = parseBinaryVdf(await readFile(shortcutsPath));
     const shortcutsMap = (root.shortcuts ?? {}) as Record<string, RawShortcut>;
     const rawExe = game.executablePath || '';
+    const exe = quote(rawExe);
     const appName = game.title.trim();
-    const appId = generateShortcutAppId(rawExe, appName);
+    const appId = generateShortcutAppId(exe, appName);
+    const legacyAppId = generateShortcutAppId(rawExe, appName);
 
     const remaining: RawShortcut[] = [];
     for (const item of Object.values(shortcutsMap)) {
-      if (item.appid === appId || (item.appname === appName && rawExe && item.exe.includes(rawExe))) {
+      if (
+        item.appid === appId ||
+        item.appid === legacyAppId ||
+        (item.appname === appName && rawExe && (item.exe === exe || item.exe === rawExe || item.exe.includes(rawExe)))
+      ) {
         continue;
       }
       remaining.push(item);
@@ -225,7 +249,7 @@ export async function removeGameFromSteam(game: Game): Promise<{ ok: boolean; er
     });
 
     root.shortcuts = reindexed;
-    await writeFile(shortcutsPath, serializeBinaryVdf(root));
+    await writeFileAtomic(shortcutsPath, serializeBinaryVdf(root));
     return { ok: true };
   } catch (err) {
     return { ok: false, error: (err as Error).message };

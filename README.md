@@ -2,7 +2,7 @@
 
 # Lazulium
 
-**Todos os seus jogos de PC num lugar só: Steam, Epic, GOG, Riot, Xbox, emuladores e jogos avulsos, com horas jogadas, conquistas, capturas e backup dos saves.**
+**Todos os seus jogos de PC num lugar só: Steam, Epic, GOG, Battle.net, EA App, Ubisoft Connect, Riot, Xbox, emuladores e jogos avulsos, com horas jogadas, conquistas, capturas e backup dos saves.**
 
 > Versão **1.0.0** · Windows 10 e 11 (64 bits) · Grátis e de código aberto (licença MIT)
 
@@ -47,7 +47,7 @@ Você não precisa largar a Steam nem nenhuma outra loja: o Lazulium abre os jog
 
 ### Atualizar
 
-Baixe o instalador da versão nova e instale por cima. Seus jogos, horas e configurações continuam lá. (Ainda não há atualização automática.)
+A versão instalada (Setup) verifica atualizações automaticamente e também oferece o botão **Verificar atualizações** em **Configurações → Ajuda e diagnóstico**. Se preferir atualizar manualmente, baixe o instalador da nova versão e instale por cima: seus jogos, horas e configurações continuam lá.
 
 ### Desinstalar
 
@@ -57,7 +57,7 @@ Em **Configurações do Windows → Aplicativos**, procure **Lazulium** e clique
 
 ## Recursos
 
-- **Biblioteca:** Steam (todas as bibliotecas e discos, inclusive os atalhos não-Steam que você colocou nela), Epic Games, GOG Galaxy, Riot Games, Xbox / Microsoft Store, emuladores e qualquer `.exe`.
+- **Biblioteca:** Steam (todas as bibliotecas e discos, inclusive os atalhos não-Steam que você colocou nela), Epic Games, GOG Galaxy, Battle.net, EA App, Ubisoft Connect, Riot Games, Xbox / Microsoft Store, emuladores e qualquer `.exe`.
 - **Emuladores:** Dolphin, Ryujinx, Eden/yuzu, Cemu, PCSX2, RPCS3, DuckStation, RetroArch, Azahar/Citra, melonDS, mGBA, PPSSPP e BizHawk são encontrados sozinhos. Qualquer outro entra em *Emuladores → Novo emulador*.
 - **Horas jogadas:** histórico de sessões, gráfico da semana, desconto do tempo ausente e ajuste à mão.
 - **Diário:** status (Jogando, Zerado, 100%…), nota, datas, resenha e anotações; registre também jogos de console.

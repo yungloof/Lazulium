@@ -3,7 +3,7 @@ import { promisify } from 'util';
 
 const execFileAsync = promisify(execFile);
 
-const REG_TIMEOUT_MS = 8_000;
+const REG_TIMEOUT_MS = 15_000;
 const VALUE_LINE = /^\s+(\S.*?)\s+(REG_\w+)\s*(.*)$/;
 const HIVES: Record<string, string> = {
   HKLM: 'HKEY_LOCAL_MACHINE',
@@ -105,4 +105,49 @@ export async function readRegistrySubkeyValues(key: string): Promise<Map<string,
     // Chave inexistente
   }
   return result;
+}
+
+const UNINSTALL_ROOTS = [
+  'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+  'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+  'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall'
+] as const;
+
+const UNINSTALL_CACHE_TTL_MS = 5_000;
+let uninstallCache: { expiresAt: number; entries: ReadonlyMap<string, Record<string, string>> } | null = null;
+let uninstallInFlight: Promise<ReadonlyMap<string, Record<string, string>>> | null = null;
+
+/**
+ * Lê todas as entradas de Uninstall (HKLM, WOW6432Node, HKCU) em paralelo,
+ * coalescendo chamadas concorrentes durante um ciclo de varredura.
+ */
+export async function readUninstallEntries(): Promise<ReadonlyMap<string, Record<string, string>>> {
+  if (process.platform !== 'win32') return new Map();
+
+  const now = Date.now();
+  if (uninstallCache && uninstallCache.expiresAt > now) {
+    return uninstallCache.entries;
+  }
+
+  if (uninstallInFlight) return uninstallInFlight;
+
+  uninstallInFlight = (async () => {
+    const maps = await Promise.all(UNINSTALL_ROOTS.map((root) => readRegistrySubkeyValues(root)));
+    const merged = new Map<string, Record<string, string>>();
+    for (const map of maps) {
+      for (const [subkey, values] of map) {
+        merged.set(subkey, values);
+      }
+    }
+    if (merged.size > 0) {
+      uninstallCache = { expiresAt: Date.now() + UNINSTALL_CACHE_TTL_MS, entries: merged };
+    }
+    return merged;
+  })();
+
+  try {
+    return await uninstallInFlight;
+  } finally {
+    uninstallInFlight = null;
+  }
 }

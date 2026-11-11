@@ -1,14 +1,8 @@
 import { existsSync, readdirSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { join, normalize, basename } from 'path';
-import { listRegistrySubkeys, readRegistryKeyValues, readRegistryValue } from './registry';
+import { listRegistrySubkeys, readRegistryValue, readUninstallEntries } from './registry';
 import { DetectedGame, PlatformScanner, PlatformScanResult } from './scanner.types';
-
-const UNINSTALL_KEYS = [
-  'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
-  'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
-  'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall'
-];
 
 const BLIZZARD_REG_KEYS = [
   'HKLM\\SOFTWARE\\WOW6432Node\\Blizzard Entertainment',
@@ -18,8 +12,10 @@ const BLIZZARD_REG_KEYS = [
 // Mapeamento de UIDs comuns do Battle.net
 const BNET_UID_MAP: Record<string, string> = {
   pro: 'Overwatch',
+  prometheus: 'Overwatch',
   fenris: 'Diablo IV',
   d3: 'Diablo III',
+  anbs: 'Diablo Immortal',
   wow: 'World of Warcraft',
   wow_classic: 'World of Warcraft Classic',
   s2: 'StarCraft II',
@@ -30,7 +26,9 @@ const BNET_UID_MAP: Record<string, string> = {
   viper: 'Call of Duty: Black Ops 4',
   zeus: 'Call of Duty: Black Ops Cold War',
   lazarus: 'Call of Duty: Modern Warfare II',
-  fore: 'Call of Duty: Vanguard'
+  fore: 'Call of Duty: Vanguard',
+  wlby: 'Crash Bandicoot 4',
+  rtro: 'Blizzard Arcade Collection'
 };
 
 function cleanTitle(raw: string): string {
@@ -73,53 +71,50 @@ export const battlenetScanner: PlatformScanner = {
     const warnings: string[] = [];
 
     // 1. Varredura via Registro de Desinstalação do Windows
-    for (const root of UNINSTALL_KEYS) {
-      try {
-        const subkeys = await listRegistrySubkeys(root);
-        for (const subkey of subkeys) {
-          try {
-            const values = await readRegistryKeyValues(subkey);
-            const pub = (values.publisher || '').toLowerCase();
-            const unins = (values.uninstallstring || '').toLowerCase();
-            const disp = (values.displayname || '').trim();
+    try {
+      const uninstallEntries = await readUninstallEntries();
+      for (const [subkey, values] of uninstallEntries) {
+        try {
+          const pub = (values.publisher || '').toLowerCase();
+          const unins = (values.uninstallstring || '').toLowerCase();
+          const disp = (values.displayname || '').trim();
 
-            const isBlizzard = pub.includes('blizzard') || unins.includes('blizzard uninstaller') || unins.includes('battle.net');
-            if (!isBlizzard) continue;
+          const isBlizzard = pub.includes('blizzard') || unins.includes('blizzard uninstaller') || unins.includes('battle.net');
+          if (!isBlizzard) continue;
 
-            // Pula o próprio inicializador do Battle.net
-            if (/^battle\.net$/i.test(disp) || /^blizzard battle\.net$/i.test(disp)) continue;
+          // Pula o próprio inicializador do Battle.net
+          if (/^battle\.net$/i.test(disp) || /^blizzard battle\.net$/i.test(disp)) continue;
 
-            const installLocation = values.installlocation ? normalize(values.installlocation) : '';
-            if (!installLocation || !existsSync(installLocation)) continue;
+          const installLocation = values.installlocation ? normalize(values.installlocation) : '';
+          if (!installLocation || !existsSync(installLocation)) continue;
 
-            // Extrai --uid= se presente no desinstalador
-            const uidMatch = (values.uninstallstring || '').match(/--uid=([a-zA-Z0-9_.-]+)/i);
-            const uid = uidMatch ? uidMatch[1] : undefined;
+          // Extrai --uid= se presente no desinstalador
+          const uidMatch = (values.uninstallstring || '').match(/--uid=([a-zA-Z0-9_.-]+)/i);
+          const uid = uidMatch ? uidMatch[1] : undefined;
 
-            const gameId = (uid || subkey.split('\\').pop() || disp).toLowerCase();
-            const exe = findMainExecutable(installLocation, values.displayicon);
-            const title = cleanTitle(disp || (uid ? BNET_UID_MAP[uid] : '') || gameId);
+          const gameId = (uid || subkey.split('\\').pop() || disp).toLowerCase();
+          const exe = findMainExecutable(installLocation, values.displayicon);
+          const title = cleanTitle(disp || (uid ? BNET_UID_MAP[uid.toLowerCase()] : '') || gameId);
 
-            const id = `bnet-${gameId}`;
-            if (!games.has(id)) {
-              games.set(id, {
-                id,
-                title,
-                platform: 'battlenet',
-                platformGameId: uid || gameId,
-                executablePath: exe || installLocation,
-                workingDirectory: installLocation,
-                installPath: installLocation,
-                launchUri: uid ? `battlenet://${uid}` : undefined,
-                opensViaLauncher: true,
-                media: {}
-              });
-            }
-          } catch {}
-        }
-      } catch (err) {
-        console.warn('[Scanner:BattleNet] Falha ao consultar chaves de desinstalação:', (err as Error).message);
+          const id = `bnet-${gameId}`;
+          if (!games.has(id)) {
+            games.set(id, {
+              id,
+              title,
+              platform: 'battlenet',
+              platformGameId: uid || gameId,
+              executablePath: exe || installLocation,
+              workingDirectory: installLocation,
+              installPath: installLocation,
+              launchUri: uid ? `battlenet://${uid}` : undefined,
+              opensViaLauncher: true,
+              media: {}
+            });
+          }
+        } catch {}
       }
+    } catch (err) {
+      console.warn('[Scanner:BattleNet] Falha ao consultar chaves de desinstalação:', (err as Error).message);
     }
 
     // 2. Varredura via Battle.net.config em AppData

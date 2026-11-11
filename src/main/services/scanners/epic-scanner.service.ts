@@ -70,8 +70,10 @@ async function readLastPlayed(dir: string): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   for (const perAccount of Object.values(data)) {
     for (const [artifactId, when] of Object.entries(perAccount ?? {})) {
-      const iso = new Date(when).toISOString();
-      if (!Number.isNaN(Date.parse(when)) && (!out.has(artifactId) || out.get(artifactId)! < iso)) out.set(artifactId, iso);
+      const ts = Date.parse(when);
+      if (Number.isNaN(ts)) continue;
+      const iso = new Date(ts).toISOString();
+      if (!out.has(artifactId) || out.get(artifactId)! < iso) out.set(artifactId, iso);
     }
   }
   return out;

@@ -1,13 +1,7 @@
 import { existsSync, readdirSync } from 'fs';
 import { join, normalize, basename } from 'path';
-import { listRegistrySubkeys, readRegistryKeyValues, readRegistryValue } from './registry';
+import { listRegistrySubkeys, readRegistryValue, readUninstallEntries } from './registry';
 import { DetectedGame, PlatformScanner, PlatformScanResult } from './scanner.types';
-
-const UNINSTALL_KEYS = [
-  'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
-  'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
-  'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall'
-];
 
 const UBISOFT_INSTALLS_KEYS = [
   'HKLM\\SOFTWARE\\WOW6432Node\\Ubisoft\\Launcher\\Installs',
@@ -54,54 +48,51 @@ export const ubisoftScanner: PlatformScanner = {
     const uninstallInfo = new Map<string, { title: string; exe?: string; installDir?: string }>();
 
     // 1. Coleta dados de desinstalação
-    for (const root of UNINSTALL_KEYS) {
-      try {
-        const subkeys = await listRegistrySubkeys(root);
-        for (const subkey of subkeys) {
-          try {
-            const keyName = subkey.split('\\').pop() || '';
-            const values = await readRegistryKeyValues(subkey);
-            const pub = (values.publisher || '').toLowerCase();
-            const disp = (values.displayname || '').trim();
+    try {
+      const uninstallEntries = await readUninstallEntries();
+      for (const [subkey, values] of uninstallEntries) {
+        try {
+          const keyName = subkey.split('\\').pop() || '';
+          const pub = (values.publisher || '').toLowerCase();
+          const disp = (values.displayname || '').trim();
 
-            const isUbi = pub.includes('ubisoft') || keyName.startsWith('Uplay Install ') || (values.uninstallstring || '').includes('Ubisoft Game Launcher');
-            if (!isUbi) continue;
+          const isUbi = pub.includes('ubisoft') || keyName.startsWith('Uplay Install ') || (values.uninstallstring || '').includes('Ubisoft Game Launcher');
+          if (!isUbi) continue;
 
-            // Ignora o launcher do Ubisoft Connect
-            if (/^(?:ubisoft connect|uplay)$/i.test(disp)) continue;
+          // Ignora o launcher do Ubisoft Connect
+          if (/^(?:ubisoft connect|uplay)$/i.test(disp)) continue;
 
-            const uplayIdMatch = keyName.match(/Uplay Install (\d+)/i) || (values.uninstallstring || '').match(/-uninstall\s+(\d+)/i);
-            const uplayId = uplayIdMatch ? uplayIdMatch[1] : undefined;
+          const uplayIdMatch = keyName.match(/Uplay Install (\d+)/i) || (values.uninstallstring || '').match(/-uninstall\s+(\d+)/i);
+          const uplayId = uplayIdMatch ? uplayIdMatch[1] : undefined;
 
-            const installLocation = values.installlocation ? normalize(values.installlocation) : '';
-            const title = cleanTitle(disp);
+          const installLocation = values.installlocation ? normalize(values.installlocation) : '';
+          const title = cleanTitle(disp);
 
-            if (uplayId) {
-              uninstallInfo.set(uplayId, { title, exe: values.displayicon, installDir: installLocation });
+          if (uplayId) {
+            uninstallInfo.set(uplayId, { title, exe: values.displayicon, installDir: installLocation });
+          }
+
+          if (installLocation && existsSync(installLocation)) {
+            const id = `ubi-${uplayId || title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+            if (!games.has(id)) {
+              const exe = findMainExecutable(installLocation, values.displayicon);
+              games.set(id, {
+                id,
+                title,
+                platform: 'ubisoft',
+                platformGameId: uplayId || id,
+                executablePath: exe || installLocation,
+                workingDirectory: installLocation,
+                installPath: installLocation,
+                launchUri: uplayId ? `uplay://launch/${uplayId}/0` : undefined,
+                opensViaLauncher: true,
+                media: {}
+              });
             }
-
-            if (installLocation && existsSync(installLocation)) {
-              const id = `ubi-${uplayId || title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-              if (!games.has(id)) {
-                const exe = findMainExecutable(installLocation, values.displayicon);
-                games.set(id, {
-                  id,
-                  title,
-                  platform: 'ubisoft',
-                  platformGameId: uplayId || id,
-                  executablePath: exe || installLocation,
-                  workingDirectory: installLocation,
-                  installPath: installLocation,
-                  launchUri: uplayId ? `uplay://launch/${uplayId}/0` : undefined,
-                  opensViaLauncher: true,
-                  media: {}
-                });
-              }
-            }
-          } catch {}
-        }
-      } catch {}
-    }
+          }
+        } catch {}
+      }
+    } catch {}
 
     // 2. Varredura via chaves Installs da Ubisoft (Launcher\Installs\<id>)
     for (const root of UBISOFT_INSTALLS_KEYS) {

@@ -132,7 +132,18 @@
 
   <script>
     const LEVEL_COLORS = ['#9b9b9b', '#c02942', '#d95b43', '#fecc23', '#467a3c', '#4e8ddb', '#7652c9', '#c252c9', '#542437', '#997c52'];
-    const PLATFORM_LABEL = { steam: 'Steam', epic: 'Epic Games', gog: 'GOG', riot: 'Riot Games', xbox: 'Xbox', emulator: 'Emuladores', standalone: 'Outros PC' };
+    const PLATFORM_LABEL = {
+      steam: 'Steam',
+      epic: 'Epic Games',
+      gog: 'GOG',
+      battlenet: 'Battle.net',
+      ea: 'EA App',
+      ubisoft: 'Ubisoft Connect',
+      riot: 'Riot Games',
+      xbox: 'Xbox',
+      emulator: 'Emuladores',
+      standalone: 'Outros PC'
+    };
 
     const hours = (seconds) => {
       if (!seconds || seconds <= 0) return '0 h';
