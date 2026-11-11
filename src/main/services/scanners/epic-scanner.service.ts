@@ -97,6 +97,7 @@ async function scanLauncherV2(): Promise<DetectedGame[]> {
   if (!existsSync(jsonlPath)) return [];
 
   const latest = new Map<string, EglV2Installation>();
+  const everComplete = new Set<string>(); // Já terminou de instalar alguma vez: atualização pendente não esconde o jogo
   for (const line of (await readFile(jsonlPath, 'utf-8')).split(/\r?\n/)) {
     if (!line.trim()) continue;
     let entry: EglV2Installation;
@@ -105,20 +106,44 @@ async function scanLauncherV2(): Promise<DetectedGame[]> {
     } catch {
       continue; // linha cortada no meio (launcher gravando agora): as outras valem
     }
-    if (entry.installationId) latest.set(entry.installationId, entry);
+    if (!entry.installationId) continue;
+    latest.set(entry.installationId, entry);
+    if (entry.complete) everComplete.add(entry.installationId);
   }
 
   const catalog = (await readJson<{ items?: Record<string, { item?: EglV2CatalogItem }> }>(join(dir, 'cache', 'prod', 'catalog-cache.json')))?.items ?? {};
   const lastPlayed = await readLastPlayed(dir);
   const games: DetectedGame[] = [];
 
+  const skipped: Record<string, number> = {};
+  const skip = (reason: string) => (skipped[reason] = (skipped[reason] ?? 0) + 1);
   for (const entry of latest.values()) {
-    if (!entry.complete || entry.removed || entry.deleted || entry.uninstalled) continue;
-    if (!entry.dir || !entry.artifactId || !existsSync(entry.dir)) continue;
+    if (entry.removed || entry.deleted || entry.uninstalled) {
+      skip('desinstalado');
+      continue;
+    }
+    if (!entry.complete && !everComplete.has(entry.installationId!)) {
+      skip('instalação não terminada');
+      continue;
+    }
+    if (!entry.dir || !entry.artifactId) {
+      skip('sem pasta');
+      continue;
+    }
+    if (!existsSync(entry.dir)) {
+      skip('pasta não existe mais');
+      continue;
+    }
     const item = entry.itemId ? catalog[entry.itemId]?.item : undefined;
-    if (item?.mainGameItem) continue; // DLC
+    if (item?.mainGameItem) {
+      skip('DLC');
+      continue;
+    }
     const categories = item?.categories?.map((c) => c.path) ?? [];
-    if (categories.length > 0 && !categories.includes('games')) continue; // ferramentas, Unreal Engine
+    if (categories.length > 0 && !categories.includes('games')) {
+      skip('não é jogo');
+      continue;
+    }
 
     const installPath = normalize(entry.dir);
     const image = (type: string) => item?.keyImages?.find((k) => k.type === type)?.url;
@@ -137,6 +162,28 @@ async function scanLauncherV2(): Promise<DetectedGame[]> {
       ...(lastPlayed.has(entry.artifactId) ? { lastPlayedAt: lastPlayed.get(entry.artifactId) } : {})
     });
   }
+  console.log(`[Scanner:Epic] launcher novo: ${latest.size} instalações, ${games.length} jogos${Object.keys(skipped).length ? ` (ignorados: ${Object.entries(skipped).map(([k, v]) => `${v} ${k}`).join(', ')})` : ''}${Object.keys(catalog).length ? '' : '; sem cache do catálogo, nomes pelas pastas'}`);
+  return games;
+}
+
+// Jogos do launcher antigo que o novo copiou para import-scan ao se instalar (e removeu o antigo).
+// Os "not-imported" continuam no disco mas o launcher novo não os lista: sem isto sumiriam do Lazulium.
+async function scanV2ImportedItems(): Promise<DetectedGame[]> {
+  const base = join(eglV2Dir(), 'import-scan', 'v1-items');
+  if (!existsSync(base)) return [];
+  const games: DetectedGame[] = [];
+  for (const sub of ['', 'imported', 'not-imported']) {
+    const folder = join(base, sub);
+    if (!existsSync(folder)) continue;
+    for (const file of await readdir(folder).catch(() => [] as string[])) {
+      if (!file.toLowerCase().endsWith('.item')) continue;
+      const manifest = await readJson<EpicManifest>(join(folder, file));
+      if (!manifest?.InstallLocation || !existsSync(manifest.InstallLocation)) continue;
+      const game = manifestToGame(manifest);
+      if (game) games.push(game);
+    }
+  }
+  if (games.length) console.log(`[Scanner:Epic] ${games.length} jogos do launcher antigo ainda no disco (import-scan)`);
   return games;
 }
 
@@ -219,6 +266,7 @@ export const epicScanner: PlatformScanner = {
     // Launcher novo (2026, com.epicgames.eglv2): instalações em JSONL, nomes no cache do catálogo
     try {
       for (const game of await scanLauncherV2()) if (!games.has(game.id)) games.set(game.id, game);
+      for (const game of await scanV2ImportedItems()) if (!games.has(game.id)) games.set(game.id, game);
     } catch (err) {
       warnings.push('Epic: não consegui ler a lista de jogos do launcher novo da Epic Games.');
       console.warn('[Scanner:Epic] launcher novo:', (err as Error).message);
@@ -248,7 +296,8 @@ export const epicScanner: PlatformScanner = {
     }
 
     if (games.size === 0) {
-      console.log('[Scanner:Epic] Nenhum jogo instalado pela Epic encontrado');
+      const v2 = existsSync(join(eglV2Dir(), 'installations.jsonl')) ? 'lista do launcher novo existe' : 'sem launcher novo';
+      console.log(`[Scanner:Epic] Nenhum jogo instalado pela Epic encontrado (${manifestsDir ? 'pasta de manifestos antiga existe' : 'sem launcher antigo'}; ${v2})`);
     } else {
       console.log(`[Scanner:Epic] ${games.size} jogos`);
     }
