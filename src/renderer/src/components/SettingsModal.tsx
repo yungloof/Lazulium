@@ -29,7 +29,7 @@ const SECTIONS: Section[] = [
     id: 'accounts',
     label: 'Contas',
     icon: UserRound,
-    description: 'Entre pelo site de cada serviço para liberar conquistas, capas e backup na nuvem. Nenhuma senha ou chave é digitada aqui.',
+    description: 'Entre pelo site de cada serviço para liberar conquistas, horas e backup na nuvem. Nenhuma senha ou chave é digitada aqui.',
     render: () => <AccountsSettings />
   },
   { id: 'appearance', label: 'Aparência', icon: Palette, description: 'Cores, fontes e cantos. Tudo muda na hora e fica guardado neste PC.', render: () => <AppearanceSettings /> },

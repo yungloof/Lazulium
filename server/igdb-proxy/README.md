@@ -68,6 +68,12 @@ Depois, coloque a URL em `IGDB_PROXY_URL`, em `src/main/services/metadata/play-l
 - Resposta: `{ found, gameId, name, hastily, normally, completely, count }`, com tempos em segundos. Sem dados: `{ "found": false }`.
 - Resultados ficam em cache por 30 dias, e "não encontrado" por 7. Falhas temporárias não entram no cache e respondem 503.
 
+`GET /v1/artwork?title=Hollow%20Knight`
+
+- Capa (`t_cover_big_2x`) e fundo (`t_1080p`: arte oficial, ou uma captura se não houver) do IGDB, para quem não conectou o SteamGridDB.
+- Mesmo critério do tempo para zerar: só nome igual. Resposta: `{ found, name, cover, hero }` (`hero` pode ser `null`), ou `{ "found": false }`.
+- Fica no mesmo cache de 30 dias (7 para "não encontrado").
+
 `GET /v1/prices?steamAppIds=420,620` (precisa do segredo `GGDEALS_API_KEY`)
 
 - Repassa só `url`, `currency` e os quatro preços do GG.deals (atual e menor histórico, lojas oficiais e revendedores de chaves), em centavos. Jogo que o GG.deals não conhece vem como `null`.

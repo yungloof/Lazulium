@@ -1,6 +1,6 @@
 # Política de privacidade do Lazulium
 
-*Última atualização: 10 de novembro de 2026 · vale para o Lazulium 1.0.0 e posteriores*
+*Última atualização: 11 de novembro de 2026 · vale para o Lazulium 1.1.0 e posteriores*
 
 O Lazulium é um aplicativo para Windows que reúne seus jogos de PC numa biblioteca só. Ele é feito por um desenvolvedor independente, Lazuli Fool, que responde por esta política. Contato: **yungloof06@gmail.com**.
 
@@ -43,10 +43,11 @@ O Lazulium só se conecta a estes serviços, cada um com a própria política de
 | Serviço | Quando | O que é enviado |
 |---|---|---|
 | **Steam** (Valve) | Ao conectar sua conta e ao atualizar conquistas, perfil, desejos, nomes e preços | Seu SteamID (identificador público da conta) e os códigos (AppID) dos jogos. O login pelo navegador acontece no site da Steam. Se você informar uma chave da Steam Web API nas opções avançadas, ela vai junto nas consultas à Steam. |
-| **SteamGridDB** | Ao buscar capas e artes | O nome ou o código Steam do jogo e a sua chave de API do SteamGridDB. |
+| **SteamGridDB** (opcional) | Se você conectar a conta, ao buscar capas, logos e ícones | O nome ou o código Steam do jogo e a sua chave de API do SteamGridDB. |
 | **RetroAchievements** | Ao buscar conquistas de jogos de emulador | Seu nome de usuário, sua chave de API do RetroAchievements e uma "impressão digital" (hash MD5) ou o nome do jogo, para reconhecê-lo. O arquivo do jogo nunca é enviado. |
-| **Servidor do Lazulium** (Cloudflare Workers) | Tempo para zerar, busca de jogos ao registrar e preços em outras lojas | O nome e/ou código Steam do jogo, o texto que você digitou na busca e os códigos Steam da sua lista de desejos. **Nenhum dado que identifique você.** O servidor consulta o IGDB (Twitch) e o GG.deals com credenciais próprias e guarda as respostas por jogo (até 30 dias), sem relação com quem perguntou. A Cloudflare recebe o seu endereço IP, como qualquer site; o Lazulium o usa só para limitar abusos e não o guarda. |
+| **Servidor do Lazulium** (Cloudflare Workers) | Tempo para zerar, busca de jogos ao registrar, capas de jogos fora da Steam (sem conta do SteamGridDB) e preços em outras lojas | O nome e/ou código Steam do jogo, o texto que você digitou na busca e os códigos Steam da sua lista de desejos. **Nenhum dado que identifique você.** O servidor consulta o IGDB (Twitch) e o GG.deals com credenciais próprias e guarda as respostas por jogo (até 30 dias), sem relação com quem perguntou. A Cloudflare recebe o seu endereço IP, como qualquer site; o Lazulium o usa só para limitar abusos e não o guarda. |
 | **Google** (Drive) | Só se você clicar em *Entrar com Google* | Veja a seção 3. |
+| **GitHub** (atualizações) | Ao procurar versão nova (ao abrir e a cada 4 horas) | O pedido do arquivo da versão mais recente e, na versão instalada, o download do instalador novo. Nenhum dado seu vai junto. |
 | **GitHub** | Só se você usar *Perfil → Publicar na web* | A página do perfil e o arquivo com os dados públicos do perfil (nome, avatar, horas, conquistas, listas e resenhas que você escolheu mostrar), enviados para um repositório **seu**, com o seu login do Git. Fica público na internet. O seu e-mail não vai no envio. |
 | **Sites de imagens** (Steam, SteamGridDB, RetroAchievements, IGDB) | Ao mostrar capas, ícones e avatares | O pedido da imagem, como em qualquer navegador. |
 

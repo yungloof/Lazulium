@@ -184,6 +184,15 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 
 ---
 
+## ✨ Versão 1.1.0: menos contas e caminho para a 2.0 (11/11/2026)
+- [x] Capas e fundos sem conta do SteamGridDB, pelo servidor (`/v1/artwork`, IGDB). SteamGridDB fica opcional.
+- [x] Configurações → Contas em grupos: você, progresso, lojas no PC, nuvem e opcional.
+- [x] Linha do tempo do jogador (`activity.service.ts`) no Perfil, base do feed da 2.0.
+- [x] Tela de Novidades depois de atualizar, progresso do download e botão de atualizar na barra do topo. Portátil avisa e leva ao download.
+- [x] Plano da conta Lazulium com amigos em [docs/conta-lazulium.md](docs/conta-lazulium.md).
+
+---
+
 ## 🔭 Depois da 1.0
 Passos que só o dono pode fazer estão detalhados em [docs/publicar-1.0.md](docs/publicar-1.0.md).
 

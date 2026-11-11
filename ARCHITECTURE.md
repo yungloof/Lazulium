@@ -289,11 +289,12 @@ Toda conexão de rede sai do processo main; o renderer só carrega imagens (CSP 
 | Serviço | Usado por | Credencial |
 |---|---|---|
 | Steam (`steamcommunity.com`, `api.steampowered.com`, `store.steampowered.com`) | conquistas (XML público), perfil, desejos, nomes, preços, análises, OpenID | nenhuma (Web API Key opcional em Avançado) |
-| SteamGridDB | artes | chave do jogador, capturada pela janela de login |
+| SteamGridDB (opcional) | escolher artes, logos e ícones | chave do jogador, capturada pela janela de login |
 | RetroAchievements | conquistas de emulador | usuário + chave do jogador |
-| Servidor próprio `server/igdb-proxy` (Cloudflare Worker, `IGDB_PROXY_URL` em `play-length.service.ts`) | tempo para zerar e busca (IGDB), preços de outras lojas (`/v1/prices`, GG.deals) | segredos só no Worker (`TWITCH_CLIENT_ID/SECRET`, `GGDEALS_API_KEY`) |
+| Servidor próprio `server/igdb-proxy` (Cloudflare Worker, `IGDB_PROXY_URL` em `play-length.service.ts`) | tempo para zerar, busca e capas sem conta (`/v1/artwork`, IGDB), preços de outras lojas (`/v1/prices`, GG.deals) | segredos só no Worker (`TWITCH_CLIENT_ID/SECRET`, `GGDEALS_API_KEY`) |
 | Google (OAuth + Drive v3) | backup de saves | client OAuth do build (`.env`) + refresh token cifrado |
 | GitHub (via `git` do sistema) | Perfil → Publicar na web | login do Git do jogador |
+| GitHub Releases (`electron-updater`; `latest.yml` na portátil) | atualização automática | nenhuma |
 
 Não há telemetria nem envio automático de erros: o `lazulium.log` (`userData/logs`, rotação em 2 MB) só sai do PC pelas mãos do jogador.
 

@@ -4,6 +4,25 @@ O que mudou em cada versão, da mais nova para a mais antiga.
 
 ---
 
+## 1.1.0 — 11 de novembro de 2026
+
+Menos contas para conectar, um aviso claro quando sai versão nova e o começo do que vem por aí: a linha do tempo que vai virar o feed dos amigos na 2.0.
+
+### Novidades
+
+- **Capas sem precisar de conta.** Jogos da Epic, do GOG, de emulador e avulsos ganham capa e fundo sozinhos, sem entrar no SteamGridDB. Ele continua lá, opcional, para quem quer escolher entre mais artes, logos e ícones.
+- **Novidades depois de atualizar.** Quando o Lazulium se atualiza, ele mostra o que mudou na primeira vez que abre. Dá para rever tudo em *Configurações → Ajuda → Novidades*.
+- **Aviso de atualização na barra do topo.** Mostra o download da versão nova (com a porcentagem) e, quando ela está pronta, um botão para atualizar na hora. Se preferir, ela instala sozinha quando você fechar o app.
+- **Linha do tempo no Perfil.** Na seção Atividade aparece o que você fez em qualquer loja: jogou, zerou, fez 100%, desbloqueou conquistas, deu nota e escreveu resenha. Na versão 2.0 é isso que seus amigos vão ver.
+
+### Melhorias
+
+- **Contas organizadas.** *Configurações → Contas* agora separa o seu progresso (Steam e RetroAchievements), as lojas encontradas no PC, a nuvem (Google Drive) e o que é opcional (SteamGridDB).
+- **Boas-vindas mais curtas.** O passo do SteamGridDB saiu do primeiro uso, porque as capas já vêm sozinhas.
+- **Versão portátil avisa quando sai versão nova**, com o link para baixar.
+
+---
+
 ## 1.0.0 — 10 de novembro de 2026
 
 A primeira versão para todo mundo. Seus dados das versões de teste continuam onde estão: é só instalar por cima.
