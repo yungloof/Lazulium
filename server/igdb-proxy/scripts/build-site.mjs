@@ -70,6 +70,9 @@ function markdownToHtml(md) {
   return out.join('\n');
 }
 
+// Logo do app (a mesma da interface), embutida para a página não depender de outro arquivo
+const LOGO = 'data:image/png;base64,' + readFileSync(join(root, 'src', 'renderer', 'src', 'assets', 'logo.png')).toString('base64');
+
 const STYLE = `
 :root{--bg:#0e1426;--panel:#151c30;--line:#1f2840;--text:#e2e9f7;--soft:#a7b5d3;--muted:#8292b5;--accent:#4a80ff;--accent2:#93b6ff}
 *{box-sizing:border-box}
@@ -77,7 +80,7 @@ body{margin:0;background:radial-gradient(1200px 500px at 20% -10%,#1d3478 0%,tra
 main{max-width:860px;margin:0 auto;padding:48px 20px 80px}
 header.top{display:flex;align-items:center;gap:12px;margin-bottom:40px}
 header.top a{color:var(--text);text-decoration:none;font-weight:700;font-size:20px;letter-spacing:-.01em}
-.dot{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#4a80ff,#2342a8);box-shadow:0 0 24px #4a80ff55}
+.logo{width:36px;height:36px;display:block}
 nav{margin-left:auto;display:flex;gap:18px;font-size:14px}
 nav a{color:var(--soft);text-decoration:none}nav a:hover{color:#fff}
 h1{font-size:clamp(30px,5vw,44px);line-height:1.15;letter-spacing:-.02em;margin:0 0 16px}
@@ -108,11 +111,12 @@ function page(title, description, body) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <meta name="description" content="${escapeHtml(description)}">
+<link rel="icon" href="${LOGO}">
 <style>${STYLE.trim()}</style>
 </head>
 <body>
 <main>
-<header class="top"><span class="dot"></span><a href="/">Lazulium</a><nav><a href="/">Início</a><a href="/privacidade">Privacidade</a></nav></header>
+<header class="top"><img class="logo" src="${LOGO}" alt="" width="36" height="36"><a href="/">Lazulium</a><nav><a href="/">Início</a><a href="/privacidade">Privacidade</a></nav></header>
 ${body}
 <footer>Lazulium · aplicativo gratuito para Windows 10 e 11 · contato: <a href="mailto:yungloof06@gmail.com">yungloof06@gmail.com</a> · <a href="/privacidade">Política de privacidade</a></footer>
 </main>

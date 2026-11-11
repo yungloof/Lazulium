@@ -259,7 +259,7 @@ export default {
     const sitePath = url.pathname.replace(/\/+$/, '') || '/';
     if (SITE_PAGES[sitePath] && (request.method === 'GET' || request.method === 'HEAD')) {
       return new Response(request.method === 'HEAD' ? null : SITE_PAGES[sitePath], {
-        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'" }
+        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:" }
       });
     }
     const isSearch = url.pathname === '/v1/search';
