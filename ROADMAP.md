@@ -188,9 +188,10 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 Passos que só o dono pode fazer estão detalhados em [docs/publicar-1.0.md](docs/publicar-1.0.md).
 
 **Publicação**
-- [ ] Criar o repositório e a Release `v1.0.0` no GitHub com os dois `.exe`, e ativar o GitHub Pages da pasta `docs/`.
-- [ ] Tirar o OAuth do Google do modo de teste (hoje o acesso ao Drive expira a cada 7 dias e só entra quem é testador).
-- [ ] Publicar o `/v1/prices` no Worker com a chave do GG.deals (`wrangler secret put GGDEALS_API_KEY`) e conferir o formato real da resposta.
+- [x] Criar o repositório e a Release `v1.0.0` no GitHub (instalador, `.blockmap` e `latest.yml`, publicada em 11/11/2026).
+- [ ] Ativar o GitHub Pages da pasta `docs/`.
+- [x] Tirar o OAuth do Google do modo de teste (em produção desde 10/11/2026).
+- [x] Publicar o `/v1/prices` no Worker com a chave do GG.deals (`wrangler secret put GGDEALS_API_KEY`) e conferir o formato real da resposta. Ativo desde 11/11/2026, também na VPS.
 - [ ] Primeira publicação real do perfil no GitHub pelo app: conferir login do Git, ativação do Pages e a página no ar.
 
 **Testes manuais**

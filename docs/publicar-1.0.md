@@ -2,13 +2,13 @@
 
 Checklist em ordem. Cada passo usa contas e credenciais suas, por isso não está automatizado. Onde aparece `SEU-USUARIO`, use o seu usuário do GitHub.
 
-- [ ] 1. Gerar e conferir os instaladores
-- [ ] 2. Criar o repositório e a Release no GitHub
+- [x] 1. Gerar e conferir os instaladores
+- [x] 2. Criar o repositório e a Release no GitHub
 - [ ] 3. Publicar a página do projeto (GitHub Pages)
-- [ ] 4. Tirar o login do Google do modo de teste
-- [ ] 5. Ligar os preços de outras lojas (GG.deals)
+- [x] 4. Tirar o login do Google do modo de teste
+- [x] 5. Ligar os preços de outras lojas (GG.deals)
 - [ ] 6. (Opcional) Assinar o instalador
-- [ ] 7. (Depois) Atualização automática
+- [x] 7. (Depois) Atualização automática
 
 ---
 
