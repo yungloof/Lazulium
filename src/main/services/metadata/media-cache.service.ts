@@ -59,7 +59,7 @@ export function migrateMediaCache(): void {
 }
 
 // Arquivo em disco de uma URL de arte em cache (undefined se a URL não for do cache)
-function cachedFilePath(url?: string): string | undefined {
+export function cachedFilePath(url?: string): string | undefined {
   if (!url?.startsWith(`${MEDIA_SCHEME}://${MEDIA_HOST}/`)) return undefined;
   try {
     const segments = new URL(url).pathname.split('/').filter(Boolean).map(decodeURIComponent);

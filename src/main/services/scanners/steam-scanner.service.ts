@@ -71,7 +71,7 @@ const GRID_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 
 // Pastas de userdata a considerar: a conta conectada no Lazulium; senão a mais recente do cliente da Steam.
 // Somar/comparar contas diferentes misturaria horas de outras pessoas que usam o PC.
-async function getAccountDirs(steamPath: string): Promise<string[]> {
+export async function getAccountDirs(steamPath: string): Promise<string[]> {
   const userdata = join(steamPath, 'userdata');
   const all = (await readdir(userdata).catch(() => [] as string[])).filter((d) => /^\d+$/.test(d));
 

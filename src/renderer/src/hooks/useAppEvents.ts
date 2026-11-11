@@ -162,4 +162,21 @@ export function useAppEvents(): void {
       unsubscribe?.();
     };
   }, []);
+
+  // Notificação de atualização baixada e pronta para instalar
+  useEffect(() => {
+    const unsubscribe = window.electronAPI?.onUpdateReady((info) => {
+      useUiStore.getState().showNotice({
+        text: `Lazulium ${info.version} pronto para instalar.`,
+        tone: 'ok',
+        action: {
+          label: 'Reiniciar agora',
+          run: () => {
+            void window.electronAPI?.quitAndInstallUpdate();
+          }
+        }
+      });
+    });
+    return () => unsubscribe?.();
+  }, []);
 }

@@ -18,7 +18,7 @@ const DEFAULT_WIDTH = 288;
 const MIN_WIDTH = 220;
 const MAX_WIDTH = 420;
 
-const GROUP_ORDER: GamePlatform[] = ['steam', 'standalone', 'emulator', 'gog', 'epic', 'riot', 'xbox'];
+const GROUP_ORDER: GamePlatform[] = ['steam', 'standalone', 'emulator', 'gog', 'epic', 'riot', 'xbox', 'battlenet', 'ea', 'ubisoft'];
 
 function loadCollapsed(): Record<string, boolean> {
   try {

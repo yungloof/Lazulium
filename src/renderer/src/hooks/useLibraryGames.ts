@@ -14,6 +14,9 @@ export const LIBRARY_FILTERS: { id: LibraryFilter; label: string }[] = [
   { id: 'emulator', label: 'Emuladores' },
   { id: 'riot', label: 'Riot' },
   { id: 'xbox', label: 'Xbox' },
+  { id: 'battlenet', label: 'Battle.net' },
+  { id: 'ea', label: 'EA App' },
+  { id: 'ubisoft', label: 'Ubisoft Connect' },
   { id: 'standalone', label: 'Outros PC' }
 ];
 

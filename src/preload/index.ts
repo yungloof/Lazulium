@@ -179,7 +179,26 @@ const electronAPI: ElectronAPI = {
   },
   notifyNetworkOnline: () => ipcRenderer.invoke(IPC_CHANNELS.APP_NETWORK_ONLINE),
   getAppInfo: () => ipcRenderer.invoke(IPC_CHANNELS.APP_GET_INFO),
-  openLogsFolder: () => ipcRenderer.invoke(IPC_CHANNELS.APP_OPEN_LOGS)
+  openLogsFolder: () => ipcRenderer.invoke(IPC_CHANNELS.APP_OPEN_LOGS),
+
+  // Atualizador automático
+  checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATER_CHECK),
+  getUpdateStatus: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATER_STATUS),
+  quitAndInstallUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATER_QUIT_AND_INSTALL),
+  onUpdateReady: (callback: (info: { version: string }) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, info: { version: string }) => callback(info);
+    ipcRenderer.on(IPC_CHANNELS.UPDATER_READY, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.UPDATER_READY, subscription);
+  },
+  onUpdateStatus: (callback: (status: any) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, status: any) => callback(status);
+    ipcRenderer.on(IPC_CHANNELS.UPDATER_STATUS, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.UPDATER_STATUS, subscription);
+  },
+
+  // Atalhos da Steam
+  addSteamShortcut: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.STEAM_ADD_SHORTCUT, gameId),
+  removeSteamShortcut: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.STEAM_REMOVE_SHORTCUT, gameId)
 };
 
 if (process.contextIsolated) {

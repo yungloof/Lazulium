@@ -8,6 +8,9 @@ export const PLATFORM_SHORT: Record<GamePlatform, string> = {
   gog: 'GOG',
   riot: 'Riot',
   xbox: 'Xbox',
+  battlenet: 'B.net',
+  ea: 'EA',
+  ubisoft: 'Ubi',
   emulator: 'Emu',
   standalone: 'PC'
 };
@@ -18,6 +21,9 @@ export const PLATFORM_GROUP: Record<GamePlatform, string> = {
   gog: 'GOG Galaxy',
   riot: 'Riot Games',
   xbox: 'Xbox',
+  battlenet: 'Battle.net',
+  ea: 'EA App',
+  ubisoft: 'Ubisoft Connect',
   emulator: 'Emuladores',
   standalone: 'Outros PC'
 };
@@ -28,6 +34,9 @@ export const PLATFORM_FULL: Record<GamePlatform, string> = {
   gog: 'GOG Galaxy',
   riot: 'Riot Games',
   xbox: 'Xbox / Microsoft Store',
+  battlenet: 'Battle.net',
+  ea: 'EA App',
+  ubisoft: 'Ubisoft Connect',
   emulator: 'Emulador',
   standalone: 'PC'
 };

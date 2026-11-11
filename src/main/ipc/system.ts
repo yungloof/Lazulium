@@ -5,6 +5,7 @@ import { getLogsDir } from '../logger';
 import { applyLoginItem, markRendererReady } from '../app-shell';
 import { artworkService } from '../services/metadata/artwork.service';
 import { backupService } from '../services/cloudsync/backup.service';
+import { updaterService } from '../services/updater/updater.service';
 import { DRIVE_SETTING_KEYS } from '../services/cloudsync/google-drive.service';
 import { askOpenPaths, handle, WindowGetter } from './helpers';
 
@@ -72,5 +73,18 @@ export function registerSystemHandlers(getMainWindow: WindowGetter): void {
   handle(IPC_CHANNELS.APP_NETWORK_ONLINE, async () => {
     artworkService.enqueueMissing();
     await backupService.retryPendingUploads();
+  });
+
+  // Atualização automática do aplicativo
+  handle(IPC_CHANNELS.UPDATER_CHECK, async () => {
+    return await updaterService.checkForUpdates();
+  });
+
+  handle(IPC_CHANNELS.UPDATER_STATUS, () => {
+    return updaterService.getStatus();
+  });
+
+  handle(IPC_CHANNELS.UPDATER_QUIT_AND_INSTALL, () => {
+    updaterService.quitAndInstall();
   });
 }

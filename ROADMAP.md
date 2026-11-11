@@ -199,8 +199,8 @@ Passos que só o dono pode fazer estão detalhados em [docs/publicar-1.0.md](doc
 - [ ] Testes de distribuição com amigos (instalador e versão portátil em outros PCs).
 
 **Funcionalidades**
-- [ ] Atualização automática pelo GitHub (`electron-updater`, provider `github`; plano em `docs/publicar-1.0.md`).
+- [x] Atualização automática pelo GitHub (`electron-updater`, provider `github`; plano em `docs/publicar-1.0.md`).
 - [ ] Assinatura digital do instalador (evita o aviso do SmartScreen; opções e custos em `docs/publicar-1.0.md`).
-- [ ] "Adicionar à Steam" (atalho não-Steam) a partir do Lazulium.
-- [ ] Scanners de outros lançadores (Battle.net, EA app, Ubisoft Connect) quando houver jogos instalados para validar.
-- [ ] Horas da Epic e do GOG importadas dos próprios lançadores (hoje só a Steam traz o histórico).
+- [x] "Adicionar à Steam" (atalho não-Steam) a partir do Lazulium com artes personalizadas sincronizadas em `userdata/<conta>/config/grid`.
+- [x] Scanners de outros lançadores (Battle.net, EA App, Ubisoft Connect).
+- [x] Horas e última sessão da Epic (eglv2 `last-played.json`) e do GOG (`galaxy-2.0.db`) importadas dos lançadores.

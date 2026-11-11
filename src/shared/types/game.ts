@@ -1,4 +1,4 @@
-export type GamePlatform = 'steam' | 'epic' | 'gog' | 'riot' | 'xbox' | 'emulator' | 'standalone';
+export type GamePlatform = 'steam' | 'epic' | 'gog' | 'riot' | 'xbox' | 'battlenet' | 'ea' | 'ubisoft' | 'emulator' | 'standalone';
 
 export type EmulatorType = 
   | 'dolphin' 

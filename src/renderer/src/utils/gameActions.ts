@@ -114,3 +114,23 @@ export function openContextMenu(game: Pick<Game, 'id'>, e: MouseEvent): void {
   e.preventDefault();
   useUiStore.getState().setContextMenu({ gameId: game.id, x: e.clientX, y: e.clientY });
 }
+
+export async function addToSteam(game: Game): Promise<void> {
+  const ui = useUiStore.getState();
+  try {
+    const result = await window.electronAPI?.addSteamShortcut(game.id);
+    if (result?.ok) {
+      ui.showNotice({
+        text: `${game.title} adicionado à Steam com as artes configuradas. Reinicie a Steam para carregar o atalho.`,
+        tone: 'ok'
+      });
+    } else {
+      ui.showNotice({
+        text: `Não foi possível adicionar à Steam: ${result?.error || 'erro desconhecido'}`,
+        tone: 'warn'
+      });
+    }
+  } catch (err) {
+    warn(err);
+  }
+}

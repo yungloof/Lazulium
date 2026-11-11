@@ -96,6 +96,14 @@ export interface GameLaunchStatus {
 
 // Contrato de window.electronAPI (exposto pelo preload). Erros chegam como Error com mensagem em português;
 // o renderer tira o prefixo "Error invoking remote method" com ipcErrorMessage.
+export interface UpdateStatus {
+  checking: boolean;
+  available: boolean;
+  downloaded: boolean;
+  version?: string;
+  error?: string;
+}
+
 export interface ElectronAPI {
   // Biblioteca & Scanners
   scanAllLibraries: () => Promise<ScanResult>;
@@ -230,6 +238,17 @@ export interface ElectronAPI {
   notifyNetworkOnline: () => Promise<void>;                    // Conexão voltou: refaz envios ao Drive e buscas de artes pendentes
   getAppInfo: () => Promise<{ version: string; logsDir: string }>;
   openLogsFolder: () => Promise<void>;                         // Para o usuário enviar o lazulium.log quando algo der errado
+
+  // Atualizador automático
+  checkForUpdates: () => Promise<UpdateStatus>;
+  getUpdateStatus: () => Promise<UpdateStatus>;
+  quitAndInstallUpdate: () => Promise<void>;
+  onUpdateReady: (callback: (info: { version: string }) => void) => () => void;
+  onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
+
+  // Integração de atalhos da Steam (adicionar jogos que não são da Steam à Steam)
+  addSteamShortcut: (gameId: string) => Promise<{ ok: boolean; appId?: number; error?: string }>;
+  removeSteamShortcut: (gameId: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 declare global {

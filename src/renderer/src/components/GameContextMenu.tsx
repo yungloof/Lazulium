@@ -1,9 +1,9 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Game } from '@shared/types/game';
-import { Clock, Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera, FolderOpen, ListPlus, Pencil, EyeOff, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Clock, Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera, FolderOpen, ListPlus, Pencil, EyeOff, SlidersHorizontal, Trash2, PlusCircle } from 'lucide-react';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { ContextMenuState, GameModalKind, useUiStore } from '../stores/useUiStore';
-import { askDeleteEntry, hideGame, launchGame, openGame, openGameFolder, stopGame, toggleFavorite } from '../utils/gameActions';
+import { addToSteam, askDeleteEntry, hideGame, launchGame, openGame, openGameFolder, stopGame, toggleFavorite } from '../utils/gameActions';
 
 export interface GameContextMenuProps {
   game: Game;
@@ -24,6 +24,7 @@ export interface GameContextMenuProps {
   onHide: (game: Game) => void;
   onLaunchOptions: (game: Game) => void;
   onDeleteEntry: (game: Game) => void;
+  onAddToSteam: (game: Game) => void;
 }
 
 interface MenuItem {
@@ -58,7 +59,8 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
   onRename,
   onHide,
   onLaunchOptions,
-  onDeleteEntry
+  onDeleteEntry,
+  onAddToSteam
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ left: x, top: y });
@@ -99,6 +101,9 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
     ...(game.platform === 'steam' || game.manualEntry
       ? []
       : [{ id: 'launch-options', label: 'Opções de inicialização', icon: <SlidersHorizontal className={icon} />, action: () => onLaunchOptions(game) }]),
+    ...(game.platform === 'steam' || game.manualEntry || game.isInstalled === false || game.id.startsWith('steam-shortcut-')
+      ? []
+      : [{ id: 'add-to-steam', label: 'Adicionar à Steam', icon: <PlusCircle className={icon} />, action: () => onAddToSteam(game) }]),
     { id: 'hide', label: 'Ocultar', icon: <EyeOff className={icon} />, action: () => onHide(game), separatorBefore: true },
     ...(game.manualEntry ? [{ id: 'delete-entry', label: 'Apagar este registro', icon: <Trash2 className={icon} />, action: () => onDeleteEntry(game), danger: true }] : [])
   ];
@@ -203,6 +208,7 @@ export const GameContextMenuHost: React.FC<{ menu: ContextMenuState }> = ({ menu
       onOpenSaves={openFor('saves')}
       onEditPlaytime={openFor('playtime')}
       onOpenScreenshots={openFor('screenshots')}
+      onAddToSteam={(g) => void addToSteam(g)}
     />
   );
 };

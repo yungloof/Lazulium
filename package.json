@@ -7,6 +7,11 @@
     "name": "Lazuli Fool",
     "email": "yungloof06@gmail.com"
   },
+  "homepage": "https://yungloof.github.io/Lazulium/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yungloof/Lazulium.git"
+  },
   "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev --watch",
@@ -20,6 +25,7 @@
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "electron-updater": "^6.8.11",
     "fflate": "^0.8.3",
     "lucide-react": "^0.475.0",
     "react": "^19.0.0",
@@ -51,6 +57,13 @@
       "buildResources": "resources",
       "output": "dist"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "yungloof",
+        "repo": "Lazulium"
+      }
+    ],
     "asar": true,
     "compression": "maximum",
     "electronLanguages": [

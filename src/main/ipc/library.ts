@@ -9,6 +9,7 @@ import { playtimeService } from '../services/tracker/playtime.service';
 import { artworkService } from '../services/metadata/artwork.service';
 import { removeGameMedia } from '../services/metadata/media-cache.service';
 import { saveGameList } from '../services/profile/lists.service';
+import { addGameToSteam, removeGameFromSteam } from '../services/steam/steam-shortcut-writer.service';
 import { cleanPath, handle } from './helpers';
 
 // Campos de caminho aceitos do renderer: sem aspas e sem barra no fim
@@ -97,4 +98,17 @@ export function registerLibraryHandlers(): void {
   handle(IPC_CHANNELS.LISTS_GET, () => db.getGameLists());
   handle(IPC_CHANNELS.LISTS_SAVE, (_event, input: GameListInput) => saveGameList(input));
   handle(IPC_CHANNELS.LISTS_DELETE, (_event, id: string) => db.deleteGameList(id));
+
+  // Integração com atalhos da Steam (shortcuts.vdf)
+  handle(IPC_CHANNELS.STEAM_ADD_SHORTCUT, async (_event, gameId: string) => {
+    const game = db.getGameById(gameId);
+    if (!game) throw new Error('Jogo não encontrado na biblioteca.');
+    return await addGameToSteam(game);
+  });
+
+  handle(IPC_CHANNELS.STEAM_REMOVE_SHORTCUT, async (_event, gameId: string) => {
+    const game = db.getGameById(gameId);
+    if (!game) throw new Error('Jogo não encontrado na biblioteca.');
+    return await removeGameFromSteam(game);
+  });
 }

@@ -122,6 +122,16 @@ export const IPC_CHANNELS = {
   ACCOUNTS_GOOGLE_LOGIN: 'accounts:google-login',
   ACCOUNTS_LOGOUT: 'accounts:logout',
 
+  // Atualizações automáticas
+  UPDATER_CHECK: 'updater:check',
+  UPDATER_QUIT_AND_INSTALL: 'updater:quit-and-install',
+  UPDATER_STATUS: 'updater:status',
+  UPDATER_READY: 'updater:ready',
+
+  // Atalhos da Steam (Adicionar jogo não-Steam)
+  STEAM_ADD_SHORTCUT: 'steam:add-shortcut',
+  STEAM_REMOVE_SHORTCUT: 'steam:remove-shortcut',
+
   // Settings & Configuration
   SETTINGS_GET_ALL: 'settings:get-all',
   SETTINGS_SET: 'settings:set',

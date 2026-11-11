@@ -6,6 +6,9 @@ import { epicScanner } from './epic-scanner.service';
 import { gogScanner } from './gog-scanner.service';
 import { riotScanner } from './riot-scanner.service';
 import { xboxScanner } from './xbox-scanner.service';
+import { battlenetScanner } from './battlenet-scanner.service';
+import { eaScanner } from './ea-scanner.service';
+import { ubisoftScanner } from './ubisoft-scanner.service';
 import { createEmulatorScanner } from './emulator-scanner.service';
 import { detectEmulators } from './emulator-detect.service';
 import { commonGameFolders, createStandaloneScanner } from './standalone-scanner.service';
@@ -21,6 +24,9 @@ const SCANNERS: PlatformScanner[] = [
   gogScanner,
   riotScanner,
   xboxScanner,
+  battlenetScanner,
+  eaScanner,
+  ubisoftScanner,
   createEmulatorScanner(
     () => db.getEmulatorConfigs(),
     () => db.getGames().filter((g) => !g.id.startsWith('emu-')),
@@ -107,6 +113,9 @@ const PLATFORM_LABELS: Record<GamePlatform, string> = {
   gog: 'GOG',
   riot: 'Riot',
   xbox: 'Xbox',
+  battlenet: 'Battle.net',
+  ea: 'EA App',
+  ubisoft: 'Ubisoft Connect',
   emulator: 'Emuladores',
   standalone: 'Jogos soltos'
 };

@@ -12,6 +12,7 @@ import { artworkService } from './services/metadata/artwork.service';
 import { wishlistService } from './services/metadata/wishlist.service';
 import { profileService } from './services/profile/profile.service';
 import { scanLibrariesWithChanges } from './services/scanners';
+import { updaterService } from './services/updater/updater.service';
 import {
   HIDDEN_LAUNCH_ARG,
   afterLibraryServed,
@@ -53,7 +54,7 @@ async function runStartupSync(hadGames: boolean, repairedArtwork: string[]): Pro
   await afterLibraryServed(STARTUP_WORK_MAX_WAIT_MS);
   await new Promise((resolve) => setTimeout(resolve, STARTUP_WORK_SETTLE_MS));
   try {
-    const { changed } = await scanLibrariesWithChanges(['steam', 'riot', 'xbox']);
+    const { changed } = await scanLibrariesWithChanges(['steam', 'riot', 'xbox', 'battlenet', 'ea', 'ubisoft']);
     for (const game of changed) sendToRenderer(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
     console.log(`[Startup] Sincronização da abertura: ${changed.length} jogo(s) atualizados`);
   } catch (err) {
@@ -118,6 +119,7 @@ if (!app.requestSingleInstanceLock()) {
 
     registerIpcHandlers(getMainWindow);
     setSessionEndHandler(shutdown);
+    updaterService.init();
 
     const hadGames = db.getGames().length > 0;
     startApp(process.argv.includes(HIDDEN_LAUNCH_ARG));
@@ -151,3 +153,5 @@ if (!app.requestSingleInstanceLock()) {
     }
   });
 }
+
+export { generateShortcutAppId, serializeBinaryVdf, parseBinaryVdf, addGameToSteam, removeGameFromSteam } from './services/steam/steam-shortcut-writer.service';
