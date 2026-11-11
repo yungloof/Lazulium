@@ -130,7 +130,7 @@ export const QuickSearch: React.FC<QuickSearchProps> = ({ onOpenGame = openGame,
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm text-slate-100 truncate">{game.title}</span>
                     <span className="block text-[11px] text-slate-400 truncate">
-                      {platformBadge(game)} · {game.isInstalled === false ? 'não instalado' : formatPlaytimeShort(game.totalPlaytimeSeconds)}
+                      {platformBadge(game)} · {game.isInstalled === false ? 'não instalado' : formatPlaytimeShort(game.totalPlaytimeSeconds, game.lastPlayedAt)}
                     </span>
                   </span>
                 </button>

@@ -2,16 +2,16 @@
 
 const decimal = (value: number) => value.toFixed(1).replace('.', ',');
 
-// "Nunca jogado", "40 min", "37,9 h"
-export function formatPlaytimeShort(seconds: number | undefined): string {
-  if (!seconds || seconds < 60) return 'Nunca jogado';
+// "Nunca jogado", "40 min", "37,9 h". Com data de última sessão e sem horas (a Epic informa só a data): "Sem horas"
+export function formatPlaytimeShort(seconds: number | undefined, lastPlayedAt?: string): string {
+  if (!seconds || seconds < 60) return lastPlayedAt ? 'Sem horas' : 'Nunca jogado';
   const hours = seconds / 3600;
   return hours < 1 ? `${Math.round(seconds / 60)} min` : `${decimal(hours)} h`;
 }
 
 // "Nunca jogado", "40 minutos", "37,9 horas"
-export function formatPlaytimeLong(seconds: number | undefined): string {
-  if (!seconds || seconds < 60) return 'Nunca jogado';
+export function formatPlaytimeLong(seconds: number | undefined, lastPlayedAt?: string): string {
+  if (!seconds || seconds < 60) return lastPlayedAt ? 'Sem horas registradas' : 'Nunca jogado';
   const hours = seconds / 3600;
   return hours < 1 ? `${Math.round(seconds / 60)} minutos` : `${decimal(hours)} horas`;
 }

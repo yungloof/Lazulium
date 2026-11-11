@@ -242,7 +242,7 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
               </>
             }
           >
-            {formatPlaytimeLong(game.totalPlaytimeSeconds)}
+            {formatPlaytimeLong(game.totalPlaytimeSeconds, game.lastPlayedAt)}
           </Stat>
         </button>
 

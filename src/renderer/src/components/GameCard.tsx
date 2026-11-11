@@ -30,7 +30,7 @@ export const GameCard = memo<GameCardProps>(({ game, navStart = false, onSelect 
       data-nav-start={navStart ? '' : undefined}
       tabIndex={0}
       role="button"
-      aria-label={`${game.title}, ${formatPlaytimeShort(game.totalPlaytimeSeconds)}${game.isFavorite ? ', favorito' : ''}`}
+      aria-label={`${game.title}, ${formatPlaytimeShort(game.totalPlaytimeSeconds, game.lastPlayedAt)}${game.isFavorite ? ', favorito' : ''}`}
       onClick={() => onSelect(game)}
       onContextMenu={(e) => onContextMenu(game, e)}
       title={game.title}
@@ -107,7 +107,7 @@ export const GameCard = memo<GameCardProps>(({ game, navStart = false, onSelect 
       </h3>
       <p className="mt-1 flex items-center justify-between gap-2 text-[11px] text-slate-400">
         <span className={`truncate tabular-nums ${state === 'running' ? 'text-emerald-300' : ''}`}>
-          {state === 'launching' ? 'Iniciando...' : state === 'running' ? 'Jogando agora' : formatPlaytimeShort(game.totalPlaytimeSeconds)}
+          {state === 'launching' ? 'Iniciando...' : state === 'running' ? 'Jogando agora' : formatPlaytimeShort(game.totalPlaytimeSeconds, game.lastPlayedAt)}
         </span>
         <span className="flex-shrink-0 uppercase tracking-wide text-[10px] font-semibold text-slate-400/90">{platformBadge(game)}</span>
       </p>

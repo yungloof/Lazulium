@@ -72,7 +72,7 @@ const FeaturedTile = memo<{ game: Game; span: number }>(({ game, span }) => {
             <span className="mt-1.5 flex items-center gap-2 text-[11px] text-slate-200">
               <Clock className="w-3 h-3" /> {formatLastPlayed(game.lastPlayedAt)}
               <span className="text-slate-400">·</span>
-              {formatPlaytimeShort(game.totalPlaytimeSeconds)}
+              {formatPlaytimeShort(game.totalPlaytimeSeconds, game.lastPlayedAt)}
             </span>
           </span>
           {canPlay && state !== 'running' && (
@@ -145,7 +145,7 @@ const PlayingCard = memo<{ game: Game }>(({ game }) => (
       <span className="mt-1 flex items-center gap-1.5 text-xs text-emerald-300">
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Jogando
       </span>
-      <span className="block mt-0.5 text-xs text-slate-400 tabular-nums">{(game.totalPlaytimeSeconds ?? 0) >= 60 ? `${formatPlaytimeShort(game.totalPlaytimeSeconds)} até agora` : 'Sem horas registradas ainda'}</span>
+      <span className="block mt-0.5 text-xs text-slate-400 tabular-nums">{(game.totalPlaytimeSeconds ?? 0) >= 60 ? `${formatPlaytimeShort(game.totalPlaytimeSeconds, game.lastPlayedAt)} até agora` : 'Sem horas registradas ainda'}</span>
     </span>
   </button>
 ));
