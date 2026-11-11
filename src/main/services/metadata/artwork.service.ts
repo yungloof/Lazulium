@@ -111,7 +111,7 @@ class ArtworkService {
     const game = db.getGameById(gameId);
     if (!game) throw new Error('Jogo não encontrado.');
     const previous = game.media?.[MEDIA_FIELD[type]];
-    const updated: Game = { ...game, media: { ...game.media, [MEDIA_FIELD[type]]: localUrl } };
+    const updated: Game = { ...game, media: { ...game.media, [MEDIA_FIELD[type]]: localUrl, ...(type === 'cover' ? { coverSourceUrl: remoteUrl } : {}) } };
     db.upsertGame(updated);
     // Mesma arte aplicada de novo usa o mesmo arquivo: só apaga se for outro
     if (previous && previous.split('?')[0] !== localUrl.split('?')[0]) await removeCachedFile(previous);
@@ -210,6 +210,7 @@ class ArtworkService {
     }
 
     const found: Partial<GameMedia> = {};
+    let coverSource: string | undefined;
     // A conexão caiu no meio: guarda o que já baixou e para a fila (o erro sobe depois de salvar)
     let lostConnection: SteamGridDbError | undefined;
     for (const type of missing) {
@@ -217,6 +218,7 @@ class ArtworkService {
         const [best] = await getAssets(apiKey, sgdbGame.id, type);
         if (!best) continue;
         found[MEDIA_FIELD[type]] = await cacheRemoteAsset(gameId, type, best.url);
+        if (type === 'cover') coverSource = best.url;
       } catch (err) {
         if (isConnectionError(err) || (err instanceof SteamGridDbError && err.status === undefined)) {
           lostConnection = err instanceof SteamGridDbError ? err : new SteamGridDbError(describeError(err));
@@ -231,7 +233,7 @@ class ArtworkService {
       return;
     }
 
-    await this.saveFound(gameId, found);
+    await this.saveFound(gameId, found, coverSource);
     console.log(`[Artwork] ${game.title}: ${Object.keys(found).join(', ')} -> "${sgdbGame.name}"`);
     if (lostConnection) throw lostConnection;
   }
@@ -258,12 +260,12 @@ class ArtworkService {
       }
     }
     if (Object.keys(found).length === 0) return;
-    await this.saveFound(game.id, found);
+    await this.saveFound(game.id, found, art.cover);
     console.log(`[Artwork] ${game.title}: ${Object.keys(found).join(', ')} -> "${art.name}" (IGDB)`);
   }
 
   // Relê o jogo: o usuário pode ter escolhido uma arte enquanto baixávamos, e a dele fica
-  private async saveFound(gameId: string, found: Partial<GameMedia>): Promise<void> {
+  private async saveFound(gameId: string, found: Partial<GameMedia>, coverSource?: string): Promise<void> {
     const current = db.getGameById(gameId);
     if (!current) {
       for (const url of Object.values(found)) if (url) await removeCachedFile(url);
@@ -271,8 +273,10 @@ class ArtworkService {
     }
     const media = { ...current.media };
     for (const [field, url] of Object.entries(found) as [keyof GameMedia, string][]) {
-      if (!media[field]) media[field] = url;
-      else if (media[field]?.split('?')[0] !== url.split('?')[0]) await removeCachedFile(url);
+      if (!media[field]) {
+        media[field] = url;
+        if (field === 'coverUrl' && coverSource) media.coverSourceUrl = coverSource;
+      } else if (media[field]?.split('?')[0] !== url.split('?')[0]) await removeCachedFile(url);
     }
     const updated = { ...current, media };
     db.upsertGame(updated);

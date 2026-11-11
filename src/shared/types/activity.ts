@@ -24,4 +24,5 @@ export interface ActivityEvent {
   rating?: number;                  // 'rated'
   count?: number;                   // 'achievements': quantas no dia
   seconds?: number;                 // 'played': tempo jogado no dia
+  text?: string;                    // 'reviewed': a resenha atual
 }

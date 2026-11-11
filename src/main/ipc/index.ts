@@ -10,6 +10,7 @@ import { registerArtworkHandlers } from './artwork';
 import { registerBackupHandlers } from './backup';
 import { registerScreenshotHandlers } from './screenshots';
 import { registerProfileHandlers } from './profile';
+import { registerSocialHandlers } from './social';
 import { registerAccountHandlers } from './accounts';
 import { registerSystemHandlers } from './system';
 
@@ -29,5 +30,6 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
   registerScreenshotHandlers();
   registerProfileHandlers();
   registerAccountHandlers(getMainWindow);
+  registerSocialHandlers();
   registerSystemHandlers(getMainWindow);
 }

@@ -129,6 +129,21 @@ export const IPC_CHANNELS = {
   UPDATER_STATUS: 'updater:status',
   UPDATER_READY: 'updater:ready',
 
+  // Conta Lazulium (amigos e feed)
+  SOCIAL_STATUS: 'social:status',
+  SOCIAL_STATUS_CHANGED: 'social:status-changed',
+  SOCIAL_LOGIN: 'social:login',
+  SOCIAL_LOGOUT: 'social:logout',
+  SOCIAL_DELETE_ACCOUNT: 'social:delete-account',
+  SOCIAL_UPDATE: 'social:update',
+  SOCIAL_SYNC: 'social:sync',
+  SOCIAL_INVITE: 'social:invite',
+  SOCIAL_ACCEPT_INVITE: 'social:accept-invite',
+  SOCIAL_FRIENDS: 'social:friends',
+  SOCIAL_REMOVE_FRIEND: 'social:remove-friend',
+  SOCIAL_FEED: 'social:feed',
+  SOCIAL_FRIEND_PROFILE: 'social:friend-profile',
+
   // Atalhos da Steam (Adicionar jogo não-Steam)
   STEAM_ADD_SHORTCUT: 'steam:add-shortcut',
   STEAM_REMOVE_SHORTCUT: 'steam:remove-shortcut',

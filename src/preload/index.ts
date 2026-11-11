@@ -7,6 +7,7 @@ import { EmulatorConfig, Game, GameLog, GamePlatform } from '@shared/types/game'
 import { BackupEvent, GameSaveConfig } from '@shared/types/cloudsync';
 import { AccountService } from '@shared/types/accounts';
 import { ProfileCustom, ProfileMediaKind, ProfileWebLink } from '@shared/types/profile';
+import { SocialStatus } from '@shared/types/social';
 
 const electronAPI: ElectronAPI = {
   // Library & Scanners
@@ -191,6 +192,23 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.UPDATER_READY, subscription);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.UPDATER_READY, subscription);
   },
+  getSocialStatus: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_STATUS),
+  onSocialStatus: (callback: (status: SocialStatus) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, status: SocialStatus) => callback(status);
+    ipcRenderer.on(IPC_CHANNELS.SOCIAL_STATUS_CHANGED, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SOCIAL_STATUS_CHANGED, subscription);
+  },
+  socialLogin: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_LOGIN),
+  socialLogout: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_LOGOUT),
+  socialDeleteAccount: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_DELETE_ACCOUNT),
+  socialUpdate: (changes) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_UPDATE, changes),
+  socialSync: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_SYNC),
+  socialCreateInvite: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_INVITE),
+  socialAcceptInvite: (code: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_ACCEPT_INVITE, code),
+  socialGetFriends: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_FRIENDS),
+  socialRemoveFriend: (friendId: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_REMOVE_FRIEND, friendId),
+  socialGetFeed: (before?: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_FEED, before),
+  socialGetFriendProfile: (friendId: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_FRIEND_PROFILE, friendId),
   onUpdateStatus: (callback: (status: UpdateStatus) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, status: UpdateStatus) => callback(status);
     ipcRenderer.on(IPC_CHANNELS.UPDATER_STATUS, subscription);

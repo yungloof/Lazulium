@@ -7,6 +7,7 @@ import { artworkService } from '../services/metadata/artwork.service';
 import { achievementsService } from '../services/achievements/achievements.service';
 import { backupService } from '../services/cloudsync/backup.service';
 import { screenshotCaptureService } from '../services/metadata/screenshot-capture.service';
+import { socialService } from '../services/social/social.service';
 import { WindowGetter } from './helpers';
 
 let getWindow: WindowGetter = () => null;
@@ -31,7 +32,11 @@ export function registerRendererEvents(getMainWindow: WindowGetter): void {
     if (status.state === 'running' || status.state === 'stopped') screenshotCaptureService.onGameStatus(status.gameId, status.state === 'running');
     // Sessão contabilizada (>= 15s): backup automático dos saves
     if (status.state === 'stopped' && (status.sessionSeconds ?? 0) > 0) backupService.onSessionEnded(status.gameId);
+    // Conta Lazulium: "jogando agora" para os amigos e envio da sessão nova
+    if (status.state === 'running' || status.state === 'stopped') socialService.onGameStatus(status.gameId, status.state === 'running', status.startTime);
   });
+
+  socialService.setStatusListener((status) => sendToRenderer(IPC_CHANNELS.SOCIAL_STATUS_CHANGED, status));
 
   backupService.setBackupListener((event) => {
     sendToRenderer(IPC_CHANNELS.CLOUDSYNC_BACKUP_EVENT, event);

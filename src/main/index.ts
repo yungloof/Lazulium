@@ -13,6 +13,7 @@ import { wishlistService } from './services/metadata/wishlist.service';
 import { profileService } from './services/profile/profile.service';
 import { scanLibrariesWithChanges } from './services/scanners';
 import { updaterService } from './services/updater/updater.service';
+import { socialService } from './services/social/social.service';
 import {
   HIDDEN_LAUNCH_ARG,
   afterLibraryServed,
@@ -120,6 +121,7 @@ if (!app.requestSingleInstanceLock()) {
     registerIpcHandlers(getMainWindow);
     setSessionEndHandler(shutdown);
     updaterService.init();
+    socialService.init();
 
     const hadGames = db.getGames().length > 0;
     startApp(process.argv.includes(HIDDEN_LAUNCH_ARG));

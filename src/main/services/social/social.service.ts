@@ -1,0 +1,408 @@
+import { randomBytes } from 'crypto';
+import { shell } from 'electron';
+import { createServer, Server } from 'http';
+import { AddressInfo } from 'net';
+import { ActivityEvent } from '@shared/types/activity';
+import { Game } from '@shared/types/game';
+import {
+  SocialActivity,
+  SocialFeedItem,
+  SocialFriend,
+  SocialFriendProfile,
+  SocialInvite,
+  SocialSettings,
+  SocialStatus,
+  SocialSummary,
+  SocialUser
+} from '@shared/types/social';
+import { db } from '../../database/db';
+import { HttpError, describeError, httpRequest } from '../metadata/http';
+import { getRecentActivity } from '../profile/activity.service';
+
+// Conta Lazulium: entra com a Steam (verificado no servidor), manda a linha do tempo para os amigos
+// e mostra o feed deles. Opcional: sem conta, nada sai do PC. Servidor em server/social.
+
+const SOCIAL_SERVER_URL = 'https://lazulium-social.yungloof.workers.dev';
+export const socialServerUrl = () => (process.env.LAZULIUM_SOCIAL_URL ?? SOCIAL_SERVER_URL).replace(/\/+$/, '');
+
+export const SOCIAL_SETTING_KEYS = {
+  token: 'socialToken',               // Cifrado pelo Windows (SECRET_SETTING_KEYS)
+  profile: 'socialProfile',           // Usuário e escolhas de privacidade, para abrir sem internet
+  lastPushAt: 'socialLastPushAt',
+  lastSyncAt: 'socialLastSyncAt'
+} as const;
+
+const LOGIN_TIMEOUT_MS = 5 * 60_000;
+const REQUEST_TIMEOUT_MS = 15_000;
+const SYNC_INTERVAL_MS = 10 * 60_000;
+const SYNC_DEBOUNCE_MS = 20_000;
+const NOW_PLAYING_KEEPALIVE_MS = 5 * 60_000;
+const PUSH_OVERLAP_MS = 2 * 24 * 60 * 60 * 1000;  // "Jogou" é agrupado por dia e cresce: reenvia os últimos dias
+const FIRST_PUSH_DAYS = 60;
+const MAX_PUSH = 200;
+const TOP_GAMES = 12;
+const STEAM_COVER = (appId: string) => `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`;
+const PUBLIC_COVER = /^https:\/\/(cdn\.cloudflare\.steamstatic\.com|shared\.[a-z.]*steamstatic\.com|steamcdn-a\.akamaihd\.net|images\.igdb\.com|cdn2\.steamgriddb\.com)\//i;
+
+const SERVER_ERRORS: Record<string, string> = {
+  invalid_code: 'Esse login expirou. Tente entrar de novo.',
+  invite_not_found: 'Código de convite não encontrado ou vencido. Peça um novo para seu amigo.',
+  own_invite: 'Esse é o seu próprio código. Mande ele para um amigo.',
+  invalid_name: 'O nome precisa ter pelo menos 2 letras.',
+  rate_limited: 'Muitos pedidos seguidos. Espere um minuto e tente de novo.',
+  not_found: 'Não encontrado. Talvez vocês não sejam mais amigos.',
+  not_configured: 'O servidor da conta Lazulium ainda não está no ar.'
+};
+
+const CALLBACK_PAGE = `<!doctype html><meta charset="utf-8"><title>Lazulium</title>
+<body style="font-family:system-ui;background:#0b1020;color:#e2e8f0;display:grid;place-items:center;height:100vh;margin:0">
+<div style="text-align:center"><h2>{TITLE}</h2><p>Você já pode fechar esta aba e voltar ao Lazulium.</p></div>`;
+
+interface CachedProfile {
+  user: SocialUser;
+  settings: SocialSettings;
+}
+
+// Mesma regra do servidor (server/igdb-proxy normalizeTitle): o mesmo jogo em lojas diferentes vira a mesma chave
+export function gameKeyOf(game: Pick<Game, 'platform' | 'platformGameId' | 'title'>): string | null {
+  if (game.platform === 'steam' && game.platformGameId && /^\d{1,10}$/.test(game.platformGameId)) return `steam:${game.platformGameId}`;
+  const normalized = game.title
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/\([^)]*\)/g, '')
+    .replace(/[^a-z0-9]+/g, '')
+    .slice(0, 120);
+  return normalized ? `t:${normalized}` : null;
+}
+
+// Só endereço público: a capa guardada no PC (lazulium-media://) não abre no PC do amigo
+export function publicCoverOf(game: Game): string | null {
+  if (game.platform === 'steam' && game.platformGameId && /^\d{1,10}$/.test(game.platformGameId)) return STEAM_COVER(game.platformGameId);
+  for (const url of [game.media?.coverSourceUrl, game.media?.coverUrl]) if (url && PUBLIC_COVER.test(url)) return url;
+  return null;
+}
+
+class SocialService {
+  private cancelLogin: (() => void) | undefined;
+  private syncTimer: NodeJS.Timeout | undefined;
+  private debounceTimer: NodeJS.Timeout | undefined;
+  private keepAlive: NodeJS.Timeout | undefined;
+  private syncing = false;
+  private syncError: string | undefined;
+  private playing: { gameId: string; since: string } | undefined;
+  private listener: (status: SocialStatus) => void = () => {};
+
+  setStatusListener(listener: (status: SocialStatus) => void): void {
+    this.listener = listener;
+  }
+
+  init(): void {
+    this.syncTimer = setInterval(() => void this.sync(), SYNC_INTERVAL_MS);
+    this.syncTimer.unref();
+    if (this.token()) setTimeout(() => void this.sync(), 20_000).unref();
+  }
+
+  private token(): string | undefined {
+    return db.getSettings()[SOCIAL_SETTING_KEYS.token] || undefined;
+  }
+
+  private cached(): CachedProfile | undefined {
+    try {
+      const raw = db.getSettings()[SOCIAL_SETTING_KEYS.profile];
+      return raw ? (JSON.parse(raw) as CachedProfile) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private saveProfile(profile: CachedProfile): void {
+    db.setSetting(SOCIAL_SETTING_KEYS.profile, JSON.stringify(profile));
+  }
+
+  getStatus(): SocialStatus {
+    const cached = this.cached();
+    if (!this.token() || !cached) return { connected: false };
+    return {
+      connected: true,
+      user: cached.user,
+      settings: cached.settings,
+      lastSyncAt: db.getSettings()[SOCIAL_SETTING_KEYS.lastSyncAt] || undefined,
+      syncError: this.syncError
+    };
+  }
+
+  private publish(): void {
+    this.listener(this.getStatus());
+  }
+
+  private clearLocal(): void {
+    for (const key of Object.values(SOCIAL_SETTING_KEYS)) db.setSetting(key, '');
+    this.syncError = undefined;
+    this.publish();
+  }
+
+  private async api<T>(method: string, path: string, body?: unknown, auth = true): Promise<T> {
+    const token = this.token();
+    if (auth && !token) throw new Error('Entre na conta Lazulium primeiro.');
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (auth) headers.Authorization = `Bearer ${token}`;
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    let res: Response;
+    try {
+      res = await httpRequest(`${socialServerUrl()}${path}`, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        timeoutMs: REQUEST_TIMEOUT_MS,
+        retries: method === 'GET' ? 1 : 0,
+        service: 'o servidor do Lazulium'
+      });
+    } catch (err) {
+      throw new Error(describeError(err));
+    }
+    const data = (await res.json().catch(() => null)) as (T & { error?: string }) | null;
+    if (res.status === 401 && auth) {
+      // Sessão vencida ou conta apagada em outro PC
+      this.clearLocal();
+      throw new Error('Sua sessão da conta Lazulium terminou. Entre de novo.');
+    }
+    if (!res.ok || !data) {
+      const code = data?.error ?? '';
+      throw new HttpError(SERVER_ERRORS[code] ?? `O servidor do Lazulium não respondeu como esperado (erro ${res.status}).`, 'status', res.status);
+    }
+    return data;
+  }
+
+  // ---------- Login ----------
+
+  login(): Promise<SocialStatus> {
+    this.cancelLogin?.();
+    const state = randomBytes(24).toString('base64url');
+    return new Promise((resolvePromise, rejectPromise) => {
+      let server: Server | undefined;
+      let timer: NodeJS.Timeout | undefined;
+      const finish = (err: Error | null, status?: SocialStatus) => {
+        clearTimeout(timer);
+        server?.close();
+        this.cancelLogin = undefined;
+        if (err) rejectPromise(err);
+        else resolvePromise(status!);
+      };
+      this.cancelLogin = () => finish(new Error('Login anterior cancelado.'));
+
+      server = createServer(async (req, res) => {
+        const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+        if (url.pathname !== '/' || url.searchParams.get('state') !== state) {
+          res.writeHead(404).end();
+          return;
+        }
+        const page = (title: string) => res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(CALLBACK_PAGE.replace('{TITLE}', title));
+        const error = url.searchParams.get('error');
+        const code = url.searchParams.get('code');
+        if (error || !code) {
+          page(error === 'cancelled' ? 'Login cancelado' : 'Não foi possível confirmar o login');
+          finish(new Error(error === 'cancelled' ? 'Login cancelado.' : 'A Steam não confirmou o login. Tente de novo.'));
+          return;
+        }
+        try {
+          const result = await this.api<{ token: string; user: SocialUser; settings: SocialSettings }>('POST', '/v1/auth/exchange', { code, state }, false);
+          db.setSetting(SOCIAL_SETTING_KEYS.token, result.token);
+          this.saveProfile({ user: result.user, settings: result.settings });
+          db.setSetting(SOCIAL_SETTING_KEYS.lastPushAt, '');
+          page('Conta Lazulium conectada');
+          this.publish();
+          finish(null, this.getStatus());
+          void this.sync();
+        } catch (err) {
+          page('Não foi possível confirmar o login');
+          finish(err as Error);
+        }
+      });
+      server.on('error', (err) => finish(err));
+      server.listen(0, '127.0.0.1', () => {
+        const port = (server!.address() as AddressInfo).port;
+        timer = setTimeout(() => finish(new Error('Tempo esgotado esperando o login na Steam.')), LOGIN_TIMEOUT_MS);
+        const start = `${socialServerUrl()}/v1/auth/steam/start?${new URLSearchParams({ port: String(port), state })}`;
+        shell.openExternal(start).catch((err) => finish(err));
+      });
+    });
+  }
+
+  async logout(): Promise<SocialStatus> {
+    await this.api('POST', '/v1/auth/logout').catch(() => undefined);
+    this.clearLocal();
+    return this.getStatus();
+  }
+
+  async deleteAccount(): Promise<SocialStatus> {
+    await this.api('DELETE', '/v1/me');
+    this.clearLocal();
+    return this.getStatus();
+  }
+
+  async updateAccount(changes: { name?: string | null; settings?: Partial<SocialSettings> }): Promise<SocialStatus> {
+    const body: Record<string, unknown> = {};
+    if (changes.name !== undefined) body.name = changes.name;
+    if (changes.settings) body.settings = changes.settings;
+    const result = await this.api<CachedProfile>('PATCH', '/v1/me', body);
+    this.saveProfile({ user: result.user, settings: result.settings });
+    this.publish();
+    if (changes.settings) this.scheduleSync();
+    return this.getStatus();
+  }
+
+  // ---------- Amigos e feed ----------
+
+  createInvite = () => this.api<SocialInvite>('POST', '/v1/friends/invite');
+
+  async acceptInvite(code: string): Promise<SocialUser> {
+    const clean = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (clean.length !== 8) throw new Error('O código tem 8 letras e números.');
+    return (await this.api<{ friend: SocialUser }>('POST', '/v1/friends/accept', { code: clean })).friend;
+  }
+
+  async getFriends(): Promise<SocialFriend[]> {
+    return (await this.api<{ friends: SocialFriend[] }>('GET', '/v1/friends')).friends;
+  }
+
+  async removeFriend(friendId: string): Promise<void> {
+    if (!/^[0-9a-f-]{36}$/.test(friendId)) throw new Error('Amigo inválido.');
+    await this.api('DELETE', `/v1/friends/${friendId}`);
+  }
+
+  async getFeed(before?: string): Promise<SocialFeedItem[]> {
+    const query = new URLSearchParams({ limit: '30' });
+    if (before && !Number.isNaN(Date.parse(before))) query.set('before', before);
+    return (await this.api<{ items: SocialFeedItem[] }>('GET', `/v1/feed?${query}`)).items;
+  }
+
+  async getFriendProfile(friendId: string): Promise<SocialFriendProfile> {
+    if (!/^[0-9a-f-]{36}$/.test(friendId)) throw new Error('Amigo inválido.');
+    return this.api<SocialFriendProfile>('GET', `/v1/users/${friendId}`);
+  }
+
+  // ---------- Envio ----------
+
+  // Mudou algo (sessão terminou, Diário salvo): manda logo, mas agrupando mudanças seguidas
+  scheduleSync(): void {
+    if (!this.token()) return;
+    clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => void this.sync(), SYNC_DEBOUNCE_MS);
+    this.debounceTimer.unref();
+  }
+
+  private toWire(event: ActivityEvent, game: Game, settings: SocialSettings): SocialActivity | null {
+    const gameKey = gameKeyOf(game);
+    if (!gameKey) return null;
+    if (event.kind === 'played' && !settings.sharePlaytime) return null;
+    if ((event.kind === 'achievements' || event.kind === 'perfect') && !settings.shareAchievements) return null;
+    if ((event.kind === 'rated' || event.kind === 'reviewed') && !settings.shareReviews) return null;
+    return {
+      id: event.id,
+      kind: event.kind,
+      gameKey,
+      gameTitle: game.title,
+      coverUrl: publicCoverOf(game),
+      at: event.at,
+      rating: event.rating,
+      count: event.count,
+      seconds: event.seconds,
+      text: event.text?.slice(0, 2000)
+    };
+  }
+
+  private buildSummary(settings: SocialSettings): SocialSummary {
+    const games = db.getGames().filter((g) => !g.isHidden);
+    let achievementsUnlocked = 0;
+    let perfectGames = 0;
+    for (const game of games) {
+      const data = db.getGameAchievements(game.id);
+      if (!data || data.total === 0 || data.source === 'lazulium') continue;
+      achievementsUnlocked += data.unlocked;
+      if (data.unlocked >= data.total) perfectGames++;
+    }
+    const top = [...games].filter((g) => (g.totalPlaytimeSeconds ?? 0) > 0).sort((a, b) => (b.totalPlaytimeSeconds ?? 0) - (a.totalPlaytimeSeconds ?? 0));
+    return {
+      totals: {
+        games: games.length,
+        playtimeSeconds: settings.sharePlaytime ? games.reduce((sum, g) => sum + (g.totalPlaytimeSeconds ?? 0), 0) : 0,
+        achievementsUnlocked: settings.shareAchievements ? achievementsUnlocked : 0,
+        perfectGames: settings.shareAchievements ? perfectGames : 0,
+        finishedGames: games.filter((g) => g.log?.status === 'finished' || g.log?.status === 'completed').length
+      },
+      topGames: top.slice(0, TOP_GAMES).flatMap((g) => {
+        const gameKey = gameKeyOf(g);
+        return gameKey
+          ? [{ gameKey, title: g.title, coverUrl: publicCoverOf(g), playtimeSeconds: settings.sharePlaytime ? g.totalPlaytimeSeconds ?? 0 : 0, rating: settings.shareReviews ? g.log?.rating ?? null : null }]
+          : [];
+      })
+    };
+  }
+
+  async sync(): Promise<SocialStatus> {
+    const cached = this.cached();
+    if (!this.token() || !cached || this.syncing) return this.getStatus();
+    this.syncing = true;
+    try {
+      // As escolhas podem ter mudado em outro PC
+      const me = await this.api<CachedProfile>('GET', '/v1/me');
+      this.saveProfile(me);
+      const settings = me.settings;
+      if (settings.shareActivity) {
+        const lastPush = Date.parse(db.getSettings()[SOCIAL_SETTING_KEYS.lastPushAt] || '');
+        const since = Number.isNaN(lastPush) ? Date.now() - FIRST_PUSH_DAYS * 86_400_000 : lastPush - PUSH_OVERLAP_MS;
+        const games = new Map(db.getGames().map((g) => [g.id, g]));
+        const events = getRecentActivity(MAX_PUSH)
+          .filter((e) => Date.parse(e.at) >= since)
+          .flatMap((e) => {
+            const game = games.get(e.gameId);
+            const wire = game ? this.toWire(e, game, settings) : null;
+            return wire ? [wire] : [];
+          });
+        const startedAt = new Date().toISOString();
+        if (events.length) await this.api('POST', '/v1/me/activities', { events });
+        db.setSetting(SOCIAL_SETTING_KEYS.lastPushAt, startedAt);
+      }
+      await this.api('PUT', '/v1/me/summary', this.buildSummary(settings));
+      db.setSetting(SOCIAL_SETTING_KEYS.lastSyncAt, new Date().toISOString());
+      this.syncError = undefined;
+    } catch (err) {
+      this.syncError = (err as Error).message;
+      console.warn('[Social] Falha ao sincronizar:', this.syncError);
+    } finally {
+      this.syncing = false;
+      this.publish();
+    }
+    return this.getStatus();
+  }
+
+  // ---------- Jogando agora ----------
+
+  onGameStatus(gameId: string, running: boolean, startTime?: string): void {
+    if (!this.token()) return;
+    clearInterval(this.keepAlive);
+    if (!running) {
+      if (this.playing?.gameId === gameId) {
+        this.playing = undefined;
+        void this.api('DELETE', '/v1/me/now-playing').catch(() => undefined);
+      }
+      this.scheduleSync();
+      return;
+    }
+    const game = db.getGameById(gameId);
+    const gameKey = game ? gameKeyOf(game) : null;
+    if (!game || !gameKey || !this.cached()?.settings.shareNowPlaying) return;
+    this.playing = { gameId, since: startTime ?? new Date().toISOString() };
+    const send = () =>
+      void this.api('PUT', '/v1/me/now-playing', { gameKey, gameTitle: game.title, coverUrl: publicCoverOf(game), since: this.playing?.since }).catch((err) =>
+        console.warn('[Social] Jogando agora:', (err as Error).message)
+      );
+    send();
+    this.keepAlive = setInterval(send, NOW_PLAYING_KEEPALIVE_MS);
+    this.keepAlive.unref();
+  }
+}
+
+export const socialService = new SocialService();

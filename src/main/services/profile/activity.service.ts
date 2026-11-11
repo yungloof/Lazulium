@@ -60,7 +60,12 @@ export function getRecentActivity(limit = DEFAULT_LIMIT): ActivityEvent[] {
 
   for (const entry of db.getActivityLog()) {
     const game = games.get(entry.gameId);
-    if (game) events.push({ id: entry.id, kind: entry.kind, at: entry.at, rating: entry.rating, ...gameInfo(game) });
+    if (!game) continue;
+    // Resenha: o texto atual (se foi apagada depois, o evento some)
+    if (entry.kind === 'reviewed') {
+      if (!game.log?.review) continue;
+      events.push({ id: entry.id, kind: entry.kind, at: entry.at, rating: game.log.rating, text: game.log.review, ...gameInfo(game) });
+    } else events.push({ id: entry.id, kind: entry.kind, at: entry.at, rating: entry.rating, ...gameInfo(game) });
   }
 
   const sessions = [...games.keys()].flatMap((id) => db.getPlaytimeSessions(id));

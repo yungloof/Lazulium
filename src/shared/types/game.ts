@@ -22,6 +22,7 @@ export interface GameMedia {
   heroUrl?: string;  // Banner horizontal / Hero (ex: 1920x620)
   logoUrl?: string;  // Logo PNG transparente
   iconUrl?: string;  // Ícone de app
+  coverSourceUrl?: string; // Endereço público da capa baixada (para o feed dos amigos; o coverUrl pode ser um arquivo local)
 }
 
 // Atalho da Steam: abrir o programa direto ou pela Steam (ausente = direto)

@@ -7,10 +7,11 @@ import { artworkService } from '../services/metadata/artwork.service';
 import { backupService } from '../services/cloudsync/backup.service';
 import { updaterService } from '../services/updater/updater.service';
 import { DRIVE_SETTING_KEYS } from '../services/cloudsync/google-drive.service';
+import { SOCIAL_SETTING_KEYS } from '../services/social/social.service';
 import { askOpenPaths, handle, WindowGetter } from './helpers';
 
 // Gerenciadas só pelo main: o renderer nunca lê nem grava o token do Google
-const PRIVATE_SETTING_KEYS: string[] = [DRIVE_SETTING_KEYS.refreshToken, DRIVE_SETTING_KEYS.email, DRIVE_SETTING_KEYS.folderId];
+const PRIVATE_SETTING_KEYS: string[] = [DRIVE_SETTING_KEYS.refreshToken, DRIVE_SETTING_KEYS.email, DRIVE_SETTING_KEYS.folderId, ...Object.values(SOCIAL_SETTING_KEYS)];
 
 const DEFAULT_FILE_FILTERS = [{ name: 'Executáveis', extensions: ['exe', 'bat', 'cmd'] }];
 

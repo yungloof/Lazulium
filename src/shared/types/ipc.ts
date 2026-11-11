@@ -5,6 +5,7 @@ import { Achievement, GameAchievements } from './achievements';
 import { AccountService, AccountsStatus, SteamLocalAccount } from './accounts';
 import { GameScreenshots, Screenshot, ScreenshotTaken } from './screenshots';
 import { ActivityEvent } from './activity';
+import { SocialFeedItem, SocialFriend, SocialFriendProfile, SocialInvite, SocialSettings, SocialStatus, SocialUser } from './social';
 import { AchievementsSyncResult, PlayerProfile, YearReview, ProfileCustom, ProfileMediaKind, ProfileWebLink, ProfileWebStatus } from './profile';
 import {
   BackupEvent,
@@ -252,6 +253,21 @@ export interface ElectronAPI {
   quitAndInstallUpdate: () => Promise<void>;
   onUpdateReady: (callback: (info: { version: string }) => void) => () => void;
   onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
+
+  // Conta Lazulium: amigos, jogando agora e feed (opcional)
+  getSocialStatus: () => Promise<SocialStatus>;
+  onSocialStatus: (callback: (status: SocialStatus) => void) => () => void;
+  socialLogin: () => Promise<SocialStatus>;
+  socialLogout: () => Promise<SocialStatus>;
+  socialDeleteAccount: () => Promise<SocialStatus>;
+  socialUpdate: (changes: { name?: string | null; settings?: Partial<SocialSettings> }) => Promise<SocialStatus>;
+  socialSync: () => Promise<SocialStatus>;
+  socialCreateInvite: () => Promise<SocialInvite>;
+  socialAcceptInvite: (code: string) => Promise<SocialUser>;
+  socialGetFriends: () => Promise<SocialFriend[]>;
+  socialRemoveFriend: (friendId: string) => Promise<void>;
+  socialGetFeed: (before?: string) => Promise<SocialFeedItem[]>;
+  socialGetFriendProfile: (friendId: string) => Promise<SocialFriendProfile>;
 
   // Integração de atalhos da Steam (adicionar jogos que não são da Steam à Steam)
   addSteamShortcut: (gameId: string) => Promise<{ ok: boolean; appId?: number; error?: string }>;
