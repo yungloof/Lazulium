@@ -4,6 +4,14 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.2.2 — 12 de novembro de 2026
+
+### Correções
+
+- Capas de jogos dos amigos que não abriam agora aparecem, inclusive dos lançamentos novos da Steam, como o PEAK.
+
+---
+
 ## 2.2.1 — 12 de novembro de 2026
 
 ### Correções
