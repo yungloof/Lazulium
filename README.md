@@ -4,7 +4,7 @@
 
 Todos os jogos do PC num lugar só: Steam, Epic, GOG, Battle.net, EA App, Ubisoft Connect, Riot, Xbox, emuladores e o que mais você tiver solto numa pasta. Com horas jogadas, conquistas, capturas e backup dos saves.
 
-> Versão **2.2.2** · Windows 10 e 11 (64 bits) · Grátis, código aberto (MIT)
+> Versão **2.2.3** · Windows 10 e 11 (64 bits) · Grátis, código aberto (MIT)
 
 ---
 
@@ -31,8 +31,8 @@ Não pede senha nem chave de API (os logins são nos sites oficiais), não tem p
 
    | Arquivo | |
    |---|---|
-   | **`Lazulium-Setup-2.2.2.exe`** *(recomendado)* | Instala, cria atalhos e se atualiza sozinho. Não precisa de administrador. |
-   | `Lazulium-Portable-2.2.2.exe` | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
+   | **`Lazulium-Setup-2.2.3.exe`** *(recomendado)* | Instala, cria atalhos e se atualiza sozinho. Não precisa de administrador. |
+   | `Lazulium-Portable-2.2.3.exe` | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
 
 2. Se o navegador disser que o arquivo "não é baixado com frequência", escolha **Manter** (no Edge: **…** → **Manter** → **Mostrar mais** → **Manter mesmo assim**).
 

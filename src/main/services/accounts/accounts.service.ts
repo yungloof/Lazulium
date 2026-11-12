@@ -128,7 +128,7 @@ class AccountsService {
           .then((result) =>
             result.ok
               ? done(null, text)
-              : done(new Error(`A chave copiada não é a do usuário "${user}". Confira o nome e copie a Web API Key de novo.`))
+              : done(new Error(/incorretos/.test(result.message) ? `A chave copiada não é a do usuário "${user}". Confira o nome e copie a Web API Key de novo.` : result.message))
           )
           .catch(() => done(new Error('Não deu para falar com o RetroAchievements agora. Tente de novo.')));
       }, RA_CLIPBOARD_POLL_MS);

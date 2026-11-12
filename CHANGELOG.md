@@ -4,6 +4,15 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.2.3 — 12 de novembro de 2026
+
+### Correções
+
+- **RetroAchievements conecta de novo.** A janela de login ficava presa na verificação "Um momento…" do site. Agora você escreve seu usuário, a página da chave abre no seu navegador, você copia a Web API Key e o Lazulium conecta sozinho.
+- **Conquistas da Steam escondidas pela privacidade.** Se "Detalhes do jogo" estiver privado, o Perfil avisa e mostra o botão *Já mudei, buscar de novo*. O Lazulium também tenta de novo sozinho depois de algumas horas.
+
+---
+
 ## 2.2.2 — 12 de novembro de 2026
 
 ### Correções
