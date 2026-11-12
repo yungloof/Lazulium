@@ -1,4 +1,4 @@
-import { clipboard, nativeImage, shell } from 'electron';
+import { clipboard, ClipboardItem, nativeImage, shell } from 'electron';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { Game } from '@shared/types/game';
 import { db } from '../database/db';
@@ -43,7 +43,8 @@ export function registerScreenshotHandlers(): void {
   handle(IPC_CHANNELS.SCREENSHOTS_COPY, async (_event, gameId: string, screenshotId: string) => {
     const image = nativeImage.createFromPath(await requireScreenshotPath(requireGame(gameId), screenshotId));
     if (image.isEmpty()) throw new Error('Não foi possível ler essa imagem. Use Mostrar na pasta para abrir o arquivo.');
-    clipboard.writeImage(image);
+    // API da área de transferência no modelo W3C (Electron 44+): a imagem vai como PNG
+    await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(image.toPNG())], { type: 'image/png' }) })]);
   });
 
   handle(IPC_CHANNELS.SCREENSHOTS_SHOW_IN_FOLDER, async (_event, gameId: string, screenshotId: string) => {

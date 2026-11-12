@@ -63,8 +63,10 @@ export function setupFileLogging(): void {
 
 // Erros da interface e travamentos do renderer também vão para o arquivo
 export function attachRendererLogging(win: BrowserWindow): void {
-  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
-    if (level >= 2) write(level === 3 ? 'RENDERER-ERROR' : 'RENDERER-WARN', [`${message} (${sourceId}:${line})`]);
+  // Electron 35+: os dados vêm no próprio evento e o nível é texto ('info', 'warning', 'error', 'debug')
+  win.webContents.on('console-message', (event) => {
+    const { level, message, lineNumber, sourceId } = event;
+    if (level === 'warning' || level === 'error') write(level === 'error' ? 'RENDERER-ERROR' : 'RENDERER-WARN', [`${message} (${sourceId}:${lineNumber})`]);
   });
   win.webContents.on('render-process-gone', (_event, details) => {
     console.error('[Crash] Interface encerrada:', details.reason, details.exitCode);
