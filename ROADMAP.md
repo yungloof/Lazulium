@@ -193,6 +193,12 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 
 ---
 
+## ⏱️ Versão 2.1.0: horas em qualquer loja (11/11/2026)
+- [x] Contar o tempo de jogos abertos fora do Lazulium (Epic, GOG, EA, atalhos), com chave em Comportamento.
+- [x] Entrar com a Epic (opcional) para importar as horas de cada jogo.
+- [x] Amigos: capa padrão (IGDB ou Steam conferida) para os jogos e aviso "Fulano começou a jogar X".
+- [ ] Testar o login da Epic numa conta real.
+
 ## 👥 Versão 2.0.0: conta Lazulium com amigos (11/11/2026)
 - [x] Servidor `server/social` (Cloudflare Worker + D1; `server.mjs` com SQLite para VPS e testes): login pela Steam verificado no servidor, convites, amizades, jogando agora, feed, perfil de amigo e apagar conta. 16 testes.
 - [x] App: `services/social/social.service.ts` (login com retorno em `127.0.0.1`, envio da linha do tempo e do resumo, jogando agora pelo tracker), aba Amigos, perfil de amigo e conta em Configurações → Contas com as chaves de privacidade.

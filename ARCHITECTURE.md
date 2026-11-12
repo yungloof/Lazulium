@@ -160,6 +160,10 @@ Unifica conquistas de plataformas de PC e retroemulação:
 * **SteamGridDB e RetroAchievements (`web-login.service.ts`):** janela do Electron com sessão isolada (`persist:login-<serviço>`). Após o login, abre a página da chave, lê o DOM renderizado, testa as candidatas contra a API e fecha sozinha. O RetroAchievements pode pedir a verificação do Cloudflare (o usuário marca a caixa).
 * **Google:** client OAuth do app embutido no build (`MAIN_VITE_GOOGLE_CLIENT_ID`/`SECRET` no `.env`, ver `.env.example`).
 
+### 3.5.1.0 Horas fora do Lazulium
+* **Jogos abertos por fora (`playtime.service.ts`, `externalCandidates`):** a cada 60 s, com `trackExternalGames` ligado, compara os programas abertos com as pastas dos jogos instalados e passa a acompanhar o que achar, com início no processo mais antigo. Ficam de fora Steam (a Steam conta e o scanner importa), emuladores (um programa, vários jogos), registros do Diário e pastas largas (que contêm a pasta de outro jogo, ou com menos de duas pastas abaixo do disco). Sem jogo acompanhado, o PowerShell da consulta é fechado depois de cada olhada.
+* **Epic (`accounts/epic-account.service.ts`):** a Epic não guarda horas no PC (`eglv2/playtime/journal.json` é só fila de envio). Com o login opcional (janela do Electron, `authorizationCode` da página `/id/api/redirect`), o refresh token busca `library-service .../playtime/account/<id>/all` e grava como `sourcePlaytimeSeconds`, pela mesma regra dos scanners (`max(total atual, launcher + ajuste)`). Roda 45 s após abrir e a cada 6 h; token recusado desconecta e pede login de novo.
+
 ### 3.5.1.1 Conta Lazulium (`services/social/`, servidor em `server/social/`)
 * **Opcional.** Sem token (`socialToken`, cifrado como as outras credenciais), nada é enviado e a aba Amigos só mostra o convite para entrar.
 * **Login:** o app sobe um servidor em `127.0.0.1:<porta>` e abre `/v1/auth/steam/start` no navegador. Quem fala com a Steam (OpenID + `check_authentication`) é o servidor social, nunca o app; ele devolve um código de uso único preso ao `state`, trocado por um token. O token só existe no PC e, no servidor, como hash.
@@ -302,6 +306,7 @@ Toda conexão de rede sai do processo main; o renderer só carrega imagens (CSP 
 | Google (OAuth + Drive v3) | backup de saves | client OAuth do build (`.env`) + refresh token cifrado |
 | GitHub (via `git` do sistema) | Perfil → Publicar na web | login do Git do jogador |
 | GitHub Releases (`electron-updater`; `latest.yml` na portátil) | atualização automática | nenhuma |
+| Epic Games (`account-public-service-prod03`, `library-service`) | horas dos jogos da Epic (`epic-account.service.ts`, opcional) | refresh token da conta do jogador (cliente público do launcher, como o Legendary), cifrado |
 | Servidor próprio `server/social` (Cloudflare Worker + D1, `SOCIAL_SERVER_URL` em `social.service.ts`) | conta Lazulium: amigos, jogando agora, feed | token de sessão do jogador (login pela Steam, verificado no servidor) |
 
 Não há telemetria nem envio automático de erros: o `lazulium.log` (`userData/logs`, rotação em 2 MB) só sai do PC pelas mãos do jogador.

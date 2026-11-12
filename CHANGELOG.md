@@ -4,10 +4,14 @@ O que mudou em cada versão, da mais nova para a mais antiga.
 
 ---
 
-## 2.0.1 — 11 de novembro de 2026
+## 2.1.0 — 11 de novembro de 2026
+
+Horas certas em qualquer loja, aviso quando um amigo começa a jogar e capas para os amigos.
 
 ### Novidades
 
+- **Conta tempo mesmo sem abrir pelo Lazulium.** Abriu um jogo pelo launcher da Epic, do GOG, da EA ou por um atalho? O Lazulium percebe em até um minuto e conta as horas desde a hora em que o jogo abriu. Jogos da Steam (que a própria Steam conta) e de emulador ficam de fora. Dá para desligar em *Configurações → Comportamento*.
+- **Entrar com a Epic (opcional).** A Epic não guarda as horas no PC. Entrando na sua conta da Epic em *Configurações → Contas*, o Lazulium importa as horas de cada jogo, inclusive as de antes de usar o app, e atualiza a cada 6 horas. Usa o mesmo acesso do launcher da Epic, como o Heroic e o Playnite; se a Epic mudar algo, só a importação para.
 - **"Fulano começou a jogar X".** Quando um amigo abre um jogo, aparece um aviso no Lazulium, ou do Windows se o app estiver minimizado. Dá para desligar em *Configurações → Contas*.
 
 ### Correções
