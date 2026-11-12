@@ -4,6 +4,15 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.2.1 — 12 de novembro de 2026
+
+### Correções
+
+- Jogo de amigo sem capa no feed (o Fortnite, por exemplo) agora aparece com capa. Se você tem o jogo, vai a sua; se não, a padrão.
+- Textos do app e da página mais curtos e diretos.
+
+---
+
 ## 2.2.0 — 12 de novembro de 2026
 
 ### Novidades
