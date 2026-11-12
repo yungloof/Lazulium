@@ -146,6 +146,7 @@ export const IPC_CHANNELS = {
   SOCIAL_REMOVE_FRIEND: 'social:remove-friend',
   SOCIAL_FEED: 'social:feed',
   SOCIAL_FRIEND_PROFILE: 'social:friend-profile',
+  SOCIAL_FRIEND_SHOWCASE: 'social:friend-showcase',
 
   // Atalhos da Steam (Adicionar jogo não-Steam)
   STEAM_ADD_SHORTCUT: 'steam:add-shortcut',

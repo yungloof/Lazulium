@@ -11,6 +11,7 @@ export interface SocialUser {
 
 // O que a pessoa escolhe mostrar aos amigos (tudo vale só para amigos)
 export interface SocialSettings {
+  shareProfile: boolean;            // Vitrine do perfil (a mesma página do perfil web)
   shareActivity: boolean;           // Chave geral do feed
   sharePlaytime: boolean;           // "Jogou X por 2 h" e horas no perfil
   shareAchievements: boolean;

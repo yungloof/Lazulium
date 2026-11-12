@@ -8,6 +8,7 @@ import { Button, Notice, inputClass } from '../ui';
 import { ToggleRow } from './controls';
 
 const SHARE_OPTIONS: { key: keyof SocialSettings; label: string; hint: string }[] = [
+  { key: 'shareProfile', label: 'Vitrine do perfil', hint: 'Seus amigos veem o seu perfil como você decorou: avatar, fundo, arte, jogos e conquistas em destaque.' },
   { key: 'shareActivity', label: 'Mostrar minha atividade aos amigos', hint: 'Chave geral do feed: desligada, nada do que você faz aparece para eles.' },
   { key: 'shareNowPlaying', label: 'Jogando agora', hint: 'Seus amigos veem o jogo aberto neste momento.' },
   { key: 'sharePlaytime', label: 'Horas jogadas', hint: '"Jogou X por 2 h" e as horas no seu perfil.' },
@@ -140,7 +141,7 @@ export const SocialAccountCard: React.FC<{ fallbackName?: string }> = ({ fallbac
             label={option.label}
             hint={option.hint}
             checked={settings[option.key]}
-            disabled={social.busy !== null || (option.key !== 'shareActivity' && option.key !== 'shareNowPlaying' && !settings.shareActivity)}
+            disabled={social.busy !== null || (option.key !== 'shareActivity' && option.key !== 'shareNowPlaying' && option.key !== 'shareProfile' && !settings.shareActivity)}
             onChange={(checked) => void social.setSetting(option.key, checked)}
           />
         ))}

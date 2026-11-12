@@ -271,6 +271,7 @@ export interface ElectronAPI {
   socialRemoveFriend: (friendId: string) => Promise<void>;
   socialGetFeed: (before?: string) => Promise<SocialFeedItem[]>;
   socialGetFriendProfile: (friendId: string) => Promise<SocialFriendProfile>;
+  socialGetFriendShowcaseUrl: (friendId: string) => Promise<{ url: string | null; reason?: 'hidden' | 'not_sent' }>;
 
   // Integração de atalhos da Steam (adicionar jogos que não são da Steam à Steam)
   addSteamShortcut: (gameId: string) => Promise<{ ok: boolean; appId?: number; error?: string }>;

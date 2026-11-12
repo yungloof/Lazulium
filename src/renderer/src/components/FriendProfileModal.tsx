@@ -23,16 +23,32 @@ export const FriendProfileModal: React.FC<{ friendId: string; onClose: () => voi
   const games = useLibraryStore((s) => s.games);
   const mine = useMemo(() => new Map(games.map((g) => [gameKey(g.platform, g.platformGameId, g.title), g])), [games]);
 
+  // Vitrine: a página do perfil que o amigo decorou, por um link de 30 minutos do servidor
+  const [showcase, setShowcase] = useState<{ url: string | null; reason?: 'hidden' | 'not_sent' } | null>(null);
+  const [tab, setTab] = useState<'showcase' | 'compare'>('showcase');
+
   useEffect(() => {
     let alive = true;
     window.electronAPI
       ?.socialGetFriendProfile(friendId)
       .then((p) => alive && setProfile(p))
       .catch((err) => alive && setError(ipcErrorMessage(err)));
+    window.electronAPI
+      ?.socialGetFriendShowcaseUrl(friendId)
+      .then((s) => alive && setShowcase(s))
+      .catch(() => alive && setShowcase({ url: null }));
     return () => {
       alive = false;
     };
   }, [friendId]);
+
+  const showingFrame = tab === 'showcase' && !!showcase?.url;
+  const showcaseNote =
+    tab === 'showcase' && showcase && !showcase.url
+      ? showcase.reason === 'hidden'
+        ? 'Este amigo preferiu não mostrar a vitrine do perfil. Abaixo, o que dá para comparar.'
+        : 'A vitrine deste amigo aparece quando o Lazulium dele estiver na versão 2.2 ou mais nova. Abaixo, o que dá para comparar.'
+      : null;
 
   const remove = async () => {
     setRemoving(true);
@@ -54,8 +70,32 @@ export const FriendProfileModal: React.FC<{ friendId: string; onClose: () => voi
       subtitle={profile?.nowPlaying ? <NowPlayingLine nowPlaying={profile.nowPlaying} /> : undefined}
       icon={profile ? <Avatar user={profile.user} size="sm" /> : undefined}
       onClose={onClose}
-      size="xl"
+      size={showingFrame ? '3xl' : 'xl'}
       tall
+      bodyClassName={showingFrame ? 'p-0 overflow-hidden' : undefined}
+      toolbar={
+        <div className="flex items-center gap-1 px-4 py-2" role="tablist" aria-label="Partes do perfil do amigo">
+          {(
+            [
+              { id: 'showcase', label: 'Perfil' },
+              { id: 'compare', label: 'Comparar' }
+            ] as const
+          ).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.id}
+              onClick={() => setTab(item.id)}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+                tab === item.id ? 'bg-indigo-500/20 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      }
       footer={
         confirmRemove ? (
           <>
@@ -74,14 +114,26 @@ export const FriendProfileModal: React.FC<{ friendId: string; onClose: () => voi
         )
       }
     >
-      {error && <Notice>{error}</Notice>}
-      {!profile && !error && (
+      {showingFrame && (
+        // Página do servidor numa moldura isolada: sem acesso ao app nem ao login; links abrem no navegador
+        <iframe
+          src={showcase!.url!}
+          title={`Perfil de ${profile?.user.name ?? 'amigo'}`}
+          sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+          referrerPolicy="no-referrer"
+          className="w-full h-full min-h-[70vh] border-0 bg-slate-950"
+        />
+      )}
+      {tab === 'showcase' && !showcase && <Skeleton className="h-[60vh] w-full" />}
+      {showcaseNote && <Notice tone="info">{showcaseNote}</Notice>}
+      {!showingFrame && (tab === 'compare' || showcase) && error && <Notice>{error}</Notice>}
+      {!showingFrame && (tab === 'compare' || showcase) && !profile && !error && (
         <div className="space-y-3">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-40 w-full" />
         </div>
       )}
-      {profile && (
+      {!showingFrame && (tab === 'compare' || showcase) && profile && (
         <>
           {totals && (
             <StatStrip

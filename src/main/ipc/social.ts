@@ -12,7 +12,7 @@ export function registerSocialHandlers(): void {
   handle(IPC_CHANNELS.SOCIAL_UPDATE, (_event, changes: { name?: string | null; settings?: Partial<SocialSettings> }) => {
     if (!changes || typeof changes !== 'object') throw new Error('Alteração inválida.');
     const settings: Partial<SocialSettings> = {};
-    for (const key of ['shareActivity', 'sharePlaytime', 'shareAchievements', 'shareReviews', 'shareNowPlaying'] as const) {
+    for (const key of ['shareProfile', 'shareActivity', 'sharePlaytime', 'shareAchievements', 'shareReviews', 'shareNowPlaying'] as const) {
       if (typeof changes.settings?.[key] === 'boolean') settings[key] = changes.settings[key];
     }
     const name = changes.name === null || typeof changes.name === 'string' ? changes.name : undefined;
@@ -24,5 +24,6 @@ export function registerSocialHandlers(): void {
   handle(IPC_CHANNELS.SOCIAL_FRIENDS, () => socialService.getFriends());
   handle(IPC_CHANNELS.SOCIAL_REMOVE_FRIEND, (_event, friendId: string) => socialService.removeFriend(String(friendId ?? '')));
   handle(IPC_CHANNELS.SOCIAL_FEED, (_event, before?: string) => socialService.getFeed(typeof before === 'string' ? before : undefined));
+  handle(IPC_CHANNELS.SOCIAL_FRIEND_SHOWCASE, (_event, friendId: string) => socialService.getFriendShowcaseUrl(String(friendId ?? '')));
   handle(IPC_CHANNELS.SOCIAL_FRIEND_PROFILE, (_event, friendId: string) => socialService.getFriendProfile(String(friendId ?? '')));
 }

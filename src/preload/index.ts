@@ -216,6 +216,7 @@ const electronAPI: ElectronAPI = {
   socialRemoveFriend: (friendId: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_REMOVE_FRIEND, friendId),
   socialGetFeed: (before?: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_FEED, before),
   socialGetFriendProfile: (friendId: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_FRIEND_PROFILE, friendId),
+  socialGetFriendShowcaseUrl: (friendId: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_FRIEND_SHOWCASE, friendId),
   onUpdateStatus: (callback: (status: UpdateStatus) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, status: UpdateStatus) => callback(status);
     ipcRenderer.on(IPC_CHANNELS.UPDATER_STATUS, subscription);

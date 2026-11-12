@@ -1,5 +1,8 @@
-import { randomBytes } from 'crypto';
-import { shell } from 'electron';
+import { createHash, randomBytes } from 'crypto';
+import { join } from 'path';
+import { app, nativeImage, shell } from 'electron';
+import { PlayerProfile, ProfileGame } from '@shared/types/profile';
+import { profileService } from '../profile/profile.service';
 import { createServer, Server } from 'http';
 import { AddressInfo } from 'net';
 import { ActivityEvent } from '@shared/types/activity';
@@ -31,7 +34,9 @@ export const SOCIAL_SETTING_KEYS = {
   token: 'socialToken',               // Cifrado pelo Windows (SECRET_SETTING_KEYS)
   profile: 'socialProfile',           // Usuário e escolhas de privacidade, para abrir sem internet
   lastPushAt: 'socialLastPushAt',
-  lastSyncAt: 'socialLastSyncAt'
+  lastSyncAt: 'socialLastSyncAt',
+  showcaseHash: 'socialShowcaseHash',
+  media: 'socialMedia'                // { avatar: { hash, url }, ... } das imagens já enviadas
 } as const;
 // Fora do token: o renderer pode ler e mudar
 export const SOCIAL_NOTIFY_SETTING = 'socialNotifyPlaying';
@@ -45,6 +50,9 @@ const PUSH_OVERLAP_MS = 2 * 24 * 60 * 60 * 1000;  // "Jogou" é agrupado por dia
 const FIRST_PUSH_DAYS = 60;
 const MAX_PUSH = 200;
 const TOP_GAMES = 12;
+const LOCAL_PROFILE_IMAGE = /^lazulium-media:\/\/profile\/((avatar|background|artwork)-[a-z0-9]+\.(png|jpe?g|webp))$/i;
+const MEDIA_MAX_WIDTH = { avatar: 256, background: 1920, artwork: 1280 } as const;
+type MediaKind = keyof typeof MEDIA_MAX_WIDTH;
 const MAX_COVER_LOOKUPS = 15;          // Capas padrão buscadas por sincronização (o resto vai nas próximas)
 const FRIENDS_POLL_MS = Number(process.env.LAZULIUM_SOCIAL_POLL_MS) || 90_000;   // A variável só serve para testes
 const STEAM_COVER = (appId: string) => `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`;
@@ -444,6 +452,7 @@ class SocialService {
         if (events.length) await this.api('POST', '/v1/me/activities', { events });
         db.setSetting(SOCIAL_SETTING_KEYS.lastPushAt, startedAt);
       }
+      if (settings.shareProfile) await this.pushShowcase(settings);
       await this.resolvePublicCovers(this.topGames().map((g) => g.id));
       await this.api('PUT', '/v1/me/summary', this.buildSummary(settings));
       db.setSetting(SOCIAL_SETTING_KEYS.lastSyncAt, new Date().toISOString());
@@ -456,6 +465,69 @@ class SocialService {
       this.publish();
     }
     return this.getStatus();
+  }
+
+  // ---------- Vitrine ----------
+
+  // Imagem escolhida no perfil (arquivo do PC) -> versão reduzida em JPEG no servidor. Só reenvia quando muda.
+  private async uploadProfileImage(kind: MediaKind, localUrl: string | undefined): Promise<string | undefined> {
+    const file = localUrl?.match(LOCAL_PROFILE_IMAGE)?.[1];
+    if (!file) return undefined;
+    let image = nativeImage.createFromPath(join(app.getPath('userData'), 'profile', file));
+    if (image.isEmpty()) return undefined;
+    if (image.getSize().width > MEDIA_MAX_WIDTH[kind]) image = image.resize({ width: MEDIA_MAX_WIDTH[kind], quality: 'good' });
+    const bytes = image.toJPEG(kind === 'avatar' ? 88 : 80);
+    const hash = createHash('sha1').update(bytes).digest('hex');
+    let cache: Partial<Record<MediaKind, { hash: string; url: string }>> = {};
+    try {
+      cache = JSON.parse(db.getSettings()[SOCIAL_SETTING_KEYS.media] || '{}');
+    } catch {}
+    if (cache[kind]?.hash === hash) return cache[kind]!.url;
+    const { url } = await this.api<{ url: string }>('PUT', `/v1/me/media/${kind}`, { mime: 'image/jpeg', data: bytes.toString('base64') });
+    db.setSetting(SOCIAL_SETTING_KEYS.media, JSON.stringify({ ...cache, [kind]: { hash, url } }));
+    return url;
+  }
+
+  // O mesmo perfil da página web, com as imagens escolhidas e as capas públicas dos jogos
+  private async pushShowcase(settings: SocialSettings): Promise<void> {
+    const built = await profileService.build();
+    const showcase: PlayerProfile = profileService.toExportable(built);
+    const custom = built.custom;
+    // Horas escondidas na vitrine também, se a pessoa desligou "Horas jogadas"
+    const withCover = (g: ProfileGame): ProfileGame => {
+      const hours = settings.sharePlaytime ? g : { ...g, playtimeSeconds: 0 };
+      if (hours.coverUrl) return hours;
+      const game = db.getGameById(g.id);
+      return { ...hours, coverUrl: (game && publicCoverOf(game)) || undefined };
+    };
+    if (!settings.sharePlaytime) {
+      showcase.totals = { ...showcase.totals, playtimeSeconds: 0 };
+      showcase.recentPlaytimeSeconds = 0;
+    }
+    for (const key of ['featuredGames', 'recentGames', 'mostPlayed', 'recentlyPlayed', 'favorites'] as const) {
+      showcase[key] = showcase[key].map(withCover);
+    }
+    const web = { ...showcase.web };
+    const avatar = await this.uploadProfileImage('avatar', custom.avatarUrl);
+    if (avatar) showcase.avatarUrl = avatar;
+    // Vídeo de fundo não vai (fica o fundo da Steam ou do jogo)
+    const background = custom.backgroundMode === 'file' ? await this.uploadProfileImage('background', custom.backgroundUrl) : undefined;
+    if (background) web.background = { imageUrl: background };
+    const artwork = await this.uploadProfileImage('artwork', custom.artworkUrl);
+    if (artwork) web.showcaseArt = { title: custom.artworkCaption, imageUrl: artwork };
+    showcase.web = web;
+    showcase.generatedAt = '';
+    const body = JSON.stringify(showcase);
+    const hash = createHash('sha1').update(body).digest('hex');
+    if (db.getSettings()[SOCIAL_SETTING_KEYS.showcaseHash] === hash) return;
+    await this.api('PUT', '/v1/me/showcase', { ...showcase, generatedAt: new Date().toISOString() });
+    db.setSetting(SOCIAL_SETTING_KEYS.showcaseHash, hash);
+  }
+
+  // Link de 30 minutos para ver a vitrine de um amigo; null quando ele escondeu ou ainda não enviou
+  async getFriendShowcaseUrl(friendId: string): Promise<{ url: string | null; reason?: 'hidden' | 'not_sent' }> {
+    if (!/^[0-9a-f-]{36}$/.test(friendId)) throw new Error('Amigo inválido.');
+    return this.api('POST', `/v1/users/${friendId}/view`);
   }
 
   // ---------- Jogando agora ----------
