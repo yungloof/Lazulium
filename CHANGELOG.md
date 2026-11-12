@@ -4,6 +4,14 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.3.0 — 12 de novembro de 2026
+
+### Segurança
+
+- **Base do app atualizada.** O Lazulium agora roda no Electron 45, que ainda recebe correções de segurança. A versão anterior, 34, já não recebia. O instalador ficou um pouco maior por causa disso.
+
+---
+
 ## 2.2.4 — 12 de novembro de 2026
 
 ### Correções
