@@ -2,7 +2,7 @@
 
 Plano da camada social. **Feito na 2.0.0** (fases 1 a 3): servidor em `server/social`, aba Amigos no app. Falta publicar o servidor (veja `server/social/README.md`) e as fases 4 e 5.
 
-## A ideia em uma frase
+## A ideia
 
 Você entra com a Steam, e seus amigos veem o que você jogou, zerou, as conquistas e as notas que deu, em **qualquer loja**. O login da Steam serve só para dizer quem você é. Quem manda os dados é o Lazulium do seu PC.
 

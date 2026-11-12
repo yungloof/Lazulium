@@ -2,145 +2,139 @@
 
 # Lazulium
 
-**Todos os seus jogos de PC num lugar só: Steam, Epic, GOG, Battle.net, EA App, Ubisoft Connect, Riot, Xbox, emuladores e jogos avulsos, com horas jogadas, conquistas, capturas e backup dos saves.**
+Todos os jogos do PC num lugar só: Steam, Epic, GOG, Battle.net, EA App, Ubisoft Connect, Riot, Xbox, emuladores e o que mais você tiver solto numa pasta. Com horas jogadas, conquistas, capturas e backup dos saves.
 
-> Versão **2.2.0** · Windows 10 e 11 (64 bits) · Grátis e de código aberto (licença MIT)
+> Versão **2.2.0** · Windows 10 e 11 (64 bits) · Grátis, código aberto (MIT)
 
 ---
 
 ## O que é
 
-O Lazulium é um lançador que fica **por cima** das lojas que você já usa. Ele encontra sozinho os jogos instalados no PC, baixa capas bonitas para todos eles e mostra tudo numa biblioteca só, que funciona com mouse, teclado ou controle.
+Um lançador que fica por cima das lojas que você já usa. Ele acha os jogos instalados, baixa capa para todos e mostra tudo numa biblioteca que dá para usar no mouse, no teclado ou no controle.
 
-Você não precisa largar a Steam nem nenhuma outra loja: o Lazulium abre os jogos pelos lançadores de sempre. Ele só junta tudo e guarda o seu histórico.
+Ninguém precisa largar a Steam: os jogos continuam abrindo pelos lançadores de sempre. O Lazulium só junta tudo e guarda o histórico.
 
-## Por que usar
+O que eu mais queria ao fazer ele:
 
-- **Uma biblioteca para tudo.** Chega de abrir quatro lançadores para lembrar o que você tem instalado. Emuladores e jogos avulsos entram junto, com capa.
-- **Horas de verdade em qualquer jogo.** As horas da Steam vêm da própria Steam; nos outros jogos, o Lazulium conta o tempo quando você joga por ele, e desconta o tempo em que você saiu do PC.
-- **Seu histórico não some.** Desinstalou um jogo? As horas, conquistas e anotações continuam no Diário. Reinstalou, continua de onde parou.
-- **Conquistas para todos os jogos**, inclusive de emulador (RetroAchievements).
-- **Seus amigos junto.** Com a conta Lazulium (opcional, entra com a Steam), veja o que a turma está jogando agora, o que zeraram e as notas que deram, de qualquer loja.
-- **Saves protegidos.** Backup automático ao fechar o jogo, com cópia opcional no seu Google Drive.
-- **Sem senha e sem chave de API.** Você entra nas contas pelos sites oficiais, com um clique.
-- **Seus dados ficam no seu PC.** Não tem propaganda nem rastreamento. A conta de amigos é opcional, e só vai para os amigos o que você escolher mostrar.
+- Parar de abrir quatro lançadores para lembrar o que está instalado. Emulador e jogo avulso entram junto, com capa.
+- Ter horas em qualquer jogo, não só nos da Steam. Fora dela, o Lazulium conta o tempo quando você joga por ele e desconta quando você sai de perto do PC.
+- Não perder o histórico ao desinstalar. Horas, conquistas e anotações ficam no Diário; reinstalou, segue de onde parou.
+- Conquistas também em emulador, pelo RetroAchievements.
+- Ver o que os amigos estão jogando, de qualquer loja. Isso é com a conta Lazulium, que é opcional e entra pela Steam.
+- Backup dos saves ao fechar o jogo, com cópia no Google Drive se você quiser.
 
-## Como baixar e instalar
+Não pede senha nem chave de API (os logins são nos sites oficiais), não tem propaganda e não rastreia ninguém.
 
-1. Baixe o instalador na [página de downloads do Lazulium](../../releases/latest) (ou pelo link que te mandaram):
+## Baixar e instalar
 
-   | Arquivo | Para quem |
+1. Baixe na [página de downloads](../../releases/latest):
+
+   | Arquivo | |
    |---|---|
-   | **`Lazulium-Setup-2.2.0.exe`** *(recomendado)* | Instala no PC, com atalhos na Área de Trabalho e no Menu Iniciar. Não precisa ser administrador. |
-   | `Lazulium-Portable-2.2.0.exe` | Não instala nada: é um arquivo só, que abre com dois cliques. Demora um pouco mais para abrir. |
+   | **`Lazulium-Setup-2.2.0.exe`** *(recomendado)* | Instala, cria atalhos e se atualiza sozinho. Não precisa de administrador. |
+   | `Lazulium-Portable-2.2.0.exe` | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
 
-2. **Se o navegador avisar** que o arquivo "não é baixado com frequência", escolha **Manter** (no Edge: **…** → **Manter** → **Mostrar mais** → **Manter mesmo assim**).
+2. Se o navegador disser que o arquivo "não é baixado com frequência", escolha **Manter** (no Edge: **…** → **Manter** → **Mostrar mais** → **Manter mesmo assim**).
 
-3. Abra o arquivo. **Se aparecer a tela azul "O Windows protegeu o computador"**, clique em **Mais informações** e depois em **Executar assim mesmo**.
+3. Se aparecer a tela azul "O Windows protegeu o computador", clique em **Mais informações** → **Executar assim mesmo**. Isso acontece porque o instalador não tem assinatura digital paga (é um projeto independente), não porque tem vírus.
 
-   > Por que esse aviso? O Lazulium é um projeto independente e o instalador ainda não tem uma assinatura digital paga. O Windows mostra esse aviso para qualquer programa novo nessa situação; ele não quer dizer que o arquivo tem vírus.
+4. No instalador, escolha **Apenas para mim** e clique em **Instalar**.
 
-4. No instalador, escolha **Apenas para mim**, confirme a pasta, clique em **Instalar** e, no fim, deixe marcado **Executar Lazulium**.
+Na primeira vez ele mostra os jogos que achou e oferece conectar as contas. Dá para pular tudo e fazer depois em **Configurações**.
 
-5. Na primeira vez, o Lazulium mostra os jogos que encontrou e oferece conectar suas contas. Tudo é opcional e dá para mudar depois em **Configurações**.
-
-**Precisa de:** Windows 10 ou 11 de 64 bits e uns 300 MB livres (mais o espaço dos backups de saves, se você ligar). A internet só é necessária para capas, conquistas, preços e backup no Drive; a biblioteca e a contagem de horas funcionam sem ela.
+Ocupa uns 300 MB, mais os backups de saves se você ligar. Sem internet a biblioteca e a contagem de horas funcionam; capas, conquistas, preços e Drive não.
 
 ### Atualizar
 
-A versão instalada (Setup) verifica atualizações automaticamente e também oferece o botão **Verificar atualizações** em **Configurações → Ajuda e diagnóstico**. Se preferir atualizar manualmente, baixe o instalador da nova versão e instale por cima: seus jogos, horas e configurações continuam lá.
+A versão instalada procura atualização sozinha (ou em **Configurações → Ajuda e diagnóstico → Verificar atualizações**). Instalar a versão nova por cima também funciona, e nada se perde.
 
 ### Desinstalar
 
-Em **Configurações do Windows → Aplicativos**, procure **Lazulium** e clique em **Desinstalar**. Seus dados **ficam guardados** em `%APPDATA%\Lazulium`, para o caso de você voltar. Para apagar tudo de vez, aperte `Win + R`, digite `%APPDATA%`, aperte Enter e apague a pasta **Lazulium**.
+Pelo **Configurações do Windows → Aplicativos**, como qualquer programa. Os dados ficam em `%APPDATA%\Lazulium` caso você volte; para apagar de vez, apague essa pasta.
 
 ---
 
 ## Recursos
 
-- **Biblioteca:** Steam (todas as bibliotecas e discos, inclusive os atalhos não-Steam que você colocou nela), Epic Games, GOG Galaxy, Battle.net, EA App, Ubisoft Connect, Riot Games, Xbox / Microsoft Store, emuladores e qualquer `.exe`.
-- **Emuladores:** Dolphin, Ryujinx, Eden/yuzu, Cemu, PCSX2, RPCS3, DuckStation, RetroArch, Azahar/Citra, melonDS, mGBA, PPSSPP e BizHawk são encontrados sozinhos. Qualquer outro entra em *Emuladores → Novo emulador*.
-- **Horas jogadas:** histórico de sessões, gráfico da semana, desconto do tempo ausente e ajuste à mão.
-- **Diário:** status (Jogando, Zerado, 100%…), nota, datas, resenha e anotações; registre também jogos de console.
-- **Conquistas:** Steam, RetroAchievements, marcadas à mão e criadas por você.
-- **Capas e artes** do SteamGridDB, trocáveis num seletor visual.
-- **Capturas de tela:** as da Steam (F12) e da Xbox Game Bar, e a captura do próprio Lazulium com **Ctrl+F12** durante o jogo.
-- **Backup de saves** no PC e, se você quiser, no Google Drive, com restauração em um clique.
-- **Perfil do jogador** no estilo da Steam, com retrospectiva do ano; pode virar uma página na internet se você pedir.
+- **Lojas:** Steam (todas as bibliotecas e discos, e os atalhos não-Steam), Epic Games, GOG Galaxy, Battle.net, EA App, Ubisoft Connect, Riot Games, Xbox / Microsoft Store e qualquer `.exe`.
+- **Emuladores encontrados sozinhos:** Dolphin, Ryujinx, Eden/yuzu, Cemu, PCSX2, RPCS3, DuckStation, RetroArch, Azahar/Citra, melonDS, mGBA, PPSSPP e BizHawk. Outros entram em *Emuladores → Novo emulador*.
+- **Horas:** sessões, gráfico da semana, desconto do tempo ausente e ajuste à mão.
+- **Diário:** status (Jogando, Zerado, 100%…), nota, datas, resenha e anotações. Jogo de console também entra.
+- **Conquistas:** Steam, RetroAchievements, marcadas à mão ou criadas por você.
+- **Capas** do SteamGridDB, com seletor para trocar.
+- **Capturas:** as da Steam (F12), as da Xbox Game Bar e as do próprio Lazulium (**Ctrl+F12** no jogo).
+- **Backup de saves** no PC e no Google Drive, com restauração em um clique.
+- **Perfil** no estilo da Steam, com retrospectiva do ano. Vira página na internet só se você pedir.
 - **Listas**, **lista de desejos** com preço em reais e aviso de promoção, **tempo para zerar** e **O que jogar agora**.
-- **Controle** (Xbox, PlayStation, Switch Pro e genéricos) em todas as telas.
-- **Aparência** ajustável: temas, cores, fontes e cantos.
-- **Bandeja do sistema:** ao fechar a janela o Lazulium continua contando as horas perto do relógio. Para sair de verdade, clique com o botão direito no ícone dele ali e escolha **Sair**.
+- **Controle** de Xbox, PlayStation, Switch Pro ou genérico em todas as telas.
+- **Aparência:** temas, cores, fontes e cantos.
+- **Bandeja:** fechar a janela não fecha o app, para ele seguir contando as horas. Para sair, botão direito no ícone perto do relógio → **Sair**.
 
 ---
 
 ## Privacidade
 
-Resumo (a versão completa está em [docs/privacidade.md](docs/privacidade.md)):
+A versão completa está em [docs/privacidade.md](docs/privacidade.md). O resumo:
 
-- **Fica no seu PC**, em `%APPDATA%\Lazulium`: biblioteca, horas, diário, perfil, artes, capturas, backups e o log. As senhas de acesso (chaves e tokens) ficam cifradas pelo Windows.
-- **Nunca pedimos sua senha.** Os logins acontecem nas páginas oficiais da Steam, do SteamGridDB, do RetroAchievements e do Google.
-- **Não tem telemetria.** O Lazulium não manda estatísticas de uso nem relatórios de erro para ninguém. O log só sai do seu PC se você mesmo enviar.
-- **Para buscar informações**, o app manda o mínimo necessário: o nome ou o código do jogo (para capas, conquistas, preços e tempo para zerar) e, quando você conecta, o seu SteamID ou usuário do RetroAchievements.
-- **Google Drive só com o seu consentimento.** Só se você clicar em *Entrar com Google* e aceitar. O Lazulium só enxerga os arquivos que ele mesmo criou (a pasta *Lazulium Backups*) e manda para lá apenas os backups dos saves.
-- **Nada é publicado sem você pedir.** O perfil só vai para a internet se você usar *Perfil → Publicar na web*.
+- Tudo fica em `%APPDATA%\Lazulium`: biblioteca, horas, diário, perfil, artes, capturas, backups e log. Tokens de login são cifrados pelo Windows.
+- Os logins são nas páginas oficiais da Steam, do SteamGridDB, do RetroAchievements e do Google. O Lazulium nunca vê sua senha.
+- Não tem telemetria nem relatório de erro automático. O log só sai do PC se você mandar.
+- Para buscar capas, conquistas, preços e tempo para zerar, vai o nome ou o código do jogo e, se você conectou, seu SteamID ou usuário do RetroAchievements.
+- No Google Drive o app só enxerga a pasta que ele mesmo criou (*Lazulium Backups*), e só manda backup de save para lá.
+- O perfil só vai para a internet por *Perfil → Publicar na web*.
 
 ---
 
 ## Perguntas frequentes
 
-**O Lazulium é seguro? Por que o Windows ou o antivírus reclamam?**
-O instalador não tem assinatura digital paga, então o Windows não "conhece" o programa e mostra o aviso do SmartScreen. Alguns antivírus fazem o mesmo com programas novos. O código é aberto e pode ser conferido por qualquer pessoa. Se o seu antivírus apagar o arquivo, avise a gente.
+**Por que o Windows ou o antivírus reclamam?**
+Falta a assinatura digital paga, então o SmartScreen não conhece o programa. Alguns antivírus fazem o mesmo com qualquer programa novo. O código está aqui para quem quiser conferir; se o antivírus apagar o arquivo, me avise.
 
 **Preciso deixar a Steam aberta?**
-Não. Os jogos da Steam abrem pela Steam (ela inicia sozinha se precisar), e as horas deles vêm dela. Os demais jogos abrem direto.
+Não. Jogo da Steam abre pela Steam (ela inicia sozinha), os outros abrem direto.
 
 **Por que as horas de um jogo da Epic ou do GOG estão zeradas?**
-O Lazulium só sabe as horas da Steam. Nos outros jogos ele conta a partir de quando você joga por ele. Se você já tinha horas antes, ajuste o total na página do jogo.
+Só a Steam informa as horas. Nos outros jogos a contagem começa quando você joga pelo Lazulium. Se já tinha horas antes, ajuste o total na página do jogo.
 
 **As conquistas da Steam não aparecem.**
-Na Steam, abra *Perfil → Editar perfil → Privacidade* e deixe **Meu perfil** e **Detalhes dos jogos** como **Público**. Depois, em *Perfil* no Lazulium, clique para buscar de novo.
+Na Steam, em *Perfil → Editar perfil → Privacidade*, deixe **Meu perfil** e **Detalhes dos jogos** como **Público**. Depois peça para buscar de novo no *Perfil* do Lazulium.
 
-**Fechei o Lazulium e ele continua aberto.**
-É de propósito: ele fica na bandeja do sistema para contar as horas e fazer os backups. Para fechar de vez, clique com o botão direito no ícone perto do relógio e escolha **Sair**. Para mudar, desmarque *Minimizar para a bandeja ao fechar* em **Configurações**.
+**Fechei e ele continua aberto.**
+Ele fica na bandeja para contar as horas e fazer os backups. Para sair, botão direito no ícone → **Sair**. Para mudar isso, desmarque *Minimizar para a bandeja ao fechar* em **Configurações**.
 
 **A versão portátil guarda os dados no pendrive?**
-Não: ela usa a mesma pasta `%APPDATA%\Lazulium` da versão instalada, neste PC.
+Não, usa o mesmo `%APPDATA%\Lazulium` da instalada.
 
-**Quanto espaço os backups de saves ocupam?**
-No máximo 3 GB, e dá para mudar em **Configurações**. Passando do limite, as cópias mais antigas saem primeiro, sempre guardando a mais nova de cada jogo.
+**Quanto espaço os backups ocupam?**
+Até 3 GB, ajustável em **Configurações**. Passou disso, as cópias mais antigas saem primeiro; a mais nova de cada jogo sempre fica.
 
-**Como tiro o acesso do Lazulium ao meu Google Drive?**
-Em **Configurações**, na lista de contas, clique em **Sair** ao lado do Google. Você também pode remover em [myaccount.google.com/permissions](https://myaccount.google.com/permissions). Os backups que já estão no Drive ficam na pasta *Lazulium Backups* até você apagar.
+**Como tiro o acesso ao meu Google Drive?**
+Em **Configurações**, clique em **Sair** ao lado do Google, ou remova em [myaccount.google.com/permissions](https://myaccount.google.com/permissions). Os backups já enviados ficam na pasta *Lazulium Backups* até você apagar.
 
 ---
 
-## Deu algum problema? Mande o log
+## Deu problema? Mande o log
 
-1. No Lazulium, abra **Configurações** (ícone de engrenagem no canto superior direito).
-2. Vá até **Ajuda e diagnóstico** e clique em **Abrir pasta de logs**.
-3. Mande para quem te passou o app o arquivo **`lazulium.log`** (e o `lazulium.log.old`, se existir), junto com o que você estava fazendo.
+Em **Configurações → Ajuda e diagnóstico → Abrir pasta de logs**, pegue o `lazulium.log` (e o `lazulium.log.old`, se tiver) e mande junto com o que você estava fazendo. O log tem erros e caminhos de pasta, como `C:\Users\SeuNome\Games\…`, mas nenhuma senha.
 
-> O log tem informações técnicas, como erros e o caminho das pastas dos jogos (por exemplo, `C:\Users\SeuNome\Games\…`). Ele não tem senhas. Se quiser, abra no Bloco de Notas antes de enviar.
-
-Vai testar com calma? O [guia de teste](docs/guia-de-teste.md) tem um roteiro do que experimentar e um modelo de relato.
+Para testar com calma, o [guia de teste](docs/guia-de-teste.md) tem um roteiro e um modelo de relato.
 
 ---
 
 ## Para desenvolvedores
 
-Electron 34 + electron-vite, React 19, TypeScript (strict), Tailwind CSS 4 e Zustand. Empacotado com electron-builder (instalador NSIS e versão portátil).
+Electron 34 + electron-vite, React 19, TypeScript (strict), Tailwind CSS 4 e Zustand, empacotado com electron-builder (NSIS e portátil).
 
 ```bash
-npm install          # dependências
-npm run dev          # app em modo desenvolvimento (ou iniciar-lazulium.bat)
-npm run typecheck    # checagem de tipos
-npm run build:win    # instalador + versão portátil em dist/
-npm run icons        # regenera ícones e imagens do instalador a partir de resources/logo.png
+npm install
+npm run dev          # ou iniciar-lazulium.bat
+npm run typecheck
+npm run build:win    # instalador + portátil em dist/
+npm run icons        # regenera ícones a partir de resources/logo.png
 ```
 
-- **Login do Google no build:** copie `.env.example` para `.env` e preencha o client OAuth do tipo *App para computador* (escopo `drive.file`). Sem ele, o resto do app funciona e os backups ficam só no PC.
-- **Servidor próprio** (tempo para zerar, busca de jogos e preços): `server/igdb-proxy/`, com instruções no [README dele](server/igdb-proxy/README.md).
-- **Documentos:** [arquitetura](ARCHITECTURE.md), [diretrizes para devs e agentes de IA](CLAUDE.md), [roadmap](ROADMAP.md), [novidades por versão](CHANGELOG.md), [política de privacidade](docs/privacidade.md) e [como publicar uma versão](docs/publicar-1.0.md).
+- **Login do Google no build:** copie `.env.example` para `.env` e preencha o client OAuth do tipo *App para computador* (escopo `drive.file`). Sem isso o resto funciona e os backups ficam só no PC.
+- **Servidor de tempo para zerar, busca e preços:** [`server/igdb-proxy/`](server/igdb-proxy/README.md).
+- **Mais documentos:** [arquitetura](ARCHITECTURE.md), [diretrizes para devs e agentes de IA](CLAUDE.md), [roadmap](ROADMAP.md), [novidades](CHANGELOG.md), [privacidade](docs/privacidade.md) e [como publicar uma versão](docs/publicar-1.0.md).
 
 Licença [MIT](LICENSE) © 2026 Lazuli Fool.

@@ -1,6 +1,6 @@
 # Novidades do Lazulium
 
-O que mudou em cada versão, da mais nova para a mais antiga.
+Da versão mais nova para a mais antiga.
 
 ---
 
@@ -8,92 +8,87 @@ O que mudou em cada versão, da mais nova para a mais antiga.
 
 ### Novidades
 
-- **Perfil dos amigos de verdade.** Ao abrir um amigo, aparece o perfil do jeito que ele decorou: avatar, fundo, arte em destaque, bio, jogos e conquistas em destaque, nível e insígnias da Steam. A aba *Comparar* continua com os jogos em comum e as horas lado a lado.
-- **O seu perfil vai junto.** Avatar, fundo e arte que você escolheu no Lazulium são enviados (em tamanho reduzido) para os seus amigos verem. Dá para esconder em *Configurações → Contas → Vitrine do perfil*. Fundo em vídeo não vai: os amigos veem o fundo da Steam ou do jogo.
+- **Perfil dos amigos como eles decoraram.** Avatar, fundo, arte em destaque, bio, jogos e conquistas escolhidos, nível e insígnias da Steam. A aba *Comparar* continua lá.
+- **O seu vai junto.** O avatar, o fundo e a arte que você escolheu no Lazulium vão para os amigos em tamanho reduzido. Fundo em vídeo não vai; no lugar aparece o da Steam ou do jogo. Para esconder: *Configurações → Contas → Vitrine do perfil*.
 
 ---
 
 ## 2.1.0 — 11 de novembro de 2026
 
-Horas certas em qualquer loja, aviso quando um amigo começa a jogar e capas para os amigos.
-
 ### Novidades
 
-- **Conta tempo mesmo sem abrir pelo Lazulium.** Abriu um jogo pelo launcher da Epic, do GOG, da EA ou por um atalho? O Lazulium percebe em até um minuto e conta as horas desde a hora em que o jogo abriu. Jogos da Steam (que a própria Steam conta) e de emulador ficam de fora. Dá para desligar em *Configurações → Comportamento*.
-- **Entrar com a Epic (opcional).** A Epic não guarda as horas no PC. Entrando na sua conta da Epic em *Configurações → Contas*, o Lazulium importa as horas de cada jogo, inclusive as de antes de usar o app, e atualiza a cada 6 horas. Usa o mesmo acesso do launcher da Epic, como o Heroic e o Playnite; se a Epic mudar algo, só a importação para.
-- **"Fulano começou a jogar X".** Quando um amigo abre um jogo, aparece um aviso no Lazulium, ou do Windows se o app estiver minimizado. Dá para desligar em *Configurações → Contas*.
+- **Horas mesmo abrindo por fora.** Abriu pela Epic, pelo GOG, pela EA ou por um atalho? Em até um minuto o Lazulium percebe e conta desde a hora em que o jogo abriu. Steam e emulador ficam de fora, porque já são contados. Desliga em *Configurações → Comportamento*.
+- **Entrar com a Epic (opcional).** A Epic não guarda as horas no PC, então entrando na conta em *Configurações → Contas* o Lazulium puxa as horas de cada jogo, inclusive as antigas, e atualiza a cada 6 horas. Usa o mesmo acesso do launcher, como o Heroic e o Playnite; se a Epic mudar alguma coisa, só a importação para.
+- **"Fulano começou a jogar X".** Aviso no app quando um amigo abre um jogo, ou do Windows se o Lazulium estiver minimizado. Desliga em *Configurações → Contas*.
 
 ### Correções
 
-- **Capas para os amigos.** Seus amigos agora veem a capa padrão dos seus jogos mesmo quando a sua capa foi escolhida no PC, e nos jogos de emulador, avulsos e lançamentos novos da Steam (como PEAK), que antes apareciam em branco.
+- Jogos de emulador, avulsos, lançamentos recentes da Steam (como PEAK) e jogos com capa escolhida no PC apareciam sem capa para os amigos.
 
 ---
 
 ## 2.0.0 — 11 de novembro de 2026
 
-Agora o Lazulium tem amigos. Entre com a Steam e veja o que a sua turma está jogando, de qualquer loja, e eles veem o seu. É opcional: sem entrar, tudo continua só no seu PC.
+O Lazulium agora tem amigos. Entre com a Steam e veja o que a turma está jogando em qualquer loja. É opcional: sem entrar, nada sai do seu PC.
 
 ### Novidades
 
-- **Aba Amigos.** Um feed com o que seus amigos jogaram, zeraram, fizeram 100%, as conquistas do dia e as notas e resenhas que escreveram. Vale para Steam, Epic, GOG, emuladores e jogos avulsos.
-- **Jogando agora.** Quem está em jogo neste momento aparece no topo da aba, com o nome do jogo.
-- **Perfil dos amigos.** Jogos, horas, zerados, conquistas e os mais jogados, com um selo nos que você também tem e as suas horas ao lado.
-- **Convite por código.** Gere o seu código de 8 letras na aba Amigos e mande para quem quiser. Quem colar o código vira seu amigo.
-- **Conta Lazulium em Configurações → Contas.** Entra com a Steam (sem senha nova nem e-mail), escolhe o nome que os amigos veem e decide o que mostrar: atividade, jogando agora, horas, conquistas, notas e resenhas.
+- **Aba Amigos**, com o que eles jogaram, zeraram, fizeram 100%, as conquistas do dia e as notas e resenhas. Vale para qualquer loja, emulador e jogo avulso.
+- **Jogando agora**, no topo da aba.
+- **Perfil dos amigos**: jogos, horas, zerados, conquistas e mais jogados, com selo nos que você também tem e as suas horas do lado.
+- **Convite por código** de 8 letras. Quem colar vira amigo.
+- **Conta Lazulium** em *Configurações → Contas*: entra com a Steam, sem senha nova nem e-mail. Ali você escolhe o nome que os amigos veem e o que mostrar (atividade, jogando agora, horas, conquistas, notas e resenhas).
 
 ### Privacidade
 
-- Só seus amigos veem, e cada chave desligada some na hora do feed deles.
-- *Apagar conta Lazulium* remove tudo do servidor na hora. O que está no seu PC continua.
-- A política de privacidade ganhou uma seção só sobre a conta: o que vai, quem vê e por quanto tempo.
+- Só amigos veem. Desligou uma chave, aquilo some do feed deles na hora.
+- *Apagar conta Lazulium* tira tudo do servidor na hora; o que está no PC fica.
+- A política de privacidade ganhou uma seção sobre a conta: o que vai, quem vê e por quanto tempo.
 
 ---
 
 ## 1.1.0 — 11 de novembro de 2026
 
-Menos contas para conectar, um aviso claro quando sai versão nova e o começo do que vem por aí: a linha do tempo que vai virar o feed dos amigos na 2.0.
-
 ### Novidades
 
-- **Capas sem precisar de conta.** Jogos da Epic, do GOG, de emulador e avulsos ganham capa e fundo sozinhos, sem entrar no SteamGridDB. Ele continua lá, opcional, para quem quer escolher entre mais artes, logos e ícones.
-- **Novidades depois de atualizar.** Quando o Lazulium se atualiza, ele mostra o que mudou na primeira vez que abre. Dá para rever tudo em *Configurações → Ajuda → Novidades*.
-- **Aviso de atualização na barra do topo.** Mostra o download da versão nova (com a porcentagem) e, quando ela está pronta, um botão para atualizar na hora. Se preferir, ela instala sozinha quando você fechar o app.
-- **Linha do tempo no Perfil.** Na seção Atividade aparece o que você fez em qualquer loja: jogou, zerou, fez 100%, desbloqueou conquistas, deu nota e escreveu resenha. Na versão 2.0 é isso que seus amigos vão ver.
+- **Capa sem conta.** Epic, GOG, emulador e jogo avulso ganham capa e fundo sem entrar no SteamGridDB. Ele continua opcional para quem quer escolher entre mais artes, logos e ícones.
+- **Novidades depois de atualizar**, na primeira abertura. Para rever: *Configurações → Ajuda → Novidades*.
+- **Atualização na barra do topo**, com a porcentagem do download e um botão para reiniciar quando estiver pronta. Se você ignorar, ela instala ao fechar o app.
+- **Atividade no Perfil**: jogou, zerou, fez 100%, conquistas, notas e resenhas, de qualquer loja. É o que os amigos vão ver na 2.0.
 
 ### Melhorias
 
-- **Contas organizadas.** *Configurações → Contas* agora separa o seu progresso (Steam e RetroAchievements), as lojas encontradas no PC, a nuvem (Google Drive) e o que é opcional (SteamGridDB).
-- **Boas-vindas mais curtas.** O passo do SteamGridDB saiu do primeiro uso, porque as capas já vêm sozinhas.
-- **Versão portátil avisa quando sai versão nova**, com o link para baixar.
+- *Configurações → Contas* separado em progresso (Steam e RetroAchievements), lojas no PC, nuvem (Google Drive) e opcional (SteamGridDB).
+- Boas-vindas sem o passo do SteamGridDB, já que as capas vêm sozinhas.
+- A versão portátil avisa quando sai versão nova e leva ao download.
 
 ---
 
 ## 1.0.0 — 10 de novembro de 2026
 
-A primeira versão para todo mundo. Seus dados das versões de teste continuam onde estão: é só instalar por cima.
+A primeira versão para todo mundo. Quem testou antes é só instalar por cima.
 
 ### Novidades
 
-- **Atualiza sozinho.** Quem instalou pelo instalador recebe as próximas versões automaticamente: o Lazulium baixa em segundo plano e avisa quando é só reiniciar. Dá para procurar atualização na hora em *Configurações → Ajuda*. A versão portátil continua sendo atualizada baixando a nova.
-- **Adicionar à Steam.** No menu de qualquer jogo, *Adicionar à Steam* cria o atalho na Steam já com as artes do Lazulium (capa, fundo, logo e ícone). *Remover da Steam* desfaz.
-- **Mais lojas na biblioteca.** Jogos instalados pela Battle.net, pelo EA App (e Origin) e pelo Ubisoft Connect aparecem sozinhos.
-- **Horas do GOG Galaxy.** O tempo que você já jogou pelo Galaxy vem junto quando o jogo é importado.
-- **Emuladores que o Lazulium ainda não conhece.** Em *Emuladores → Novo emulador*, cadastre qualquer emulador informando o programa, os tipos de arquivo e o comando. Há modelos prontos para Xemu, Xenia, Flycast, Project64, Snes9x e Redream, e dá para exportar seus emuladores num arquivo e mandar para os amigos importarem.
-- **Instalador em português**, com a logo do Lazulium, que deixa escolher a pasta e já abre o app no final.
+- **Atualiza sozinho** na versão instalada: baixa em segundo plano e avisa quando é só reiniciar. A portátil continua sendo trocada à mão.
+- **Adicionar à Steam**, no menu de qualquer jogo, cria o atalho já com as artes do Lazulium. *Remover da Steam* desfaz.
+- **Battle.net, EA App (e Origin) e Ubisoft Connect** na biblioteca.
+- **Horas do GOG Galaxy** importadas junto com o jogo.
+- **Qualquer emulador** em *Emuladores → Novo emulador*: programa, tipos de arquivo e comando. Tem modelos de Xemu, Xenia, Flycast, Project64, Snes9x e Redream, e dá para exportar e passar para os amigos.
+- **Instalador em português**, que deixa escolher a pasta.
 
 ### Melhorias
 
-- **Download menor.** O instalador deixou de levar arquivos que o app nunca usa (cópias de bibliotecas que já vão dentro do app e traduções internas do navegador embutido em idiomas que o Lazulium não tem).
-- **Abre mais leve.** A interface foi compactada e dividida em partes: o app carrega menos coisa ao abrir.
-- **Telas que explicam o que está acontecendo.** Blocos de carregamento no lugar de telas vazias, e telas sem conteúdo dizem qual é o próximo passo.
-- **Avisos claros quando um site está fora do ar.** As mensagens dizem o que houve em português ("sem conexão com a Steam", "o site recebeu pedidos demais"), e o Lazulium tenta de novo sozinho quando o problema é passageiro.
-- **Seus dados mais protegidos.** O arquivo da biblioteca aguenta o antivírus ou o Windows segurando ele por um instante (comum logo depois de ligar o PC), e versões antigas do arquivo são convertidas sozinhas.
-- **Visual mais uniforme.** Janelas, botões e avisos seguem o mesmo padrão em todas as telas.
+- Download menor e app mais leve para abrir.
+- Blocos de carregamento no lugar de tela vazia, e telas sem nada dizem o que fazer.
+- Quando um site cai, o aviso diz o que houve ("sem conexão com a Steam", "o site recebeu pedidos demais") e o app tenta de novo sozinho se for passageiro.
+- O arquivo da biblioteca aguenta o antivírus segurando ele por um instante, comum logo depois de ligar o PC.
+- Janelas, botões e avisos com o mesmo visual em todas as telas.
 
 ### Correções
 
-- Lista de desejos: mudanças que você faz enquanto ela atualiza (remover um jogo, mudar o preço-alvo, adicionar outro) não são mais desfeitas no fim da atualização, e ficar sem internet não apaga nada da lista.
-- Artes: se a internet cair no meio, o que já foi baixado fica guardado; disco cheio não deixa arquivos pela metade para trás; um endereço de imagem estragado não impede mais o app de abrir.
+- Lista de desejos: o que você mudava durante a atualização era desfeito no fim, e ficar sem internet podia apagar itens.
+- Artes: internet caindo no meio não joga fora o que já baixou, disco cheio não deixa arquivo pela metade e um endereço de imagem estragado não impede o app de abrir.
 
 ---
 
@@ -101,56 +96,55 @@ A primeira versão para todo mundo. Seus dados das versões de teste continuam o
 
 ### Novidades
 
-- **Editor de aparência** (*Configurações → Aparência*): temas prontos, cores de cada parte da tela, fontes, tamanho do texto e cantos. Dá para exportar o seu tema e importar o de um amigo.
-- **Receitas de inicialização por jogo** (*Opções de inicialização*): variáveis de ambiente, um comando antes e outro depois do jogo, e **Exportar como .bat** para abrir o jogo do mesmo jeito fora do Lazulium.
+- **Editor de aparência** (*Configurações → Aparência*): temas prontos, cores, fontes, tamanho do texto e cantos. Dá para exportar o tema e importar o de alguém.
+- **Opções de inicialização por jogo**: variáveis de ambiente, comando antes e depois e *Exportar como .bat* para abrir igual fora do Lazulium.
 
 ### Melhorias
 
-- **Backup automático de saves só com a sua permissão.** A tela de boas-vindas pergunta, e dá para mudar em *Configurações*. Os backups ocupam no máximo 3 GB do disco (ajustável); passando disso, as cópias mais antigas saem primeiro, sempre guardando a mais recente de cada jogo.
-- O Perfil conta só conquistas de verdade: os marcos do Lazulium (como "primeira hora jogada") não entram mais no total.
+- Backup automático de saves só com a sua permissão, perguntada nas boas-vindas. Ocupa até 3 GB (ajustável); passou disso, saem as cópias mais antigas, e a mais nova de cada jogo sempre fica.
+- Os marcos do Lazulium (tipo "primeira hora jogada") não contam mais como conquista no Perfil.
 
 ---
 
 ## 0.1.0 — 9 de novembro de 2026 (versão de testes)
 
-A primeira versão, que foi para os testadores.
+A primeira, só para quem topou testar.
 
 ### Novidades
 
-- **Biblioteca universal.** Encontra sozinho os jogos da Steam (todas as bibliotecas e discos), os atalhos de jogos não-Steam que você colocou na Steam, Epic Games, GOG Galaxy, Riot Games e Xbox / Microsoft Store. Também aceita qualquer `.exe` e pastas de jogos avulsos.
-- **Emuladores.** Dolphin, Ryujinx, Eden/yuzu, Cemu, PCSX2, RPCS3, DuckStation, RetroArch, Azahar/Citra, melonDS, mGBA, PPSSPP e BizHawk são encontrados sozinhos, junto com as pastas de jogos configuradas em cada um.
-- **Horas jogadas.** As horas da Steam vêm da própria Steam, inclusive de jogos desinstalados. Qualquer outro jogo aberto pelo Lazulium tem o tempo contado, com histórico de sessões, gráfico da semana e desconto do tempo em que você ficou longe do PC.
-- **Diário de jogos.** Status (Jogando, Zerado, 100%, Pausado, Abandonado, Quero jogar), nota com meia estrela, datas, resenha e anotações. Desinstalar um jogo nunca apaga o histórico. Dá para registrar jogos de console e exportar tudo em JSON ou CSV.
-- **Conquistas para todos os jogos.** Steam (pelo perfil público, com raridade), RetroAchievements (reconhecendo a ROM), conquistas marcadas à mão, marcos do Lazulium onde não existe lista e conquistas criadas por você.
-- **Artes automáticas** do SteamGridDB (capas, banners, logos e ícones), guardadas no PC e trocáveis num seletor visual.
-- **Capturas de tela.** Galeria por jogo com as capturas da Steam (F12) e da Xbox Game Bar, e captura própria por tecla (Ctrl+F12) em PNG sem perda.
-- **Backup de saves** em `.zip` com verificação, cópia opcional no Google Drive e restauração com um clique (os saves atuais são guardados antes).
-- **Perfil do jogador** no estilo da Steam, editável: horas de todas as plataformas, conquistas raras, mais jogados, listas, resenhas, mapa de atividade e retrospectiva do ano. Pode ser publicado como página na internet (GitHub Pages), só quando você pede.
-- **Listas de jogos** (com ordem, ranqueadas ou em destaque no Perfil).
-- **Lista de desejos** com preço em reais, menor preço visto, preço-alvo, aviso de promoção e preço em outras lojas (GG.deals).
-- **Tempo para zerar** (IGDB) e duração típica pelas análises da Steam, com o seu progresso em relação a ele.
-- **O que jogar agora**, busca rápida com Ctrl+K, renomear e ocultar jogos, ordenar e filtrar a biblioteca, abrir a pasta do jogo e opções de inicialização por atalho.
-- **Controle** (Xbox, PlayStation, Switch Pro e genéricos) em todas as telas, com sons de navegação.
-- **Contas sem chave de API:** Steam em um clique, SteamGridDB e RetroAchievements pela página de login do próprio site, Google pelo navegador.
-- **No dia a dia:** fica na bandeja do sistema ao fechar, pode iniciar com o Windows, notificações e aviso de sem internet.
-- **Tela de boas-vindas** com os jogos encontrados e **log de diagnóstico** para mandar quando algo der errado.
+- **Biblioteca** com Steam (todas as bibliotecas e os atalhos não-Steam), Epic Games, GOG Galaxy, Riot Games, Xbox / Microsoft Store, qualquer `.exe` e pastas de jogos avulsos.
+- **Emuladores** achados sozinhos, com as pastas de jogos de cada um: Dolphin, Ryujinx, Eden/yuzu, Cemu, PCSX2, RPCS3, DuckStation, RetroArch, Azahar/Citra, melonDS, mGBA, PPSSPP e BizHawk.
+- **Horas**: as da Steam vêm dela, até de jogo desinstalado. Os outros jogos abertos pelo Lazulium são contados, com sessões, gráfico da semana e desconto do tempo longe do PC.
+- **Diário**: status (Jogando, Zerado, 100%, Pausado, Abandonado, Quero jogar), nota com meia estrela, datas, resenha e anotações. Desinstalar não apaga nada. Aceita jogo de console e exporta em JSON ou CSV.
+- **Conquistas** da Steam (com raridade), do RetroAchievements (reconhecendo a ROM), marcadas à mão, marcos do Lazulium onde não tem lista e criadas por você.
+- **Artes** do SteamGridDB guardadas no PC, com seletor para trocar.
+- **Capturas** da Steam (F12) e da Xbox Game Bar na galeria de cada jogo, e captura própria com Ctrl+F12 em PNG.
+- **Backup de saves** em `.zip` conferido, com cópia no Google Drive se quiser e restauração em um clique (os saves atuais são guardados antes).
+- **Perfil** no estilo da Steam: horas de todas as lojas, conquistas raras, mais jogados, listas, resenhas, mapa de atividade e retrospectiva do ano. Vira página na internet só se você pedir.
+- **Listas de jogos**, com ordem, ranking ou destaque no Perfil.
+- **Lista de desejos** com preço em reais, menor preço visto, preço-alvo, aviso de promoção e outras lojas (GG.deals).
+- **Tempo para zerar** (IGDB) e duração típica pelas análises da Steam, com o seu progresso.
+- **O que jogar agora**, busca com Ctrl+K, renomear e ocultar, ordenar e filtrar, abrir a pasta do jogo e opções de inicialização.
+- **Controle** de Xbox, PlayStation, Switch Pro ou genérico em todas as telas, com som de navegação.
+- **Contas sem chave de API**: Steam em um clique, SteamGridDB e RetroAchievements pela página do site, Google pelo navegador.
+- Bandeja do sistema, iniciar com o Windows, notificações, aviso de sem internet, tela de boas-vindas e log para mandar quando der problema.
 
 ### Melhorias
 
-- Jogos da Família Steam identificados pelo dono, mesmo depois de desinstalados.
-- Atalhos da Steam que abrem ROMs viram jogos de emulador (com backup de saves e RetroAchievements).
-- Nova identidade visual: azul-noite com azul vivo, cantos suaves, fontes próprias e capas inteiras, sem cortes.
-- O Perfil abre na hora mesmo com a internet travada (antes levava até 13 segundos).
+- Jogos da Família Steam marcados com o dono, mesmo desinstalados.
+- Atalhos da Steam que abrem ROM viram jogo de emulador, com backup de saves e RetroAchievements.
+- Visual novo: azul-noite com azul vivo, cantos suaves, fontes próprias e capas inteiras.
+- O Perfil abre na hora mesmo com a internet travada (levava até 13 segundos).
 
 ### Correções
 
-- Jogos da Steam que apareciam como "Nunca jogado" agora mostram as horas certas.
-- Sessões jogadas só com o controle não são mais descontadas como ausência.
-- Capas e artes que sumiam sozinhas (o Windows limpava a pasta onde elas ficavam) agora ficam guardadas.
+- Jogos da Steam que apareciam como "Nunca jogado".
+- Sessões jogadas só no controle eram descontadas como ausência.
+- Capas sumiam porque o Windows limpava a pasta onde ficavam.
 - O controle derrubava a tela e só funcionava na grade de jogos.
-- Entrar com o Google sem marcar a permissão do Drive não fica mais como "conectado".
-- Emuladores e atalhos abrem direto, sem passar pela Steam quando não precisam.
-- Atualizações e manuais de jogos de PS3 não aparecem mais como jogos, e a mesma ROM não aparece duas vezes.
-- Trocar um jogo para emulador não perde mais o histórico.
-- Falhas passageiras da Steam não fazem mais um jogo parecer "sem conquistas".
-- Botões do visualizador de capturas voltaram a responder, e a lista de desejos mostra as capas certas.
+- Entrar com o Google sem marcar a permissão do Drive ficava como "conectado".
+- Emulador e atalho passavam pela Steam sem precisar.
+- Atualizações e manuais de jogos de PS3 apareciam como jogos, e a mesma ROM aparecia duas vezes.
+- Trocar um jogo para emulador perdia o histórico.
+- Falha passageira da Steam fazia um jogo parecer "sem conquistas".
+- Botões do visualizador de capturas não respondiam, e a lista de desejos trocava as capas.

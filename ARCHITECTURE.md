@@ -1,24 +1,20 @@
-# 🏛️ Lazulium (Steam 2) - Arquitetura de Software
+# Arquitetura do Lazulium
 
-> **Codinome:** Steam 2  
-> **Nome:** Lazulium (versão 1.0.0)  
-> **Propósito:** Hub Universal de Jogos para PC (Steam, Epic, GOG, Riot, Xbox, Emuladores e Standalones) com rastreador de horas universal, diário permanente, conquistas unificadas, artes via SteamGridDB, backup de saves (local e Google Drive) e suporte total a controles.
+Hub de jogos para PC (Steam, Epic, GOG, Riot, Xbox, emuladores e jogos avulsos) com contagem de horas em qualquer jogo, diário permanente, conquistas, artes, backup de saves (no PC e no Google Drive) e navegação por controle. Codinome do projeto: Steam 2.
 
 ---
 
-## 1. Visão Geral e Pilares Tecnológicos
+## 1. Stack
 
-### 1.1 Stack Recomendada: Electron + Vite + React 19 + TypeScript + Tailwind CSS
-
-| Camada | Tecnologia | Motivação |
+| Camada | Tecnologia | Por quê |
 | :--- | :--- | :--- |
-| **Runtime Desktop** | **Electron** (com `electron-builder`) | Acesso direto a APIs do Windows (WMI, processo via `child_process`/PowerShell, registro do Windows, FileSystem) e geração de instalador `.exe` (NSIS) ou versão Portable com 1 clique. |
-| **Bundler & Build** | **Vite / electron-vite** | Hot Module Replacement (HMR) ultrarrápido, compilação TypeScript instantânea e empacotamento otimizado. |
-| **Frontend UI** | **React 19 + TypeScript** | Ecossistema maduro, componentes declarativos, tipagem estrita de ponta a ponta. |
-| **Estilização** | **Tailwind CSS + Lucide Icons** | Design moderno no estilo "Steam Deck / Xbox Dashboard", animações fluidas e suporte a temas escuros profundos (OLED dark). |
-| **Gerenciamento de Estado** | **Zustand** | Leve, desacoplado, sem boilerplate desnecessário, ideal para gerenciar estado da biblioteca, foco de controle e download de artes. |
-| **Banco de Dados Local** | **JSON Store (`lazulium_db.json`)** | Armazenamento local em arquivo JSON estruturado em `userData/storage/lazulium_db.json`, com gravação atômica, histórico de 14 dias de backups e recuperação automática de corrupção. Credenciais cifradas via `safeStorage`. |
-| **Navegação de Controle** | **HTML5 Gamepad API + Spatial Navigation Engine** | Suporte nativo e sem dependências extras para controles Xbox, PlayStation (DualShock/DualSense), Switch Pro e genéricos DirectInput/XInput. |
+| **Runtime Desktop** | **Electron** (com `electron-builder`) | Acesso ao Windows (processos via PowerShell/WMI, registro, arquivos) e instalador NSIS ou versão portátil. |
+| **Bundler & Build** | **Vite / electron-vite** | HMR no desenvolvimento e build separado para main, preload e renderer. |
+| **Frontend UI** | **React 19 + TypeScript** | Tipagem estrita do main ao renderer. |
+| **Estilização** | **Tailwind CSS + Lucide Icons** | Classes utilitárias e tema escuro ajustável pelo editor de aparência. |
+| **Gerenciamento de Estado** | **Zustand** | Estado da biblioteca, do controle e da casca do app sem prop drilling. |
+| **Banco de Dados Local** | **JSON Store (`lazulium_db.json`)** | `userData/storage/lazulium_db.json`, com gravação atômica, cópias diárias de 14 dias e recuperação se o arquivo corromper. Credenciais cifradas com `safeStorage`. |
+| **Navegação de Controle** | **HTML5 Gamepad API + Spatial Navigation Engine** | Sem dependência extra; funciona com Xbox, PlayStation, Switch Pro e genéricos. |
 
 ---
 
