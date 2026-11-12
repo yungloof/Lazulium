@@ -4,6 +4,20 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.2.4 — 12 de novembro de 2026
+
+### Correções
+
+- **Aviso de conquistas escondidas que não some sozinho.** Se a Steam esconder as conquistas de algum jogo ("Detalhes do jogo" privado), o Perfil mostra quantos jogos foram e como resolver. O aviso fica lá até elas virem, não importa se você atualizou pelo menu, pelo aviso ou se o Lazulium buscou sozinho.
+
+### Segurança
+
+- A janela do app ficou mais fechada: roda isolada, não navega para sites de fora e recusa pedidos de câmera, microfone e localização.
+- Links só abrem no navegador se forem de site (http ou https), e jogos só abrem por endereços de lojas conhecidas.
+- O login pela Steam confere melhor a resposta da Steam, e a vitrine dos amigos não carrega nada de fora.
+
+---
+
 ## 2.2.3 — 12 de novembro de 2026
 
 ### Correções
