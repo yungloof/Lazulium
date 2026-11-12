@@ -4,7 +4,6 @@ import { AccountService } from '@shared/types/accounts';
 import { GamePlatform } from '@shared/types/game';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { PLATFORM_GROUP } from '../utils/platform';
-import { formatLastPlayed } from '../utils/format';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { AccountsController, useAccounts } from '../hooks/useAccounts';
 import { Button, Notice } from './ui';
@@ -182,7 +181,7 @@ export const AccountsSettings: React.FC = () => {
           purpose="Importa as horas dos seus jogos da Epic, inclusive as de antes do Lazulium. A Epic não guarda horas no PC"
           connectedLabel={
             status.epic.connected
-              ? `Conectado${status.epic.displayName ? ` como ${status.epic.displayName}` : ''}${epicMessage?.ok ? ` · ${epicMessage.text}` : status.epic.lastImportAt ? ` · horas atualizadas ${formatLastPlayed(status.epic.lastImportAt).toLowerCase()}` : ''}`
+              ? `Conectado${status.epic.displayName ? ` como ${status.epic.displayName}` : ''}${epicMessage?.ok ? ` · ${epicMessage.text}` : ''}`
               : undefined
           }
           busyLabel={busy === 'epic' ? WAITING_WINDOW : undefined}
