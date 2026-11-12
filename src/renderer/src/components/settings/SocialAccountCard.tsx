@@ -22,6 +22,18 @@ export const SocialAccountCard: React.FC<{ fallbackName?: string }> = ({ fallbac
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [notifyPlaying, setNotifyPlaying] = useState(true);
+
+  useEffect(() => {
+    window.electronAPI
+      ?.getSettings()
+      .then((s) => setNotifyPlaying(s.socialNotifyPlaying !== 'false'))
+      .catch(() => undefined);
+  }, []);
+  const toggleNotify = (checked: boolean) => {
+    setNotifyPlaying(checked);
+    void window.electronAPI?.setSetting('socialNotifyPlaying', String(checked));
+  };
 
   useEffect(() => {
     let alive = true;
@@ -132,6 +144,12 @@ export const SocialAccountCard: React.FC<{ fallbackName?: string }> = ({ fallbac
             onChange={(checked) => void social.setSetting(option.key, checked)}
           />
         ))}
+        <ToggleRow
+          label="Avisar quando um amigo começar a jogar"
+          hint="Um aviso no Lazulium (ou do Windows, com o app minimizado). Vale só neste PC."
+          checked={notifyPlaying}
+          onChange={toggleNotify}
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-indigo-400/10 px-4 py-3">

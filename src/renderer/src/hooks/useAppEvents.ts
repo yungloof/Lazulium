@@ -172,6 +172,17 @@ export function useAppEvents(): void {
     };
   }, []);
 
+  // Conta Lazulium: "Fulano começou a jogar X" (com o app em foco; fora dele vira notificação do Windows)
+  useEffect(() => {
+    return window.electronAPI?.onFriendPlaying((text) => {
+      useUiStore.getState().showNotice({
+        text,
+        tone: 'ok',
+        action: { label: 'Ver amigos', run: () => useUiStore.getState().setView('friends') }
+      });
+    });
+  }, []);
+
   // Notificação de atualização baixada e pronta para instalar
   useEffect(() => {
     const unsubscribe = window.electronAPI?.onUpdateReady((info) => {

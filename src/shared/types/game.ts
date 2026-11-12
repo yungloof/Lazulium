@@ -23,6 +23,7 @@ export interface GameMedia {
   logoUrl?: string;  // Logo PNG transparente
   iconUrl?: string;  // Ícone de app
   coverSourceUrl?: string; // Endereço público da capa baixada (para o feed dos amigos; o coverUrl pode ser um arquivo local)
+  publicCoverUrl?: string; // Capa padrão do jogo (IGDB), para os amigos verem mesmo quando a sua capa é um arquivo do PC
 }
 
 // Atalho da Steam: abrir o programa direto ou pela Steam (ausente = direto)

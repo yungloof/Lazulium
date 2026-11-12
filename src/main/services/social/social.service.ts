@@ -18,6 +18,8 @@ import {
 import { db } from '../../database/db';
 import { HttpError, describeError, httpRequest } from '../metadata/http';
 import { getRecentActivity } from '../profile/activity.service';
+import { ArtworkServerUnavailable, fetchIgdbArtwork } from '../metadata/igdb-artwork.service';
+import { notify } from '../../app-shell';
 
 // Conta Lazulium: entra com a Steam (verificado no servidor), manda a linha do tempo para os amigos
 // e mostra o feed deles. Opcional: sem conta, nada sai do PC. Servidor em server/social.
@@ -31,6 +33,8 @@ export const SOCIAL_SETTING_KEYS = {
   lastPushAt: 'socialLastPushAt',
   lastSyncAt: 'socialLastSyncAt'
 } as const;
+// Fora do token: o renderer pode ler e mudar
+export const SOCIAL_NOTIFY_SETTING = 'socialNotifyPlaying';
 
 const LOGIN_TIMEOUT_MS = 5 * 60_000;
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -41,6 +45,8 @@ const PUSH_OVERLAP_MS = 2 * 24 * 60 * 60 * 1000;  // "Jogou" é agrupado por dia
 const FIRST_PUSH_DAYS = 60;
 const MAX_PUSH = 200;
 const TOP_GAMES = 12;
+const MAX_COVER_LOOKUPS = 15;          // Capas padrão buscadas por sincronização (o resto vai nas próximas)
+const FRIENDS_POLL_MS = Number(process.env.LAZULIUM_SOCIAL_POLL_MS) || 90_000;   // A variável só serve para testes
 const STEAM_COVER = (appId: string) => `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`;
 const PUBLIC_COVER = /^https:\/\/(cdn\.cloudflare\.steamstatic\.com|shared\.[a-z.]*steamstatic\.com|steamcdn-a\.akamaihd\.net|images\.igdb\.com|cdn2\.steamgriddb\.com)\//i;
 
@@ -78,9 +84,13 @@ export function gameKeyOf(game: Pick<Game, 'platform' | 'platformGameId' | 'titl
 }
 
 // Só endereço público: a capa guardada no PC (lazulium-media://) não abre no PC do amigo
+const steamAppIdOf = (game: Game) => (game.platform === 'steam' && game.platformGameId && /^\d{1,10}$/.test(game.platformGameId) ? game.platformGameId : undefined);
+
 export function publicCoverOf(game: Game): string | null {
-  if (game.platform === 'steam' && game.platformGameId && /^\d{1,10}$/.test(game.platformGameId)) return STEAM_COVER(game.platformGameId);
-  for (const url of [game.media?.coverSourceUrl, game.media?.coverUrl]) if (url && PUBLIC_COVER.test(url)) return url;
+  const appId = steamAppIdOf(game);
+  // Steam: a capa conferida (jogos novos não têm o endereço antigo) ou, até conferir, o endereço padrão
+  if (appId) return game.media?.publicCoverUrl && PUBLIC_COVER.test(game.media.publicCoverUrl) ? game.media.publicCoverUrl : STEAM_COVER(appId);
+  for (const url of [game.media?.coverSourceUrl, game.media?.coverUrl, game.media?.publicCoverUrl]) if (url && PUBLIC_COVER.test(url)) return url;
   return null;
 }
 
@@ -93,6 +103,13 @@ class SocialService {
   private syncError: string | undefined;
   private playing: { gameId: string; since: string } | undefined;
   private listener: (status: SocialStatus) => void = () => {};
+  private friendListener: (text: string) => void = () => {};
+  private coverMisses = new Set<string>();
+  private friendsPlaying: Map<string, string> | undefined;   // amigo -> jogo; undefined = ainda não leu (não avisa na primeira leitura)
+
+  setFriendPlayingListener(listener: (text: string) => void): void {
+    this.friendListener = listener;
+  }
 
   setStatusListener(listener: (status: SocialStatus) => void): void {
     this.listener = listener;
@@ -102,6 +119,7 @@ class SocialService {
     this.syncTimer = setInterval(() => void this.sync(), SYNC_INTERVAL_MS);
     this.syncTimer.unref();
     if (this.token()) setTimeout(() => void this.sync(), 20_000).unref();
+    setInterval(() => void this.watchFriends(), FRIENDS_POLL_MS).unref();
   }
 
   private token(): string | undefined {
@@ -283,6 +301,58 @@ class SocialService {
     return this.api<SocialFriendProfile>('GET', `/v1/users/${friendId}`);
   }
 
+  // "Fulano começou a jogar X": compara quem está jogando agora com a leitura anterior
+  private async watchFriends(): Promise<void> {
+    if (!this.token() || db.getSettings()[SOCIAL_NOTIFY_SETTING] === 'false') {
+      this.friendsPlaying = undefined;
+      return;
+    }
+    let friends: SocialFriend[];
+    try {
+      friends = await this.getFriends();
+    } catch {
+      return;
+    }
+    const current = new Map(friends.filter((f) => f.nowPlaying).map((f) => [f.id, f.nowPlaying!.gameKey]));
+    if (this.friendsPlaying) {
+      for (const friend of friends) {
+        if (!friend.nowPlaying || this.friendsPlaying.get(friend.id) === friend.nowPlaying.gameKey) continue;
+        const text = `${friend.name} começou a jogar ${friend.nowPlaying.gameTitle}`;
+        notify('Lazulium', text);
+        this.friendListener(text);
+      }
+    }
+    this.friendsPlaying = current;
+  }
+
+  // Jogo sem capa pública (capa escolhida no PC, emulador, avulso): procura a capa padrão no IGDB e guarda
+  private async resolvePublicCovers(gameIds: string[]): Promise<void> {
+    let lookups = 0;
+    for (const id of new Set(gameIds)) {
+      if (lookups >= MAX_COVER_LOOKUPS) break;
+      const game = db.getGameById(id);
+      const appId = game ? steamAppIdOf(game) : undefined;
+      if (!game || this.coverMisses.has(id) || (appId ? game.media?.publicCoverUrl : publicCoverOf(game))) continue;
+      lookups++;
+      try {
+        let cover: string | undefined;
+        // Steam: confere se o endereço padrão existe (lançamentos novos só têm endereços com código)
+        if (appId) {
+          const head = await httpRequest(STEAM_COVER(appId), { method: 'HEAD', timeoutMs: REQUEST_TIMEOUT_MS }).catch(() => null);
+          if (head?.ok) cover = STEAM_COVER(appId);
+          else if (!head) throw new ArtworkServerUnavailable('sem conexão');
+        }
+        cover ??= (await fetchIgdbArtwork(game))?.cover;
+        const fresh = cover ? db.getGameById(id) : null;
+        if (cover && fresh) db.upsertGame({ ...fresh, media: { ...fresh.media, publicCoverUrl: cover } });
+        else this.coverMisses.add(id);
+      } catch (err) {
+        if (err instanceof ArtworkServerUnavailable) break;
+        this.coverMisses.add(id);
+      }
+    }
+  }
+
   // ---------- Envio ----------
 
   // Mudou algo (sessão terminou, Diário salvo): manda logo, mas agrupando mudanças seguidas
@@ -313,6 +383,14 @@ class SocialService {
     };
   }
 
+  private topGames(): Game[] {
+    return db
+      .getGames()
+      .filter((g) => !g.isHidden && (g.totalPlaytimeSeconds ?? 0) > 0)
+      .sort((a, b) => (b.totalPlaytimeSeconds ?? 0) - (a.totalPlaytimeSeconds ?? 0))
+      .slice(0, TOP_GAMES);
+  }
+
   private buildSummary(settings: SocialSettings): SocialSummary {
     const games = db.getGames().filter((g) => !g.isHidden);
     let achievementsUnlocked = 0;
@@ -323,7 +401,7 @@ class SocialService {
       achievementsUnlocked += data.unlocked;
       if (data.unlocked >= data.total) perfectGames++;
     }
-    const top = [...games].filter((g) => (g.totalPlaytimeSeconds ?? 0) > 0).sort((a, b) => (b.totalPlaytimeSeconds ?? 0) - (a.totalPlaytimeSeconds ?? 0));
+    const top = this.topGames();
     return {
       totals: {
         games: games.length,
@@ -353,9 +431,10 @@ class SocialService {
       if (settings.shareActivity) {
         const lastPush = Date.parse(db.getSettings()[SOCIAL_SETTING_KEYS.lastPushAt] || '');
         const since = Number.isNaN(lastPush) ? Date.now() - FIRST_PUSH_DAYS * 86_400_000 : lastPush - PUSH_OVERLAP_MS;
+        const recent = getRecentActivity(MAX_PUSH).filter((e) => Date.parse(e.at) >= since);
+        await this.resolvePublicCovers(recent.map((e) => e.gameId));
         const games = new Map(db.getGames().map((g) => [g.id, g]));
-        const events = getRecentActivity(MAX_PUSH)
-          .filter((e) => Date.parse(e.at) >= since)
+        const events = recent
           .flatMap((e) => {
             const game = games.get(e.gameId);
             const wire = game ? this.toWire(e, game, settings) : null;
@@ -365,6 +444,7 @@ class SocialService {
         if (events.length) await this.api('POST', '/v1/me/activities', { events });
         db.setSetting(SOCIAL_SETTING_KEYS.lastPushAt, startedAt);
       }
+      await this.resolvePublicCovers(this.topGames().map((g) => g.id));
       await this.api('PUT', '/v1/me/summary', this.buildSummary(settings));
       db.setSetting(SOCIAL_SETTING_KEYS.lastSyncAt, new Date().toISOString());
       this.syncError = undefined;
@@ -396,10 +476,10 @@ class SocialService {
     if (!game || !gameKey || !this.cached()?.settings.shareNowPlaying) return;
     this.playing = { gameId, since: startTime ?? new Date().toISOString() };
     const send = () =>
-      void this.api('PUT', '/v1/me/now-playing', { gameKey, gameTitle: game.title, coverUrl: publicCoverOf(game), since: this.playing?.since }).catch((err) =>
+      void this.api('PUT', '/v1/me/now-playing', { gameKey, gameTitle: game.title, coverUrl: publicCoverOf(db.getGameById(gameId) ?? game), since: this.playing?.since }).catch((err) =>
         console.warn('[Social] Jogando agora:', (err as Error).message)
       );
-    send();
+    void this.resolvePublicCovers([gameId]).finally(send);
     this.keepAlive = setInterval(send, NOW_PLAYING_KEEPALIVE_MS);
     this.keepAlive.unref();
   }

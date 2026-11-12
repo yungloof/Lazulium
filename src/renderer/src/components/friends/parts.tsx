@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Gamepad2, UserRound } from 'lucide-react';
 import { SocialActivity, SocialNowPlaying, SocialUser } from '@shared/types/social';
 import { formatLastPlayed } from '../../utils/format';
@@ -15,14 +15,27 @@ export const Avatar: React.FC<{ user: Pick<SocialUser, 'avatarUrl' | 'name'>; si
   );
 };
 
-export const Cover: React.FC<{ url: string | null; title: string; className?: string }> = ({ url, title, className = 'w-12 h-16' }) =>
-  url ? (
-    <img src={url} alt="" className={`${className} rounded-md object-cover flex-shrink-0 bg-slate-800`} referrerPolicy="no-referrer" loading="lazy" />
+// Capa vista pelos amigos. Jogo da Steam sem capa vertical (comum nos lançamentos novos) usa a imagem da loja; sem nada, o ícone.
+export const Cover: React.FC<{ url: string | null; title: string; gameKey?: string; className?: string }> = ({ url, title, gameKey, className = 'w-12 h-16' }) => {
+  const steamId = gameKey?.match(/^steam:(\d+)$/)?.[1];
+  const candidates = [url, steamId ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${steamId}/header.jpg` : null].filter((u): u is string => !!u);
+  const [index, setIndex] = useState(0);
+  const src = candidates[index];
+  return src ? (
+    <img
+      src={src}
+      alt=""
+      className={`${className} rounded-md object-cover flex-shrink-0 bg-slate-800`}
+      referrerPolicy="no-referrer"
+      loading="lazy"
+      onError={() => setIndex((i) => i + 1)}
+    />
   ) : (
     <span className={`${className} rounded-md bg-slate-800 flex items-center justify-center flex-shrink-0`} title={title} aria-hidden>
       <Gamepad2 className="w-5 h-5 text-slate-600" />
     </span>
   );
+};
 
 export const NowPlayingLine: React.FC<{ nowPlaying: SocialNowPlaying }> = ({ nowPlaying }) => (
   <span className="flex items-center gap-1.5 text-xs text-emerald-300 truncate">
@@ -36,7 +49,7 @@ const stars = (rating: number) => '★'.repeat(Math.floor(rating)) + (rating % 1
 // Um evento do feed: quem, o quê, quando e, se houver, a resenha
 export const ActivityCard: React.FC<{ activity: SocialActivity; user?: SocialUser; onOpenUser?: () => void }> = ({ activity, user, onOpenUser }) => (
   <article className="flex gap-3.5 rounded-xl bg-slate-900/50 border border-slate-800/90 p-3.5">
-    <Cover url={activity.coverUrl} title={activity.gameTitle} />
+    <Cover url={activity.coverUrl} title={activity.gameTitle} gameKey={activity.gameKey} />
     <div className="min-w-0 flex-1">
       <div className="flex items-center gap-2 min-w-0">
         {user && (

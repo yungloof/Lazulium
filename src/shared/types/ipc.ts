@@ -257,6 +257,7 @@ export interface ElectronAPI {
   // Conta Lazulium: amigos, jogando agora e feed (opcional)
   getSocialStatus: () => Promise<SocialStatus>;
   onSocialStatus: (callback: (status: SocialStatus) => void) => () => void;
+  onFriendPlaying: (callback: (text: string) => void) => () => void; // "Fulano começou a jogar X"
   socialLogin: () => Promise<SocialStatus>;
   socialLogout: () => Promise<SocialStatus>;
   socialDeleteAccount: () => Promise<SocialStatus>;

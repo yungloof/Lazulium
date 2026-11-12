@@ -108,7 +108,7 @@ export const FriendProfileModal: React.FC<{ friendId: string; onClose: () => voi
                   return (
                     <li key={g.gameKey} className="min-w-0">
                       <div className="relative">
-                        <Cover url={g.coverUrl} title={g.title} className="w-full aspect-[2/3]" />
+                        <Cover url={g.coverUrl} title={g.title} gameKey={g.gameKey} className="w-full aspect-[2/3]" />
                         {own && <span className="absolute top-1.5 left-1.5 rounded-md bg-indigo-600/90 px-1.5 py-0.5 text-[10px] font-semibold text-white">Você tem</span>}
                       </div>
                       <p className="mt-1.5 text-xs font-semibold text-slate-200 truncate" title={g.title}>

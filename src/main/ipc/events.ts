@@ -37,6 +37,7 @@ export function registerRendererEvents(getMainWindow: WindowGetter): void {
   });
 
   socialService.setStatusListener((status) => sendToRenderer(IPC_CHANNELS.SOCIAL_STATUS_CHANGED, status));
+  socialService.setFriendPlayingListener((text) => sendToRenderer(IPC_CHANNELS.SOCIAL_FRIEND_PLAYING, text));
 
   backupService.setBackupListener((event) => {
     sendToRenderer(IPC_CHANNELS.CLOUDSYNC_BACKUP_EVENT, event);

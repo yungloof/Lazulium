@@ -132,6 +132,7 @@ export const IPC_CHANNELS = {
   // Conta Lazulium (amigos e feed)
   SOCIAL_STATUS: 'social:status',
   SOCIAL_STATUS_CHANGED: 'social:status-changed',
+  SOCIAL_FRIEND_PLAYING: 'social:friend-playing',
   SOCIAL_LOGIN: 'social:login',
   SOCIAL_LOGOUT: 'social:logout',
   SOCIAL_DELETE_ACCOUNT: 'social:delete-account',

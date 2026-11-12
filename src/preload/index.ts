@@ -198,6 +198,11 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.SOCIAL_STATUS_CHANGED, subscription);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.SOCIAL_STATUS_CHANGED, subscription);
   },
+  onFriendPlaying: (callback: (text: string) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, text: string) => callback(text);
+    ipcRenderer.on(IPC_CHANNELS.SOCIAL_FRIEND_PLAYING, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SOCIAL_FRIEND_PLAYING, subscription);
+  },
   socialLogin: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_LOGIN),
   socialLogout: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_LOGOUT),
   socialDeleteAccount: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_DELETE_ACCOUNT),

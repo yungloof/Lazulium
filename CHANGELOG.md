@@ -4,6 +4,18 @@ O que mudou em cada versão, da mais nova para a mais antiga.
 
 ---
 
+## 2.0.1 — 11 de novembro de 2026
+
+### Novidades
+
+- **"Fulano começou a jogar X".** Quando um amigo abre um jogo, aparece um aviso no Lazulium, ou do Windows se o app estiver minimizado. Dá para desligar em *Configurações → Contas*.
+
+### Correções
+
+- **Capas para os amigos.** Seus amigos agora veem a capa padrão dos seus jogos mesmo quando a sua capa foi escolhida no PC, e nos jogos de emulador, avulsos e lançamentos novos da Steam (como PEAK), que antes apareciam em branco.
+
+---
+
 ## 2.0.0 — 11 de novembro de 2026
 
 Agora o Lazulium tem amigos. Entre com a Steam e veja o que a sua turma está jogando, de qualquer loja, e eles veem o seu. É opcional: sem entrar, tudo continua só no seu PC.
