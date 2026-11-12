@@ -126,7 +126,7 @@ export const EmulatorManager: React.FC<{ onChanged: () => void }> = ({ onChanged
   return (
     <div className="space-y-3">
       <p className="text-xs leading-relaxed text-slate-400">
-        O app acha os emuladores sozinho e usa as pastas de jogos configuradas neles. Emuladores sem lista de jogos, como mGBA e melonDS, precisam que você adicione a pasta das ROMs.
+        Os emuladores são achados sozinhos, com as pastas de jogos configuradas neles. Os que não têm lista de jogos, como mGBA e melonDS, precisam da pasta das ROMs adicionada aqui.
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="primary" icon={<Search className="w-3.5 h-3.5" />} loading={detecting} onClick={detect}>

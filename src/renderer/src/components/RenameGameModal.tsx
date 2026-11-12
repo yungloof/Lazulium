@@ -43,7 +43,7 @@ export const RenameGameModal: React.FC<{ game: Game; onClose: () => void }> = ({
       <label className="block">
         <span className={labelClass}>Nome no Lazulium</span>
         <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} onFocus={(e) => e.target.select()} maxLength={200} className={inputClass} />
-        <span className={hintClass}>O novo nome também melhora a busca de tempo para zerar. Não muda nada na Steam nem nos arquivos do jogo.</span>
+        <span className={hintClass}>Também ajuda a achar o tempo para zerar. Na Steam e nos arquivos do jogo nada muda.</span>
       </label>
       {game.customTitle && game.detectedTitle && (
         <button type="button" onClick={() => save(null)} disabled={saving} className={buttonClass('link')}>

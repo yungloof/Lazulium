@@ -78,7 +78,7 @@ export const AddToListModal: React.FC<{ game: Game; onClose: () => void }> = ({ 
             </li>
           );
         })}
-        {lists.length === 0 && <li className="px-3 py-8 text-center text-sm text-slate-400">Você ainda não tem listas. Crie a primeira aqui embaixo.</li>}
+        {lists.length === 0 && <li className="px-3 py-8 text-center text-sm text-slate-400">Nenhuma lista ainda. Crie uma aqui embaixo.</li>}
       </ul>
     </Modal>
   );

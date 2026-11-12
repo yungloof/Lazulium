@@ -71,7 +71,7 @@ const STEPS: GuideStep[] = [
       'Escolha a sua conta e clique em Continuar para permitir.',
       'Quando aparecer a confirmação, volte para cá.'
     ],
-    tip: 'O Lazulium só enxerga os arquivos que ele mesmo cria no seu Drive (uma pasta "Lazulium Backups"). Nada mais.',
+    tip: 'O Lazulium só enxerga os arquivos que ele mesmo cria no seu Drive (uma pasta "Lazulium Backups").',
     button: 'Entrar com Google',
     waiting: WAITING_BROWSER,
     connectedLabel: (s) => `Conectado${s.google.email ? ` como ${s.google.email}` : ''}`

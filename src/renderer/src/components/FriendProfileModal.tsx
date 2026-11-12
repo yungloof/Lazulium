@@ -46,8 +46,8 @@ export const FriendProfileModal: React.FC<{ friendId: string; onClose: () => voi
   const showcaseNote =
     tab === 'showcase' && showcase && !showcase.url
       ? showcase.reason === 'hidden'
-        ? 'Este amigo preferiu não mostrar a vitrine do perfil. Abaixo, o que dá para comparar.'
-        : 'A vitrine deste amigo aparece quando o Lazulium dele estiver na versão 2.2 ou mais nova. Abaixo, o que dá para comparar.'
+        ? 'Essa pessoa escondeu a vitrine do perfil. Abaixo, o que dá para comparar.'
+        : 'A vitrine aparece quando essa pessoa atualizar o Lazulium para a 2.2 ou mais nova. Abaixo, o que dá para comparar.'
       : null;
 
   const remove = async () => {
@@ -66,7 +66,7 @@ export const FriendProfileModal: React.FC<{ friendId: string; onClose: () => voi
 
   return (
     <Modal
-      title={profile ? profile.user.name : 'Perfil do amigo'}
+      title={profile ? profile.user.name : 'Perfil'}
       subtitle={profile?.nowPlaying ? <NowPlayingLine nowPlaying={profile.nowPlaying} /> : undefined}
       icon={profile ? <Avatar user={profile.user} size="sm" /> : undefined}
       onClose={onClose}
@@ -74,7 +74,7 @@ export const FriendProfileModal: React.FC<{ friendId: string; onClose: () => voi
       tall
       bodyClassName={showingFrame ? 'p-0 overflow-hidden' : undefined}
       toolbar={
-        <div className="flex items-center gap-1 px-4 py-2" role="tablist" aria-label="Partes do perfil do amigo">
+        <div className="flex items-center gap-1 px-4 py-2" role="tablist" aria-label="Partes do perfil">
           {(
             [
               { id: 'showcase', label: 'Perfil' },

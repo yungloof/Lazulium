@@ -63,7 +63,7 @@ export const PlaytimeEditor: React.FC<PlaytimeEditorProps> = ({ game, onClose })
       }
     >
       <p className="text-xs leading-relaxed text-slate-400">
-        Coloque o total real, incluindo o que você jogou antes de o jogo estar aqui. As próximas sessões continuam somando a partir dele.
+        O total de verdade, contando o que você jogou antes do Lazulium. As próximas sessões somam a partir daí.
         {steamHours > 0 && (
           <>
             {' '}

@@ -52,7 +52,7 @@ class ArtworkService {
     if (!apiKey.trim()) return { ok: false, message: 'Informe uma chave de API.' };
     try {
       await testApiKey(apiKey.trim());
-      return { ok: true, message: 'Chave válida! Conexão com o SteamGridDB funcionando.' };
+      return { ok: true, message: 'Chave válida, SteamGridDB conectado.' };
     } catch (err) {
       // Aqui é uma chave digitada à mão: "expirou" não faz sentido, ela só está errada
       if (err instanceof SteamGridDbError && (err.status === 401 || err.status === 403)) {
@@ -85,7 +85,7 @@ class ArtworkService {
   async fetchAssets(gameId: string, options: FetchAssetsOptions = {}): Promise<GameAssetsResult> {
     const apiKey = this.getApiKey();
     if (!apiKey) {
-      return emptyResult('A capa e o fundo vêm sozinhos. Para escolher entre várias artes, logos e ícones, conecte o SteamGridDB (opcional) em Configurações → Contas.');
+      return emptyResult('Para escolher entre mais artes, logos e ícones, conecte o SteamGridDB em Configurações → Contas.');
     }
     const game = db.getGameById(gameId);
     if (!game) return emptyResult('Jogo não encontrado.');

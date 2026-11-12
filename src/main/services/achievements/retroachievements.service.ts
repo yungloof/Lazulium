@@ -170,7 +170,7 @@ export class RetroAchievementsService {
       }
 
       const points = typeof json.TotalPoints === 'number' ? json.TotalPoints : 0;
-      return { ok: true, message: `Conectado como "${typeof json.User === 'string' ? json.User : user}" (${points} pontos)!` };
+      return { ok: true, message: `Conectado como "${typeof json.User === 'string' ? json.User : user}" (${points} pontos).` };
     } catch (err) {
       return { ok: false, message: describeError(err) };
     }
@@ -325,7 +325,7 @@ export class RetroAchievementsService {
       if (identified.gameId === null) {
         // Sem resposta do site não dá para dizer que o jogo não existe lá: tenta de novo depois, sem trocar a lista guardada
         if (identified.failed) return { ...base, ...emptyResult({ retryable: true, warning: retryWarning(identified.failed) }) };
-        return { ...base, ...emptyResult({ warning: 'Jogo não identificado no catálogo do RetroAchievements (tente verificar o arquivo de ROM).' }) };
+        return { ...base, ...emptyResult({ warning: 'O RetroAchievements não reconheceu este jogo. Confira se a ROM é a versão certa.' }) };
       }
 
       let data = await this.loadProgress(identified.gameId, user, key);
@@ -337,7 +337,7 @@ export class RetroAchievementsService {
 
       const items = toItems(data);
       if (items.length === 0) {
-        return { ...base, ...emptyResult({ warning: 'Este jogo ainda não possui conquistas cadastradas no RetroAchievements.' }) };
+        return { ...base, ...emptyResult({ warning: 'O RetroAchievements ainda não tem conquistas para este jogo.' }) };
       }
 
       const unlockedCount = items.filter((i) => i.unlocked).length;

@@ -60,8 +60,8 @@ const PUBLIC_COVER = /^https:\/\/(cdn\.cloudflare\.steamstatic\.com|shared\.[a-z
 
 const SERVER_ERRORS: Record<string, string> = {
   invalid_code: 'Esse login expirou. Tente entrar de novo.',
-  invite_not_found: 'Código de convite não encontrado ou vencido. Peça um novo para seu amigo.',
-  own_invite: 'Esse é o seu próprio código. Mande ele para um amigo.',
+  invite_not_found: 'Código não encontrado ou vencido. Peça um novo.',
+  own_invite: 'Esse código é seu. Mande para outra pessoa.',
   invalid_name: 'O nome precisa ter pelo menos 2 letras.',
   rate_limited: 'Muitos pedidos seguidos. Espere um minuto e tente de novo.',
   not_found: 'Não encontrado. Talvez vocês não sejam mais amigos.',

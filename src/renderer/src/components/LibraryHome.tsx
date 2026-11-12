@@ -289,7 +289,7 @@ const EmptyLibrary: React.FC = () => {
     <EmptyState
       icon={Gamepad2}
       title="Sua biblioteca está vazia"
-      description="O Lazulium encontra os jogos instalados da Steam, Epic, GOG, Xbox e Riot. Jogos soltos e emuladores você adiciona aqui também."
+      description="Escaneie para achar os jogos instalados, ou adicione um jogo solto à mão."
       actions={
         <>
           <Button variant="primary" size="md" data-nav-start onClick={() => void scanLibraries()}>

@@ -172,7 +172,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ games, isScanning, o
                 <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[11px] font-sans font-medium uppercase tracking-wider text-slate-400">opcional</span>
               </h1>
               <p className="mt-2 mb-5 max-w-xl text-sm leading-relaxed text-slate-300">
-                Com elas chegam as conquistas, capas para todos os jogos e a cópia dos saves na nuvem. Você entra pelo site de cada serviço: nenhuma senha ou chave é digitada aqui.
+                Elas trazem as conquistas e a cópia dos saves na nuvem. O login é no site de cada serviço, sem digitar senha nem chave aqui.
               </p>
               <AccountsGuide />
               <p className="mt-3 text-xs text-slate-500">Pode pular: tudo isso fica em Configurações → Contas.</p>
@@ -185,12 +185,11 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ games, isScanning, o
                 Quer proteger seus saves?
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-300">
-                O Lazulium procura as pastas de save dos seus jogos e guarda cópias neste PC ao fechar cada jogo e uma vez por dia, só quando algo mudou. Usa até 3 GB de disco (dá para mudar em
-                Configurações). Se você conectar o Google Drive, uma cópia também vai para lá.
+                O Lazulium acha as pastas de save e guarda uma cópia neste PC ao fechar cada jogo e uma vez por dia, se algo mudou. Se o Google Drive estiver conectado, vai uma cópia para lá também.
               </p>
               <div role="radiogroup" aria-label="Backup automático dos saves" className="mt-5 grid grid-cols-2 gap-3">
                 <ChoiceCard selected={backup === true} onSelect={() => setBackup(true)} icon={<ShieldCheck className="w-5 h-5" />} title="Sim, fazer backup automático">
-                  Cópias neste PC (até 3 GB) e no Google Drive, se conectado. Nada é apagado dos seus jogos.
+                  Até 3 GB neste PC (dá para mudar depois) e no Drive, se conectado. Nada é apagado dos jogos.
                 </ChoiceCard>
                 <ChoiceCard selected={backup === false} onSelect={() => setBackup(false)} icon={<ShieldOff className="w-5 h-5" />} title="Agora não">
                   Nada é copiado. Dá para ligar quando quiser em Configurações → Backup de saves.

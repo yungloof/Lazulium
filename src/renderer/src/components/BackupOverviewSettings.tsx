@@ -67,7 +67,7 @@ export const BackupOverviewSettings: React.FC = () => {
       <SettingsGroup>
         <ToggleRow
           label="Backup automático dos saves"
-          hint="Procura as pastas de save dos seus jogos e guarda cópias neste PC ao fechar o jogo e uma vez por dia, só quando algo mudou. Desligado, só valem as pastas que você configurar em cada jogo."
+          hint="Acha as pastas de save e guarda uma cópia neste PC ao fechar o jogo e uma vez por dia, se algo mudou. Desligado, só entram as pastas que você escolher em cada jogo."
           checked={overview.autoEnabled}
           onChange={(enabled) => void act(async () => window.electronAPI?.setAutoBackup(enabled))}
         />

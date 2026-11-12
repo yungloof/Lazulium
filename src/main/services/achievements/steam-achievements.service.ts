@@ -71,7 +71,7 @@ export class SteamAchievementsService {
       if (!Array.isArray(players) || players.length === 0) return { ok: false, message: 'SteamID64 não encontrado.' };
 
       const persona = typeof players[0]?.personaname === 'string' ? players[0].personaname : id;
-      return { ok: true, message: `Conectado com sucesso como "${persona}"!` };
+      return { ok: true, message: `Conectado como "${persona}".` };
     } catch (err) {
       return { ok: false, message: describeError(err) };
     }
@@ -110,7 +110,7 @@ export class SteamAchievementsService {
             ? 'Perfil da Steam privado: deixe "Detalhes do jogo" como público na privacidade da Steam para ver as conquistas.'
             : error
               ? `Steam: ${error.slice(0, 200)}`
-              : 'Este jogo não possui conquistas na Steam.'
+              : 'Este jogo não tem conquistas na Steam.'
       });
     }
 
@@ -176,7 +176,7 @@ export class SteamAchievementsService {
     }
 
     if (schemaList.length === 0) {
-      return emptyResult({ noList: true, warning: 'Este jogo não possui conquistas na Steam ou o esquema não está disponível.' });
+      return emptyResult({ noList: true, warning: 'Este jogo não tem conquistas na Steam, ou ela não mandou a lista.' });
     }
 
     // Conquistas do jogador (resiliência contra perfil privado / 403 / 429 / 5xx)
@@ -203,11 +203,11 @@ export class SteamAchievementsService {
             }
           }
         } catch {
-          warning = 'Não foi possível ler os dados de desbloqueio do jogador.';
+          warning = 'Não deu para ler suas conquistas desbloqueadas.';
           retryable = true;
         }
       } else {
-        warning = `A Steam recusou o pedido do jogador (erro ${res.status}). Confira a privacidade do perfil.`;
+        warning = `A Steam recusou o pedido (erro ${res.status}). Confira a privacidade do perfil.`;
       }
       if (!res.bodyUsed) await res.body?.cancel().catch(() => undefined);
     } else {
@@ -256,7 +256,7 @@ export class SteamAchievementsService {
     try {
       return { ...base, ...(key ? await this.fetchWithApiKey(appId, key, id) : await this.fetchFromCommunity(appId, id)) };
     } catch (err) {
-      return { ...base, ...emptyResult({ retryable: true, warning: err instanceof HttpError ? err.message : 'Falha inesperada ao atualizar as conquistas da Steam.' }) };
+      return { ...base, ...emptyResult({ retryable: true, warning: err instanceof HttpError ? err.message : 'Algo deu errado ao atualizar as conquistas da Steam.' }) };
     }
   }
 }

@@ -129,7 +129,7 @@ class GoogleDriveService {
       grant_type: 'authorization_code',
       code_verifier: verifier
     });
-    if (!tokens.refresh_token) throw new DriveError('O Google não devolveu um refresh token. Tente conectar novamente.');
+    if (!tokens.refresh_token) throw new DriveError('O Google não completou a autorização. Tente conectar de novo.');
     // A tela do Google deixa desmarcar a permissão: sem ela o login entra, mas nenhum envio funciona
     if (!tokens.scope?.split(' ').includes(DRIVE_SCOPE)) throw new DriveError(NO_DRIVE_PERMISSION, 403);
 
@@ -232,7 +232,7 @@ class GoogleDriveService {
     if (!res.ok) {
       if (body.error === 'invalid_grant') {
         db.setSetting(DRIVE_SETTING_KEYS.refreshToken, '');
-        throw new DriveError('A conexão com o Google Drive expirou ou foi revogada. Conecte novamente.', 401);
+        throw new DriveError('A conexão com o Google Drive expirou ou foi revogada. Conecte de novo.', 401);
       }
       if (body.error === 'invalid_client') throw new DriveError('Client ID ou Client Secret do OAuth inválido.', 401);
       throw new DriveError(`O Google recusou o login (${body.error_description || body.error || `erro ${res.status}`}).`, res.status);

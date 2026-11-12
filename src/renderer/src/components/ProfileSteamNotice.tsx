@@ -138,7 +138,7 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
           <AlertTriangle className="w-4 h-4 flex-shrink-0" /> Seu perfil da Steam não está público
         </p>
         <p className="mt-1 text-xs text-slate-300">
-          Por isso sua bio e suas insígnias podem não aparecer aqui. Suas horas continuam certas, e você pode preencher tudo em Editar perfil. Para trazer da Steam, deixe "Meu perfil" como Público em Privacidade.
+          Por isso a bio e as insígnias podem não vir. As horas continuam certas. Dá para preencher o resto em Editar perfil ou deixar "Meu perfil" como Público na privacidade da Steam.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button onClick={() => void window.electronAPI?.openProfileWebLink('steam-privacy').catch((err) => setError(ipcErrorMessage(err)))} className={primary}>
@@ -177,7 +177,7 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
         <X className="w-4 h-4" />
       </button>
       <p className="font-medium text-white">Deixe este perfil com a sua cara</p>
-      <p className="mt-1 text-xs text-slate-300">Conecte a Steam para trazer seu nome, avatar, bio, nível, fundo e conquistas. Nenhuma senha ou chave é pedida aqui, e nada é publicado.</p>
+      <p className="mt-1 text-xs text-slate-300">Conecte a Steam para trazer nome, avatar, bio, nível, fundo e conquistas. Sem senha, sem chave, e nada é publicado.</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {suggested ? (
           <>

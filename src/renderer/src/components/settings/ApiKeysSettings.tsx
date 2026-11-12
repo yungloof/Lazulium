@@ -164,7 +164,7 @@ export const ApiKeysSettings: React.FC = () => {
   }, []);
 
   return (
-    <SettingsGroup title="Chaves de API manuais" description="Opcional. O login em Contas faz isso sozinho; use aqui só se preferir colar suas próprias chaves.">
+    <SettingsGroup title="Chaves de API manuais" description="O login em Contas já faz isso. Use aqui só se preferir colar suas chaves.">
       {error ? (
         <div className="px-4 py-3">
           <Notice>{error}</Notice>

@@ -479,7 +479,7 @@ export const SaveBackupPanel: React.FC<SaveBackupPanelProps> = ({ game, onClose,
             )}
             {confirmRestoreId && (
               <p className="text-[11px] text-amber-300/90">
-                Os arquivos do backup vão sobrescrever os saves atuais. Antes disso, o Lazulium guarda uma cópia dos saves atuais no histórico.
+                O backup vai substituir os saves atuais, que antes ganham uma cópia no histórico.
               </p>
             )}
           </section>

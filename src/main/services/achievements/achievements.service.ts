@@ -84,7 +84,7 @@ export class AchievementsService {
       // Jogo sem conquistas na Steam é como qualquer outro sem lista: ganha os marcos
       if (!result.noList) return this.store(result, cached);
       const steamExtras = db.getAchievementExtras(gameId);
-      return this.store(applyExtras(buildMilestoneList(game, 'Este jogo não tem conquistas na Steam, então valem os marcos medidos pelo Lazulium. Você também pode criar as suas.'), steamExtras), cached);
+      return this.store(applyExtras(buildMilestoneList(game, 'Sem conquistas na Steam, então valem os marcos do Lazulium. Dá para criar as suas também.'), steamExtras), cached);
     }
 
     const extras = db.getAchievementExtras(gameId);
@@ -96,9 +96,9 @@ export class AchievementsService {
     const settings = db.getSettings();
     if (extras.preferMilestones) return 'Você escolheu os marcos do Lazulium para este jogo.';
     if (!settings.retroAchievementsUser || !settings.retroAchievementsApiKey) {
-      return 'Marcos medidos pelo Lazulium. Com a conta do RetroAchievements conectada em Configurações → Contas, jogos que têm lista por lá ganham as conquistas de verdade.';
+      return 'Marcos do Lazulium. Conectando o RetroAchievements em Configurações → Contas, os jogos que têm lista lá ganham as conquistas de verdade.';
     }
-    return 'Este jogo não tem lista de conquistas em nenhuma fonte, então valem os marcos medidos pelo Lazulium. Você também pode criar as suas.';
+    return 'Nenhuma lista de conquistas para este jogo, então valem os marcos do Lazulium. Dá para criar as suas também.';
   }
 
   // Lista do RetroAchievements: sincronizada pelo emulador ou, para ports e consoles sem suporte, achada pelo nome

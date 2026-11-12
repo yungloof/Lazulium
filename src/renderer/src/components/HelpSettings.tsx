@@ -9,7 +9,7 @@ import { SettingsGroup } from './settings/controls';
 
 function formatUpdateError(raw: string): string {
   if (/404|Cannot find latest\.yml/i.test(raw)) {
-    return 'Nenhuma atualização publicada encontrada no repositório.';
+    return 'Nenhuma versão publicada encontrada.';
   }
   if (/ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ENOTFOUND|ETIMEDOUT/i.test(raw)) {
     return 'Não foi possível verificar atualizações: sem conexão ou servidor indisponível.';
@@ -108,7 +108,7 @@ export const HelpSettings: React.FC = () => {
       return { tone: 'error' as const, text: formatUpdateError(updateStatus.error) };
     }
     if (manualCheckDone && updateStatus?.supported === false && !updateStatus.manualDownload) {
-      return { tone: 'info' as const, text: 'Atualização automática disponível apenas na versão instalada (Setup).' };
+      return { tone: 'info' as const, text: 'Só a versão instalada se atualiza sozinha.' };
     }
     if (manualCheckDone && updateStatus?.checked && !updateStatus.checking) {
       return { tone: 'success' as const, text: 'Você já está na versão mais recente.' };

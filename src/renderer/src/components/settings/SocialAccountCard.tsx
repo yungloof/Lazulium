@@ -64,8 +64,8 @@ export const SocialAccountCard: React.FC<{ fallbackName?: string }> = ({ fallbac
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-base font-semibold text-slate-100 truncate">{localProfile?.name || fallbackName || 'Jogador'}</p>
-            <p className="text-xs text-slate-400">Seu perfil está só neste PC. Com a conta Lazulium, seus amigos veem o que você joga, e você vê o deles.</p>
+            <p className="text-base font-semibold text-slate-100 truncate">{localProfile?.name || fallbackName || 'Você'}</p>
+            <p className="text-xs text-slate-400">Hoje seu perfil fica só neste PC. Com a conta, seus amigos veem o que você joga, e você vê o deles.</p>
           </div>
           <Button variant="primary" icon={<LogIn className="w-3.5 h-3.5" />} loading={social.busy === 'login'} onClick={() => void social.login()}>
             Conta Lazulium

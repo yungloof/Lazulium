@@ -121,7 +121,7 @@ function hideToTray(): void {
   mainWindow.hide();
   if (!trayHintShown) {
     trayHintShown = true;
-    notify('Lazulium continua aberto', 'O rastreador de horas e os backups seguem rodando na bandeja do sistema.');
+    notify('Lazulium continua aberto', 'As horas e os backups seguem rodando. O ícone fica perto do relógio.');
   }
   clearTimeout(destroyTimer);
   destroyTimer = setTimeout(() => {

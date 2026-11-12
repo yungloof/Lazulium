@@ -473,7 +473,7 @@ class BackupService {
         throw new Error('O arquivo deste backup não está mais disponível.');
       }
       if (record.sha256 && sha256(data) !== record.sha256) {
-        throw new Error('O arquivo do backup não confere com o hash registrado (corrompido). Restauração cancelada.');
+        throw new Error('O arquivo do backup está corrompido. Nada foi restaurado.');
       }
 
       // Valida tudo antes de mexer nos saves atuais

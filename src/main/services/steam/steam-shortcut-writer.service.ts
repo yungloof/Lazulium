@@ -108,12 +108,12 @@ export async function addGameToSteam(game: Game): Promise<{ ok: boolean; appId?:
   try {
     const steamPath = await findSteamPath();
     if (!steamPath) {
-      return { ok: false, error: 'A pasta de instalação da Steam não foi encontrada neste computador.' };
+      return { ok: false, error: 'A Steam não foi encontrada neste PC.' };
     }
 
     const accountDirs = await getAccountDirs(steamPath);
     if (!accountDirs.length) {
-      return { ok: false, error: 'Nenhuma conta de usuário foi localizada na pasta userdata da Steam.' };
+      return { ok: false, error: 'Nenhuma conta encontrada na pasta userdata da Steam.' };
     }
 
     const targetAccountDir = accountDirs[0];
@@ -127,7 +127,7 @@ export async function addGameToSteam(game: Game): Promise<{ ok: boolean; appId?:
     // Determina o executável e argumentos
     const rawExe = game.executablePath || '';
     if (!rawExe) {
-      return { ok: false, error: 'O jogo não possui um executável configurado para iniciar.' };
+      return { ok: false, error: 'Este jogo não tem um executável definido.' };
     }
 
     const exe = quote(rawExe);

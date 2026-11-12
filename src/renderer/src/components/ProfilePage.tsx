@@ -295,7 +295,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
             <EmptyState
               icon={NotebookPen}
               title="Nenhuma resenha ainda"
-              description="Abra um jogo e escreva em “Meu registro”. Suas resenhas aparecem aqui, com a nota e a data."
+              description="Escreva em “Meu registro”, na página de um jogo, e a resenha aparece aqui."
               className={`${emptyBox} bg-steam-bg/85`}
             />
           ) : (
@@ -316,7 +316,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
             }
           >
             {lists.length === 0 ? (
-              <p className="py-6 text-sm text-slate-400">Melhores do ano, zerar nas férias, indicar para os amigos: suas listas aparecem aqui.</p>
+              <p className="py-6 text-sm text-slate-400">As listas que você criar aparecem aqui.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {lists.map((list) => (

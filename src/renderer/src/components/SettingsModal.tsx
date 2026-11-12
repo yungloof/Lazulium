@@ -29,10 +29,10 @@ const SECTIONS: Section[] = [
     id: 'accounts',
     label: 'Contas',
     icon: UserRound,
-    description: 'Entre pelo site de cada serviço para liberar conquistas, horas e backup na nuvem. Nenhuma senha ou chave é digitada aqui.',
+    description: 'Conquistas, horas e backup na nuvem. O login é no site de cada serviço, sem senha nem chave aqui.',
     render: () => <AccountsSettings />
   },
-  { id: 'appearance', label: 'Aparência', icon: Palette, description: 'Cores, fontes e cantos. Tudo muda na hora e fica guardado neste PC.', render: () => <AppearanceSettings /> },
+  { id: 'appearance', label: 'Aparência', icon: Palette, description: 'Cores, fontes e cantos.', render: () => <AppearanceSettings /> },
   { id: 'library', label: 'Biblioteca e emuladores', icon: Library, description: 'De onde vêm os seus jogos e o que fica escondido.', render: () => <LibrarySettings /> },
   { id: 'backup', label: 'Backup de saves', icon: HardDriveDownload, description: 'Cópias dos seus saves neste PC e, com o Google Drive conectado, na nuvem.', render: () => <BackupOverviewSettings /> },
   { id: 'behavior', label: 'Comportamento', icon: MonitorCog, description: 'Janela, contagem de horas e capturas de tela.', render: () => <AppBehaviorSettings /> },
@@ -40,7 +40,7 @@ const SECTIONS: Section[] = [
     id: 'advanced',
     label: 'Avançado',
     icon: KeyRound,
-    description: 'Para quem prefere usar as próprias chaves. Quem entra pelas Contas não precisa de nada daqui.',
+    description: 'Só para quem prefere colar as próprias chaves.',
     render: () => (
       <div className="space-y-6">
         <ApiKeysSettings />
@@ -48,7 +48,7 @@ const SECTIONS: Section[] = [
       </div>
     )
   },
-  { id: 'help', label: 'Ajuda', icon: LifeBuoy, description: 'Versão, registro de erros e os atalhos do controle e do teclado.', render: () => <HelpSettings /> }
+  { id: 'help', label: 'Ajuda', icon: LifeBuoy, description: 'Versão, log e atalhos do controle e do teclado.', render: () => <HelpSettings /> }
 ];
 
 // Configurações em seções com navegação lateral: o direcional desce pela lista e o A abre a seção

@@ -26,7 +26,7 @@ export const HiddenGamesSettings: React.FC = () => {
     <SettingsGroup title={`Jogos ocultos (${hidden.length})`} description="Horas e registro de quem está oculto continuam guardados.">
       {hidden.length === 0 ? (
         <p className="px-4 py-4 text-xs leading-relaxed text-slate-500">
-          Nenhum. Para esconder programas e jogos que não quer ver, clique com o botão direito neles (ou abra o menu ⋯ na página do jogo) e escolha Ocultar.
+          Nenhum. Para esconder um jogo ou programa, clique com o botão direito nele (ou no menu ⋯ da página do jogo) e escolha Ocultar.
         </p>
       ) : (
         <ul className="max-h-64 overflow-y-auto divide-y divide-slate-800/70">

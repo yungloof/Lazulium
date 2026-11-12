@@ -297,7 +297,7 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
 
   return (
     <div className={pageClass}>
-      <PageHeader title="Listas" subtitle="Melhores do ano, fila das férias, o que indicar para os amigos: organize do seu jeito e destaque as preferidas no perfil." actions={lists.length > 0 ? newListButton : undefined} />
+      <PageHeader title="Listas" subtitle="Melhores do ano, fila das férias, o que indicar. As preferidas podem ir para o perfil." actions={lists.length > 0 ? newListButton : undefined} />
 
       <Notice>{error}</Notice>
 
@@ -305,7 +305,7 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
         <EmptyState
           icon={ListOrdered}
           title="Crie sua primeira lista"
-          description="Comece de uma ideia pronta ou dê o nome que quiser. Depois é só escolher os jogos."
+          description="Use uma ideia pronta ou dê o nome que quiser."
           className={emptyBox}
           actions={
             <div className="flex flex-col items-center gap-4">

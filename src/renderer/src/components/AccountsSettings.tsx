@@ -94,7 +94,7 @@ const DetectedStores: React.FC = () => {
       </span>
       <div className="min-w-0 flex-1">
         {found.length === 0 ? (
-          <p className="text-xs text-slate-500 pt-2.5">Nenhum jogo de outra loja encontrado ainda. Eles aparecem sozinhos quando estiverem instalados.</p>
+          <p className="text-xs text-slate-500 pt-2.5">Nenhum jogo de outra loja instalado ainda.</p>
         ) : (
           <div className="flex flex-wrap gap-1.5 pt-1">
             {found.map((p) => (
@@ -149,7 +149,7 @@ export const AccountsSettings: React.FC = () => {
     <div className="space-y-5">
       <SocialAccountCard fallbackName={status.steam.personaName} />
 
-      <Group title="Seu progresso" description="Conquistas e horas guardadas nesses sites. Cada pessoa entra com a própria conta.">
+      <Group title="Seu progresso" description="Conquistas e horas que ficam nesses sites.">
         <AccountRow
           icon={<Trophy className="w-5 h-5 text-slate-100" />}
           tint="bg-slate-700/60"
@@ -178,7 +178,7 @@ export const AccountsSettings: React.FC = () => {
           icon={<Clock className="w-5 h-5 text-sky-300" />}
           tint="bg-sky-500/15"
           name="Epic Games (opcional)"
-          purpose="Importa as horas dos seus jogos da Epic, inclusive as de antes do Lazulium. A Epic não guarda horas no PC"
+          purpose="Traz as horas dos jogos da Epic, até as de antes do Lazulium, já que ela não guarda isso no PC"
           connectedLabel={
             status.epic.connected
               ? `Conectado${status.epic.displayName ? ` como ${status.epic.displayName}` : ''}${epicMessage?.ok ? ` · ${epicMessage.text}` : ''}`
@@ -200,7 +200,7 @@ export const AccountsSettings: React.FC = () => {
         </AccountRow>
       </Group>
 
-      <Group title="Lojas neste PC" description="Encontradas sozinhas, sem precisar entrar. As horas de fora da Steam são contadas pelo Lazulium.">
+      <Group title="Lojas neste PC" description="Achadas sozinhas, sem login. Fora da Steam, quem conta as horas é o Lazulium.">
         <DetectedStores />
       </Group>
 
@@ -223,7 +223,7 @@ export const AccountsSettings: React.FC = () => {
           icon={<ImageIcon className="w-5 h-5 text-indigo-300" />}
           tint="bg-indigo-500/15"
           name="SteamGridDB"
-          purpose="As capas já vêm sozinhas. Conecte para escolher entre mais artes, logos e ícones"
+          purpose="Para ter mais opções de capa, logo e ícone"
           connectedLabel={status.steamgriddb.connected ? 'Conectado: mais artes, logos e ícones' : undefined}
           busyLabel={busy === 'steamgriddb' ? WAITING_WINDOW : undefined}
           error={errors.steamgriddb}

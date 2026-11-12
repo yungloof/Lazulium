@@ -25,13 +25,13 @@ const WINDOW_OPTIONS = [
     key: 'closeToTray',
     defaultValue: true,
     label: 'Minimizar para a bandeja ao fechar',
-    hint: 'O X da janela esconde o Lazulium perto do relógio; o rastreador de horas e os backups continuam funcionando.'
+    hint: 'O X esconde o Lazulium perto do relógio, e as horas e os backups seguem rodando.'
   },
   {
     key: 'startWithWindows',
     defaultValue: false,
     label: 'Iniciar com o Windows (na bandeja)',
-    hint: 'Abre escondido na bandeja ao ligar o PC, usando pouca memória até você abrir a janela.'
+    hint: 'Abre na bandeja ao ligar o PC, gastando pouca memória até você abrir a janela.'
   }
 ] as const;
 
@@ -100,7 +100,7 @@ export const AppBehaviorSettings: React.FC = () => {
       <SettingsGroup title="Contagem de horas">
         <ToggleRow
           label="Contar jogos abertos fora do Lazulium"
-          hint="Percebe quando um jogo da biblioteca é aberto por outro launcher (Epic, GOG, EA...) ou por um atalho, e conta o tempo. Jogos da Steam e de emulador ficam de fora: a Steam já conta os dela."
+          hint="Percebe quando um jogo é aberto por outro launcher (Epic, GOG, EA...) ou por atalho e conta o tempo. Jogos da Steam, que ela mesma conta, e de emulador ficam de fora."
           checked={trackExternal}
           onChange={(checked) => {
             setTrackExternal(checked);
@@ -109,7 +109,7 @@ export const AppBehaviorSettings: React.FC = () => {
         />
         <ToggleRow
           label="Descontar tempo ausente"
-          hint="Desconta da sessão o tempo sem teclado, mouse ou controle Xbox. Outros controles podem não ser detectados: se jogar com eles em jogos fora da Steam, desligue esta opção."
+          hint="Desconta o tempo sem teclado, mouse ou controle Xbox. Outros controles podem passar despercebidos; se você joga com um deles fora da Steam, desligue."
           checked={discountIdle}
           onChange={(checked) => void changeDiscountIdle(checked)}
         />

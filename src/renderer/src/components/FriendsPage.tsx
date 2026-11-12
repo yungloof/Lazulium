@@ -20,8 +20,7 @@ const Welcome: React.FC<{ onLogin: () => void; busy: boolean; error: string | nu
       </span>
       <h1 className="mt-5 text-3xl text-white">Seus amigos no Lazulium</h1>
       <p className="mt-2 text-sm leading-relaxed text-slate-300">
-        Veja o que seus amigos estão jogando agora, o que zeraram, as conquistas e as notas que deram, de qualquer loja: Steam, Epic, GOG, emuladores e jogos
-        avulsos.
+        O que a turma está jogando agora, o que zerou, as conquistas e as notas, em qualquer loja, emulador ou jogo avulso.
       </p>
       <ul className="mt-5 grid sm:grid-cols-3 gap-3 text-sm">
         {[
@@ -45,8 +44,7 @@ const Welcome: React.FC<{ onLogin: () => void; busy: boolean; error: string | nu
       {error && <Notice className="mt-4">{error}</Notice>}
       <p className="mt-6 flex items-start gap-2 text-xs leading-relaxed text-slate-400">
         <Shield className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-emerald-300" />
-        Só seus amigos veem, e você escolhe o que mostrar em Configurações → Contas. Nada de e-mail, caminhos do PC ou arquivos. Dá para apagar a conta e
-        tudo dela a qualquer momento.
+        Só seus amigos veem, e o que mostrar você escolhe em Configurações → Contas. E-mail, caminhos e arquivos do PC não vão. Dá para apagar a conta, com tudo dela, quando quiser.
       </p>
     </div>
   </div>
@@ -84,7 +82,7 @@ const InviteBox: React.FC<{ onFriendAdded: () => void }> = ({ onFriendAdded }) =
     try {
       const friend = await window.electronAPI?.socialAcceptInvite(code);
       setCode('');
-      setMessage({ tone: 'success', text: `Agora você e ${friend?.name ?? 'seu amigo'} são amigos no Lazulium.` });
+      setMessage({ tone: 'success', text: `${friend?.name ?? 'A pessoa'} agora está na sua lista de amigos.` });
       onFriendAdded();
     } catch (err) {
       setMessage({ tone: 'error', text: ipcErrorMessage(err) });
@@ -110,7 +108,7 @@ const InviteBox: React.FC<{ onFriendAdded: () => void }> = ({ onFriendAdded }) =
           Gerar meu código de convite
         </Button>
       )}
-      {invite && <p className="text-xs text-slate-400">Mande o código para seu amigo. Vale por 7 dias e pode ser usado por várias pessoas.</p>}
+      {invite && <p className="text-xs text-slate-400">Vale por 7 dias e serve para quantas pessoas você quiser.</p>}
       <form onSubmit={accept} className="flex items-center gap-2">
         <input
           value={code}
@@ -242,7 +240,7 @@ export const FriendsPage: React.FC = () => {
                 description={
                   friends?.length
                     ? 'Quando seus amigos jogarem, zerarem ou derem nota em algo, aparece aqui.'
-                    : 'Gere o seu código de convite ao lado e mande para eles, ou cole o código que um amigo te mandou.'
+                    : 'Gere seu código ao lado e mande, ou cole um código que te mandaram.'
                 }
               />
             </div>

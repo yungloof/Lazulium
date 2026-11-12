@@ -208,7 +208,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
     <div className={pageClass}>
       <PageHeader
         title="Diário de jogos"
-        subtitle="Tudo que você registrou, com nota, status e resenha. Continua aqui mesmo depois de desinstalar."
+        subtitle="Tudo que você registrou. Fica aqui mesmo depois de desinstalar."
         actions={
           <>
             <Button icon={<Download className="w-3.5 h-3.5" />} loading={exporting} onClick={handleExport} disabled={entries.length === 0}>

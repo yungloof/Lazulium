@@ -143,7 +143,7 @@ class PlaytimeService {
         gameId: id,
         state: 'stopped',
         isRunning: false,
-        error: 'O processo do jogo não foi detectado. O tempo desta execução não foi contabilizado.'
+        error: 'O jogo não apareceu na lista de programas abertos, então esse tempo não foi contado.'
       });
     }
   });
@@ -214,7 +214,7 @@ class PlaytimeService {
         gameId,
         state: 'stopped',
         isRunning: false,
-        error: 'Jogo iniciado, mas sem pasta de instalação conhecida para rastrear o tempo.'
+        error: 'O jogo abriu, mas sem a pasta de instalação não dá para contar o tempo.'
       });
       return true;
     }
