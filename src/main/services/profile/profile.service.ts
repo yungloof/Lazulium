@@ -30,6 +30,8 @@ const SECTIONS_VERSION = 3;             // 2: seção da arte em destaque; 3: re
 const ACTIVITY_DAYS = 100;
 const AUTO_SYNC_SETTING = 'achievementsAutoSyncAt';
 const AUTO_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+// Conquistas privadas na Steam: a pessoa costuma abrir logo depois, então tenta de novo antes do dia inteiro
+const PRIVATE_RETRY_MS = 3 * 60 * 60 * 1000;
 
 // Seções novas entram em perfis salvos antes delas; o editor pode tirar
 function withNewSections(sections: ProfileSectionId[], version: number): ProfileSectionId[] {
@@ -323,7 +325,7 @@ class ProfileService {
     if (Date.now() - last < AUTO_SYNC_INTERVAL_MS) return;
     this.syncAllAchievements()
       .then((result) => {
-        if (result.failed === 0) db.setSetting(AUTO_SYNC_SETTING, String(Date.now()));
+        if (result.failed === 0) db.setSetting(AUTO_SYNC_SETTING, String(result.privateGames ? Date.now() - AUTO_SYNC_INTERVAL_MS + PRIVATE_RETRY_MS : Date.now()));
         console.log(`[Conquistas] Atualização automática: ${result.synced} jogos, ${result.failed} falhas`);
       })
       .catch((err) => logBackgroundFailure('[Conquistas] Atualização automática falhou:', err));
@@ -335,6 +337,7 @@ class ProfileService {
     this.syncingPromise = (async () => {
       let synced = 0;
       let failed = 0;
+      let privateGames = 0;
       let consecutiveFailures = 0;
       try {
         const candidates = db
@@ -352,6 +355,7 @@ class ProfileService {
               // Marcos são calculados aqui mesmo: não provam que a rede voltou (sem internet, a biblioteca mista seguiria até o fim)
               if (result?.source !== 'lazulium') consecutiveFailures = 0;
               if (result && result.total > 0) synced++;
+              if (result?.warning?.startsWith('Perfil da Steam privado')) privateGames++;
             }
           } catch {
             failed++;
@@ -369,7 +373,7 @@ class ProfileService {
       } finally {
         this.syncingPromise = undefined;
       }
-      return { synced, failed };
+      return { synced, failed, privateGames };
     })();
     return this.syncingPromise;
   }

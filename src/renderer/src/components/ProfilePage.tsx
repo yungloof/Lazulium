@@ -134,7 +134,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
           const result = await window.electronAPI?.syncAllAchievements();
           return {
             tone: result?.failed ? 'error' : 'success',
-            text: `Conquistas atualizadas em ${result?.synced ?? 0} jogo(s)${result?.failed ? `; ${result.failed} falharam. Confira a internet e tente de novo.` : '.'}`
+            text: `Conquistas atualizadas em ${result?.synced ?? 0} jogo(s)${result?.failed ? `; ${result.failed} falharam. Confira a internet e tente de novo.` : '.'}${
+              result?.privateGames ? ` A Steam escondeu ${result.privateGames} jogo(s): deixe "Detalhes do jogo" como Público na privacidade da Steam e atualize de novo.` : ''
+            }`
           };
         } finally {
           setIsSyncingAchievements(false);

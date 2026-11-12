@@ -38,6 +38,8 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
   const synced = useLibraryStore((s) => s.achievementsSyncDone);
   const setSynced = useLibraryStore((s) => s.setAchievementsSyncDone);
   const [error, setError] = useState<string | null>(null);
+  // A Steam respondeu, mas escondeu as conquistas ("Detalhes do jogo" privado)
+  const [privateAchievements, setPrivateAchievements] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +63,7 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
     setAchievementsSyncError(null);
     try {
       const result = await window.electronAPI?.syncAllAchievements();
+      setPrivateAchievements(!!result?.privateGames);
       if (result?.failed) {
         setAchievementsSyncError(
           result.synced
@@ -102,11 +105,15 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
     }
   };
 
+  // Depois de abrir a privacidade na Steam: relê o perfil e busca as conquistas de novo
   const recheck = async () => {
     setBusy(true);
     await onChanged();
     setBusy(false);
+    void syncAchievements();
   };
+
+  const openPrivacy = () => void window.electronAPI?.openProfileWebLink('steam-privacy').catch((err) => setError(ipcErrorMessage(err)));
 
   const box = 'p-4 rounded-xl bg-steam-bg/90 border border-indigo-400/25 shadow-xl shadow-black/30 text-sm text-slate-200';
 
@@ -141,11 +148,31 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
           Por isso a bio e as insígnias podem não vir. As horas continuam certas. Dá para preencher o resto em Editar perfil ou deixar "Meu perfil" como Público na privacidade da Steam.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button onClick={() => void window.electronAPI?.openProfileWebLink('steam-privacy').catch((err) => setError(ipcErrorMessage(err)))} className={primary}>
+          <button onClick={openPrivacy} className={primary}>
             <ExternalLink className="w-3.5 h-3.5" /> Abrir privacidade na Steam
           </button>
           <button onClick={recheck} disabled={busy} className={secondary}>
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Já mudei, verificar
+          </button>
+        </div>
+        {error && <p className="mt-2 text-xs text-amber-300">{error}</p>}
+      </div>
+    );
+  }
+
+  if (connected === true && privateAchievements) {
+    return (
+      <div className={box} role="status">
+        <p className="flex items-center gap-2 font-medium text-amber-200">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" /> A Steam escondeu suas conquistas
+        </p>
+        <p className="mt-1 text-xs text-slate-300">"Detalhes do jogo" está privado na Steam. Deixe como Público e busque de novo.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button onClick={openPrivacy} className={primary}>
+            <ExternalLink className="w-3.5 h-3.5" /> Abrir privacidade na Steam
+          </button>
+          <button onClick={() => void syncAchievements()} className={secondary}>
+            <RefreshCw className="w-3.5 h-3.5" /> Já mudei, buscar de novo
           </button>
         </div>
         {error && <p className="mt-2 text-xs text-amber-300">{error}</p>}

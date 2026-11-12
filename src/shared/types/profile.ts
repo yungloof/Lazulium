@@ -166,4 +166,5 @@ export interface PlayerProfile {
 export interface AchievementsSyncResult {
   synced: number;
   failed: number;
+  privateGames: number;             // Jogos que a Steam não mostrou por privacidade ("Detalhes do jogo" privado)
 }

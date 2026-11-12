@@ -106,7 +106,7 @@ export class SteamAchievementsService {
       const error = cdata(xml, 'error');
       return emptyResult({
         warning:
-          privacy && privacy !== 'public'
+          (privacy && privacy !== 'public') || /private/i.test(error)
             ? 'Perfil da Steam privado: deixe "Detalhes do jogo" como público na privacidade da Steam para ver as conquistas.'
             : error
               ? `Steam: ${error.slice(0, 200)}`
