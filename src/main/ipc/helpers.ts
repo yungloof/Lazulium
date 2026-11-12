@@ -3,6 +3,7 @@ import { writeFile } from 'fs/promises';
 import { Game } from '@shared/types/game';
 import { IpcChannel } from '@shared/constants/ipc-channels';
 import { db } from '../database/db';
+import { isTrustedSender } from '../security';
 
 export type WindowGetter = () => BrowserWindow | null;
 
@@ -54,6 +55,11 @@ export function handle<Args extends unknown[], Result>(
   handler: (event: IpcMainInvokeEvent, ...args: Args) => Result | Promise<Result>
 ): void {
   ipcMain.handle(channel, async (event, ...args) => {
+    // Só a interface do próprio app (quadro principal da janela) chama o IPC
+    if (!isTrustedSender(event)) {
+      console.warn(`[Segurança] IPC ${channel} recusado: chamada de fora da interface do Lazulium`);
+      throw new Error('Ação não permitida.');
+    }
     try {
       return await handler(event, ...(args as Args));
     } catch (err) {

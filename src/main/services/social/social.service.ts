@@ -577,7 +577,10 @@ class SocialService {
   // Link de 30 minutos para ver a vitrine de um amigo; null quando ele escondeu ou ainda não enviou
   async getFriendShowcaseUrl(friendId: string): Promise<{ url: string | null; reason?: 'hidden' | 'not_sent' }> {
     if (!/^[0-9a-f-]{36}$/.test(friendId)) throw new Error('Amigo inválido.');
-    return this.api('POST', `/v1/users/${friendId}/view`);
+    const result = await this.api<{ url: string | null; reason?: 'hidden' | 'not_sent' }>('POST', `/v1/users/${friendId}/view`);
+    // A moldura só abre a página de vitrine do próprio servidor social, nunca outro endereço que viesse na resposta
+    const url = typeof result?.url === 'string' && result.url.startsWith(`${socialServerUrl()}/v1/view/`) && !/[\s"'<>\\]/.test(result.url) ? result.url : null;
+    return { url, reason: url ? undefined : (result?.reason ?? 'not_sent') };
   }
 
   // ---------- Jogando agora ----------

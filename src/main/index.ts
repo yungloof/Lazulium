@@ -3,6 +3,7 @@ import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { registerIpcHandlers, sendToRenderer } from './ipc';
 import { db } from './database/db';
 import { setupFileLogging } from './logger';
+import { applySecurityPolicies } from './security';
 import { playtimeService } from './services/tracker/playtime.service';
 import { backupService } from './services/cloudsync/backup.service';
 import { migrateMediaCache, registerMediaProtocol, registerMediaScheme } from './services/metadata/media-cache.service';
@@ -93,15 +94,34 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(async () => {
-    // Content-Security-Policy injetada nos cabeçalhos HTTP (no dev libera HMR/WebSocket e inline do Vite)
+    applySecurityPolicies();
+
+    // Content-Security-Policy injetada nos cabeçalhos HTTP (no dev libera HMR/WebSocket e inline do Vite).
+    // A moldura só aceita o servidor social em uso (127.0.0.1 só quando os testes apontam o app para um servidor local).
     const isDev = !app.isPackaged && !!process.env['ELECTRON_RENDERER_URL'];
-    const cspDirectives = isDev
-      ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: lazulium-media:; media-src 'self' https://*.steamstatic.com lazulium-media:; font-src 'self' data:; frame-src https://lazulium-social.yungloof.workers.dev http://127.0.0.1:*; connect-src 'self' https: ws:;"
-      : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: lazulium-media:; media-src 'self' https://*.steamstatic.com lazulium-media:; font-src 'self' data:; frame-src https://lazulium-social.yungloof.workers.dev http://127.0.0.1:*; connect-src 'self' https:;";
+    const socialOrigin = new URL(socialServerUrl()).origin;
+    const base = [
+      "default-src 'self'",
+      "object-src 'none'",
+      "base-uri 'none'",
+      "form-action 'none'",
+      "frame-ancestors 'none'",
+      "img-src 'self' data: https: lazulium-media:",
+      "media-src 'self' https://*.steamstatic.com lazulium-media:",
+      "font-src 'self' data:",
+      `frame-src ${socialOrigin}`,
+      "worker-src 'none'"
+    ];
+    const cspDirectives = (
+      isDev
+        ? [...base, "script-src 'self' 'unsafe-inline'", "style-src 'self' 'unsafe-inline'", "connect-src 'self' ws: http://localhost:* https:"]
+        : // A interface não faz pedidos de rede: tudo passa pelo processo principal
+          [...base, "script-src 'self'", "style-src 'self' 'unsafe-inline'", "connect-src 'self'"]
+    ).join('; ');
 
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
       // A vitrine de um amigo (moldura do servidor social) traz a própria política, mais restrita: não sobrescrever
-      const socialFrame = details.resourceType === 'subFrame' && (details.url.startsWith(`${socialServerUrl()}/`) || details.url.startsWith('http://127.0.0.1:'));
+      const socialFrame = details.resourceType === 'subFrame' && details.url.startsWith(`${socialOrigin}/`);
       if ((details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') && !socialFrame) {
         callback({
           responseHeaders: {

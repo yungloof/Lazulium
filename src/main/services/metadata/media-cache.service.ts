@@ -92,7 +92,9 @@ export function gameDirName(gameId: string): string {
 // Deve ser chamado antes de app.whenReady()
 export function registerMediaScheme(): void {
   protocol.registerSchemesAsPrivileged([
-    { scheme: MEDIA_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
+    // Sem supportFetchAPI: a interface só mostra as artes em <img>/<video>. Com fetch() liberado, uma página de
+    // outra origem (como a moldura da vitrine) poderia ler capturas e artes do PC (falha do Electron sem corsEnabled).
+    { scheme: MEDIA_SCHEME, privileges: { standard: true, secure: true, stream: true } }
   ]);
 }
 

@@ -24,7 +24,12 @@ const parentId = (key: string) => keyId(key).replace(/\\[^\\]*$/, '');
 // O reg.exe responde na página de código OEM do console (850 no Brasil): acentos e nomes em outros
 // alfabetos viravam "�", e caminhos como C:\Users\João\... não eram achados. Com chcp 65001 vem em UTF-8.
 // Chave inexistente: o reg sai com código 1 e a promessa rejeita.
+// O comando passa pelo cmd: aspas, quebras de linha e % num nome de chave (que qualquer programa pode criar no registro)
+// fechariam as aspas ou expandiriam variáveis. Uma chave assim não é lida.
+const UNSAFE_REG_ARG = /["%\r\n\0]/;
+
 async function regQuery(args: string[]): Promise<string> {
+  if (args.some((a) => UNSAFE_REG_ARG.test(a))) throw new Error('Chave do registro com caracteres não suportados');
   const command = ['reg', 'query', ...args.map((a) => (a.startsWith('/') ? a : `"${a}"`))].join(' ');
   const { stdout } = await execFileAsync('cmd.exe', ['/d', '/s', '/c', `"chcp 65001 >nul & ${command}"`], {
     windowsHide: true,

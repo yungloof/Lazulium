@@ -124,6 +124,15 @@ async function verifyOpenIdResponse(params: URLSearchParams, returnTo: string): 
   if (params.get('openid.return_to') !== returnTo) throw new Error('Resposta da Steam com endereço de retorno inválido.');
   const steamId = params.get('openid.claimed_id')?.match(CLAIMED_ID_PATTERN)?.[1];
   if (!steamId) throw new Error('Resposta da Steam sem SteamID.');
+  // A assinatura da Steam precisa cobrir o SteamID e o retorno: sem isso, a confirmação valeria para outros campos
+  const signed = new Set((params.get('openid.signed') ?? '').split(','));
+  if (
+    params.get('openid.op_endpoint') !== OPENID_URL ||
+    params.get('openid.identity') !== params.get('openid.claimed_id') ||
+    !['claimed_id', 'identity', 'return_to', 'op_endpoint', 'response_nonce', 'assoc_handle'].every((field) => signed.has(field))
+  ) {
+    throw new Error('Resposta da Steam inválida.');
+  }
 
   const body = new URLSearchParams(params);
   body.set('openid.mode', 'check_authentication');

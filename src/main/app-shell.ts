@@ -1,9 +1,10 @@
-import { app, BrowserWindow, Menu, Notification, nativeImage, shell, Tray } from 'electron';
+import { app, BrowserWindow, Menu, Notification, nativeImage, Tray } from 'electron';
 import { join } from 'path';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { TrayAction } from '@shared/types/ipc';
 import { db } from './database/db';
 import { attachRendererLogging } from './logger';
+import { openInBrowser } from './security';
 
 // Janela escondida na bandeja é destruída depois deste tempo para liberar a RAM do renderer
 const HIDDEN_DESTROY_MS = 60_000;
@@ -61,8 +62,12 @@ function createWindow(show: boolean): BrowserWindow {
     ...(SILENT_MODE ? { x: -32000, y: -32000, opacity: 0, focusable: false, skipTaskbar: true } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
+      // Interface isolada do Node: o preload só usa contextBridge e ipcRenderer
+      sandbox: true,
       contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: true,
+      spellcheck: false,
       backgroundThrottling: !SILENT_MODE
     }
   });
@@ -91,7 +96,7 @@ function createWindow(show: boolean): BrowserWindow {
 
   // Links da interface abrem no navegador do sistema; só endereços web (nunca file:// ou outros protocolos)
   win.webContents.setWindowOpenHandler((details) => {
-    if (/^https?:\/\//i.test(details.url)) void shell.openExternal(details.url).catch(() => undefined);
+    openInBrowser(details.url);
     return { action: 'deny' };
   });
 

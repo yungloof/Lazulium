@@ -1,4 +1,5 @@
-import { BrowserWindow, shell } from 'electron';
+import { BrowserWindow, session } from 'electron';
+import { isWebUrl, lockLoginSession, openInBrowser } from '../../security';
 
 // Janela de login dentro do app para serviços que só oferecem chave de API.
 // O usuário entra normalmente no site; o Lazulium abre a página da chave, lê o
@@ -40,6 +41,9 @@ let activeWindow: BrowserWindow | null = null;
 export function openWebLogin<T>(options: WebLoginOptions<T>, parent?: BrowserWindow | null): Promise<T> {
   activeWindow?.close();
 
+  // Os sites de login não recebem câmera, microfone, localização, notificações nem dispositivos
+  lockLoginSession(session.fromPartition(options.partition));
+
   return new Promise((resolvePromise, rejectPromise) => {
     const win = new BrowserWindow({
       width: 980,
@@ -53,6 +57,7 @@ export function openWebLogin<T>(options: WebLoginOptions<T>, parent?: BrowserWin
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,
+        webSecurity: true,
         disableBlinkFeatures: 'AutomationControlled'
       }
     });
@@ -107,11 +112,21 @@ export function openWebLogin<T>(options: WebLoginOptions<T>, parent?: BrowserWin
       }
     });
 
-    // Links para fora (termos, ajuda) abrem no navegador do sistema
+    // Popups do próprio serviço (e do login pela Steam) abrem numa janela igual, isolada; o resto vai para o navegador do sistema.
+    // O domínio é conferido pelo nome do servidor, não pelo texto da URL (https://outro.site/?steamcommunity.com não passa).
     win.webContents.setWindowOpenHandler(({ url }) => {
-      if (onServiceHost(url) || /steamcommunity\.com|steampowered\.com/.test(url)) return { action: 'allow' };
-      void shell.openExternal(url);
+      if (isWebUrl(url) && new URL(url).protocol === 'https:') {
+        const host = new URL(url).hostname;
+        if (options.host.test(host) || /(^|\.)(steamcommunity|steampowered)\.com$/i.test(host)) {
+          return { action: 'allow', overrideBrowserWindowOptions: { parent: win, autoHideMenuBar: true, webPreferences: { partition: options.partition, sandbox: true, contextIsolation: true, nodeIntegration: false } } };
+        }
+      }
+      openInBrowser(url);
       return { action: 'deny' };
+    });
+    // Navegação só por endereços web (nada de file:// ou protocolos que abririam programas)
+    win.webContents.on('will-navigate', (event, url) => {
+      if (!isWebUrl(url)) event.preventDefault();
     });
 
     const check = async () => {

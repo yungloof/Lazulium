@@ -35,6 +35,19 @@ function splitArguments(commandLine: string): string[] {
 
 const COMMAND_TIMEOUT_MS = 60_000;
 
+// Protocolos das lojas que os scanners usam para abrir jogos. Qualquer outro (file:, ms-*, search-ms: e afins)
+// entregaria ao Windows um endereço capaz de rodar programas: o jogo é aberto pelo executável ou recusado.
+const LAUNCH_URI_SCHEMES = new Set(['steam:', 'com.epicgames.launcher:', 'goggalaxy:', 'uplay:', 'battlenet:', 'origin:', 'origin2:', 'eadm:']);
+
+export function isAllowedLaunchUri(uri: string | undefined): boolean {
+  if (!uri) return false;
+  try {
+    return LAUNCH_URI_SCHEMES.has(new URL(uri).protocol.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 // "CHAVE=valor" por linha; linhas vazias, comentários (#) e nomes inválidos são ignorados
 export function parseLaunchEnv(text: string | undefined): Record<string, string> {
   const env: Record<string, string> = {};
@@ -112,6 +125,9 @@ export async function launchGame(game: Game): Promise<LaunchHandle> {
   const launchedAt = Date.now();
 
   if (shouldUseUri(game)) {
+    if (!isAllowedLaunchUri(game.launchUri)) {
+      throw new LaunchError(`${game.title} tem um endereço de abertura que o Lazulium não aceita. Edite o jogo e escolha o executável.`);
+    }
     await shell.openExternal(game.launchUri!);
     console.log(`[Launcher] ${game.title} via URI ${game.launchUri}`);
     return { method: 'uri', launchedAt };
