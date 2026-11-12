@@ -6,6 +6,7 @@ const STEAM_OPENID = 'https://steamcommunity.com/openid/login';
 const OPENID_NS = 'http://specs.openid.net/auth/2.0';
 const CLAIMED_ID = /^https:\/\/steamcommunity\.com\/openid\/id\/(7656\d{13})$/;
 const STATE = /^[A-Za-z0-9_-]{16,64}$/;
+const SIGNED_FIELDS = ['claimed_id', 'identity', 'return_to', 'op_endpoint', 'response_nonce', 'assoc_handle'];
 const UPSTREAM_TIMEOUT_MS = 10_000;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -50,7 +51,7 @@ class HttpError extends Error {
 }
 
 const json = (body, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 const redirect = (location) => new Response(null, { status: 302, headers: { Location: location, 'Cache-Control': 'no-store' } });
 const nowIso = () => new Date().toISOString();
 const later = (ms) => new Date(Date.now() + ms).toISOString();
@@ -73,6 +74,8 @@ function inviteCode() {
 const cleanText = (value, max) => (typeof value === 'string' ? value.replace(/\p{C}/gu, ' ').replace(/\s{2,}/g, ' ').trim().slice(0, max) : '');
 
 async function readJson(request, maxBytes = 200_000) {
+  // Corpo anunciado grande demais é recusado antes de ser lido
+  if (Number(request.headers.get('Content-Length') ?? 0) > maxBytes * 4) throw new HttpError(413, 'too_large');
   const text = await request.text();
   if (text.length > maxBytes) throw new HttpError(413, 'too_large');
   try {
@@ -131,6 +134,9 @@ async function verifySteam(params, expectedReturnTo) {
   if (params.get('openid.return_to') !== expectedReturnTo) return null;
   const steamId = params.get('openid.claimed_id')?.match(CLAIMED_ID)?.[1];
   if (!steamId || params.get('openid.identity') !== params.get('openid.claimed_id')) return null;
+  // A assinatura da Steam precisa cobrir o SteamID e o endereço de retorno
+  const signed = new Set((params.get('openid.signed') ?? '').split(','));
+  if (params.get('openid.op_endpoint') !== STEAM_OPENID || !SIGNED_FIELDS.every((field) => signed.has(field))) return null;
   const body = new URLSearchParams();
   for (const [key, value] of params) if (key.startsWith('openid.')) body.set(key, value);
   body.set('openid.mode', 'check_authentication');
@@ -543,6 +549,7 @@ async function handleShowcase(request, env, auth) {
     return json({ ok: true });
   }
   if (request.method !== 'PUT') throw new HttpError(405, 'method_not_allowed');
+  if (Number(request.headers.get('Content-Length') ?? 0) > MAX_SHOWCASE_BYTES * 4) throw new HttpError(413, 'too_large');
   const text = await request.text();
   if (text.length > MAX_SHOWCASE_BYTES) throw new HttpError(413, 'too_large');
   let data;
@@ -603,7 +610,17 @@ async function handleViewLink(env, auth, ownerId, origin) {
   return json({ url: `${origin}/v1/view/${token}` });
 }
 
-const PAGE_HEADERS = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
+// A mesma política da página (que também vem no <meta>), agora no cabeçalho: vale antes de qualquer HTML ser lido.
+// A página não faz pedidos de rede (o perfil vem embutido) nem envia formulários.
+const PAGE_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src https:; media-src https://*.steamstatic.com; connect-src 'none'; base-uri 'none'; form-action 'none'";
+const PAGE_HEADERS = {
+  'Content-Type': 'text/html; charset=utf-8',
+  'Cache-Control': 'no-store',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+  'Content-Security-Policy': PAGE_CSP,
+  'Cross-Origin-Opener-Policy': 'same-origin'
+};
 const UNAVAILABLE_PAGE =
   '<!doctype html><meta charset="utf-8"><body style="font-family:system-ui;background:#0b1020;color:#cbd5e1;display:grid;place-items:center;height:100vh;margin:0">Este perfil não está disponível agora.';
 

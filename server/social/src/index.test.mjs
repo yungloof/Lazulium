@@ -140,6 +140,23 @@ test('login: Steam não confirma ou return_to trocado não cria conta', async (t
   assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM users').get().n, 0);
 });
 
+test('login: assinatura da Steam sem o SteamID ou de outro servidor não cria conta', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  const variants = [
+    (p) => p.set('openid.signed', 'signed,op_endpoint,return_to,response_nonce,assoc_handle'),
+    (p) => p.set('openid.op_endpoint', 'https://outro.exemplo/openid/login')
+  ];
+  for (const change of variants) {
+    const params = steamReturn('76561198000000009');
+    change(params);
+    const res = await worker.fetch(new Request(`${ORIGIN}/v1/auth/steam/callback?${params}`), s.env);
+    assert.equal(new URL(res.headers.get('Location')).searchParams.get('error'), 'not_verified');
+  }
+  assert.equal(await s.env.DB.prepare('SELECT COUNT(*) AS n FROM users').first().then((r) => r.n), 0);
+});
+
 test('login cancelado volta para o app com erro', async () => {
   const s = setup();
   const res = await worker.fetch(new Request(`${ORIGIN}/v1/auth/steam/callback?port=${PORT}&state=${STATE}&openid.mode=cancel`), s.env);
@@ -349,6 +366,7 @@ test('vitrine: amigo abre pelo link temporário; JSON embutido não fecha a tag'
   assert.equal(res.status, 200);
   assert.match(html, /window\.LAZULIUM_PROFILE = /);
   assert.ok(!html.includes('</script><script>alert(1)'), 'texto do perfil não pode fechar a tag');
+  assert.match(res.headers.get('Content-Security-Policy') ?? '', /default-src 'none'.*connect-src 'none'/);
   // Quem não é amigo não consegue link
   assert.equal((await s.call('POST', `/v1/users/${b.user.id}/view`, { token: c.token })).status, 404);
   // Vitrine escondida: link novo não sai e o antigo para de abrir
