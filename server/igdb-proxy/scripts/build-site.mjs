@@ -128,17 +128,17 @@ const home = page(
   'Lazulium: todos os seus jogos de PC num lugar só',
   'Biblioteca de jogos para Windows que junta Steam, Epic, GOG, Riot, Xbox, emuladores e jogos avulsos, com horas jogadas, conquistas, capturas e backup dos saves.',
   `<h1>Todos os seus jogos, <span class="accent">num lugar só.</span></h1>
-<p class="lead">O Lazulium é um aplicativo gratuito para Windows que encontra os jogos instalados no seu PC (Steam, Epic, GOG, Riot, Xbox, emuladores e jogos avulsos), baixa capas para todos, conta as horas de qualquer jogo e guarda o seu histórico, mesmo dos jogos que você desinstalou.</p>
+<p class="lead">Um app grátis para Windows que acha os jogos instalados (Steam, Epic, GOG, Riot, Xbox, emuladores e jogos avulsos), baixa as capas, conta as horas de qualquer jogo e guarda o histórico até dos que você desinstalou.</p>
 <div class="grid">
-<div class="card"><h3>Uma biblioteca só</h3><p>Lojas, emuladores e jogos soltos, achados sozinhos, com capas e artes para todos.</p></div>
-<div class="card"><h3>Horas e conquistas</h3><p>Tempo de jogo de tudo, conquistas da Steam e do RetroAchievements com o mesmo destaque.</p></div>
+<div class="card"><h3>Uma biblioteca só</h3><p>Lojas, emuladores e jogos soltos, achados sozinhos e com capa.</p></div>
+<div class="card"><h3>Horas e conquistas</h3><p>Tempo de qualquer jogo, e conquistas da Steam e do RetroAchievements lado a lado.</p></div>
 <div class="card"><h3>Diário e perfil</h3><p>Notas, resenhas, listas e um perfil para mostrar aos amigos.</p></div>
-<div class="card"><h3>Saves protegidos</h3><p>Backup dos saves no seu PC e, se você quiser, no seu Google Drive.</p></div>
+<div class="card"><h3>Saves protegidos</h3><p>Backup dos saves no PC e, se quiser, no Google Drive.</p></div>
 </div>
 <h2>Privacidade</h2>
-<p>Não existe conta do Lazulium, nem anúncios, nem telemetria. Seus dados ficam no seu computador. O Google Drive só é usado se você conectar, e o app só enxerga os arquivos que ele mesmo criou, para guardar os backups dos saves. Leia a <a href="/privacidade">política de privacidade completa</a>.</p>
-<h2>Como conseguir</h2>
-<p>O Lazulium está em fase de lançamento e é distribuído pelo próprio desenvolvedor. Se alguém te indicou, peça o instalador para essa pessoa. Dúvidas: <a href="mailto:yungloof06@gmail.com">yungloof06@gmail.com</a>.</p>`
+<p>Sem anúncio e sem telemetria. Os dados ficam no seu computador. A conta Lazulium, para ver o que os amigos jogam, é opcional. O Google Drive só entra se você conectar, e o app só enxerga a pasta que ele mesmo cria para os backups dos saves. Detalhes na <a href="/privacidade">política de privacidade</a>.</p>
+<h2>Baixar</h2>
+<p>O instalador fica na <a href="https://github.com/yungloof/Lazulium/releases/latest">página de downloads no GitHub</a>. Dúvidas: <a href="mailto:yungloof06@gmail.com">yungloof06@gmail.com</a>.</p>`
 );
 
 const privacyMd = readFileSync(join(root, 'docs', 'privacidade.md'), 'utf8');
