@@ -53,6 +53,7 @@ const TOP_GAMES = 12;
 const LOCAL_PROFILE_IMAGE = /^lazulium-media:\/\/profile\/((avatar|background|artwork)-[a-z0-9]+\.(png|jpe?g|webp))$/i;
 const MEDIA_MAX_WIDTH = { avatar: 256, background: 1920, artwork: 1280 } as const;
 type MediaKind = keyof typeof MEDIA_MAX_WIDTH;
+const MAX_FRIEND_COVER_LOOKUPS = 30;   // Capas de jogos de amigos conferidas por vez
 const MAX_COVER_LOOKUPS = 15;          // Capas padrão buscadas por sincronização (o resto vai nas próximas)
 const FRIENDS_POLL_MS = Number(process.env.LAZULIUM_SOCIAL_POLL_MS) || 90_000;   // A variável só serve para testes
 const STEAM_COVER = (appId: string) => `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`;
@@ -319,27 +320,42 @@ class SocialService {
     return profile;
   }
 
-  // O amigo mandou o jogo sem capa (versão antiga do app, capa só no PC dele): usa a capa deste PC
-  // para o mesmo jogo ou a padrão do IGDB. Fica guardada na memória enquanto o app está aberto.
+  // Capa que não abre no PC de quem vê: o amigo mandou sem capa (versão antiga, capa só no PC dele) ou mandou
+  // o endereço padrão da Steam, que lançamentos novos não têm. Usa a capa deste PC para o mesmo jogo, confere a
+  // da Steam e, sem nada, a padrão do IGDB. Fica na memória enquanto o app está aberto.
   private async fillFriendCovers(items: { gameKey: string; title: string; coverUrl: string | null }[], targets: { coverUrl: string | null }[] = items): Promise<void> {
-    const missing = [...new Set(items.filter((i) => !i.coverUrl && !i.gameKey.startsWith('steam:')).map((i) => i.gameKey))];
-    const pending = missing.filter((key) => !this.friendCovers.has(key)).slice(0, MAX_COVER_LOOKUPS);
+    const needsCheck = (i: { gameKey: string; coverUrl: string | null }) => {
+      const appId = i.gameKey.match(/^steam:(\d+)$/)?.[1];
+      return appId ? !i.coverUrl || i.coverUrl === STEAM_COVER(appId) : !i.coverUrl;
+    };
+    const pending = [...new Set(items.filter(needsCheck).map((i) => i.gameKey))].filter((key) => !this.friendCovers.has(key)).slice(0, MAX_FRIEND_COVER_LOOKUPS);
     if (pending.length) {
       const mine = new Map(db.getGames().map((g) => [gameKeyOf(g), g]));
       await Promise.all(
         pending.map(async (key) => {
+          const appId = key.match(/^steam:(\d+)$/)?.[1];
           const own = mine.get(key);
-          let cover = own ? publicCoverOf(own) : null;
+          let cover: string | null = own ? (appId ? own.media?.publicCoverUrl ?? null : publicCoverOf(own)) : null;
+          if (!cover && appId) {
+            const head = await httpRequest(STEAM_COVER(appId), { method: 'HEAD', timeoutMs: REQUEST_TIMEOUT_MS }).catch(() => null);
+            if (!head) return; // sem conexão: tenta de novo na próxima vez
+            if (head.ok) cover = STEAM_COVER(appId);
+          }
           if (!cover) {
             const title = items.find((i) => i.gameKey === key)!.title;
-            cover = (await fetchIgdbArtwork({ title } as Game).catch(() => null))?.cover ?? null;
+            try {
+              cover = (await fetchIgdbArtwork({ title } as Game))?.cover ?? null;
+            } catch {
+              return;
+            }
           }
           this.friendCovers.set(key, cover);
         })
       );
     }
     items.forEach((item, index) => {
-      if (!item.coverUrl && this.friendCovers.get(item.gameKey)) targets[index].coverUrl = this.friendCovers.get(item.gameKey)!;
+      const cover = needsCheck(item) ? this.friendCovers.get(item.gameKey) : undefined;
+      if (cover) targets[index].coverUrl = cover;
     });
   }
 
