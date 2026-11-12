@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, clipboard, shell } from 'electron';
 import { AccountService, AccountsStatus, SteamLocalAccount } from '@shared/types/accounts';
 import { db } from '../../database/db';
 import { testApiKey } from '../metadata/steamgriddb.service';
@@ -7,29 +7,19 @@ import { retroAchievementsService } from '../achievements/retroachievements.serv
 import { googleDriveService } from '../cloudsync/google-drive.service';
 import { scanLibraries } from '../scanners';
 import { fetchSteamPersona, listLocalSteamAccounts, loginWithSteamOpenId } from './steam-account.service';
-import { PageContent, findTokens, openWebLogin } from './web-login.service';
+import { findTokens, openWebLogin } from './web-login.service';
 import { epicAccountService } from './epic-account.service';
 
 const SGDB_KEY_PATTERN = /\b[a-f0-9]{32}\b/gi;
-const RA_KEY_PATTERN = /\b[A-Za-z0-9]{32}\b/g;
-const MAX_RA_USERNAMES = 3;
-
-// Usuário logado no RetroAchievements: dados do Inertia ("auth" -> "user") ou o link de perfil mais frequente
-function findRetroUsernames(content: PageContent): string[] {
-  const html = content.html.replace(/&quot;/g, '"');
-  const names: string[] = [];
-  const auth = html.indexOf('"auth"');
-  if (auth >= 0) {
-    const fromAuth = html.slice(auth, auth + 2000).match(/"(?:displayName|username|User)"\s*:\s*"([A-Za-z0-9_]{2,32})"/);
-    if (fromAuth) names.push(fromAuth[1]);
-  }
-  const counts = new Map<string, number>();
-  for (const m of html.matchAll(/\/user\/([A-Za-z0-9_]{2,32})/g)) counts.set(m[1], (counts.get(m[1]) ?? 0) + 1);
-  names.push(...[...counts.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name));
-  return [...new Set(names)].slice(0, MAX_RA_USERNAMES);
-}
+const RA_USERNAME = /^[A-Za-z0-9_]{2,32}$/;
+const RA_KEY_EXACT = /^[A-Za-z0-9]{32}$/;
+const RA_SETTINGS_URL = 'https://retroachievements.org/settings';
+const RA_CLIPBOARD_POLL_MS = 1_000;
+const RA_LOGIN_TIMEOUT_MS = 10 * 60_000;
 
 class AccountsService {
+  private cancelRetroLogin?: () => void;
+
   getStatus(): AccountsStatus {
     const s = db.getSettings();
     const drive = googleDriveService.getStatus();
@@ -107,24 +97,47 @@ class AccountsService {
     return this.getStatus();
   }
 
-  async loginRetroAchievements(parent: BrowserWindow | null): Promise<AccountsStatus> {
-    const { username, key } = await openWebLogin(
-      {
-        title: 'Entre no RetroAchievements — o Lazulium conecta sua conta sozinho depois do login',
-        partition: 'persist:login-retroachievements',
-        host: /(^|\.)retroachievements\.org$/i,
-        initialUrl: 'https://retroachievements.org/login',
-        keyPageUrl: 'https://retroachievements.org/settings',
-        skipRedirectPaths: /^\/(login|register|forgot-password|reset-password|verify|createaccount)/i,
-        extract: (content) => {
-          const keys = findTokens(content, RA_KEY_PATTERN);
-          return findRetroUsernames(content).flatMap((name) => keys.map((k) => ({ username: name, key: k })));
-        },
-        validate: async ({ username: name, key: k }) => (await retroAchievementsService.testCredentials(name, k)).ok
-      },
-      parent
-    );
-    db.setSetting('retroAchievementsUser', username);
+  // O site do RetroAchievements fica atrás de uma verificação da Cloudflare que não passa em janela embutida.
+  // Por isso a página da chave abre no navegador de verdade; a pessoa copia a Web API Key e o Lazulium
+  // pega da área de transferência (só um texto de 32 letras e números, sem guardar nem registrar outra coisa).
+  async loginRetroAchievements(username: string): Promise<AccountsStatus> {
+    const user = typeof username === 'string' ? username.trim() : '';
+    if (!RA_USERNAME.test(user)) throw new Error('Escreva o seu nome de usuário do RetroAchievements.');
+    this.cancelRetroLogin?.();
+
+    const key = await new Promise<string>((resolve, reject) => {
+      const before = clipboard.readText().trim();
+      let checking = false;
+      const done = (err: Error | null, value?: string) => {
+        clearInterval(poller);
+        clearTimeout(timeout);
+        if (this.cancelRetroLogin === cancel) this.cancelRetroLogin = undefined;
+        if (err) reject(err);
+        else resolve(value!);
+      };
+      const cancel = () => done(new Error('Login cancelado.'));
+      this.cancelRetroLogin = cancel;
+
+      const poller = setInterval(() => {
+        if (checking) return;
+        const text = clipboard.readText().trim();
+        if (text === before || !RA_KEY_EXACT.test(text)) return;
+        checking = true;
+        retroAchievementsService
+          .testCredentials(user, text)
+          .then((result) =>
+            result.ok
+              ? done(null, text)
+              : done(new Error(`A chave copiada não é a do usuário "${user}". Confira o nome e copie a Web API Key de novo.`))
+          )
+          .catch(() => done(new Error('Não deu para falar com o RetroAchievements agora. Tente de novo.')));
+      }, RA_CLIPBOARD_POLL_MS);
+      const timeout = setTimeout(() => done(new Error('Tempo esgotado esperando a Web API Key copiada.')), RA_LOGIN_TIMEOUT_MS);
+
+      void shell.openExternal(RA_SETTINGS_URL).catch(() => done(new Error('Não foi possível abrir o navegador.')));
+    });
+
+    db.setSetting('retroAchievementsUser', user);
     db.setSetting('retroAchievementsApiKey', key);
     db.clearGameAchievements('retroachievements');
     return this.getStatus();

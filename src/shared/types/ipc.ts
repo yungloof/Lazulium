@@ -226,7 +226,7 @@ export interface ElectronAPI {
   useLocalSteamAccount: (steamId: string) => Promise<AccountsStatus>;
   loginSteam: () => Promise<AccountsStatus>;                  // OpenID no navegador do sistema
   loginSteamGridDb: () => Promise<AccountsStatus>;            // Janela de login; captura a chave sozinho
-  loginRetroAchievements: () => Promise<AccountsStatus>;
+  loginRetroAchievements: (username: string) => Promise<AccountsStatus>;
   loginEpic: () => Promise<AccountsStatus>;
   importEpicPlaytime: () => Promise<{ updated: number; matched: number }>;
   loginGoogle: () => Promise<AccountsStatus>;

@@ -20,8 +20,8 @@ export function registerAccountHandlers(getMainWindow: WindowGetter): void {
   handle(IPC_CHANNELS.ACCOUNTS_STEAM_LOGIN, async () => refocus(await accountsService.loginSteamInBrowser()));
   handle(IPC_CHANNELS.ACCOUNTS_SGDB_LOGIN, () => accountsService.loginSteamGridDb(getMainWindow()));
 
-  handle(IPC_CHANNELS.ACCOUNTS_RETRO_LOGIN, async () => {
-    const status = await accountsService.loginRetroAchievements(getMainWindow());
+  handle(IPC_CHANNELS.ACCOUNTS_RETRO_LOGIN, async (_event, username: string) => {
+    const status = refocus(await accountsService.loginRetroAchievements(username));
     void profileService.syncAllAchievements().catch((err) => console.warn('[IPC] Conquistas após login no RetroAchievements:', (err as Error).message));
     return status;
   });

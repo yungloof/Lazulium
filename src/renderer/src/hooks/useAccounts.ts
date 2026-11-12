@@ -10,6 +10,8 @@ export function useAccounts() {
   const [busy, setBusy] = useState<AccountService | null>(null);
   const [errors, setErrors] = useState<Partial<Record<AccountService, string>>>({});
   const [steamChoices, setSteamChoices] = useState<SteamLocalAccount[] | null>(null);
+  // RetroAchievements: a chave vem copiada do navegador, mas o usuário dono dela precisa ser dito
+  const [retroUser, setRetroUser] = useState('');
 
   useEffect(() => {
     window.electronAPI
@@ -53,18 +55,18 @@ export function useAccounts() {
     (service: AccountService) => {
       if (service === 'steam') return loginSteam();
       if (service === 'steamgriddb') return run(service, () => window.electronAPI?.loginSteamGridDb());
-      if (service === 'retroachievements') return run(service, () => window.electronAPI?.loginRetroAchievements());
+      if (service === 'retroachievements') return run(service, () => window.electronAPI?.loginRetroAchievements(retroUser));
       if (service === 'epic') return run(service, () => window.electronAPI?.loginEpic());
       return run(service, () => window.electronAPI?.loginGoogle());
     },
-    [loginSteam, run]
+    [loginSteam, retroUser, run]
   );
 
   const logout = useCallback((service: AccountService) => run(service, () => window.electronAPI?.logoutAccount(service)), [run]);
 
   const isConnected = (service: AccountService): boolean => !!status?.[service].connected;
 
-  return { status, loadError, busy, errors, steamChoices, login, logout, pickLocalSteam, loginSteamInBrowser, isConnected };
+  return { status, loadError, busy, errors, steamChoices, retroUser, setRetroUser, login, logout, pickLocalSteam, loginSteamInBrowser, isConnected };
 }
 
 export type AccountsController = ReturnType<typeof useAccounts>;

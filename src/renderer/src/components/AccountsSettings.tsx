@@ -6,7 +6,7 @@ import { useLibraryStore } from '../stores/useLibraryStore';
 import { PLATFORM_GROUP } from '../utils/platform';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { AccountsController, useAccounts } from '../hooks/useAccounts';
-import { Button, Notice } from './ui';
+import { Button, Notice, inputClass } from './ui';
 import { SettingsSkeleton } from './settings/controls';
 import { SocialAccountCard } from './settings/SocialAccountCard';
 
@@ -67,6 +67,25 @@ export const SteamAccountChoices: React.FC<{ accounts: AccountsController; class
 
 export const WAITING_WINDOW = 'Entre na janela que abriu...';
 export const WAITING_BROWSER = 'Entre no navegador que abriu...';
+export const WAITING_RETRO_KEY = 'Copie a Web API Key na página que abriu no navegador...';
+
+// Usuário do RetroAchievements: o Lazulium confere a chave copiada contra ele
+export const RetroUserField: React.FC<{ accounts: AccountsController; className?: string }> = ({ accounts, className = 'w-40' }) => (
+  <input
+    value={accounts.retroUser}
+    onChange={(e) => accounts.setRetroUser(e.target.value)}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' && accounts.retroUser.trim() && accounts.busy === null) void accounts.login('retroachievements');
+    }}
+    placeholder="Seu usuário"
+    aria-label="Seu nome de usuário no RetroAchievements"
+    maxLength={32}
+    spellCheck={false}
+    autoComplete="username"
+    disabled={accounts.busy !== null}
+    className={`${inputClass} ${className}`}
+  />
+);
 
 // Lojas que o Lazulium encontra sozinho no PC: nada para entrar
 const DETECTED_PLATFORMS: GamePlatform[] = ['epic', 'gog', 'xbox', 'battlenet', 'ea', 'ubisoft', 'riot', 'emulator', 'standalone'];
@@ -169,10 +188,17 @@ export const AccountsSettings: React.FC = () => {
           name="RetroAchievements"
           purpose="Conquistas dos jogos de emulador"
           connectedLabel={status.retroachievements.connected ? `Conectado como ${status.retroachievements.username}` : undefined}
-          busyLabel={busy === 'retroachievements' ? WAITING_WINDOW : undefined}
+          busyLabel={busy === 'retroachievements' ? WAITING_RETRO_KEY : undefined}
           error={errors.retroachievements}
         >
-          {status.retroachievements.connected ? logoutButton('retroachievements') : loginButton('retroachievements', 'Entrar')}
+          {status.retroachievements.connected ? (
+            logoutButton('retroachievements')
+          ) : (
+            <>
+              <RetroUserField accounts={accounts} />
+              {loginButton('retroachievements', 'Entrar', !accounts.retroUser.trim())}
+            </>
+          )}
         </AccountRow>
         <AccountRow
           icon={<Clock className="w-5 h-5 text-sky-300" />}

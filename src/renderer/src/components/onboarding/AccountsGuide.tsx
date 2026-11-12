@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Check, ChevronRight, Cloud, ExternalLink, Gamepad2, Loader2, LogIn, Trophy } from 'lucide-react';
 import { AccountService, AccountsStatus } from '@shared/types/accounts';
 import { useAccounts } from '../../hooks/useAccounts';
-import { SteamAccountChoices, WAITING_BROWSER, WAITING_WINDOW } from '../AccountsSettings';
+import { RetroUserField, SteamAccountChoices, WAITING_BROWSER, WAITING_RETRO_KEY } from '../AccountsSettings';
 
 // O SteamGridDB não entra aqui: as capas já vêm pelo servidor do Lazulium, e ele fica como opção em Configurações → Contas
 import { Button, Notice, Skeleton, focusRing } from '../ui';
@@ -51,13 +51,13 @@ const STEPS: GuideStep[] = [
     tint: 'bg-amber-500/15',
     gives: 'Conquistas dos jogos de emulador (consoles clássicos, PS2, GameCube e outros).',
     how: [
-      'Clique em Entrar. Abre uma janela do RetroAchievements.',
-      <>Entre com seu usuário e senha de lá. Não tem conta? Crie no próprio site, é grátis ({link('https://retroachievements.org/createaccount.php', 'criar conta')}).</>,
-      'Depois do login o Lazulium conecta sua conta sozinho e fecha a janela.'
+      <>Escreva seu nome de usuário de lá e clique em Entrar. Não tem conta? Crie no próprio site, é grátis ({link('https://retroachievements.org/createaccount.php', 'criar conta')}).</>,
+      'A página de configurações abre no seu navegador. Entre, se pedir.',
+      'Copie a Web API Key que aparece lá. O Lazulium pega a chave copiada e conecta sozinho.'
     ],
     tip: 'Para ganhar conquistas, entre também no emulador (RetroArch, PCSX2, DuckStation, Dolphin...) com a mesma conta.',
     button: 'Entrar no RetroAchievements',
-    waiting: WAITING_WINDOW,
+    waiting: WAITING_RETRO_KEY,
     connectedLabel: (s) => `Conectado como ${s.retroachievements.username}`
   },
   {
@@ -168,7 +168,15 @@ export const AccountsGuide: React.FC = () => {
                   {step.service === 'steam' && <SteamAccountChoices accounts={accounts} className="p-3 rounded-lg bg-slate-950/40" />}
                   <Notice>{errors[step.service]}</Notice>
                   <div className="flex items-center gap-2 pt-1">
-                    <Button variant="primary" size="md" icon={<LogIn className="w-3.5 h-3.5" />} loading={waiting} disabled={busy !== null && !waiting} onClick={() => accounts.login(step.service)}>
+                    {step.service === 'retroachievements' && <RetroUserField accounts={accounts} className="w-44" />}
+                    <Button
+                      variant="primary"
+                      size="md"
+                      icon={<LogIn className="w-3.5 h-3.5" />}
+                      loading={waiting}
+                      disabled={(busy !== null && !waiting) || (step.service === 'retroachievements' && !accounts.retroUser.trim())}
+                      onClick={() => accounts.login(step.service)}
+                    >
                       {step.button}
                     </Button>
                     <Button variant="ghost" onClick={() => skip(step.service)} disabled={waiting}>
