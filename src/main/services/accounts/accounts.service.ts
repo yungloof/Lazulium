@@ -105,10 +105,14 @@ class AccountsService {
     if (!RA_USERNAME.test(user)) throw new Error('Escreva o seu nome de usuário do RetroAchievements.');
     this.cancelRetroLogin?.();
 
+    // A área de transferência é assíncrona desde o Electron 44
+    const before = (await clipboard.readText().catch(() => '')).trim();
     const key = await new Promise<string>((resolve, reject) => {
-      const before = clipboard.readText().trim();
       let checking = false;
+      let finished = false;
       const done = (err: Error | null, value?: string) => {
+        if (finished) return;
+        finished = true;
         clearInterval(poller);
         clearTimeout(timeout);
         if (this.cancelRetroLogin === cancel) this.cancelRetroLogin = undefined;
@@ -120,17 +124,25 @@ class AccountsService {
 
       const poller = setInterval(() => {
         if (checking) return;
-        const text = clipboard.readText().trim();
-        if (text === before || !RA_KEY_EXACT.test(text)) return;
         checking = true;
-        retroAchievementsService
-          .testCredentials(user, text)
-          .then((result) =>
-            result.ok
-              ? done(null, text)
-              : done(new Error(/incorretos/.test(result.message) ? `A chave copiada não é a do usuário "${user}". Confira o nome e copie a Web API Key de novo.` : result.message))
-          )
-          .catch(() => done(new Error('Não deu para falar com o RetroAchievements agora. Tente de novo.')));
+        void clipboard
+          .readText()
+          .catch(() => '')
+          .then((raw) => {
+            const text = raw.trim();
+            if (finished || text === before || !RA_KEY_EXACT.test(text)) {
+              checking = false;
+              return;
+            }
+            retroAchievementsService
+              .testCredentials(user, text)
+              .then((result) =>
+                result.ok
+                  ? done(null, text)
+                  : done(new Error(/incorretos/.test(result.message) ? `A chave copiada não é a do usuário "${user}". Confira o nome e copie a Web API Key de novo.` : result.message))
+              )
+              .catch(() => done(new Error('Não deu para falar com o RetroAchievements agora. Tente de novo.')));
+          });
       }, RA_CLIPBOARD_POLL_MS);
       const timeout = setTimeout(() => done(new Error('Tempo esgotado esperando a Web API Key copiada.')), RA_LOGIN_TIMEOUT_MS);
 
