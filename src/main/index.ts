@@ -13,7 +13,7 @@ import { wishlistService } from './services/metadata/wishlist.service';
 import { profileService } from './services/profile/profile.service';
 import { scanLibrariesWithChanges } from './services/scanners';
 import { updaterService } from './services/updater/updater.service';
-import { socialService } from './services/social/social.service';
+import { socialService, socialServerUrl } from './services/social/social.service';
 import { epicAccountService } from './services/accounts/epic-account.service';
 import {
   HIDDEN_LAUNCH_ARG,
@@ -100,7 +100,9 @@ if (!app.requestSingleInstanceLock()) {
       : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: lazulium-media:; media-src 'self' https://*.steamstatic.com lazulium-media:; font-src 'self' data:; frame-src https://lazulium-social.yungloof.workers.dev http://127.0.0.1:*; connect-src 'self' https:;";
 
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-      if (details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') {
+      // A vitrine de um amigo (moldura do servidor social) traz a própria política, mais restrita: não sobrescrever
+      const socialFrame = details.resourceType === 'subFrame' && (details.url.startsWith(`${socialServerUrl()}/`) || details.url.startsWith('http://127.0.0.1:'));
+      if ((details.resourceType === 'mainFrame' || details.resourceType === 'subFrame') && !socialFrame) {
         callback({
           responseHeaders: {
             ...details.responseHeaders,

@@ -60,5 +60,8 @@ A Steam é simulada; o banco é SQLite em memória com o mesmo `schema.sql`.
 | DELETE | `/v1/friends/:id` | Desfaz a amizade |
 | GET | `/v1/feed?before=&limit=` | Feed dos amigos, do mais novo para o mais antigo |
 | GET | `/v1/users/:id` | Perfil de um amigo (só amigos) |
+| PUT / DELETE | `/v1/me/showcase` | Vitrine (o JSON do perfil web) |
+| PUT / DELETE | `/v1/me/media/:kind` | Avatar, fundo ou arte (JPEG/PNG/WebP em base64, até ~1,1 MB); devolve o endereço público |
+| POST | `/v1/users/:id/view` | Link de 30 min para a vitrine de um amigo (`/v1/view/<token>`, página do perfil web com o JSON embutido) |
 
 Capas e avatares só passam se forem de CDNs conhecidos (Steam, IGDB, SteamGridDB). Limite de 120 pedidos por minuto por endereço.

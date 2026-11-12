@@ -10,8 +10,8 @@ Baixe um destes arquivos pelo link que você recebeu (a página de downloads do 
 
 | Arquivo | Para quem | Como funciona |
 |---|---|---|
-| **`Lazulium-Setup-2.1.0.exe`** *(recomendado)* | Quem quer instalar normalmente | Instala só para o seu usuário (não pede administrador) e cria atalhos na Área de Trabalho e no Menu Iniciar. |
-| **`Lazulium-Portable-2.1.0.exe`** | Quem prefere não instalar | Um arquivo só: dois cliques e abre. Demora um pouco mais para abrir. |
+| **`Lazulium-Setup-2.2.0.exe`** *(recomendado)* | Quem quer instalar normalmente | Instala só para o seu usuário (não pede administrador) e cria atalhos na Área de Trabalho e no Menu Iniciar. |
+| **`Lazulium-Portable-2.2.0.exe`** | Quem prefere não instalar | Um arquivo só: dois cliques e abre. Demora um pouco mais para abrir. |
 
 Já testou uma versão antiga? Instale por cima: seus jogos, horas e anotações continuam lá.
 
@@ -92,7 +92,7 @@ Se o app travar, uma tela ficar em branco, fechar sozinho ou um jogo não contar
 Copie, preencha e mande por onde a gente conversa:
 
 ```text
---- RELATO DE TESTE - LAZULIUM 2.1.0 ---
+--- RELATO DE TESTE - LAZULIUM 2.2.0 ---
 1. O que eu tentei fazer:
 (Ex: conectar a Steam / abrir o Elden Ring / registrar um jogo no Diário)
 

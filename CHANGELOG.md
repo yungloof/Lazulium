@@ -4,6 +4,15 @@ O que mudou em cada versão, da mais nova para a mais antiga.
 
 ---
 
+## 2.2.0 — 12 de novembro de 2026
+
+### Novidades
+
+- **Perfil dos amigos de verdade.** Ao abrir um amigo, aparece o perfil do jeito que ele decorou: avatar, fundo, arte em destaque, bio, jogos e conquistas em destaque, nível e insígnias da Steam. A aba *Comparar* continua com os jogos em comum e as horas lado a lado.
+- **O seu perfil vai junto.** Avatar, fundo e arte que você escolheu no Lazulium são enviados (em tamanho reduzido) para os seus amigos verem. Dá para esconder em *Configurações → Contas → Vitrine do perfil*. Fundo em vídeo não vai: os amigos veem o fundo da Steam ou do jogo.
+
+---
+
 ## 2.1.0 — 11 de novembro de 2026
 
 Horas certas em qualquer loja, aviso quando um amigo começa a jogar e capas para os amigos.

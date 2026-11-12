@@ -1,6 +1,6 @@
 # Política de privacidade do Lazulium
 
-*Última atualização: 11 de novembro de 2026 · vale para o Lazulium 2.1.0 e posteriores*
+*Última atualização: 12 de novembro de 2026 · vale para o Lazulium 2.2.0 e posteriores*
 
 O Lazulium é um aplicativo para Windows que reúne seus jogos de PC numa biblioteca só. Ele é feito por um desenvolvedor independente, Lazuli Fool, que responde por esta política. Contato: **yungloof06@gmail.com**.
 
@@ -86,6 +86,7 @@ A conta é **opcional** e serve para você ver o que seus amigos jogam e eles ve
 - os eventos que vão para o feed: jogou (o jogo e quanto tempo no dia), começou, zerou, 100%, largou, conquistas do dia, nota e resenha. Cada evento leva o nome do jogo, a data e, quando existe, o endereço público da capa (Steam, IGDB ou SteamGridDB). Ficam os 2.000 mais recentes;
 - o jogo aberto agora ("jogando agora"), que some sozinho 15 minutos depois do último sinal do app;
 - um resumo do seu perfil: número de jogos, horas, zerados, conquistas e os 12 mais jogados;
+- a vitrine do perfil (o mesmo conteúdo da página que o *Perfil → Publicar na web* gera: nome, bio, jogos e conquistas em destaque, mais jogados, nível e insígnias da Steam) e, se você escolheu no Lazulium, o avatar, o fundo e a arte em destaque, em tamanho reduzido. Seus amigos abrem a vitrine por um link que vale 30 minutos. Dá para esconder em *Vitrine do perfil*;
 - a lista de amigos e os códigos de convite (valem 7 dias);
 - a sessão de login, guardada só como uma impressão (hash) do código, que vence em 180 dias.
 

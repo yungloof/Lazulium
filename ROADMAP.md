@@ -193,6 +193,10 @@ Este roadmap organiza a implementação do aplicativo em fases modulares e bem d
 
 ---
 
+## 🪟 Versão 2.2.0: vitrine dos amigos (12/11/2026)
+- [x] Perfil do amigo mostra a vitrine que ele decorou (a página do perfil web, servida pelo `server/social` por link de 30 min numa moldura isolada) e a aba Comparar.
+- [x] App envia a vitrine e as imagens escolhidas (avatar, fundo, arte) reduzidas; chave *Vitrine do perfil*.
+
 ## ⏱️ Versão 2.1.0: horas em qualquer loja (11/11/2026)
 - [x] Contar o tempo de jogos abertos fora do Lazulium (Epic, GOG, EA, atalhos), com chave em Comportamento.
 - [x] Entrar com a Epic (opcional) para importar as horas de cada jogo.
