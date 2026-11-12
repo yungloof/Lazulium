@@ -113,6 +113,7 @@ class SocialService {
   private listener: (status: SocialStatus) => void = () => {};
   private friendListener: (text: string) => void = () => {};
   private coverMisses = new Set<string>();
+  private friendCovers = new Map<string, string | null>();
   private friendsPlaying: Map<string, string> | undefined;   // amigo -> jogo; undefined = ainda não leu (não avisa na primeira leitura)
 
   setFriendPlayingListener(listener: (text: string) => void): void {
@@ -289,24 +290,57 @@ class SocialService {
     return (await this.api<{ friend: SocialUser }>('POST', '/v1/friends/accept', { code: clean })).friend;
   }
 
-  async getFriends(): Promise<SocialFriend[]> {
-    return (await this.api<{ friends: SocialFriend[] }>('GET', '/v1/friends')).friends;
-  }
-
   async removeFriend(friendId: string): Promise<void> {
     if (!/^[0-9a-f-]{36}$/.test(friendId)) throw new Error('Amigo inválido.');
     await this.api('DELETE', `/v1/friends/${friendId}`);
   }
 
+  async getFriends(): Promise<SocialFriend[]> {
+    const friends = (await this.api<{ friends: SocialFriend[] }>('GET', '/v1/friends')).friends;
+    const playing = friends.flatMap((f) => (f.nowPlaying ? [f.nowPlaying] : []));
+    await this.fillFriendCovers(playing.map((p) => ({ ...p, title: p.gameTitle })), playing);
+    return friends;
+  }
+
   async getFeed(before?: string): Promise<SocialFeedItem[]> {
     const query = new URLSearchParams({ limit: '30' });
     if (before && !Number.isNaN(Date.parse(before))) query.set('before', before);
-    return (await this.api<{ items: SocialFeedItem[] }>('GET', `/v1/feed?${query}`)).items;
+    const items = (await this.api<{ items: SocialFeedItem[] }>('GET', `/v1/feed?${query}`)).items;
+    await this.fillFriendCovers(items.map((i) => ({ ...i, title: i.gameTitle })), items);
+    return items;
   }
 
   async getFriendProfile(friendId: string): Promise<SocialFriendProfile> {
     if (!/^[0-9a-f-]{36}$/.test(friendId)) throw new Error('Amigo inválido.');
-    return this.api<SocialFriendProfile>('GET', `/v1/users/${friendId}`);
+    const profile = await this.api<SocialFriendProfile>('GET', `/v1/users/${friendId}`);
+    await this.fillFriendCovers(profile.activities.map((a) => ({ ...a, title: a.gameTitle })), profile.activities);
+    if (profile.summary) await this.fillFriendCovers(profile.summary.topGames);
+    if (profile.nowPlaying) await this.fillFriendCovers([{ ...profile.nowPlaying, title: profile.nowPlaying.gameTitle }], [profile.nowPlaying]);
+    return profile;
+  }
+
+  // O amigo mandou o jogo sem capa (versão antiga do app, capa só no PC dele): usa a capa deste PC
+  // para o mesmo jogo ou a padrão do IGDB. Fica guardada na memória enquanto o app está aberto.
+  private async fillFriendCovers(items: { gameKey: string; title: string; coverUrl: string | null }[], targets: { coverUrl: string | null }[] = items): Promise<void> {
+    const missing = [...new Set(items.filter((i) => !i.coverUrl && !i.gameKey.startsWith('steam:')).map((i) => i.gameKey))];
+    const pending = missing.filter((key) => !this.friendCovers.has(key)).slice(0, MAX_COVER_LOOKUPS);
+    if (pending.length) {
+      const mine = new Map(db.getGames().map((g) => [gameKeyOf(g), g]));
+      await Promise.all(
+        pending.map(async (key) => {
+          const own = mine.get(key);
+          let cover = own ? publicCoverOf(own) : null;
+          if (!cover) {
+            const title = items.find((i) => i.gameKey === key)!.title;
+            cover = (await fetchIgdbArtwork({ title } as Game).catch(() => null))?.cover ?? null;
+          }
+          this.friendCovers.set(key, cover);
+        })
+      );
+    }
+    items.forEach((item, index) => {
+      if (!item.coverUrl && this.friendCovers.get(item.gameKey)) targets[index].coverUrl = this.friendCovers.get(item.gameKey)!;
+    });
   }
 
   // "Fulano começou a jogar X": compara quem está jogando agora com a leitura anterior
