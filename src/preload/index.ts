@@ -159,6 +159,8 @@ const electronAPI: ElectronAPI = {
   loginSteam: () => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_STEAM_LOGIN),
   loginSteamGridDb: () => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_SGDB_LOGIN),
   loginRetroAchievements: () => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_RETRO_LOGIN),
+  loginEpic: () => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_EPIC_LOGIN),
+  importEpicPlaytime: () => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_EPIC_IMPORT),
   loginGoogle: () => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_GOOGLE_LOGIN),
   logoutAccount: (service: AccountService) => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_LOGOUT, service),
 

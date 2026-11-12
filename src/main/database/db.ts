@@ -26,7 +26,8 @@ const SECRET_SETTING_KEYS = [
   'retroAchievementsApiKey',
   'googleClientSecret',
   'googleDriveRefreshToken',
-  'socialToken'
+  'socialToken',
+  'epicRefreshToken'
 ] as const;
 
 const isSecretKey = (key: string): boolean => (SECRET_SETTING_KEYS as readonly string[]).includes(key);

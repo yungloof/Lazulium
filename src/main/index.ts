@@ -14,6 +14,7 @@ import { profileService } from './services/profile/profile.service';
 import { scanLibrariesWithChanges } from './services/scanners';
 import { updaterService } from './services/updater/updater.service';
 import { socialService } from './services/social/social.service';
+import { epicAccountService } from './services/accounts/epic-account.service';
 import {
   HIDDEN_LAUNCH_ARG,
   afterLibraryServed,
@@ -123,6 +124,7 @@ if (!app.requestSingleInstanceLock()) {
     setSessionEndHandler(shutdown);
     updaterService.init();
     socialService.init();
+    epicAccountService.init();
 
     const hadGames = db.getGames().length > 0;
     startApp(process.argv.includes(HIDDEN_LAUNCH_ARG));

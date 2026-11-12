@@ -8,6 +8,7 @@ import { achievementsService } from '../services/achievements/achievements.servi
 import { backupService } from '../services/cloudsync/backup.service';
 import { screenshotCaptureService } from '../services/metadata/screenshot-capture.service';
 import { socialService } from '../services/social/social.service';
+import { epicAccountService } from '../services/accounts/epic-account.service';
 import { WindowGetter } from './helpers';
 
 let getWindow: WindowGetter = () => null;
@@ -52,5 +53,6 @@ export function registerRendererEvents(getMainWindow: WindowGetter): void {
   steamNamesService.setGameUpdatedListener(sendGame);
   artworkService.setGameUpdatedListener(sendGame);
   achievementsService.setGameUpdatedListener(sendGame);
+  epicAccountService.setGameUpdatedListener(sendGame);
   achievementsService.setListUpdatedListener((gameId) => sendToRenderer(IPC_CHANNELS.ACHIEVEMENTS_UPDATED, gameId));
 }

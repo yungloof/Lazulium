@@ -54,6 +54,7 @@ export function useAccounts() {
       if (service === 'steam') return loginSteam();
       if (service === 'steamgriddb') return run(service, () => window.electronAPI?.loginSteamGridDb());
       if (service === 'retroachievements') return run(service, () => window.electronAPI?.loginRetroAchievements());
+      if (service === 'epic') return run(service, () => window.electronAPI?.loginEpic());
       return run(service, () => window.electronAPI?.loginGoogle());
     },
     [loginSteam, run]

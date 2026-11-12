@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react';
-import { CheckCircle2, Cloud, Gamepad2, Image as ImageIcon, Loader2, LogIn, LogOut, Store, Trophy, UserRound } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { CheckCircle2, Clock, Cloud, RefreshCw, Gamepad2, Image as ImageIcon, Loader2, LogIn, LogOut, Store, Trophy, UserRound } from 'lucide-react';
 import { AccountService } from '@shared/types/accounts';
 import { GamePlatform } from '@shared/types/game';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { PLATFORM_GROUP } from '../utils/platform';
+import { formatLastPlayed } from '../utils/format';
+import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { AccountsController, useAccounts } from '../hooks/useAccounts';
 import { Button, Notice } from './ui';
 import { SettingsSkeleton } from './settings/controls';
@@ -113,6 +115,21 @@ const DetectedStores: React.FC = () => {
 export const AccountsSettings: React.FC = () => {
   const accounts = useAccounts();
   const { status, loadError, busy, errors } = accounts;
+  const [importing, setImporting] = useState(false);
+  const [epicMessage, setEpicMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const importEpic = async () => {
+    setImporting(true);
+    setEpicMessage(null);
+    try {
+      const result = await window.electronAPI?.importEpicPlaytime();
+      if (result) setEpicMessage({ ok: true, text: result.updated ? `horas atualizadas em ${result.updated} jogo(s)` : 'horas em dia' });
+    } catch (err) {
+      setEpicMessage({ ok: false, text: ipcErrorMessage(err) });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   if (loadError) return <Notice>Não foi possível ler suas contas: {loadError}</Notice>;
   if (!status) return <SettingsSkeleton rows={4} />;
@@ -157,6 +174,30 @@ export const AccountsSettings: React.FC = () => {
           error={errors.retroachievements}
         >
           {status.retroachievements.connected ? logoutButton('retroachievements') : loginButton('retroachievements', 'Entrar')}
+        </AccountRow>
+        <AccountRow
+          icon={<Clock className="w-5 h-5 text-sky-300" />}
+          tint="bg-sky-500/15"
+          name="Epic Games (opcional)"
+          purpose="Importa as horas dos seus jogos da Epic, inclusive as de antes do Lazulium. A Epic não guarda horas no PC"
+          connectedLabel={
+            status.epic.connected
+              ? `Conectado${status.epic.displayName ? ` como ${status.epic.displayName}` : ''}${epicMessage?.ok ? ` · ${epicMessage.text}` : status.epic.lastImportAt ? ` · horas atualizadas ${formatLastPlayed(status.epic.lastImportAt).toLowerCase()}` : ''}`
+              : undefined
+          }
+          busyLabel={busy === 'epic' ? WAITING_WINDOW : undefined}
+          error={errors.epic ?? (epicMessage && !epicMessage.ok ? epicMessage.text : undefined)}
+        >
+          {status.epic.connected ? (
+            <>
+              <Button icon={<RefreshCw className={`w-3.5 h-3.5 ${importing ? 'animate-spin' : ''}`} />} onClick={importEpic} disabled={importing || busy !== null}>
+                Importar agora
+              </Button>
+              {logoutButton('epic')}
+            </>
+          ) : (
+            loginButton('epic', 'Entrar', false, false)
+          )}
         </AccountRow>
       </Group>
 

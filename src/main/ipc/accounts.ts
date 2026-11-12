@@ -1,6 +1,7 @@
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { AccountService } from '@shared/types/accounts';
 import { accountsService } from '../services/accounts/accounts.service';
+import { epicAccountService } from '../services/accounts/epic-account.service';
 import { profileService } from '../services/profile/profile.service';
 import { backupService } from '../services/cloudsync/backup.service';
 import { handle, WindowGetter } from './helpers';
@@ -25,6 +26,8 @@ export function registerAccountHandlers(getMainWindow: WindowGetter): void {
     return status;
   });
 
+  handle(IPC_CHANNELS.ACCOUNTS_EPIC_LOGIN, () => accountsService.loginEpic(getMainWindow()));
+  handle(IPC_CHANNELS.ACCOUNTS_EPIC_IMPORT, () => epicAccountService.importPlaytime());
   handle(IPC_CHANNELS.ACCOUNTS_GOOGLE_LOGIN, async () => {
     const status = refocus(await accountsService.loginGoogle());
     // O que já estava só neste PC sobe sozinho

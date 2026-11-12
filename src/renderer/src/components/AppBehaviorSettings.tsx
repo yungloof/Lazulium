@@ -40,6 +40,7 @@ const readBool = (value: string | undefined, fallback: boolean) => (value === un
 export const AppBehaviorSettings: React.FC = () => {
   const [values, setValues] = useState<Record<string, boolean>>({});
   const [discountIdle, setDiscountIdle] = useState(true);
+  const [trackExternal, setTrackExternal] = useState(true);
   const [idleThreshold, setIdleThreshold] = useState('15');
   const [hotkey, setHotkey] = useState('Control+F12');
   const [hotkeyBusy, setHotkeyBusy] = useState(false);
@@ -51,6 +52,7 @@ export const AppBehaviorSettings: React.FC = () => {
       .then((settings) => {
         setValues(Object.fromEntries(WINDOW_OPTIONS.map((o) => [o.key, readBool(settings[o.key], o.defaultValue)])));
         setDiscountIdle(readBool(settings.discountIdleTime, true));
+        setTrackExternal(readBool(settings.trackExternalGames, true));
         setIdleThreshold(settings.idleThresholdMinutes || '15');
       })
       .catch(() => undefined);
@@ -96,6 +98,15 @@ export const AppBehaviorSettings: React.FC = () => {
       </SettingsGroup>
 
       <SettingsGroup title="Contagem de horas">
+        <ToggleRow
+          label="Contar jogos abertos fora do Lazulium"
+          hint="Percebe quando um jogo da biblioteca é aberto por outro launcher (Epic, GOG, EA...) ou por um atalho, e conta o tempo. Jogos da Steam e de emulador ficam de fora: a Steam já conta os dela."
+          checked={trackExternal}
+          onChange={(checked) => {
+            setTrackExternal(checked);
+            void window.electronAPI?.setSetting('trackExternalGames', String(checked));
+          }}
+        />
         <ToggleRow
           label="Descontar tempo ausente"
           hint="Desconta da sessão o tempo sem teclado, mouse ou controle Xbox. Outros controles podem não ser detectados: se jogar com eles em jogos fora da Steam, desligue esta opção."

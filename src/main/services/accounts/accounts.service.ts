@@ -8,6 +8,7 @@ import { googleDriveService } from '../cloudsync/google-drive.service';
 import { scanLibraries } from '../scanners';
 import { fetchSteamPersona, listLocalSteamAccounts, loginWithSteamOpenId } from './steam-account.service';
 import { PageContent, findTokens, openWebLogin } from './web-login.service';
+import { epicAccountService } from './epic-account.service';
 
 const SGDB_KEY_PATTERN = /\b[a-f0-9]{32}\b/gi;
 const RA_KEY_PATTERN = /\b[A-Za-z0-9]{32}\b/g;
@@ -44,6 +45,7 @@ class AccountsService {
         connected: !!(s.retroAchievementsUser && s.retroAchievementsApiKey),
         username: s.retroAchievementsUser || undefined
       },
+      epic: { connected: epicAccountService.isConnected(), ...epicAccountService.getAccount() },
       google: { connected: drive.connected, email: drive.email, available: drive.configured }
     };
   }
@@ -128,6 +130,11 @@ class AccountsService {
     return this.getStatus();
   }
 
+  async loginEpic(parent: BrowserWindow | null): Promise<AccountsStatus> {
+    await epicAccountService.login(parent);
+    return this.getStatus();
+  }
+
   async loginGoogle(): Promise<AccountsStatus> {
     await googleDriveService.connect();
     return this.getStatus();
@@ -149,6 +156,10 @@ class AccountsService {
         break;
       case 'google':
         await googleDriveService.disconnect();
+        break;
+      case 'epic':
+        // As horas já importadas ficam: só para de atualizar
+        epicAccountService.logout();
         break;
     }
     return this.getStatus();

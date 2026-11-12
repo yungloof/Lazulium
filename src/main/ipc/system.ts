@@ -8,10 +8,11 @@ import { backupService } from '../services/cloudsync/backup.service';
 import { updaterService } from '../services/updater/updater.service';
 import { DRIVE_SETTING_KEYS } from '../services/cloudsync/google-drive.service';
 import { SOCIAL_SETTING_KEYS } from '../services/social/social.service';
+import { EPIC_SETTING_KEYS } from '../services/accounts/epic-account.service';
 import { askOpenPaths, handle, WindowGetter } from './helpers';
 
 // Gerenciadas só pelo main: o renderer nunca lê nem grava o token do Google
-const PRIVATE_SETTING_KEYS: string[] = [DRIVE_SETTING_KEYS.refreshToken, DRIVE_SETTING_KEYS.email, DRIVE_SETTING_KEYS.folderId, ...Object.values(SOCIAL_SETTING_KEYS)];
+const PRIVATE_SETTING_KEYS: string[] = [DRIVE_SETTING_KEYS.refreshToken, DRIVE_SETTING_KEYS.email, DRIVE_SETTING_KEYS.folderId, ...Object.values(SOCIAL_SETTING_KEYS), EPIC_SETTING_KEYS.refreshToken];
 
 const DEFAULT_FILE_FILTERS = [{ name: 'Executáveis', extensions: ['exe', 'bat', 'cmd'] }];
 

@@ -120,6 +120,8 @@ export const IPC_CHANNELS = {
   ACCOUNTS_STEAM_LOGIN: 'accounts:steam-login',
   ACCOUNTS_SGDB_LOGIN: 'accounts:steamgriddb-login',
   ACCOUNTS_RETRO_LOGIN: 'accounts:retroachievements-login',
+  ACCOUNTS_EPIC_LOGIN: 'accounts:epic-login',
+  ACCOUNTS_EPIC_IMPORT: 'accounts:epic-import',
   ACCOUNTS_GOOGLE_LOGIN: 'accounts:google-login',
   ACCOUNTS_LOGOUT: 'accounts:logout',
 
