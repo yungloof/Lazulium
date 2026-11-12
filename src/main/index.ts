@@ -117,6 +117,7 @@ if (!app.requestSingleInstanceLock()) {
     registerMediaProtocol();
     registerScreenshotRoots();
     playtimeService.recoverInterruptedSessions();
+    playtimeService.startExternalTracking();
 
     registerIpcHandlers(getMainWindow);
     setSessionEndHandler(shutdown);

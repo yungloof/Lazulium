@@ -71,6 +71,10 @@ export class ProcessMonitor {
     return [...(this.watches.get(id)?.alivePids ?? [])];
   }
 
+  hasWatches(): boolean {
+    return this.watches.size > 0;
+  }
+
   isWatching(id: string): boolean {
     return this.watches.has(id);
   }

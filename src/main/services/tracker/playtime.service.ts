@@ -14,6 +14,10 @@ const HEARTBEAT_PERSIST_MS = 60_000;
 // Steam/Epic podem precisar atualizar ou sincronizar antes de abrir o jogo
 const URI_START_TIMEOUT_MS = 3 * 60_000;
 const SPAWN_START_TIMEOUT_MS = 60_000;
+// Jogos abertos por fora (launcher da Epic, atalho do jogo): uma olhada por minuto nos programas abertos
+const EXTERNAL_SCAN_MS = 60_000;
+const EXTERNAL_FIRST_SCAN_MS = 30_000;
+export const TRACK_EXTERNAL_SETTING = 'trackExternalGames';
 
 type StatusListener = (status: GameLaunchStatus) => void;
 
@@ -49,6 +53,23 @@ function getMatchDirs(game: Game, spawned: boolean): string[] {
   return dir ? [dir] : [];
 }
 
+const normalizeDir = (dir: string) => dir.trim().replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase() + '\\';
+
+// Jogos que podem ser reconhecidos abertos por fora. Ficam de fora: Steam (a própria Steam conta e o Lazulium importa),
+// emuladores (o mesmo programa abre vários jogos), registros do Diário e pastas largas demais (que contêm outro jogo,
+// ou com menos de duas pastas abaixo do disco, como "D:\Jogos").
+export function externalCandidates(games: Game[]): { game: Game; dir: string }[] {
+  const list = games
+    .filter((g) => g.isInstalled !== false && !g.manualEntry && !g.isHidden && g.platform !== 'steam' && g.platform !== 'emulator')
+    .flatMap((game) => {
+      const raw = game.installPath || game.workingDirectory || (game.executablePath ? dirname(game.executablePath) : '');
+      if (!raw) return [];
+      const dir = normalizeDir(raw);
+      return dir.split('\\').filter(Boolean).length >= 3 ? [{ game, dir }] : [];
+    });
+  return list.filter(({ dir }) => !list.some((other) => other.dir !== dir && other.dir.startsWith(dir)));
+}
+
 // Erro de abertura em português claro, com o que o jogador pode fazer
 function launchErrorMessage(err: unknown, game: Game): string {
   if (err instanceof LaunchError) return err.message;
@@ -65,6 +86,8 @@ class PlaytimeService {
   private listener: StatusListener = () => {};
   private active = new Map<string, ActiveGame>();
   private launching = new Set<string>();
+  private externalTimer: NodeJS.Timeout | undefined;
+  private scanningExternal = false;
 
   private monitor = new ProcessMonitor({
     onDetected: (id, pid, firstSeenAt) => {
@@ -208,6 +231,38 @@ class PlaytimeService {
     return true;
   }
 
+  // Conta também os jogos abertos sem passar pelo Lazulium (Epic, GOG, atalho na área de trabalho...)
+  startExternalTracking(): void {
+    if (this.externalTimer) return;
+    const tick = () => void this.scanExternal().catch((err) => console.warn('[Playtime] Procura de jogos abertos falhou:', (err as Error).message));
+    setTimeout(tick, EXTERNAL_FIRST_SCAN_MS).unref();
+    this.externalTimer = setInterval(tick, EXTERNAL_SCAN_MS);
+    this.externalTimer.unref();
+  }
+
+  private async scanExternal(): Promise<void> {
+    if (this.scanningExternal || db.getSettings()[TRACK_EXTERNAL_SETTING] === 'false') return;
+    const candidates = externalCandidates(db.getGames()).filter(({ game }) => !this.active.has(game.id) && !this.launching.has(game.id));
+    if (candidates.length === 0) return;
+    this.scanningExternal = true;
+    try {
+      const list = await processSnapshot.query();
+      for (const { game, dir } of candidates) {
+        const matched = list.filter((p) => p.path && p.path.toLowerCase().startsWith(dir));
+        if (matched.length === 0 || this.active.has(game.id) || this.launching.has(game.id)) continue;
+        // Começo da sessão = o processo mais antigo do jogo (pode ter aberto antes desta olhada)
+        const startedAt = Math.min(Date.now(), ...matched.map((p) => p.createdAt ?? Date.now()));
+        console.log(`[Playtime] ${game.title} aberto fora do Lazulium: contando o tempo`);
+        this.active.set(game.id, { state: 'launching', lastPersistAt: 0, lastPollAt: Date.now(), idleSeconds: 0 });
+        this.monitor.watch({ id: game.id, matchDirs: [dir], launchedAt: startedAt, startTimeoutMs: SPAWN_START_TIMEOUT_MS });
+      }
+    } finally {
+      this.scanningExternal = false;
+      // Sem jogo sendo acompanhado, o PowerShell da consulta não precisa ficar aberto
+      if (!this.monitor.hasWatches()) processSnapshot.stop();
+    }
+  }
+
   // Encerra a árvore de processos detectada; o monitor registra o fim da sessão
   async stop(gameId: string): Promise<boolean> {
     const pids = this.monitor.getAlivePids(gameId);
@@ -240,6 +295,7 @@ class PlaytimeService {
       }
     }
     this.active.clear();
+    clearInterval(this.externalTimer);
     this.monitor.stopAll();
   }
 
