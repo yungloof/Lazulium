@@ -324,3 +324,55 @@ test('limites: lote grande demais e JSON quebrado', async (t) => {
   assert.equal((await s.call('POST', '/v1/me/activities', { token: a.token, body: '{quebrado' })).status, 400);
   assert.equal((await s.call('GET', '/v1/nada', { token: a.token })).status, 404);
 });
+
+// ---------- Vitrine do perfil ----------
+const SHOWCASE = { schema: 'lazulium-profile/1', displayName: 'Amiga </script><script>alert(1)</script>', custom: {}, featuredGames: [] };
+const PAGE = '<!doctype html><html><head><title>Perfil</title></head><body></body></html>';
+
+test('vitrine: amigo abre pelo link temporário; JSON embutido não fecha a tag', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  s.env.PROFILE_PAGE = PAGE;
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  const c = await login(s, '76561198000000003');
+  await befriend(s, a, b);
+  // Sem vitrine enviada ainda
+  assert.deepEqual((await s.call('POST', `/v1/users/${b.user.id}/view`, { token: a.token })).body, { url: null, reason: 'not_sent' });
+  assert.equal((await s.call('PUT', '/v1/me/showcase', { token: b.token, body: { schema: 'outro' } })).status, 400);
+  assert.equal((await s.call('PUT', '/v1/me/showcase', { token: b.token, body: SHOWCASE })).status, 200);
+  const link = await s.call('POST', `/v1/users/${b.user.id}/view`, { token: a.token });
+  assert.match(link.body.url, /^https:\/\/social\.test\/v1\/view\/[A-Za-z0-9_-]+$/);
+  const res = await worker.fetch(new Request(link.body.url), s.env);
+  const html = await res.text();
+  assert.equal(res.status, 200);
+  assert.match(html, /window\.LAZULIUM_PROFILE = /);
+  assert.ok(!html.includes('</script><script>alert(1)'), 'texto do perfil não pode fechar a tag');
+  // Quem não é amigo não consegue link
+  assert.equal((await s.call('POST', `/v1/users/${b.user.id}/view`, { token: c.token })).status, 404);
+  // Vitrine escondida: link novo não sai e o antigo para de abrir
+  await s.call('PATCH', '/v1/me', { token: b.token, body: { settings: { shareProfile: false } } });
+  assert.equal((await s.call('POST', `/v1/users/${b.user.id}/view`, { token: a.token })).body.reason, 'hidden');
+  assert.equal((await worker.fetch(new Request(link.body.url), s.env)).status, 404);
+});
+
+test('imagens: envio troca a anterior, endereço público serve o arquivo', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  const a = await login(s, '76561198000000001');
+  const png = Buffer.from('89504e470d0a1a0a', 'hex').toString('base64');
+  const first = await s.call('PUT', '/v1/me/media/avatar', { token: a.token, body: { mime: 'image/png', data: png } });
+  const second = await s.call('PUT', '/v1/me/media/avatar', { token: a.token, body: { mime: 'image/png', data: png } });
+  assert.notEqual(first.body.url, second.body.url);
+  assert.equal((await worker.fetch(new Request(first.body.url), s.env)).status, 404, 'a anterior some');
+  const img = await worker.fetch(new Request(second.body.url), s.env);
+  assert.equal(img.headers.get('Content-Type'), 'image/png');
+  assert.equal(Buffer.from(await img.arrayBuffer()).toString('hex'), '89504e470d0a1a0a');
+  assert.equal((await s.call('PUT', '/v1/me/media/avatar', { token: a.token, body: { mime: 'text/html', data: png } })).status, 400);
+  assert.equal((await s.call('PUT', '/v1/me/media/outra', { token: a.token, body: { mime: 'image/png', data: png } })).status, 404);
+  // Apagar a conta leva as imagens
+  await s.call('DELETE', '/v1/me', { token: a.token });
+  assert.equal((await worker.fetch(new Request(second.body.url), s.env)).status, 404);
+});

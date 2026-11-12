@@ -70,3 +70,27 @@ CREATE TABLE IF NOT EXISTS now_playing (
   since       TEXT NOT NULL,
   updated_at  TEXT NOT NULL
 );
+
+-- Vitrine do perfil (o mesmo JSON do perfil web) e imagens escolhidas pela pessoa (avatar, fundo, arte)
+CREATE TABLE IF NOT EXISTS showcases (
+  user_id     TEXT PRIMARY KEY,
+  data        TEXT NOT NULL,
+  updated_at  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS media (
+  token       TEXT PRIMARY KEY,           -- Endereço público difícil de adivinhar; muda a cada envio
+  user_id     TEXT NOT NULL,
+  kind        TEXT NOT NULL,
+  mime        TEXT NOT NULL,
+  data        TEXT NOT NULL,              -- Base64
+  updated_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS media_user ON media (user_id, kind);
+
+-- Link temporário para um amigo ver a vitrine (a página não recebe o token da conta)
+CREATE TABLE IF NOT EXISTS view_links (
+  token       TEXT PRIMARY KEY,
+  owner_id    TEXT NOT NULL,
+  expires_at  TEXT NOT NULL
+);

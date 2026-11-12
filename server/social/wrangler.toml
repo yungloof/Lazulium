@@ -1,5 +1,5 @@
 name = "lazulium-social"
-main = "src/index.js"
+main = "src/worker.js"
 compatibility_date = "2026-10-01"
 
 # Crie o banco com `npx wrangler d1 create lazulium-social`, troque o id abaixo pelo que aparecer
@@ -17,3 +17,9 @@ namespace_id = "1002"
   [ratelimits.simple]
   limit = 120
   period = 60
+
+# A página do perfil entra no pacote como texto
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true

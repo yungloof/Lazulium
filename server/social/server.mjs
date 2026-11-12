@@ -2,6 +2,7 @@
 //   SOCIAL_DB=./social.db PORT=3100 node server.mjs
 // Atrás de um proxy HTTPS (Caddy), o endereço público vem de PUBLIC_ORIGIN (usado no retorno do login da Steam).
 import http from 'node:http';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import worker from './src/index.js';
@@ -34,7 +35,8 @@ setInterval(() => {
   for (const [key, entry] of hits) if (entry.resetAt < now) hits.delete(key);
 }, WINDOW_MS).unref();
 
-const env = { DB, RATE_LIMITER };
+const PROFILE_PAGE = readFileSync(join(here, '..', '..', 'web', 'profile', 'index.html'), 'utf-8');
+const env = { DB, RATE_LIMITER, PROFILE_PAGE };
 
 const server = http.createServer(async (req, res) => {
   try {

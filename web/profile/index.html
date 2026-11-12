@@ -317,6 +317,11 @@
     }
 
     (async () => {
+      // Perfil de amigo no Lazulium: o servidor da conta entrega a página com o perfil já embutido
+      if (window.LAZULIUM_PROFILE) {
+        renderProfile(window.LAZULIUM_PROFILE);
+        return;
+      }
       try {
         renderProfile(await loadJson('./lazulium-perfil.json'));
         return;

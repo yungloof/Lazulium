@@ -19,10 +19,15 @@ const MAX_FEED = 50;
 const MAX_SUMMARY_BYTES = 20_000;
 const MAX_REVIEW_TEXT = 2_000;
 const MAX_TITLE = 200;
+const MAX_SHOWCASE_BYTES = 400_000;
+const MAX_MEDIA_BASE64 = 1_500_000;       // ~1,1 MB de imagem: o app reduz antes de enviar
+const MEDIA_KINDS = ['avatar', 'background', 'artwork'];
+const MEDIA_MIME = /^image\/(jpeg|png|webp)$/;
+const VIEW_LINK_TTL_MS = 30 * 60 * 1000;
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // Sem 0/O e 1/I, para ditar por voz
 
 export const ACTIVITY_KINDS = ['played', 'started', 'finished', 'completed', 'dropped', 'rated', 'reviewed', 'achievements', 'perfect'];
-export const DEFAULT_SETTINGS = { shareActivity: true, sharePlaytime: true, shareAchievements: true, shareReviews: true, shareNowPlaying: true };
+export const DEFAULT_SETTINGS = { shareProfile: true, shareActivity: true, sharePlaytime: true, shareAchievements: true, shareReviews: true, shareNowPlaying: true };
 // Qual chave de privacidade libera cada tipo de evento
 const KIND_SETTING = {
   played: 'sharePlaytime',
@@ -271,6 +276,9 @@ async function handleMe(request, env, auth) {
         'DELETE FROM invites WHERE user_id = ?',
         'DELETE FROM auth_codes WHERE user_id = ?',
         'DELETE FROM sessions WHERE user_id = ?',
+        'DELETE FROM showcases WHERE user_id = ?',
+        'DELETE FROM media WHERE user_id = ?',
+        'DELETE FROM view_links WHERE owner_id = ?',
         'DELETE FROM users WHERE id = ?'
       ]
         .map((sql) => env.DB.prepare(sql).bind(user.id))
@@ -527,6 +535,90 @@ async function handleUser(env, auth, userId) {
   });
 }
 
+// ---------- Vitrine do perfil ----------
+
+async function handleShowcase(request, env, auth) {
+  if (request.method === 'DELETE') {
+    await env.DB.prepare('DELETE FROM showcases WHERE user_id = ?').bind(auth.user.id).run();
+    return json({ ok: true });
+  }
+  if (request.method !== 'PUT') throw new HttpError(405, 'method_not_allowed');
+  const text = await request.text();
+  if (text.length > MAX_SHOWCASE_BYTES) throw new HttpError(413, 'too_large');
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new HttpError(400, 'invalid_json');
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data) || data.schema !== 'lazulium-profile/1') throw new HttpError(400, 'invalid_showcase');
+  await env.DB.prepare(
+    'INSERT INTO showcases (user_id, data, updated_at) VALUES (?, ?, ?) ON CONFLICT (user_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at'
+  )
+    .bind(auth.user.id, JSON.stringify(data), nowIso())
+    .run();
+  return json({ ok: true });
+}
+
+async function handleMediaUpload(request, env, auth, kind, origin) {
+  if (!MEDIA_KINDS.includes(kind)) throw new HttpError(404, 'not_found');
+  if (request.method === 'DELETE') {
+    await env.DB.prepare('DELETE FROM media WHERE user_id = ? AND kind = ?').bind(auth.user.id, kind).run();
+    return json({ ok: true });
+  }
+  if (request.method !== 'PUT') throw new HttpError(405, 'method_not_allowed');
+  const body = await readJson(request, MAX_MEDIA_BASE64 + 200);
+  const mime = typeof body?.mime === 'string' && MEDIA_MIME.test(body.mime) ? body.mime : null;
+  const data = typeof body?.data === 'string' && /^[A-Za-z0-9+/]+=*$/.test(body.data) && body.data.length <= MAX_MEDIA_BASE64 ? body.data : null;
+  if (!mime || !data) throw new HttpError(400, 'invalid_media');
+  const token = randomToken(24);
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM media WHERE user_id = ? AND kind = ?').bind(auth.user.id, kind),
+    env.DB.prepare('INSERT INTO media (token, user_id, kind, mime, data, updated_at) VALUES (?, ?, ?, ?, ?, ?)').bind(token, auth.user.id, kind, mime, data, nowIso())
+  ]);
+  return json({ url: `${origin}/v1/media/${token}` });
+}
+
+async function handleMediaGet(env, token) {
+  const row = await env.DB.prepare('SELECT mime, data FROM media WHERE token = ?').bind(token).first();
+  if (!row) return new Response('Not found', { status: 404 });
+  const bytes = Uint8Array.from(atob(row.data), (c) => c.charCodeAt(0));
+  // O endereço muda a cada envio: pode ficar em cache para sempre
+  return new Response(bytes, { headers: { 'Content-Type': row.mime, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' } });
+}
+
+// O app pede um link de 30 minutos para mostrar a vitrine de um amigo (ou a própria) numa moldura
+async function handleViewLink(env, auth, ownerId, origin) {
+  if (ownerId !== auth.user.id && !(await areFriends(env, auth.user.id, ownerId))) throw new HttpError(404, 'not_found');
+  const owner = await env.DB.prepare('SELECT settings FROM users WHERE id = ?').bind(ownerId).first();
+  if (!owner) throw new HttpError(404, 'not_found');
+  if (!parseSettings(owner.settings).shareProfile) return json({ url: null, reason: 'hidden' });
+  const showcase = await env.DB.prepare('SELECT 1 FROM showcases WHERE user_id = ?').bind(ownerId).first();
+  if (!showcase) return json({ url: null, reason: 'not_sent' });
+  const token = randomToken(24);
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM view_links WHERE expires_at < ?').bind(nowIso()),
+    env.DB.prepare('INSERT INTO view_links (token, owner_id, expires_at) VALUES (?, ?, ?)').bind(token, ownerId, later(VIEW_LINK_TTL_MS))
+  ]);
+  return json({ url: `${origin}/v1/view/${token}` });
+}
+
+const PAGE_HEADERS = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
+const UNAVAILABLE_PAGE =
+  '<!doctype html><meta charset="utf-8"><body style="font-family:system-ui;background:#0b1020;color:#cbd5e1;display:grid;place-items:center;height:100vh;margin:0">Este perfil não está disponível agora.';
+
+// JSON dentro de <script>: "<" e separadores de linha escapados para nenhum texto do perfil fechar a tag
+export const scriptSafeJson = (text) => text.replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+
+async function handleView(env, token) {
+  const link = await env.DB.prepare('SELECT owner_id, expires_at FROM view_links WHERE token = ?').bind(token).first();
+  const owner = link && link.expires_at > nowIso() ? await env.DB.prepare('SELECT settings FROM users WHERE id = ?').bind(link.owner_id).first() : null;
+  const showcase = owner && parseSettings(owner.settings).shareProfile ? await env.DB.prepare('SELECT data FROM showcases WHERE user_id = ?').bind(link.owner_id).first() : null;
+  if (!showcase || !env.PROFILE_PAGE) return new Response(UNAVAILABLE_PAGE, { status: 404, headers: PAGE_HEADERS });
+  const inline = `<script>window.LAZULIUM_PROFILE = ${scriptSafeJson(showcase.data)};</script>`;
+  return new Response(env.PROFILE_PAGE.replace('</head>', `${inline}\n</head>`), { headers: PAGE_HEADERS });
+}
+
 // ---------- Roteamento ----------
 
 async function isRateLimited(request, env, key) {
@@ -542,6 +634,10 @@ async function route(request, env) {
 
   if (path === '/v1/auth/steam/start' && request.method === 'GET') return handleStart(url);
   if (path === '/v1/auth/steam/callback' && request.method === 'GET') return handleCallback(url, env);
+  const mediaGet = path.match(/^\/v1\/media\/([A-Za-z0-9_-]{20,64})$/);
+  if (mediaGet && request.method === 'GET') return handleMediaGet(env, mediaGet[1]);
+  const view = path.match(/^\/v1\/view\/([A-Za-z0-9_-]{20,64})$/);
+  if (view && request.method === 'GET') return handleView(env, view[1]);
   if (await isRateLimited(request, env)) return json({ error: 'rate_limited' }, 429);
   if (path === '/v1/auth/exchange' && request.method === 'POST') return handleExchange(request, env);
 
@@ -555,6 +651,9 @@ async function route(request, env) {
   if (path === '/v1/me/activities/delete' && request.method === 'POST') return handleActivityDelete(request, env, auth);
   if (path === '/v1/me/now-playing') return handleNowPlaying(request, env, auth);
   if (path === '/v1/me/summary') return handleSummary(request, env, auth);
+  if (path === '/v1/me/showcase') return handleShowcase(request, env, auth);
+  const mediaPut = path.match(/^\/v1\/me\/media\/([a-z]+)$/);
+  if (mediaPut) return handleMediaUpload(request, env, auth, mediaPut[1], url.origin);
   if (path === '/v1/friends/invite') return handleInvite(request, env, auth);
   if (path === '/v1/friends/accept') return handleAccept(request, env, auth);
   if (path === '/v1/friends') return handleFriends(request, env, auth);
@@ -563,6 +662,8 @@ async function route(request, env) {
   if (path === '/v1/feed' && request.method === 'GET') return handleFeed(url, env, auth);
   const userMatch = path.match(/^\/v1\/users\/([0-9a-f-]{36})$/);
   if (userMatch && request.method === 'GET') return handleUser(env, auth, userMatch[1]);
+  const viewLink = path.match(/^\/v1\/users\/([0-9a-f-]{36})\/view$/);
+  if (viewLink && request.method === 'POST') return handleViewLink(env, auth, viewLink[1], url.origin);
   return json({ error: 'not_found' }, 404);
 }
 
