@@ -121,7 +121,7 @@ export const HelpSettings: React.FC = () => {
       <SettingsGroup>
         <div className="flex flex-wrap items-center gap-4 px-4 py-4">
           <img src={logo} alt="" className="w-12 h-12 rounded-xl" />
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-[16rem]">
             <p className="font-display text-lg text-white">Lazulium {version && <span className="text-sm text-slate-400">v{version}</span>}</p>
             <p className="text-xs leading-relaxed text-slate-500">
               Se algo der errado, abra a pasta de logs e envie o arquivo <code className="text-slate-300">lazulium.log</code> para quem te passou o app.
