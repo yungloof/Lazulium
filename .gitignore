@@ -58,3 +58,5 @@ web/profile/lazulium-perfil.json
 
 # Builds de teste dos agentes
 out-agents/
+
+.claude/settings.local.json
