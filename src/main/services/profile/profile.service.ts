@@ -147,11 +147,13 @@ class ProfileService {
     let achievementsTotal = 0;
     let perfectGames = 0;
     let gamesWithAchievementData = 0;
+    let steamAchievementsHidden = 0;
     const rare: ProfileAchievement[] = [];
     const unlocked: PlayerProfile['recentAchievements'] = [];
     const choices: ProfileUnlockedAchievement[] = [];
     for (const game of games) {
       const data = db.getGameAchievements(game.id);
+      if (data?.warning?.startsWith('Perfil da Steam privado')) steamAchievementsHidden++;
       if (!data || data.total === 0 || data.source === 'lazulium') continue;
       gamesWithAchievementData++;
       achievementsUnlocked += data.unlocked;
@@ -251,6 +253,7 @@ class ProfileService {
         perfectGames,
         gamesWithAchievementData
       },
+      steamAchievementsHidden,
       byPlatform: [...platforms.entries()]
         .map(([platform, v]) => ({ platform, ...v }))
         .sort((a, b) => b.playtimeSeconds - a.playtimeSeconds || b.games - a.games),
@@ -404,6 +407,7 @@ class ProfileService {
       },
       achievementChoices: [],
       activityByDay: {},
+      steamAchievementsHidden: undefined,
       featuredGames: profile.featuredGames.map(mapGame),
       featuredAchievements: profile.featuredAchievements.map((a) => ({ ...a, iconUrl: publicUrl(a.iconUrl) ?? '' })),
       recentGames: profile.recentGames.map(mapGame),

@@ -8,6 +8,7 @@ import { buttonClass, iconButtonClass } from './ui';
 interface ProfileSteamNoticeProps {
   isPrivate: boolean;
   hasAchievements: boolean;
+  hiddenGames: number;              // Jogos cujas conquistas a Steam escondeu na última busca
   onChanged: () => Promise<void> | void;
   onOpenSettings: () => void;
 }
@@ -26,7 +27,7 @@ function wasDismissed(): boolean {
 
 // Aviso no topo do perfil: sem Steam conectada, oferece a conta deste PC; nunca conecta sem o clique,
 // porque um PC pode ter contas de mais de uma pessoa.
-export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivate, hasAchievements, onChanged, onOpenSettings }) => {
+export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivate, hasAchievements, hiddenGames, onChanged, onOpenSettings }) => {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [accounts, setAccounts] = useState<SteamLocalAccount[]>([]);
   const [dismissed, setDismissed] = useState(wasDismissed);
@@ -38,8 +39,6 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
   const synced = useLibraryStore((s) => s.achievementsSyncDone);
   const setSynced = useLibraryStore((s) => s.setAchievementsSyncDone);
   const [error, setError] = useState<string | null>(null);
-  // A Steam respondeu, mas escondeu as conquistas ("Detalhes do jogo" privado)
-  const [privateAchievements, setPrivateAchievements] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,7 +62,6 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
     setAchievementsSyncError(null);
     try {
       const result = await window.electronAPI?.syncAllAchievements();
-      setPrivateAchievements(!!result?.privateGames);
       if (result?.failed) {
         setAchievementsSyncError(
           result.synced
@@ -76,6 +74,8 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
     } finally {
       setIsSyncingAchievements(false);
       setSynced(true);
+      // O aviso de conquistas escondidas vem do perfil: relê para ele sumir (ou aparecer) na hora
+      await onChanged();
     }
   };
 
@@ -160,13 +160,16 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
     );
   }
 
-  if (connected === true && privateAchievements) {
+  if (connected === true && hiddenGames > 0) {
     return (
       <div className={box} role="status">
         <p className="flex items-center gap-2 font-medium text-amber-200">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" /> A Steam escondeu suas conquistas
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" /> A Steam escondeu as conquistas de {hiddenGames === 1 ? '1 jogo' : `${hiddenGames} jogos`}
         </p>
-        <p className="mt-1 text-xs text-slate-300">"Detalhes do jogo" está privado na Steam. Deixe como Público e busque de novo.</p>
+        <p className="mt-1 text-xs text-slate-300">
+          "Detalhes do jogo" está privado na privacidade da Steam, então ela não manda as conquistas. Deixe como Público e clique em buscar de novo. Este aviso
+          fica aqui até elas virem.
+        </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button onClick={openPrivacy} className={primary}>
             <ExternalLink className="w-3.5 h-3.5" /> Abrir privacidade na Steam

@@ -132,6 +132,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
         setIsSyncingAchievements(true);
         try {
           const result = await window.electronAPI?.syncAllAchievements();
+          // Números e o aviso de conquistas escondidas atualizam na hora
+          await load();
           return {
             tone: result?.failed ? 'error' : 'success',
             text: `Conquistas atualizadas em ${result?.synced ?? 0} jogo(s)${result?.failed ? `; ${result.failed} falharam. Confira a internet e tente de novo.` : '.'}${
@@ -205,7 +207,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
       <ProfileBackdrop imageUrl={profile.background?.imageUrl} videoUrl={profile.background?.videoUrl} gameRunning={!!playingId} />
 
       <div className={`relative z-10 max-w-[1180px] mx-auto px-6 space-y-5 ${hasBackdrop ? 'pt-[clamp(6rem,24vh,15rem)]' : 'pt-16'}`}>
-        <ProfileSteamNotice isPrivate={!!steam?.isPrivate} hasAchievements={t.gamesWithAchievementData > 0} onChanged={load} onOpenSettings={onOpenSettings} />
+        <ProfileSteamNotice isPrivate={!!steam?.isPrivate} hasAchievements={t.gamesWithAchievementData > 0} hiddenGames={profile.steamAchievementsHidden ?? 0} onChanged={load} onOpenSettings={onOpenSettings} />
 
         <ProfileHero
           profile={profile}

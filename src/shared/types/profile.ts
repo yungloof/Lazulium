@@ -157,6 +157,7 @@ export interface PlayerProfile {
     gamesWithAchievementData: number;
   };
   byPlatform: { platform: GamePlatform; games: number; playtimeSeconds: number }[];
+  steamAchievementsHidden?: number; // Jogos cujas conquistas a Steam escondeu por privacidade (só na tela do app)
   mostPlayed: ProfileGame[];
   recentlyPlayed: ProfileGame[];
   favorites: ProfileGame[];
