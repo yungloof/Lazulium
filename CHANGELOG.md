@@ -4,6 +4,20 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.5.0 — 13 de novembro de 2026
+
+### Melhorias
+
+- **Biblioteca mais leve no disco.** As conquistas passaram para um arquivo só delas. O arquivo da biblioteca ficou bem menor (num PC com 270 jogos, de 5 MB para menos de 1 MB) e não é mais regravado inteiro a cada conquista sincronizada. A conversão acontece sozinha na primeira vez que você abre esta versão.
+- **Contas guardadas pelo método novo.** As chaves das suas contas continuam cifradas pelo Windows, agora pelo caminho que as próximas versões da base do app vão exigir. Você não precisa conectar nada de novo.
+- **Testes automáticos antes de cada versão.** O banco, as categorias e a busca de jogos no PC passam por 64 testes antes de o instalador ser gerado.
+
+### Bom saber
+
+- **Voltar para uma versão anterior.** Se você fizer isso depois desta, o Lazulium busca as conquistas de novo e pode pedir para conectar as contas outra vez.
+
+---
+
 ## 2.4.0 — 12 de novembro de 2026
 
 ### Novidades
