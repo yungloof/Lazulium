@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Download, LayoutGrid, List, NotebookPen, Pencil, Plus, Search, SearchX } from 'lucide-react';
+import { Download, FileUp, LayoutGrid, List, NotebookPen, Pencil, Plus, Search, SearchX } from 'lucide-react';
 import { Game, GameLog, isJournalEntry } from '@shared/types/game';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { PLATFORM_FULL } from '../utils/platform';
 import { JournalEntryModal } from './JournalEntryModal';
+import { JournalImportModal } from './JournalImportModal';
 import { StarRating, Stars, StatusDot, StatusPill } from './GameLogFields';
 import { Select, SelectOption } from './Select';
 import { Button, EmptyState, Notice, focusRing, inputClass } from './ui';
@@ -108,12 +109,14 @@ const JournalRow: React.FC<{
 export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlaytime }) => {
   const games = useLibraryStore((s) => s.games);
   const upsertGameLocal = useLibraryStore((s) => s.upsertGameLocal);
+  const upsertGamesLocal = useLibraryStore((s) => s.upsertGamesLocal);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [installFilter, setInstallFilter] = useState<InstallFilter>('all');
   const [sort, setSort] = useState<SortKey>('recent');
   const [view, setView] = useState<ViewMode>(loadView);
   const [showAdd, setShowAdd] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
 
@@ -211,6 +214,9 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
         subtitle="Tudo que você registrou. Fica aqui mesmo depois de desinstalar."
         actions={
           <>
+            <Button icon={<FileUp className="w-3.5 h-3.5" />} onClick={() => setShowImport(true)}>
+              Importar
+            </Button>
             <Button icon={<Download className="w-3.5 h-3.5" />} loading={exporting} onClick={handleExport} disabled={entries.length === 0}>
               Exportar
             </Button>
@@ -324,6 +330,17 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
             ))
           )}
         </>
+      )}
+
+      {showImport && (
+        <JournalImportModal
+          onClose={() => setShowImport(false)}
+          onImported={(result) => {
+            upsertGamesLocal(result.games);
+            const parts = [result.updated > 0 && `${result.updated} atualizados`, result.created > 0 && `${result.created} novos`].filter(Boolean);
+            setFeedback({ tone: 'success', text: `Importação concluída: ${parts.join(' e ')}.` });
+          }}
+        />
       )}
 
       {showAdd && (

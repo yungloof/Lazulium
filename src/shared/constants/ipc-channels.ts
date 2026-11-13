@@ -32,6 +32,8 @@ export const IPC_CHANNELS = {
   GAME_SET_LOG: 'game:set-log',
   JOURNAL_ADD_ENTRY: 'journal:add-entry',
   JOURNAL_EXPORT: 'journal:export',
+  JOURNAL_IMPORT_PREVIEW: 'journal:import-preview',
+  JOURNAL_IMPORT_APPLY: 'journal:import-apply',
   JOURNAL_SEARCH_CATALOG: 'journal:search-catalog',
   GAME_RENAME: 'game:rename',
 

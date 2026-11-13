@@ -17,6 +17,7 @@ O Lazulium é um app para Windows que junta seus jogos de PC numa biblioteca só
 Tudo o que o Lazulium guarda fica na pasta `%APPDATA%\Lazulium` do seu usuário do Windows:
 
 - a biblioteca de jogos, horas jogadas e sessões, diário (status, notas, resenhas e anotações), listas, lista de desejos e o perfil que você editou;
+- o que você importa para o Diário (página salva do Your Gamer Profile ou cópia do Lazulium) é lido só neste computador: o Lazulium não acessa o site do YGP nem envia esses arquivos a lugar nenhum;
 - conquistas e informações de perfil trazidas da Steam e do RetroAchievements, guardadas para funcionar sem internet;
 - capas e artes baixadas, capturas de tela feitas pelo Lazulium e os backups de saves (`.zip`);
 - o arquivo de diagnóstico `lazulium.log`;

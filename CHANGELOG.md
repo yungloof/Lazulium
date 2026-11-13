@@ -4,6 +4,19 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.7.0 — 13 de novembro de 2026
+
+O Diário aprende a receber o que você já registrou em outros lugares, ganha um status para jogos sem fim e o perfil dos amigos vira uma página inteira.
+
+### Novidades
+
+- **Importar para o Diário.** Botão *Importar*, ao lado de *Exportar*. Aceita a página salva do **Your Gamer Profile** (aba *Avaliações* e/ou aba *Jogos*, com Ctrl+S) e a cópia do Diário do próprio Lazulium (`.json`). Antes de gravar, uma prévia mostra cada jogo: quem já está na biblioteca recebe o registro e quem não está vira entrada manual do Diário, com plataforma e horas. Status, nota, datas e resenha vêm junto; nota em meia estrela, inclusive. Por padrão nada que você já preencheu é sobrescrito (há uma opção para substituir). Vários arquivos se somam sem duplicar, e a janela avisa quantos jogos do perfil ainda faltam. Tudo é lido neste computador, sem acessar o site; importar não aparece como atividade no feed dos amigos.
+- **Status Contínuo.** Para jogos que não acabam (multiplayer, sandbox, jogos de serviço). Funciona nos filtros, nas categorias dinâmicas e no perfil.
+- **Todas as avaliações no perfil.** A aba *Avaliações* mostra também os jogos com nota e sem resenha, com um filtro *Só com resenha*.
+- **Perfil do amigo em página inteira.** Em *Amigos*, abrir um amigo agora leva a uma página com a vitrine decorada por ele (e a aba *Comparar*), em vez de uma janelinha. O botão *Amigos* volta à lista.
+
+---
+
 ## 2.6.1 — 13 de novembro de 2026
 
 ### Novidades

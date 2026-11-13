@@ -1,12 +1,14 @@
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { GameLog } from '@shared/types/game';
 import { JournalEntryInput } from '@shared/types/ipc';
+import { JournalImportItem, JournalImportOptions } from '@shared/types/journal-import';
 import { artworkService } from '../services/metadata/artwork.service';
 import { gameMetadataService } from '../services/metadata/game-metadata.service';
 import { playLengthService } from '../services/metadata/play-length.service';
 import { searchGameCatalog } from '../services/metadata/game-search.service';
 import { socialService } from '../services/social/social.service';
 import { addJournalEntry, journalToCsv, journalToJson, renameGame, setGameLog } from '../services/profile/journal.service';
+import { applyJournalImport, previewJournalImport } from '../services/profile/journal-import.service';
 import { handle, saveTextAs } from './helpers';
 
 // Diário: registro do jogador, jogos registrados à mão e exportação
@@ -23,6 +25,21 @@ export function registerJournalHandlers(): void {
     artworkService.enqueueMissing([game.id]);
     gameMetadataService.enqueueMissing([game.id]);
     return game;
+  });
+
+  handle(IPC_CHANNELS.JOURNAL_IMPORT_PREVIEW, (_event, items: JournalImportItem[], options: JournalImportOptions) =>
+    previewJournalImport(items, options)
+  );
+
+  handle(IPC_CHANNELS.JOURNAL_IMPORT_APPLY, (_event, items: JournalImportItem[], options: JournalImportOptions) => {
+    const result = applyJournalImport(items, options);
+    if (result.games.length > 0) {
+      socialService.scheduleSync();
+      const created = result.games.filter((g) => g.manualEntry).map((g) => g.id);
+      artworkService.enqueueMissing(created);
+      gameMetadataService.enqueueMissing(created);
+    }
+    return result;
   });
 
   handle(IPC_CHANNELS.JOURNAL_SEARCH_CATALOG, (_event, query: string) => searchGameCatalog(query));

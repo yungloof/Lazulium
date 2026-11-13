@@ -14,7 +14,7 @@ const VALID_PLATFORMS = new Set<GamePlatform>([
   'standalone'
 ]);
 
-const VALID_STATUSES = new Set<CategoryRuleStatus>(['unplayed', 'playing', 'finished', 'completed', 'paused', 'dropped', 'backlog']);
+const VALID_STATUSES = new Set<CategoryRuleStatus>(['unplayed', 'playing', 'endless', 'finished', 'completed', 'paused', 'dropped', 'backlog']);
 
 function uniqueText(raw: unknown): string[] | undefined {
   if (!Array.isArray(raw)) return undefined;

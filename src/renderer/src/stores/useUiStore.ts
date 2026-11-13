@@ -4,7 +4,7 @@ import { ScanResult } from '@shared/types/ipc';
 // Estado da casca do app: tela atual, jogo aberto, janelas, menu e avisos.
 // Antes tudo isso morava no App.tsx e descia por props.
 
-export type AppView = 'home' | 'game' | 'profile' | 'journal' | 'gallery' | 'lists' | 'wishlist' | 'friends';
+export type AppView = 'home' | 'game' | 'profile' | 'journal' | 'gallery' | 'lists' | 'wishlist' | 'friends' | 'friend';
 
 // Ordem das seções no LT/RT do controle (a página do jogo conta como a biblioteca)
 export const SECTION_ORDER = ['home', 'journal', 'lists', 'wishlist', 'gallery', 'friends', 'profile'] as const;
@@ -14,7 +14,6 @@ export type GameModalKind = 'artwork' | 'achievements' | 'saves' | 'screenshots'
 export type AppModal =
   | { kind: 'settings' | 'emulators' | 'addGame' | 'categories' }
   | { kind: 'whatsNew'; afterUpdate?: boolean }
-  | { kind: 'friendProfile'; friendId: string }
   // A janela guarda o jogo dela: abrir pelo menu de outro jogo não troca a página que está por trás
   | { kind: GameModalKind; gameId: string; screenshotId?: string };
 
@@ -35,6 +34,7 @@ interface UiState {
   view: AppView;
   selectedGameId: string | null;
   openListId?: string;
+  openFriendId?: string;            // Perfil de amigo aberto em página inteira (view 'friend')
   scrollToken: number;              // Muda quando a tela deve voltar ao topo (mesma tela também)
   modal: AppModal | null;
   quickSearchOpen: boolean;
@@ -50,6 +50,7 @@ interface UiState {
   goHome: () => void;
   openGameId: (gameId: string) => void;
   openList: (listId?: string) => void;
+  openFriend: (friendId: string) => void;
   setOpenListId: (listId?: string) => void;
   openModal: (modal: AppModal) => void;
   closeModal: () => void;
@@ -70,6 +71,7 @@ export const useUiStore = create<UiState>((set) => ({
   view: 'home',
   selectedGameId: null,
   openListId: undefined,
+  openFriendId: undefined,
   scrollToken: 0,
   modal: null,
   quickSearchOpen: false,
@@ -85,6 +87,7 @@ export const useUiStore = create<UiState>((set) => ({
   goHome: () => set((s) => ({ view: 'home', scrollToken: s.scrollToken + 1 })),
   openGameId: (gameId) => set((s) => ({ view: 'game', selectedGameId: gameId, scrollToken: s.scrollToken + 1 })),
   openList: (openListId) => set((s) => ({ view: 'lists', openListId, scrollToken: s.scrollToken + 1 })),
+  openFriend: (openFriendId) => set((s) => ({ view: 'friend', openFriendId, scrollToken: s.scrollToken + 1 })),
   setOpenListId: (openListId) => set({ openListId }),
   openModal: (modal) => set({ modal, contextMenu: null }),
   closeModal: () => set({ modal: null }),

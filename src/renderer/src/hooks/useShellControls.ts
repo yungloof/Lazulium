@@ -30,7 +30,8 @@ export function useShellControls(): void {
   const stepSection = (step: number) => {
     if (topOverlay()) return;
     const { view: current, setView } = useUiStore.getState();
-    const index = current === 'game' ? 0 : SECTION_ORDER.indexOf(current as (typeof SECTION_ORDER)[number]);
+    const section = current === 'friend' ? 'friends' : current;
+    const index = section === 'game' ? 0 : SECTION_ORDER.indexOf(section as (typeof SECTION_ORDER)[number]);
     setView(SECTION_ORDER[(index + step + SECTION_ORDER.length) % SECTION_ORDER.length]);
   };
 
@@ -41,6 +42,7 @@ export function useShellControls(): void {
       const library = useLibraryStore.getState();
       if (ui.contextMenu) ui.setContextMenu(null);
       else if (closeTopOverlay()) return;
+      else if (ui.view === 'friend') ui.setView('friends');
       else if (ui.view !== 'home') ui.goHome();
       else if (library.searchQuery) library.setSearchQuery('');
     },

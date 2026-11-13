@@ -5,7 +5,7 @@ import { JournalEntryInput } from '@shared/types/ipc';
 import { db } from '../../database/db';
 import { recordLogChange } from './activity.service';
 
-const STATUS_VALUES: GameLogStatus[] = ['backlog', 'playing', 'paused', 'finished', 'completed', 'dropped'];
+const STATUS_VALUES: GameLogStatus[] = ['backlog', 'playing', 'endless', 'paused', 'finished', 'completed', 'dropped'];
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_TEXT_LENGTH = 200_000;
 const MAX_TITLE_LENGTH = 200;
@@ -15,6 +15,7 @@ const CATALOG_COVER = /^https:\/\/(images\.igdb\.com|cdn\.cloudflare\.steamstati
 const STATUS_LABEL: Record<GameLogStatus, string> = {
   backlog: 'Quero jogar',
   playing: 'Jogando',
+  endless: 'Contínuo',
   paused: 'Pausado',
   finished: 'Zerado',
   completed: '100%',
@@ -22,7 +23,7 @@ const STATUS_LABEL: Record<GameLogStatus, string> = {
 };
 
 // O renderer pode mandar qualquer coisa: guarda só campos válidos
-function sanitizeLog(log: GameLog): GameLog {
+export function sanitizeLog(log: GameLog): GameLog {
   const date = (value?: string) => (value && DATE_PATTERN.test(value) ? value : undefined);
   const rating = Number(log.rating);
   return {
@@ -97,14 +98,15 @@ export function setManualPlaytime(gameId: string, totalSeconds: number, lastPlay
   return updated;
 }
 
-export function addJournalEntry(entry: JournalEntryInput): Game {
+// Monta o jogo registrado à mão sem gravar (a importação em lote grava todos de uma vez)
+export function buildJournalGame(entry: JournalEntryInput): Game {
   const title = entry.title?.trim().slice(0, MAX_TITLE_LENGTH);
   if (!title) throw new Error('Informe o nome do jogo.');
   const seconds = Number(entry.totalPlaytimeSeconds);
   if (!Number.isFinite(seconds) || seconds < 0 || seconds > MAX_PLAYTIME_SECONDS) throw new Error('Tempo inválido.');
 
   const now = new Date().toISOString();
-  const game: Game = {
+  return {
     id: `log-${randomUUID()}`,
     title,
     platform: 'standalone',
@@ -121,6 +123,10 @@ export function addJournalEntry(entry: JournalEntryInput): Game {
     createdAt: now,
     updatedAt: now
   };
+}
+
+export function addJournalEntry(entry: JournalEntryInput): Game {
+  const game = buildJournalGame(entry);
   db.upsertGame(game);
   recordLogChange(game.id, undefined, game.log);
   return game;

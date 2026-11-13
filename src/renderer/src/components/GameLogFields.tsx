@@ -8,6 +8,7 @@ import { todayDay } from './journal/format';
 // Cores só dos tokens do tema: o editor de aparência troca todas juntas
 export const LOG_STATUS: { id: GameLogStatus; label: string; dot: string; active: string }[] = [
   { id: 'playing', label: 'Jogando', dot: 'bg-emerald-400', active: 'bg-emerald-400/15 border-emerald-400/60 text-emerald-200' },
+  { id: 'endless', label: 'Contínuo', dot: 'bg-cyan-400', active: 'bg-cyan-400/15 border-cyan-400/60 text-cyan-200' },
   { id: 'finished', label: 'Zerado', dot: 'bg-indigo-400', active: 'bg-indigo-400/15 border-indigo-400/60 text-indigo-200' },
   { id: 'completed', label: '100%', dot: 'bg-amber-400', active: 'bg-amber-400/15 border-amber-400/60 text-amber-200' },
   { id: 'paused', label: 'Pausado', dot: 'bg-slate-400', active: 'bg-slate-400/15 border-slate-400/60 text-slate-100' },

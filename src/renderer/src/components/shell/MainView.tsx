@@ -9,7 +9,7 @@ import { LibraryHome } from '../LibraryHome';
 import { LibrarySidebar } from '../LibrarySidebar';
 import { FocusOnReady } from './FocusOnReady';
 import { PageSkeleton } from './PageSkeleton';
-import { FriendsPage, GalleryPage, GamePage, JournalPage, ListsPage, ProfilePage, WishlistPage } from './lazy';
+import { FriendProfilePage, FriendsPage, GalleryPage, GamePage, JournalPage, ListsPage, ProfilePage, WishlistPage } from './lazy';
 
 // Funções fixas passadas às páginas (não mudam a cada render)
 const openSettings = () => useUiStore.getState().openModal({ kind: 'settings' });
@@ -25,6 +25,7 @@ const openShots = (gameId: string, shot?: Screenshot) => {
 
 const PageContent: React.FC<{ view: AppView }> = ({ view }) => {
   const openListId = useUiStore((s) => s.openListId);
+  const openFriendId = useUiStore((s) => s.openFriendId);
   const screenshotsVersion = useUiStore((s) => s.screenshotsVersion);
   const selectedGameId = useUiStore((s) => s.selectedGameId);
   // A página acompanha o store (horas, favorito, execução) sem cópia própria do jogo
@@ -37,6 +38,8 @@ const PageContent: React.FC<{ view: AppView }> = ({ view }) => {
       return <WishlistPage />;
     case 'friends':
       return <FriendsPage />;
+    case 'friend':
+      return openFriendId ? <FriendProfilePage key={openFriendId} friendId={openFriendId} /> : <FriendsPage />;
     case 'lists':
       return <ListsPage openListId={openListId} onOpenList={setOpenListId} onOpenGame={openGame} />;
     case 'journal':

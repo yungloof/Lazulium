@@ -6,6 +6,7 @@ import { Achievement, GameAchievements } from './achievements';
 import { AccountService, AccountsStatus, SteamLocalAccount } from './accounts';
 import { GameScreenshots, Screenshot, ScreenshotTaken } from './screenshots';
 import { ActivityEvent } from './activity';
+import { JournalImportApplyResult, JournalImportItem, JournalImportOptions, JournalImportPreviewItem } from './journal-import';
 import { SocialFeedItem, SocialFriend, SocialFriendProfile, SocialInvite, SocialSettings, SocialStatus, SocialUser } from './social';
 import { AchievementsSyncResult, PlayerProfile, YearReview, ProfileCustom, ProfileMediaKind, ProfileWebLink, ProfileWebStatus } from './profile';
 import {
@@ -143,6 +144,8 @@ export interface ElectronAPI {
   getPlaytimeSessions: (gameId: string) => Promise<PlaytimeSession[]>;
   setGameLog: (gameId: string, log: GameLog) => Promise<Game>;
   addJournalEntry: (entry: JournalEntryInput) => Promise<Game>;
+  previewJournalImport: (items: JournalImportItem[], options: JournalImportOptions) => Promise<JournalImportPreviewItem[]>;
+  applyJournalImport: (items: JournalImportItem[], options: JournalImportOptions) => Promise<JournalImportApplyResult>;
   searchGameCatalog: (query: string) => Promise<GameSearchResult[]>;
   renameGame: (gameId: string, title: string | null) => Promise<Game>; // null volta ao nome original
   getWishlist: () => Promise<WishlistState>;

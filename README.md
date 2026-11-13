@@ -4,7 +4,7 @@
 
 Todos os jogos do PC num lugar só: Steam, Epic, GOG, Battle.net, EA App, Ubisoft Connect, Riot, Xbox, emuladores e o que mais você tiver solto numa pasta. Com horas jogadas, conquistas, capturas, backup dos saves e aba Amigos opcional.
 
-> Versão **2.6.1** · Windows 10 e 11 (64 bits) · Grátis, código aberto (MIT)
+> Versão **2.7.0** · Windows 10 e 11 (64 bits) · Grátis, código aberto (MIT)
 
 ---
 
@@ -31,8 +31,8 @@ Não pede senha nem chave de API (os logins são nos sites oficiais), não tem p
 
    | Arquivo | |
    |---|---|
-   | **`Lazulium-Setup-2.6.1.exe`** *(recomendado)* | Instala, cria atalhos e se atualiza sozinho. Não precisa de administrador. |
-   | `Lazulium-Portable-2.6.1.exe` | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
+   | **`Lazulium-Setup-2.7.0.exe`** *(recomendado)* | Instala, cria atalhos e se atualiza sozinho. Não precisa de administrador. |
+   | `Lazulium-Portable-2.7.0.exe` | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
 
 2. Se o navegador disser que o arquivo "não é baixado com frequência", escolha **Manter** (no Edge: **…** → **Manter** → **Mostrar mais** → **Manter mesmo assim**).
 
@@ -59,7 +59,7 @@ Pelo **Configurações do Windows → Aplicativos**, como qualquer programa. Os 
 - **Lojas:** Steam (todas as bibliotecas, Família Steam, atalhos não-Steam e criação de atalhos com artes), Epic Games, GOG Galaxy, Battle.net, EA App, Ubisoft Connect, Riot Games, Xbox / Microsoft Store e qualquer `.exe`.
 - **Emuladores encontrados sozinhos:** Dolphin, Ryujinx, Eden/yuzu, Cemu, PCSX2, RPCS3, DuckStation, RetroArch, Azahar/Citra, melonDS, mGBA, PPSSPP e BizHawk. Outros entram em *Emuladores → Novo emulador* (com modelos prontos de Xemu, Xenia, Flycast, Project64, Snes9x e Redream).
 - **Horas:** importa as da Steam, do GOG Galaxy e (conectando a conta) da Epic Games; nos demais jogos conta tanto abrindo pelo Lazulium quanto por fora (Epic, GOG, EA ou atalho), com sessões, gráfico da semana, desconto do tempo ausente e ajuste à mão.
-- **Diário:** status (Jogando, Zerado, 100%, Pausado, Abandonado, Quero jogar), nota, datas, resenha e anotações. Jogo de console também entra e exporta em JSON ou CSV.
+- **Diário:** status (Jogando, Contínuo, Zerado, 100%, Pausado, Abandonado, Quero jogar), nota, datas, resenha e anotações. Jogo de console também entra e exporta em JSON ou CSV. Dá para importar a página salva do Your Gamer Profile ou uma cópia do Diário.
 - **Conquistas:** Steam, RetroAchievements, marcadas à mão ou criadas por você.
 - **Capas e artes:** capas e fundos chegam sozinhos sem precisar de conta; conecte o SteamGridDB se quiser escolher entre mais artes, logos e ícones.
 - **Capturas:** as da Steam (`F12`), as da Xbox Game Bar e as do próprio Lazulium (`Ctrl+F12` no jogo).

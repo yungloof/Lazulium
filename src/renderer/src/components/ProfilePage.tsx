@@ -5,7 +5,7 @@ import { PlayerProfile, ProfileWebStatus } from '@shared/types/profile';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { useListsStore } from '../stores/useListsStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
-import { Button, EmptyState, LoadingLabel, Notice, Skeleton, focusRing } from './ui';
+import { Button, EmptyState, LoadingLabel, Notice, Skeleton, focusRing, pillTabClass } from './ui';
 import { YearReviewModal } from './YearReviewModal';
 import { ALL_SECTIONS, ProfileEditModal } from './ProfileEditModal';
 import { ProfilePublishModal } from './ProfilePublishModal';
@@ -68,6 +68,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
   const [webStatus, setWebStatus] = useState<ProfileWebStatus>({});
   const [tab, setTab] = useState<ProfileTab>('overview');
   const [gamesFilter, setGamesFilter] = useState<StatusFilter>('all');
+  const [ratingsFilter, setRatingsFilter] = useState<'all' | 'written'>('all');
 
   const playingId = Object.values(launchStatuses).find((s) => s.state === 'running')?.gameId;
   const playingTitle = playingId ? allGames.find((g) => g.id === playingId)?.title : undefined;
@@ -79,6 +80,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
     () => games.filter((g) => g.log?.review?.trim()).sort((a, b) => (b.log?.finishedOn ?? b.updatedAt).localeCompare(a.log?.finishedOn ?? a.updatedAt)),
     [games]
   );
+  // Aba Avaliações: quem tem nota ou resenha. A nota sem texto também conta; "Só com resenha" volta à lista de textos.
+  const rated = useMemo(
+    () => games.filter((g) => g.log?.rating || g.log?.review?.trim()).sort((a, b) => (b.log?.finishedOn ?? b.updatedAt).localeCompare(a.log?.finishedOn ?? a.updatedAt)),
+    [games]
+  );
+  const shownRatings = ratingsFilter === 'written' ? reviews : rated;
   const yearStats = useMemo(
     () => ({
       played: games.filter((g) => g.lastPlayedAt?.startsWith(String(year))).length,
@@ -206,7 +213,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
   const tabs: { id: ProfileTab; label: string; count?: number }[] = [
     { id: 'overview', label: 'Visão geral' },
     { id: 'games', label: 'Jogos', count: played.length },
-    { id: 'reviews', label: 'Resenhas', count: reviews.length },
+    { id: 'reviews', label: 'Avaliações', count: rated.length },
     { id: 'lists', label: 'Listas', count: lists.length }
   ];
 
@@ -302,21 +309,34 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
           </Panel>
         )}
 
-        {tab === 'reviews' &&
-          (reviews.length === 0 ? (
-            <EmptyState
-              icon={NotebookPen}
-              title="Nenhuma resenha ainda"
-              description="Escreva em “Meu registro”, na página de um jogo, e a resenha aparece aqui."
-              className={`${emptyBox} bg-steam-bg/85 ${panelOverArt}`}
-            />
-          ) : (
-            <Panel className="max-w-3xl">
-              {reviews.map((game) => (
-                <ReviewCard key={game.id} game={game} onOpen={() => onSelectGame(game.id)} />
-              ))}
-            </Panel>
-          ))}
+        {tab === 'reviews' && (
+          <div className="space-y-4 max-w-3xl">
+            {rated.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Tipo de avaliação">
+                <button type="button" onClick={() => setRatingsFilter('all')} aria-pressed={ratingsFilter === 'all'} className={pillTabClass(ratingsFilter === 'all')}>
+                  Todas as avaliações <span className="opacity-70 tabular-nums">{rated.length}</span>
+                </button>
+                <button type="button" onClick={() => setRatingsFilter('written')} aria-pressed={ratingsFilter === 'written'} className={pillTabClass(ratingsFilter === 'written')}>
+                  Só com resenha <span className="opacity-70 tabular-nums">{reviews.length}</span>
+                </button>
+              </div>
+            )}
+            {shownRatings.length === 0 ? (
+              <EmptyState
+                icon={NotebookPen}
+                title={ratingsFilter === 'written' && rated.length > 0 ? 'Nenhuma resenha escrita ainda' : 'Nenhuma avaliação ainda'}
+                description="Dê uma nota ou escreva uma resenha em “Meu registro”, na página de um jogo, e ela aparece aqui."
+                className={`${emptyBox} bg-steam-bg/85 ${panelOverArt}`}
+              />
+            ) : (
+              <Panel>
+                {shownRatings.map((game) => (
+                  <ReviewCard key={game.id} game={game} onOpen={() => onSelectGame(game.id)} />
+                ))}
+              </Panel>
+            )}
+          </div>
+        )}
 
         {tab === 'lists' && (
           <Panel

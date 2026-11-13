@@ -29,7 +29,8 @@ export interface GameMedia {
 // Atalho da Steam: abrir o programa direto ou pela Steam (ausente = direto)
 export type GameLaunchMode = 'direct' | 'launcher';
 
-export type GameLogStatus = 'backlog' | 'playing' | 'paused' | 'finished' | 'completed' | 'dropped';
+// 'endless' = jogo sem fim (Fortnite, CS2, MMOs...): nunca vira Zerado ou 100%, e não é Abandonado nem só "Jogando"
+export type GameLogStatus = 'backlog' | 'playing' | 'endless' | 'paused' | 'finished' | 'completed' | 'dropped';
 
 // Registro pessoal do jogador: nunca é alterado por scans
 export interface GameLog {

@@ -36,7 +36,7 @@ export const AppHeader: React.FC = () => {
     <TitleBar>
       <nav className="titlebar-no-drag h-full flex items-center" aria-label="Seções">
         {TABS.map((tab) => {
-          const active = tab.view === 'home' ? view === 'home' || view === 'game' : view === tab.view;
+          const active = tab.view === 'home' ? view === 'home' || view === 'game' : tab.view === 'friends' ? view === 'friends' || view === 'friend' : view === tab.view;
           return (
             <button
               key={tab.view}

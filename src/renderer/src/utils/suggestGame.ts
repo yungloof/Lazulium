@@ -2,7 +2,7 @@ import { Game } from '@shared/types/game';
 
 const LOW_PLAYTIME_SECONDS = 2 * 3600;
 const LOW_PLAYTIME_WEIGHT_CAP_SECONDS = 20 * 3600;
-const SUGGESTION_DONE = ['finished', 'completed', 'dropped', 'playing'];
+const SUGGESTION_DONE = ['finished', 'completed', 'dropped', 'playing', 'endless'];
 
 export interface GameSuggestion {
   game: Game;

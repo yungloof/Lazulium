@@ -8,7 +8,7 @@ import { ActivityCard, Avatar, NowPlayingLine } from './friends/parts';
 import { PageHeader, emptyBox, pageClass } from './journal/PageLayout';
 import { Button, EmptyState, Notice, SectionHeader, Skeleton, focusRing, inputClass } from './ui';
 
-const openFriend = (friendId: string) => useUiStore.getState().openModal({ kind: 'friendProfile', friendId });
+const openFriend = (friendId: string) => useUiStore.getState().openFriend(friendId);
 const openSettings = () => useUiStore.getState().openModal({ kind: 'settings' });
 
 // Sem conta: explica o que é, o que vai para os amigos e como entrar

@@ -77,7 +77,7 @@ export const ReviewCard: React.FC<{ game: Game; onOpen: () => void }> = ({ game,
           <StatusDot status={game.log?.status} />
           <span>{formatHours(game.totalPlaytimeSeconds)}</span>
         </div>
-        <p className="mt-2.5 text-sm leading-relaxed text-slate-300 line-clamp-4 whitespace-pre-wrap select-text">{game.log?.review}</p>
+        {game.log?.review?.trim() && <p className="mt-2.5 text-sm leading-relaxed text-slate-300 line-clamp-4 whitespace-pre-wrap select-text">{game.log.review}</p>}
       </div>
     </article>
   );
