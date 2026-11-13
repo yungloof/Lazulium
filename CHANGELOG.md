@@ -4,6 +4,14 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.7.2 — 13 de novembro de 2026
+
+### Novidades
+
+- **Resenhas em formato de publicação.** Cada resenha agora aparece como um post: capa ao lado, nome e data, nota em estrelas, horas, status e plataforma, e o texto com *Ler mais* e *Ler menos* para as compridas. Vale no Diário (escolhendo *Com resenha*, que vira uma lista só de resenhas) e no perfil (aba *Avaliações* e visão geral).
+
+---
+
 ## 2.7.1 — 13 de novembro de 2026
 
 ### Novidades
