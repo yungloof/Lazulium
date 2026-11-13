@@ -1,6 +1,6 @@
 # Arquitetura do Lazulium
 
-Hub de jogos para PC (Steam, Epic, GOG, Riot, Xbox, emuladores e jogos avulsos) com contagem de horas em qualquer jogo, diário permanente, conquistas, artes, backup de saves (no PC e no Google Drive) e navegação por controle. Codinome do projeto: Steam 2.
+Hub de jogos para PC (Steam, Epic, GOG, Riot, Xbox, emuladores e jogos avulsos) com contagem de horas em qualquer jogo, diário permanente, conquistas, artes, backup de saves (no PC e no Google Drive) e navegação por controle.
 
 ---
 

@@ -1,6 +1,6 @@
-# 🤖 Lazulium (Steam 2) - Diretrizes de Desenvolvimento e Colaboração (CLAUDE.md)
+# Lazulium - Diretrizes de Desenvolvimento e Colaboração (CLAUDE.md)
 
-Este documento define padrões de engenharia, arquitetura e convenções de código para agentes de IA (Claude, Antigravity) e desenvolvedores humanos trabalhando no **Lazulium (Steam 2)**.
+Este documento define padrões de engenharia, arquitetura e convenções de código para agentes de IA (Claude, Antigravity) e desenvolvedores humanos trabalhando no **Lazulium**.
 
 ---
 

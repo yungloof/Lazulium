@@ -28,7 +28,6 @@ export const TitleBar: React.FC<{ children?: React.ReactNode }> = ({ children })
         <img src={logo} alt="" className="w-6 h-6 rounded-md" />
         <span className="font-display text-base font-semibold text-slate-100 tracking-tight">
           Lazulium
-          <span className="hidden 2xl:inline text-[10px] font-medium text-indigo-400/80 ml-1.5 uppercase tracking-wide">Steam 2</span>
         </span>
       </div>
 

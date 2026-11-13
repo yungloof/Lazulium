@@ -4,6 +4,15 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.5.2 — 13 de novembro de 2026
+
+### Melhorias
+
+- **Marca limpa na janela.** O rótulo "Steam 2" saiu da barra do topo e do título da janela; o app agora usa apenas **Lazulium**.
+- **README atualizado.** Documentação principal revisada com a aba Amigos, categorias na biblioteca, importação de horas da Epic, capas automáticas, fundo animado no perfil e comandos atuais do projeto.
+
+---
+
 ## 2.5.1 — 13 de novembro de 2026
 
 ### Melhorias
