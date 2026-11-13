@@ -20,6 +20,7 @@ import { achievementsService } from '../achievements/achievements.service';
 import { screenshotsService } from '../metadata/screenshots.service';
 import { readSteamProfileStats, SteamAppStats } from '../scanners/steam-scanner.service';
 import { steamProfileService } from './steam-profile.service';
+import { isBetaTester } from '@shared/constants/beta-testers';
 import { describeError, logBackgroundFailure, sleep } from '../metadata/http';
 
 const MAX_ACHIEVEMENT_CHOICES = 300;
@@ -241,6 +242,7 @@ class ProfileService {
         .sort((a, b) => (a.globalPercent ?? 101) - (b.globalPercent ?? 101))
         .slice(0, MAX_ACHIEVEMENT_CHOICES),
       steamLevel: steamId ? playerLevel : undefined,
+      betaTester: isBetaTester(steamId) || undefined,
       activityByDay,
       recentPlaytimeSeconds:
         steamIdentity?.recentHours !== undefined

@@ -47,6 +47,8 @@
     #avatar > .letter { display: flex; height: 100%; align-items: center; justify-content: center; font-size: 56px; color: var(--faint); }
     #identity .text { min-width: 0; padding-top: 4px; }
     h1 { font-size: 28px; font-weight: 400; line-height: 1.2; overflow-wrap: anywhere; }
+    #name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+    .beta { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; background: rgba(99, 102, 241, 0.2); box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.4); color: #c7d2fe; font-size: 12px; font-weight: 600; }
     #bio { margin-top: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
     #side { grid-row: span 2; padding: 20px; display: flex; flex-direction: column; gap: 24px; min-width: 0; }
     #content { display: flex; flex-direction: column; gap: 28px; min-width: 0; }
@@ -123,7 +125,7 @@
     <header id="identity" class="panel">
       <div id="avatar"></div>
       <div class="text">
-        <h1 id="name">Carregando...</h1>
+        <div id="name-row"><h1 id="name">Carregando...</h1><span id="beta" class="beta" title="Ajudou a testar o Lazulium desde as primeiras versões" hidden>Beta tester</span></div>
         <p id="bio" hidden></p>
       </div>
     </header>
@@ -299,6 +301,7 @@
       const name = profile.displayName || 'Jogador';
       document.title = name + ' · Perfil Lazulium';
       document.getElementById('name').textContent = name;
+      document.getElementById('beta').hidden = profile.betaTester !== true;
 
       const avatar = document.getElementById('avatar');
       avatar.replaceChildren(image(profile.avatarUrl, name, 'photo') || el('div', { class: 'letter' }, name.charAt(0).toUpperCase()));

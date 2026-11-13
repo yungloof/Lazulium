@@ -134,6 +134,7 @@ export interface PlayerProfile {
   displayName: string;
   avatarUrl?: string;
   steamLevel?: number;
+  betaTester?: boolean;             // Steam ID em BETA_TESTER_STEAM_IDS: tag "Beta tester" no perfil e na página dos amigos
   custom: ProfileCustom;
   steam?: SteamProfileIdentity;
   background?: { imageUrl?: string; videoUrl?: string };

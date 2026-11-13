@@ -1,5 +1,6 @@
 import React from 'react';
 import { CalendarDays, Loader2, MoreHorizontal, Pencil, UserRound } from 'lucide-react';
+import { FlaskConical } from 'lucide-react';
 import { PlayerProfile } from '@shared/types/profile';
 import { Select } from '../Select';
 import { Button, buttonClass } from '../ui';
@@ -60,6 +61,11 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({ profile, stats, presen
             {profile.steamLevel !== undefined && (
               <span title="Nível na Steam" className="w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-semibold text-slate-100" style={{ borderColor: levelColor }}>
                 {profile.steamLevel}
+              </span>
+            )}
+            {profile.betaTester && (
+              <span title="Ajudou a testar o Lazulium desde as primeiras versões" className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full bg-indigo-500/20 ring-1 ring-inset ring-indigo-400/40 text-xs font-medium text-indigo-200">
+                <FlaskConical className="w-3 h-3" aria-hidden="true" /> Beta tester
               </span>
             )}
             {presence && (

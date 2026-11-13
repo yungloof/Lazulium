@@ -26,6 +26,30 @@ const GRID_LAYOUT: Record<MediaAssetType, { grid: string; aspect: string; fit: s
   icon: { grid: 'grid-cols-[repeat(auto-fill,minmax(96px,1fr))]', aspect: 'aspect-square', fit: 'object-contain p-2' }
 };
 
+// Miniatura com plano B: se a miniatura do CDN do SteamGridDB não carregar, tenta a arte inteira; se também falhar, mostra um aviso no lugar do ícone de imagem quebrada
+const AssetThumb: React.FC<{ asset: SteamGridDBAsset; fit: string }> = ({ asset, fit }) => {
+  const [src, setSrc] = useState(asset.thumb);
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <span className="w-full h-full flex flex-col items-center justify-center gap-1 px-2 text-center text-[10px] leading-tight text-slate-500" title="A imagem não carregou. Confira a conexão com cdn2.steamgriddb.com.">
+        <ImageOff className="w-4 h-4" aria-hidden="true" />
+        Sem prévia
+      </span>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      onError={() => (src === asset.thumb && asset.url !== asset.thumb ? setSrc(asset.url) : setFailed(true))}
+      className={`w-full h-full ${fit}`}
+    />
+  );
+};
+
 export const ArtworkPicker: React.FC<ArtworkPickerProps> = ({ game, onClose, onOpenSettings }) => {
   const upsertGameLocal = useLibraryStore((s) => s.upsertGameLocal);
   const [tab, setTab] = useState<MediaAssetType>('cover');
@@ -185,7 +209,7 @@ export const ArtworkPicker: React.FC<ArtworkPickerProps> = ({ game, onClose, onO
                   tab === 'logo' || tab === 'icon' ? 'bg-slate-950' : 'bg-slate-800'
                 } ${isApplied ? 'ring-2 ring-emerald-400' : 'ring-1 ring-slate-800 hover:ring-indigo-400 hover:-translate-y-0.5'}`}
               >
-                <img src={asset.thumb} alt="" loading="lazy" decoding="async" className={`w-full h-full ${layout.fit}`} />
+                <AssetThumb key={asset.id} asset={asset} fit={layout.fit} />
                 <span className="absolute bottom-1 left-1 px-1.5 rounded bg-black/70 text-[9px] text-slate-200 tabular-nums">
                   {asset.width}×{asset.height}
                 </span>

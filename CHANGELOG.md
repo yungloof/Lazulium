@@ -4,6 +4,18 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.6.1 — 13 de novembro de 2026
+
+### Novidades
+
+- **Tag de Beta tester.** Quem ajudou a testar o Lazulium desde as primeiras versões ganha a tag *Beta tester* ao lado do nome no perfil. Ela aparece também na página que os amigos veem e na publicada na web. Para começar: Lazuli e Cranel.
+
+### Correções
+
+- **Trocar artes sem imagens.** Quando as miniaturas do SteamGridDB não carregam (por exemplo, por bloqueio de rede, VPN ou antivírus), cada uma agora tenta a imagem inteira e, se também falhar, mostra *Sem prévia* no lugar do ícone de imagem quebrada.
+
+---
+
 ## 2.6.0 — 13 de novembro de 2026
 
 Sua biblioteca agora entende o catálogo: traz gênero, ano e série dos jogos, ganha categorias dinâmicas por regras, filtros combinados e importação direta das coleções da Steam.
