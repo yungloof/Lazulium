@@ -20,7 +20,7 @@ import { ProfileBackdrop } from './profile/ProfileBackdrop';
 import { ProfileAction, ProfileHero } from './profile/ProfileHero';
 import { ProfileOverview } from './profile/ProfileOverview';
 import { ProfileSidebar } from './profile/ProfileSidebar';
-import { Panel, ReviewCard, panel } from './profile/parts';
+import { Panel, ReviewCard, panel, panelOverArt } from './profile/parts';
 
 interface ProfilePageProps {
   onOpenSettings: () => void;
@@ -203,7 +203,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
   ];
 
   return (
-    <div className="relative min-h-full pb-16">
+    <div className="group/profile relative min-h-full pb-16" data-backdrop={hasBackdrop}>
       <ProfileBackdrop imageUrl={profile.background?.imageUrl} videoUrl={profile.background?.videoUrl} gameRunning={!!playingId} />
 
       <div className={`relative z-10 max-w-[1180px] mx-auto px-6 space-y-5 ${hasBackdrop ? 'pt-[clamp(6rem,24vh,15rem)]' : 'pt-16'}`}>
@@ -300,7 +300,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
               icon={NotebookPen}
               title="Nenhuma resenha ainda"
               description="Escreva em “Meu registro”, na página de um jogo, e a resenha aparece aqui."
-              className={`${emptyBox} bg-steam-bg/85`}
+              className={`${emptyBox} bg-steam-bg/85 ${panelOverArt}`}
             />
           ) : (
             <Panel className="max-w-3xl">

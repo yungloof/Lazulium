@@ -172,12 +172,12 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
               options={[
                 ...(steam?.background ? [{ value: 'steam' as ProfileBackgroundMode, label: 'O mesmo da Steam' }] : []),
                 { value: 'game' as ProfileBackgroundMode, label: 'Arte de um jogo' },
-                { value: 'file' as ProfileBackgroundMode, label: 'Imagem ou vídeo meu' },
+                { value: 'file' as ProfileBackgroundMode, label: 'Imagem, GIF ou vídeo meu' },
                 { value: 'none' as ProfileBackgroundMode, label: 'Sem fundo' }
               ]}
               className={selectClass}
             >
-              {{ steam: 'O mesmo da Steam', game: 'Arte de um jogo', file: 'Imagem ou vídeo meu', none: 'Sem fundo' }[backgroundMode]}
+              {{ steam: 'O mesmo da Steam', game: 'Arte de um jogo', file: 'Imagem, GIF ou vídeo meu', none: 'Sem fundo' }[backgroundMode]}
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </Select>
             {backgroundMode === 'game' && (

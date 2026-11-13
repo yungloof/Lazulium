@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-// Fundo do perfil inteiro, parado enquanto a página rola: claro no alto (vitrine do banner) e escuro embaixo, onde ficam os textos.
+// Fundo do perfil inteiro, parado enquanto a página rola e com a mesma força do alto ao fim: os textos ficam nos painéis, não soltos sobre a arte.
 // O vídeo pausa sem foco e com jogo aberto: nunca disputa CPU e GPU com o jogo.
 export const ProfileBackdrop: React.FC<{ imageUrl?: string; videoUrl?: string; gameRunning: boolean }> = ({ imageUrl, videoUrl, gameRunning }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -47,8 +47,8 @@ export const ProfileBackdrop: React.FC<{ imageUrl?: string; videoUrl?: string; g
             {showVideo && (
               <video ref={videoRef} key={videoUrl} src={videoUrl} poster={imageUrl} muted loop playsInline preload="auto" onError={() => setFailedVideo(videoUrl)} className="absolute inset-0 w-full h-full object-cover" />
             )}
-            <div className="absolute inset-0 bg-gradient-to-b from-steam-bg/5 via-steam-bg/45 to-steam-bg/90" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,var(--color-steam-bg)_120%)] opacity-70" />
+            {/* Véu leve e por igual, sem degradê: a arte aparece inteira do alto ao fim da página */}
+            <div className="absolute inset-0 bg-black/15" />
           </>
         ) : (
           // Sem fundo escolhido: um brilho do destaque do tema, para o topo não ficar vazio

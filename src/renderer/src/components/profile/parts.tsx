@@ -6,8 +6,12 @@ import { Stars, StatusDot } from '../GameLogFields';
 import { GameCover, coverFrame } from '../journal/CoverCard';
 import { formatDay, formatHours, percent, shortDate } from '../journal/format';
 
-// Painéis do perfil: escuros o bastante para ler sobre qualquer fundo (imagem ou vídeo)
-export const panel = 'rounded-xl bg-steam-bg/85 border border-slate-700/40 shadow-xl shadow-black/20';
+// Com fundo escolhido (data-backdrop na raiz do perfil), o painel deixa de ser caixa: vira um véu preto sem borda nem sombra,
+// a arte passa por trás e a página parece uma coisa só. Escuro o bastante para ler sobre imagem ou vídeo claro.
+export const panelOverArt = 'group-data-[backdrop=true]/profile:bg-black/55 group-data-[backdrop=true]/profile:border-transparent group-data-[backdrop=true]/profile:shadow-none';
+
+// Painéis do perfil
+export const panel = `rounded-xl bg-steam-bg/85 border border-slate-700/40 shadow-xl shadow-black/20 ${panelOverArt}`;
 
 export const Panel: React.FC<{ title?: React.ReactNode; extra?: React.ReactNode; children: React.ReactNode; className?: string }> = ({ title, extra, children, className = '' }) => (
   <section className={`${panel} p-5 ${className}`}>

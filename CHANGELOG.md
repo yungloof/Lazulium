@@ -4,6 +4,21 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.5.1 — 13 de novembro de 2026
+
+### Melhorias
+
+- **Fundo do perfil por inteiro.** O fundo não escurece mais para baixo nem nas bordas. Ele aparece com a mesma força do alto ao fim da página e fica parado enquanto você rola.
+- **Perfil e fundo como uma coisa só.** Com um fundo escolhido, os painéis do perfil ficam translúcidos e sem borda, e a arte passa por trás deles.
+- **Amigos veem o mesmo visual.** A página que abre quando alguém vê seu perfil na aba Amigos (e a publicada na web) ganhou o mesmo fundo contínuo e os mesmos painéis.
+- **GIF de fundo animado para os amigos.** Em *Editar perfil → Fundo → Imagem, GIF ou vídeo meu*, um GIF de até 1 MB agora chega animado a quem abre seu perfil.
+
+### Bom saber
+
+- **GIF maior e vídeo de fundo.** Continuam aparecendo só no seu PC. Para os amigos, o perfil fica sem o fundo personalizado.
+
+---
+
 ## 2.5.0 — 13 de novembro de 2026
 
 ### Melhorias

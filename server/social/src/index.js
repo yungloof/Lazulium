@@ -23,7 +23,7 @@ const MAX_TITLE = 200;
 const MAX_SHOWCASE_BYTES = 400_000;
 const MAX_MEDIA_BASE64 = 1_500_000;       // ~1,1 MB de imagem: o app reduz antes de enviar
 const MEDIA_KINDS = ['avatar', 'background', 'artwork'];
-const MEDIA_MIME = /^image\/(jpeg|png|webp)$/;
+const MEDIA_MIME = /^image\/(jpeg|png|webp|gif)$/;   // GIF vai como está, para chegar animado
 const VIEW_LINK_TTL_MS = 30 * 60 * 1000;
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // Sem 0/O e 1/I, para ditar por voz
 

@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'crypto';
 import { join } from 'path';
+import { readFile } from 'fs/promises';
 import { app, nativeImage, shell } from 'electron';
 import { PlayerProfile, ProfileGame } from '@shared/types/profile';
 import { profileService } from '../profile/profile.service';
@@ -50,7 +51,8 @@ const PUSH_OVERLAP_MS = 2 * 24 * 60 * 60 * 1000;  // "Jogou" é agrupado por dia
 const FIRST_PUSH_DAYS = 60;
 const MAX_PUSH = 200;
 const TOP_GAMES = 12;
-const LOCAL_PROFILE_IMAGE = /^lazulium-media:\/\/profile\/((avatar|background|artwork)-[a-z0-9]+\.(png|jpe?g|webp))$/i;
+const LOCAL_PROFILE_IMAGE = /^lazulium-media:\/\/profile\/((avatar|background|artwork)-[a-z0-9]+\.(png|jpe?g|webp|gif))$/i;
+const MAX_GIF_BYTES = 1_100_000;       // O servidor guarda até ~1,1 MB por arquivo; GIF maior não chega animado
 const MEDIA_MAX_WIDTH = { avatar: 256, background: 1920, artwork: 1280 } as const;
 type MediaKind = keyof typeof MEDIA_MAX_WIDTH;
 const MAX_FRIEND_COVER_LOOKUPS = 30;   // Capas de jogos de amigos conferidas por vez
@@ -110,6 +112,7 @@ class SocialService {
   private keepAlive: NodeJS.Timeout | undefined;
   private syncing = false;
   private syncError: string | undefined;
+  private gifRefused = false;            // Servidor ainda sem GIF: não insiste a cada sincronização
   private playing: { gameId: string; since: string } | undefined;
   private listener: (status: SocialStatus) => void = () => {};
   private friendListener: (text: string) => void = () => {};
@@ -520,20 +523,36 @@ class SocialService {
   // ---------- Vitrine ----------
 
   // Imagem escolhida no perfil (arquivo do PC) -> versão reduzida em JPEG no servidor. Só reenvia quando muda.
+  // GIF vai como está, para os amigos verem animado como no perfil; grande demais ou recusado, cai na imagem parada.
   private async uploadProfileImage(kind: MediaKind, localUrl: string | undefined): Promise<string | undefined> {
     const file = localUrl?.match(LOCAL_PROFILE_IMAGE)?.[1];
     if (!file) return undefined;
-    let image = nativeImage.createFromPath(join(app.getPath('userData'), 'profile', file));
+    const path = join(app.getPath('userData'), 'profile', file);
+    if (/\.gif$/i.test(file) && !this.gifRefused) {
+      const original = await readFile(path).catch(() => undefined);
+      if (original && original.length <= MAX_GIF_BYTES) {
+        try {
+          return await this.sendMedia(kind, 'image/gif', original);
+        } catch (err) {
+          if (!(err instanceof HttpError && err.status === 400)) throw err;
+          this.gifRefused = true;
+        }
+      }
+    }
+    let image = nativeImage.createFromPath(path);
     if (image.isEmpty()) return undefined;
     if (image.getSize().width > MEDIA_MAX_WIDTH[kind]) image = image.resize({ width: MEDIA_MAX_WIDTH[kind], quality: 'good' });
-    const bytes = image.toJPEG(kind === 'avatar' ? 88 : 80);
+    return this.sendMedia(kind, 'image/jpeg', image.toJPEG(kind === 'avatar' ? 88 : 80));
+  }
+
+  private async sendMedia(kind: MediaKind, mime: string, bytes: Buffer): Promise<string> {
     const hash = createHash('sha1').update(bytes).digest('hex');
     let cache: Partial<Record<MediaKind, { hash: string; url: string }>> = {};
     try {
       cache = JSON.parse(db.getSettings()[SOCIAL_SETTING_KEYS.media] || '{}');
     } catch {}
     if (cache[kind]?.hash === hash) return cache[kind]!.url;
-    const { url } = await this.api<{ url: string }>('PUT', `/v1/me/media/${kind}`, { mime: 'image/jpeg', data: bytes.toString('base64') });
+    const { url } = await this.api<{ url: string }>('PUT', `/v1/me/media/${kind}`, { mime, data: bytes.toString('base64') });
     db.setSetting(SOCIAL_SETTING_KEYS.media, JSON.stringify({ ...cache, [kind]: { hash, url } }));
     return url;
   }
@@ -560,7 +579,7 @@ class SocialService {
     const web = { ...showcase.web };
     const avatar = await this.uploadProfileImage('avatar', custom.avatarUrl);
     if (avatar) showcase.avatarUrl = avatar;
-    // Vídeo de fundo não vai (fica o fundo da Steam ou do jogo)
+    // Vídeo de fundo e GIF acima do limite não vão
     const background = custom.backgroundMode === 'file' ? await this.uploadProfileImage('background', custom.backgroundUrl) : undefined;
     if (background) web.background = { imageUrl: background };
     const artwork = await this.uploadProfileImage('artwork', custom.artworkUrl);

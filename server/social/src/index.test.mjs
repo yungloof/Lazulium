@@ -389,6 +389,12 @@ test('imagens: envio troca a anterior, endereço público serve o arquivo', asyn
   assert.equal(img.headers.get('Content-Type'), 'image/png');
   assert.equal(Buffer.from(await img.arrayBuffer()).toString('hex'), '89504e470d0a1a0a');
   assert.equal((await s.call('PUT', '/v1/me/media/avatar', { token: a.token, body: { mime: 'text/html', data: png } })).status, 400);
+  // GIF vai como está (animado)
+  const gif = Buffer.from('GIF89a').toString('base64');
+  const moving = await s.call('PUT', '/v1/me/media/background', { token: a.token, body: { mime: 'image/gif', data: gif } });
+  const served = await worker.fetch(new Request(moving.body.url), s.env);
+  assert.equal(served.headers.get('Content-Type'), 'image/gif');
+  assert.equal(Buffer.from(await served.arrayBuffer()).toString(), 'GIF89a');
   assert.equal((await s.call('PUT', '/v1/me/media/outra', { token: a.token, body: { mime: 'image/png', data: png } })).status, 404);
   // Apagar a conta leva as imagens
   await s.call('DELETE', '/v1/me', { token: a.token });
