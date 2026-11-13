@@ -8,7 +8,7 @@ import { JournalEntryModal } from './JournalEntryModal';
 import { JournalImportModal } from './JournalImportModal';
 import { StarRating, Stars, StatusDot, StatusPill } from './GameLogFields';
 import { Select, SelectOption } from './Select';
-import { Button, EmptyState, Notice, focusRing, inputClass } from './ui';
+import { Button, EmptyState, Notice, focusRing, inputClass, segmentClass, segmentedClass } from './ui';
 import { CoverCard, GameCover } from './journal/CoverCard';
 import { PageHeader, StatStrip, emptyBox, pageClass } from './journal/PageLayout';
 import { StatusChips, StatusFilter, countByStatus, matchesStatus } from './journal/StatusChips';
@@ -22,6 +22,9 @@ interface JournalPageProps {
 type InstallFilter = 'all' | 'installed' | 'removed';
 type SortKey = 'hours' | 'recent' | 'title' | 'rating';
 type ViewMode = 'grid' | 'list';
+type ReviewFilter = 'all' | 'review' | 'rating'; // Tudo, só com resenha escrita, só nota (sem resenha)
+
+const hasReview = (game: Game): boolean => !!game.log?.review?.trim();
 
 const VIEW_STORAGE_KEY = 'lazulium.journalView';
 
@@ -113,6 +116,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [installFilter, setInstallFilter] = useState<InstallFilter>('all');
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>('all');
   const [sort, setSort] = useState<SortKey>('recent');
   const [view, setView] = useState<ViewMode>(loadView);
   const [showAdd, setShowAdd] = useState(false);
@@ -131,6 +135,14 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
 
   const entries = useMemo(() => games.filter((g) => !g.isHidden && isJournalEntry(g)), [games]);
   const statusCounts = useMemo(() => countByStatus(entries), [entries]);
+  const reviewCounts = useMemo(
+    () => ({
+      all: entries.length,
+      review: entries.filter(hasReview).length,
+      rating: entries.filter((g) => !!g.log?.rating && !hasReview(g)).length
+    }),
+    [entries]
+  );
   const year = new Date().getFullYear();
 
   const stats = useMemo(() => {
@@ -150,6 +162,8 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
       .filter((g) => {
         if (q && !g.title.toLowerCase().includes(q)) return false;
         if (!matchesStatus(g.log?.status, statusFilter)) return false;
+        if (reviewFilter === 'review' && !hasReview(g)) return false;
+        if (reviewFilter === 'rating' && (!g.log?.rating || hasReview(g))) return false;
         if (installFilter === 'installed' && g.isInstalled === false) return false;
         if (installFilter === 'removed' && g.isInstalled !== false) return false;
         return true;
@@ -160,7 +174,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
         if (sort === 'rating') return (b.log?.rating ?? 0) - (a.log?.rating ?? 0);
         return (b.totalPlaytimeSeconds ?? 0) - (a.totalPlaytimeSeconds ?? 0);
       });
-  }, [entries, query, statusFilter, installFilter, sort]);
+  }, [entries, query, statusFilter, installFilter, reviewFilter, sort]);
 
   // Por data vira um diário de verdade: separado por mês
   const groups = useMemo(() => {
@@ -199,6 +213,7 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
     setQuery('');
     setStatusFilter('all');
     setInstallFilter('all');
+    setReviewFilter('all');
   };
 
   const addButton = (
@@ -268,14 +283,29 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
                 ))}
               </div>
             </div>
-            <StatusChips value={statusFilter} counts={statusCounts} onChange={setStatusFilter} />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <StatusChips value={statusFilter} counts={statusCounts} onChange={setStatusFilter} />
+              <div className={`${segmentedClass} ml-auto`} role="group" aria-label="Resenhas e notas">
+                {(
+                  [
+                    { id: 'all', label: 'Tudo' },
+                    { id: 'review', label: 'Com resenha' },
+                    { id: 'rating', label: 'Só nota' }
+                  ] as const
+                ).map((option) => (
+                  <button key={option.id} type="button" onClick={() => setReviewFilter(option.id)} aria-pressed={reviewFilter === option.id} className={segmentClass(reviewFilter === option.id)}>
+                    {option.label} <span className="tabular-nums text-slate-500">{reviewCounts[option.id]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {visible.length === 0 ? (
             <EmptyState
               icon={SearchX}
               title="Nada com esses filtros"
-              description={query.trim() ? `Nenhum jogo do diário tem “${query.trim()}” no nome.` : 'Tente outro status ou mostre os não instalados.'}
+              description={query.trim() ? `Nenhum jogo do diário tem “${query.trim()}” no nome.` : 'Tente outro status, outra aba de resenhas ou mostre os não instalados.'}
               className={emptyBox}
               actions={
                 <Button onClick={clearFilters} variant="secondary">
@@ -310,11 +340,14 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
                           </>
                         }
                         badge={
-                          game.log?.rating && game.log.status ? (
-                            <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/75">
-                              <StatusDot status={game.log.status} />
-                            </span>
-                          ) : undefined
+                          <>
+                            {game.log?.rating && game.log.status ? (
+                              <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/75">
+                                <StatusDot status={game.log.status} />
+                              </span>
+                            ) : undefined}
+                            {hasReview(game) && <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/75 text-[10px] font-semibold text-indigo-200">Resenha</span>}
+                          </>
                         }
                       />
                     ))}
