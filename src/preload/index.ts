@@ -58,6 +58,12 @@ const electronAPI: ElectronAPI = {
   getGameLists: () => ipcRenderer.invoke(IPC_CHANNELS.LISTS_GET),
   saveGameList: (input: GameListInput) => ipcRenderer.invoke(IPC_CHANNELS.LISTS_SAVE, input),
   deleteGameList: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.LISTS_DELETE, id),
+  getGameCategories: () => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_GET),
+  createGameCategory: (name: string, gameIds?: string[]) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_CREATE, name, gameIds),
+  renameGameCategory: (id: string, name: string) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_RENAME, id, name),
+  deleteGameCategory: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_DELETE, id),
+  reorderGameCategories: (ids: string[]) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_REORDER, ids),
+  setGameCategoryGames: (id: string, gameIds: string[], member: boolean) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_SET_GAMES, id, gameIds, member),
   setPlaytime: (gameId: string, totalSeconds: number, lastPlayedOn?: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.GAME_SET_PLAYTIME, gameId, totalSeconds, lastPlayedOn),
   onGameStatusChanged: (callback: (status: GameLaunchStatus) => void) => {

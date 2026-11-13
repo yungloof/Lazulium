@@ -10,8 +10,8 @@ Baixe um destes na página de downloads do Lazulium no GitHub:
 
 | Arquivo | |
 |---|---|
-| **`Lazulium-Setup-2.3.0.exe`** *(recomendado)* | Instala só para o seu usuário, sem pedir administrador, e cria os atalhos. |
-| **`Lazulium-Portable-2.3.0.exe`** | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
+| **`Lazulium-Setup-2.4.0.exe`** *(recomendado)* | Instala só para o seu usuário, sem pedir administrador, e cria os atalhos. |
+| **`Lazulium-Portable-2.4.0.exe`** | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
 
 Se já testou uma versão antiga, instale por cima. Nada se perde.
 
@@ -39,6 +39,7 @@ Os dados ficam em `%APPDATA%\Lazulium` e não são apagados ao desinstalar ou tr
 
 ### Biblioteca e controle
 - **Ctrl+K** para buscar. Favorite, renomeie e oculte um jogo pelo botão direito.
+- Crie uma **categoria** (ícone ao lado de *Categorias / Plataformas*, na lista lateral). Arraste um jogo para ela, tire pelo botão direito → *Categorias* e filtre a biblioteca por ela.
 - Com um controle (Xbox, PlayStation, Switch ou genérico), dá para andar por todas as telas com direcional, A/B, LB/RB e LT/RT?
 
 ### Conquistas, capturas e perfil
@@ -77,7 +78,7 @@ O log tem erros, versões e caminhos de pasta, como `C:\Users\SeuNome\Games\...`
 ## 4. Modelo de relato
 
 ```text
---- RELATO DE TESTE - LAZULIUM 2.3.0 ---
+--- RELATO DE TESTE - LAZULIUM 2.4.0 ---
 1. O que eu tentei fazer:
 (Ex: conectar a Steam / abrir o Elden Ring / registrar um jogo no Diário)
 

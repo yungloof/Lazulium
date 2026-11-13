@@ -1,5 +1,6 @@
 import { EmulatorConfig, Game, PlaytimeSession } from '@shared/types/game';
 import { StoredActivity } from '@shared/types/activity';
+import { GameCategory } from '@shared/types/categories';
 import type { ActiveSessionRecord, DatabaseSchema } from './db';
 
 // Versão do formato do banco. Sobe quando um dado guardado precisa ser convertido;
@@ -109,6 +110,11 @@ export function normalizeData(raw: unknown): DatabaseSchema {
   }
   for (const key of ['gameLists', 'wishlist', 'screenshotMoves'] as const) {
     if (key in raw && !Array.isArray(raw[key])) delete data[key];
+  }
+  if ('gameCategories' in raw) {
+    data.gameCategories = objects(raw.gameCategories)
+      .filter((c) => isText(c.id) && c.id && isText(c.name) && c.name.trim())
+      .map((c) => ({ ...c, gameIds: strings(c.gameIds) })) as unknown as GameCategory[];
   }
   data.schemaVersion = SCHEMA_VERSION;
   return data;

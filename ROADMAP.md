@@ -191,6 +191,10 @@ As fases 1 a 11 e as versões de teste fecharam na 1.0. O que ficou para depois 
 
 ---
 
+## Versão 2.4.0: categorias na biblioteca (12/11/2026)
+- [x] Categorias criadas pelo jogador (`gameCategories` no banco, `services/library/categories.service.ts`): lista lateral agrupada por categoria ou por plataforma, arrastar e soltar, janela de organizar, filtro da biblioteca.
+- [ ] Depois: categorias dinâmicas (por status, plataforma, nota) e importar as coleções da Steam.
+
 ## Versão 2.2.0: vitrine dos amigos (12/11/2026)
 - [x] Perfil do amigo mostra a vitrine que ele decorou (a página do perfil web, servida pelo `server/social` por link de 30 min numa moldura isolada) e a aba Comparar.
 - [x] App envia a vitrine e as imagens escolhidas (avatar, fundo, arte) reduzidas; chave *Vitrine do perfil*.

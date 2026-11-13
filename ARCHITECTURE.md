@@ -175,6 +175,13 @@ Unifica conquistas de plataformas de PC e retroemulação:
 
 ---
 
+### 3.5.2.1 Categorias da Biblioteca (`services/library/categories.service.ts`)
+* Categorias criadas pelo jogador, guardadas em `gameCategories` no banco: nome único (sem diferenciar maiúsculas e acentos), jogos por id e a ordem do array como ordem de exibição. Um jogo pode estar em várias.
+* Todo canal `categories:*` devolve a lista inteira; o renderer guarda em `useCategoriesStore`. Apagar um jogo o tira das categorias, e um jogo que muda de id (`moveGameData`) leva as categorias e listas junto.
+* Na interface: grupos da lista lateral (`LibrarySidebar`, por categoria ou por plataforma), arrastar e soltar (`utils/dragGame.ts`), filtro `category:<id>` / `uncategorized` (`useLibraryGames`) e as janelas `ManageCategoriesModal` e `GameCategoriesModal`.
+
+---
+
 ### 3.5.3 Diário de Jogos e Proteção do Banco (`src/main/database/db.ts`, `services/profile/journal.service.ts`)
 * **Registro Permanente:**
   * Desinstalar um jogo **nunca** apaga seus dados. O jogo permanece no banco com `isInstalled: false`, preservando tempo total acumulado, sessões, conquistas, notas e anotações.

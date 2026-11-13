@@ -4,6 +4,21 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.4.0 — 12 de novembro de 2026
+
+### Novidades
+
+- **Categorias na biblioteca.** Crie as suas (Multiplayer, Zelda, Para zerar…) e a lista lateral passa a se organizar por elas, com o resto em *Sem categoria*. Um jogo pode ficar em várias.
+- **Arraste para organizar.** Solte um jogo da lista, ou uma capa da grade, em cima de uma categoria. Para tirar, arraste de volta para *Sem categoria*. Também dá pelo botão direito do jogo, em *Categorias*.
+- **Você escolhe como agrupar.** O seletor *Categorias / Plataformas* fica em cima da lista lateral. O ícone ao lado abre a janela para criar, renomear, ordenar e apagar categorias, e para escolher vários jogos de uma vez.
+- **Filtro por categoria.** As categorias entram no menu de filtro da biblioteca e no LT/RT do controle.
+
+### Correções
+
+- Um jogo reinstalado em outra pasta continua nas listas em que estava.
+
+---
+
 ## 2.3.0 — 12 de novembro de 2026
 
 ### Segurança

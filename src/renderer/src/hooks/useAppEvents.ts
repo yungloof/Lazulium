@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Game } from '@shared/types/game';
 import { useLibraryStore } from '../stores/useLibraryStore';
+import { useCategoriesStore } from '../stores/useCategoriesStore';
 import { useUiStore } from '../stores/useUiStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { scanLibraries } from '../utils/gameActions';
@@ -16,6 +17,10 @@ export function useAppEvents(): void {
   // Carrega a biblioteca; na primeira execução (biblioteca vazia) faz um scan automático
   useEffect(() => {
     const library = useLibraryStore.getState();
+    useCategoriesStore
+      .getState()
+      .load()
+      .catch((err) => console.error('Failed to load categories:', err));
     (async () => {
       try {
         const loaded = await window.electronAPI?.getGames();

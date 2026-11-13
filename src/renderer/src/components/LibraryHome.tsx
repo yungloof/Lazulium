@@ -8,7 +8,7 @@ import { pickSuggestion } from '../utils/suggestGame';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { GRID_DENSITY, GridDensity, LibrarySort, LibraryStatusFilter, useLibraryViewStore } from '../stores/useLibraryViewStore';
 import { useUiStore } from '../stores/useUiStore';
-import { sortLibrary, useFilteredGames } from '../hooks/useLibraryGames';
+import { categoryIdOf, sortLibrary, useFilteredGames, useVisibleFilters } from '../hooks/useLibraryGames';
 import { useGridColumns } from '../hooks/useGridColumns';
 import { formatLastPlayed, formatPlaytimeShort } from '../utils/format';
 import { launchGame, openContextMenu, openGame, scanLibraries, skipSuggestion } from '../utils/gameActions';
@@ -320,6 +320,8 @@ export const LibraryHome: React.FC = () => {
   const filtered = useFilteredGames(deferredQuery);
   const games = useMemo(() => sortLibrary(filtered, sort, statusFilter), [filtered, sort, statusFilter]);
   const isFiltered = activeFilter !== 'all' || !!deferredQuery.trim() || statusFilter !== 'all';
+  const filterLabel = useVisibleFilters().find((f) => f.id === activeFilter)?.label;
+  const emptyCategory = !!categoryIdOf(activeFilter) && filtered.length === 0 && !deferredQuery.trim();
 
   const recent = useMemo(
     () =>
@@ -359,7 +361,7 @@ export const LibraryHome: React.FC = () => {
       <section>
         <SectionHeader
           icon={isFiltered ? Search : Layers}
-          title={deferredQuery.trim() ? `Resultados para “${deferredQuery.trim()}”` : isFiltered ? 'Resultados' : 'Todos os jogos'}
+          title={deferredQuery.trim() ? `Resultados para “${deferredQuery.trim()}”` : activeFilter !== 'all' && filterLabel ? filterLabel : isFiltered ? 'Resultados' : 'Todos os jogos'}
           count={games.length}
           actions={<GridToolbar />}
         />
@@ -374,9 +376,11 @@ export const LibraryHome: React.FC = () => {
           <div className="rounded-lg border border-dashed border-slate-800 bg-slate-900/30">
             <EmptyState
               icon={FilterX}
-              title="Nenhum jogo encontrado"
+              title={emptyCategory ? 'Categoria vazia' : 'Nenhum jogo encontrado'}
               description={
-                deferredQuery.trim()
+                emptyCategory
+                  ? 'Arraste jogos para ela na lista lateral, ou clique com o botão direito em um jogo e escolha Categorias.'
+                  : deferredQuery.trim()
                   ? 'Confira o nome ou tente as iniciais. Jogos não instalados também aparecem na busca.'
                   : 'Nenhum jogo combina com estes filtros. Se instalou algo agora, use Escanear no topo.'
               }

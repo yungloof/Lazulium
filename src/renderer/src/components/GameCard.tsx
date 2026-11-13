@@ -5,6 +5,7 @@ import { useLibraryStore } from '../stores/useLibraryStore';
 import { formatPlaytimeShort } from '../utils/format';
 import { platformBadge } from '../utils/platform';
 import { launchGame, openContextMenu, openGame, toggleFavorite } from '../utils/gameActions';
+import { startGameDrag } from '../utils/dragGame';
 
 interface GameCardProps {
   game: Game;
@@ -33,6 +34,9 @@ export const GameCard = memo<GameCardProps>(({ game, navStart = false, onSelect 
       aria-label={`${game.title}, ${formatPlaytimeShort(game.totalPlaytimeSeconds, game.lastPlayedAt)}${game.isFavorite ? ', favorito' : ''}`}
       onClick={() => onSelect(game)}
       onContextMenu={(e) => onContextMenu(game, e)}
+      // Arrastar a capa para uma categoria da lista lateral
+      draggable
+      onDragStart={(e) => startGameDrag(e, game.id)}
       title={game.title}
       className="group min-w-0 cursor-pointer rounded-lg focus:outline-none"
     >

@@ -104,7 +104,7 @@ function canHandOverHistory(game: Game, detected: DetectedGame): boolean {
 }
 
 function hasNoPlayerData(game: Game): boolean {
-  return !game.totalPlaytimeSeconds && !game.isFavorite && !game.tags?.length && !isJournalEntry(game) && !db.getGameAchievements(game.id)?.unlocked && !db.getPlaytimeSessions(game.id).length;
+  return !game.totalPlaytimeSeconds && !game.isFavorite && !game.tags?.length && !isJournalEntry(game) && !db.isGameOrganized(game.id) && !db.getGameAchievements(game.id)?.unlocked && !db.getPlaytimeSessions(game.id).length;
 }
 
 const PLATFORM_LABELS: Record<GamePlatform, string> = {

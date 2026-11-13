@@ -10,6 +10,7 @@ interface GamePickerModalProps {
   hint?: string;
   excludeIds?: string[];            // Já escolhidos: aparecem marcados e não respondem
   closeOnPick?: boolean;            // false: continua aberto para escolher vários
+  allowRegister?: boolean;          // false: só jogos que já estão no app (sem "Registrar no Diário")
   onPick: (game: Game) => void;
   onClose: () => void;
 }
@@ -18,7 +19,7 @@ const MAX_RESULTS = 60;
 
 // Qualquer jogo do app, instalado ou não; o que não existe pode ser registrado aqui mesmo.
 // Abre por cima de outras janelas (camada 70): o Esc fecha só esta.
-export const GamePickerModal: React.FC<GamePickerModalProps> = ({ title, hint, excludeIds = [], closeOnPick = true, onPick, onClose }) => {
+export const GamePickerModal: React.FC<GamePickerModalProps> = ({ title, hint, excludeIds = [], closeOnPick = true, allowRegister = true, onPick, onClose }) => {
   const games = useLibraryStore((s) => s.games);
   const upsertGameLocal = useLibraryStore((s) => s.upsertGameLocal);
   const [query, setQuery] = useState('');
@@ -72,7 +73,7 @@ export const GamePickerModal: React.FC<GamePickerModalProps> = ({ title, hint, e
       }
     >
       <ul className="space-y-0.5">
-        {trimmed && !exactMatch && (
+        {allowRegister && trimmed && !exactMatch && (
           <li>
             <button onClick={registerNew} className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-left text-sm text-indigo-200 hover:bg-slate-800 transition-colors ${focusRing}`}>
               <NotebookPen className="w-4 h-4 flex-shrink-0" />
@@ -98,6 +99,7 @@ export const GamePickerModal: React.FC<GamePickerModalProps> = ({ title, hint, e
             </li>
           );
         })}
+        {results.length === 0 && trimmed && !allowRegister && <li className="px-3 py-8 text-center text-sm text-slate-400">Nada com “{trimmed}”.</li>}
         {results.length === 0 && !trimmed && <li className="px-3 py-8 text-center text-sm text-slate-400">Nenhum jogo na biblioteca.</li>}
       </ul>
     </Modal>

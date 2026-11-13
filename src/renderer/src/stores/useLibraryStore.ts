@@ -2,10 +2,13 @@ import { create } from 'zustand';
 import { Game, GamePlatform } from '@shared/types/game';
 import { GameLaunchStatus } from '@shared/types/ipc';
 
+// Plataforma, favoritos, uma categoria do jogador (category:<id>) ou o que ficou fora de todas
+export type LibraryFilter = 'all' | GamePlatform | 'favorites' | 'uncategorized' | `category:${string}`;
+
 interface LibraryState {
   games: Game[];
   selectedGameId: string | null;
-  activeFilter: 'all' | GamePlatform | 'favorites';
+  activeFilter: LibraryFilter;
   searchQuery: string;
   isScanning: boolean;
   isSyncingAchievements: boolean;
@@ -18,7 +21,7 @@ interface LibraryState {
   setGames: (games: Game[]) => void;
   setIsLoaded: (loaded: boolean) => void;
   setSelectedGameId: (id: string | null) => void;
-  setActiveFilter: (filter: 'all' | GamePlatform | 'favorites') => void;
+  setActiveFilter: (filter: LibraryFilter) => void;
   setSearchQuery: (query: string) => void;
   setIsScanning: (scanning: boolean) => void;
   setIsSyncingAchievements: (syncing: boolean) => void;

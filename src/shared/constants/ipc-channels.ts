@@ -55,6 +55,14 @@ export const IPC_CHANNELS = {
   LISTS_SAVE: 'lists:save',
   LISTS_DELETE: 'lists:delete',
 
+  // Categorias da biblioteca
+  CATEGORIES_GET: 'categories:get',
+  CATEGORIES_CREATE: 'categories:create',
+  CATEGORIES_RENAME: 'categories:rename',
+  CATEGORIES_DELETE: 'categories:delete',
+  CATEGORIES_REORDER: 'categories:reorder',
+  CATEGORIES_SET_GAMES: 'categories:set-games',
+
   // SteamGridDB & Media Metadata
   METADATA_FETCH_ASSETS: 'metadata:fetch-assets',
   METADATA_SET_CUSTOM_ASSET: 'metadata:set-custom-asset',

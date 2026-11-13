@@ -9,6 +9,7 @@ import { playtimeService } from '../services/tracker/playtime.service';
 import { artworkService } from '../services/metadata/artwork.service';
 import { removeGameMedia } from '../services/metadata/media-cache.service';
 import { saveGameList } from '../services/profile/lists.service';
+import { createCategory, deleteCategory, renameCategory, reorderCategories, setCategoryGames } from '../services/library/categories.service';
 import { addGameToSteam, removeGameFromSteam } from '../services/steam/steam-shortcut-writer.service';
 import { cleanPath, handle } from './helpers';
 
@@ -98,6 +99,14 @@ export function registerLibraryHandlers(): void {
   handle(IPC_CHANNELS.LISTS_GET, () => db.getGameLists());
   handle(IPC_CHANNELS.LISTS_SAVE, (_event, input: GameListInput) => saveGameList(input));
   handle(IPC_CHANNELS.LISTS_DELETE, (_event, id: string) => db.deleteGameList(id));
+
+  // Categorias da biblioteca
+  handle(IPC_CHANNELS.CATEGORIES_GET, () => db.getGameCategories());
+  handle(IPC_CHANNELS.CATEGORIES_CREATE, (_event, name: string, gameIds?: string[]) => createCategory(name, gameIds));
+  handle(IPC_CHANNELS.CATEGORIES_RENAME, (_event, id: string, name: string) => renameCategory(id, name));
+  handle(IPC_CHANNELS.CATEGORIES_DELETE, (_event, id: string) => deleteCategory(id));
+  handle(IPC_CHANNELS.CATEGORIES_REORDER, (_event, ids: string[]) => reorderCategories(ids));
+  handle(IPC_CHANNELS.CATEGORIES_SET_GAMES, (_event, id: string, gameIds: string[], member: boolean) => setCategoryGames(id, gameIds, member));
 
   // Integração com atalhos da Steam (shortcuts.vdf)
   handle(IPC_CHANNELS.STEAM_ADD_SHORTCUT, async (_event, gameId: string) => {

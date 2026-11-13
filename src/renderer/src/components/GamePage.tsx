@@ -10,6 +10,7 @@ import {
   ImagePlus,
   Info,
   ListPlus,
+  Tags,
   MoreHorizontal,
   Pencil,
   Save,
@@ -282,6 +283,7 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
 
         <div className="ml-auto flex items-center gap-1.5">
           {[
+            { label: 'Categorias', icon: Tags, onClick: () => open('gameCategories', game.id) },
             { label: 'Adicionar à lista', icon: ListPlus, onClick: () => open('addToList', game.id) },
             { label: 'Capturas', icon: Camera, onClick: () => open('screenshots', game.id) },
             { label: 'Backup de saves', icon: Save, onClick: () => open('saves', game.id) },

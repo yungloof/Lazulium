@@ -6,10 +6,12 @@ import { GameLogStatus } from '@shared/types/game';
 export type LibrarySort = 'title' | 'recent' | 'hours' | 'added' | 'rating';
 export type LibraryStatusFilter = 'all' | 'unplayed' | GameLogStatus;
 export type GridDensity = 'compact' | 'normal' | 'large';
+export type SidebarGrouping = 'platform' | 'category';
 
 const SORT_KEY = 'lazulium.librarySort';
 const SHOW_REMOVED_KEY = 'lazulium.showRemoved';
 const DENSITY_KEY = 'lazulium.gridDensity';
+const GROUPING_KEY = 'lazulium.sidebarGrouping';
 
 const SORTS: LibrarySort[] = ['title', 'recent', 'hours', 'added', 'rating'];
 const DENSITIES: GridDensity[] = ['compact', 'normal', 'large'];
@@ -35,14 +37,17 @@ interface LibraryViewState {
   statusFilter: LibraryStatusFilter;
   showRemoved: boolean;
   density: GridDensity;
+  sidebarGrouping: SidebarGrouping | null; // null: ainda não escolheu (categorias assim que existir uma)
   setSort: (sort: LibrarySort) => void;
   setStatusFilter: (filter: LibraryStatusFilter) => void;
   setShowRemoved: (show: boolean) => void;
   setDensity: (density: GridDensity) => void;
+  setSidebarGrouping: (grouping: SidebarGrouping) => void;
 }
 
 const savedSort = read(SORT_KEY) as LibrarySort | null;
 const savedDensity = read(DENSITY_KEY) as GridDensity | null;
+const savedGrouping = read(GROUPING_KEY);
 
 export const useLibraryViewStore = create<LibraryViewState>((set) => ({
   sort: savedSort && SORTS.includes(savedSort) ? savedSort : 'title',
@@ -61,6 +66,11 @@ export const useLibraryViewStore = create<LibraryViewState>((set) => ({
   setDensity: (density) => {
     write(DENSITY_KEY, density);
     set({ density });
+  },
+  sidebarGrouping: savedGrouping === 'platform' || savedGrouping === 'category' ? savedGrouping : null,
+  setSidebarGrouping: (sidebarGrouping) => {
+    write(GROUPING_KEY, sidebarGrouping);
+    set({ sidebarGrouping });
   }
 }));
 

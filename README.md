@@ -4,7 +4,7 @@
 
 Todos os jogos do PC num lugar só: Steam, Epic, GOG, Battle.net, EA App, Ubisoft Connect, Riot, Xbox, emuladores e o que mais você tiver solto numa pasta. Com horas jogadas, conquistas, capturas e backup dos saves.
 
-> Versão **2.3.0** · Windows 10 e 11 (64 bits) · Grátis, código aberto (MIT)
+> Versão **2.4.0** · Windows 10 e 11 (64 bits) · Grátis, código aberto (MIT)
 
 ---
 
@@ -31,8 +31,8 @@ Não pede senha nem chave de API (os logins são nos sites oficiais), não tem p
 
    | Arquivo | |
    |---|---|
-   | **`Lazulium-Setup-2.3.0.exe`** *(recomendado)* | Instala, cria atalhos e se atualiza sozinho. Não precisa de administrador. |
-   | `Lazulium-Portable-2.3.0.exe` | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
+   | **`Lazulium-Setup-2.4.0.exe`** *(recomendado)* | Instala, cria atalhos e se atualiza sozinho. Não precisa de administrador. |
+   | `Lazulium-Portable-2.4.0.exe` | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
 
 2. Se o navegador disser que o arquivo "não é baixado com frequência", escolha **Manter** (no Edge: **…** → **Manter** → **Mostrar mais** → **Manter mesmo assim**).
 
@@ -65,6 +65,7 @@ Pelo **Configurações do Windows → Aplicativos**, como qualquer programa. Os 
 - **Capturas:** as da Steam (F12), as da Xbox Game Bar e as do próprio Lazulium (**Ctrl+F12** no jogo).
 - **Backup de saves** no PC e no Google Drive, com restauração em um clique.
 - **Perfil** no estilo da Steam, com retrospectiva do ano. Vira página na internet só se você pedir.
+- **Categorias** na biblioteca, como as coleções da Steam: crie as suas e arraste os jogos.
 - **Listas**, **lista de desejos** com preço em reais e aviso de promoção, **tempo para zerar** e **O que jogar agora**.
 - **Controle** de Xbox, PlayStation, Switch Pro ou genérico em todas as telas.
 - **Aparência:** temas, cores, fontes e cantos.

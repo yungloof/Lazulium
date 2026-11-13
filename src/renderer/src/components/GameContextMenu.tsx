@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Game } from '@shared/types/game';
-import { Clock, Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera, FolderOpen, ListPlus, Pencil, EyeOff, SlidersHorizontal, Trash2, PlusCircle } from 'lucide-react';
+import { Clock, Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera, FolderOpen, ListPlus, Pencil, EyeOff, SlidersHorizontal, Tags, Trash2, PlusCircle } from 'lucide-react';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { ContextMenuState, GameModalKind, useUiStore } from '../stores/useUiStore';
 import { addToSteam, askDeleteEntry, hideGame, launchGame, openGame, openGameFolder, stopGame, toggleFavorite } from '../utils/gameActions';
@@ -20,6 +20,7 @@ export interface GameContextMenuProps {
   onEditPlaytime: (game: Game) => void;
   onOpenFolder: (game: Game) => void;
   onAddToList: (game: Game) => void;
+  onCategories: (game: Game) => void;
   onRename: (game: Game) => void;
   onHide: (game: Game) => void;
   onLaunchOptions: (game: Game) => void;
@@ -56,6 +57,7 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
   onEditPlaytime,
   onOpenFolder,
   onAddToList,
+  onCategories,
   onRename,
   onHide,
   onLaunchOptions,
@@ -93,6 +95,7 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
       action: () => onToggleFavorite(game.id)
     },
     { id: 'rename', label: 'Renomear', icon: <Pencil className={icon} />, action: () => onRename(game) },
+    { id: 'categories', label: 'Categorias', icon: <Tags className={icon} />, action: () => onCategories(game) },
     { id: 'list', label: 'Adicionar à lista', icon: <ListPlus className={icon} />, action: () => onAddToList(game) },
     ...(game.manualEntry || game.isInstalled === false ? [] : [{ id: 'folder', label: 'Abrir pasta do jogo', icon: <FolderOpen className={icon} />, action: () => onOpenFolder(game) }]),
     { id: 'artwork', label: 'Trocar artes', icon: <ImageIcon className={icon} />, action: () => onOpenArtwork(game), separatorBefore: true },
@@ -199,6 +202,7 @@ export const GameContextMenuHost: React.FC<{ menu: ContextMenuState }> = ({ menu
       onOpenPage={openGame}
       onOpenFolder={openGameFolder}
       onAddToList={openFor('addToList')}
+      onCategories={openFor('gameCategories')}
       onRename={openFor('rename')}
       onHide={(g) => void hideGame(g)}
       onLaunchOptions={openFor('launchOptions')}

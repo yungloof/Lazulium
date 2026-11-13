@@ -14,6 +14,7 @@ Este documento define padrões de engenharia, arquitetura e convenções de cód
      - `services/metadata/`: Comunicação com API do SteamGridDB e armazenamento de cache de imagens.
      - `services/achievements/`: Consome Steam Web API e RetroAchievements.
      - `services/profile/`: Perfil do jogador (estatísticas e exportação).
+     - `services/library/`: Categorias da biblioteca criadas pelo jogador.
      - `services/accounts/`: Login nas contas (Steam local/OpenID, janelas de login do SteamGridDB/RetroAchievements, Google).
      - `services/social/`: Conta Lazulium (amigos, feed, jogando agora), falando com `server/social`.
      - `services/cloudsync/`: Compacta saves e comunica com Google Drive.

@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react';
 import { Game } from '@shared/types/game';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { useUiStore } from '../stores/useUiStore';
+import { useCategoriesStore } from '../stores/useCategoriesStore';
 import { ipcErrorMessage } from './ipcErrorMessage';
 
 // Ações sobre jogos usadas em várias telas. São funções fixas (não mudam a cada render),
@@ -43,6 +44,8 @@ export async function scanLibraries(): Promise<void> {
     if (result?.games) {
       useLibraryStore.getState().setGames(result.games);
       useUiStore.getState().setScanSummary(result);
+      // Jogo que mudou de instalação ou saiu de vez leva (ou tira) a categoria junto
+      void useCategoriesStore.getState().load().catch(() => undefined);
     }
   } catch (err) {
     console.error('Scan error:', err);
@@ -101,6 +104,7 @@ export function askDeleteEntry(game: Game): void {
           .then(() => {
             const library = useLibraryStore.getState();
             library.setGames(library.games.filter((g) => g.id !== game.id));
+            void useCategoriesStore.getState().load().catch(() => undefined);
             useUiStore.getState().goHome();
           })
           .catch(warn);

@@ -14,7 +14,9 @@ import {
   AddToListModal,
   ArtworkPicker,
   EmulatorSettings,
+  GameCategoriesModal,
   LaunchOptionsModal,
+  ManageCategoriesModal,
   PlaytimeEditor,
   RenameGameModal,
   SaveBackupPanel,
@@ -55,6 +57,8 @@ const ModalContent: React.FC<{ modal: AppModal }> = ({ modal }) => {
       return <EmulatorSettings onClose={close} onConfigChanged={rescan} />;
     case 'addGame':
       return <AddCustomGameModal onClose={close} onGameAdded={onGameAdded} onScanComplete={onScanComplete} />;
+    case 'categories':
+      return <ManageCategoriesModal onClose={close} />;
     case 'whatsNew':
       return <WhatsNewModal onClose={close} afterUpdate={modal.afterUpdate} />;
     case 'friendProfile':
@@ -74,6 +78,8 @@ const ModalContent: React.FC<{ modal: AppModal }> = ({ modal }) => {
       return <PlaytimeEditor game={game} onClose={close} />;
     case 'addToList':
       return <AddToListModal game={game} onClose={close} />;
+    case 'gameCategories':
+      return <GameCategoriesModal game={game} onClose={close} />;
     case 'rename':
       return <RenameGameModal game={game} onClose={close} />;
     case 'launchOptions':

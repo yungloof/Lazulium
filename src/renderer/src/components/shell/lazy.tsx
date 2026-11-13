@@ -49,6 +49,8 @@ export const SaveBackupPanel: LazyComponent<typeof import('../SaveBackupPanel')[
 export const ScreenshotsPanel: LazyComponent<typeof import('../ScreenshotsPanel')['ScreenshotsPanel']> = lazyNamed(() => import('../ScreenshotsPanel').then((m) => m.ScreenshotsPanel));
 export const PlaytimeEditor: LazyComponent<typeof import('../PlaytimeEditor')['PlaytimeEditor']> = lazyNamed(() => import('../PlaytimeEditor').then((m) => m.PlaytimeEditor));
 export const AddToListModal: LazyComponent<typeof import('../AddToListModal')['AddToListModal']> = lazyNamed(() => import('../AddToListModal').then((m) => m.AddToListModal));
+export const GameCategoriesModal: LazyComponent<typeof import('../GameCategoriesModal')['GameCategoriesModal']> = lazyNamed(() => import('../GameCategoriesModal').then((m) => m.GameCategoriesModal));
+export const ManageCategoriesModal: LazyComponent<typeof import('../ManageCategoriesModal')['ManageCategoriesModal']> = lazyNamed(() => import('../ManageCategoriesModal').then((m) => m.ManageCategoriesModal));
 export const RenameGameModal: LazyComponent<typeof import('../RenameGameModal')['RenameGameModal']> = lazyNamed(() => import('../RenameGameModal').then((m) => m.RenameGameModal));
 export const LaunchOptionsModal: LazyComponent<typeof import('../LaunchOptionsModal')['LaunchOptionsModal']> = lazyNamed(() => import('../LaunchOptionsModal').then((m) => m.LaunchOptionsModal));
 
@@ -70,6 +72,8 @@ const PREFETCH_ORDER = [
   AddCustomGameModal,
   PlaytimeEditor,
   AddToListModal,
+  GameCategoriesModal,
+  ManageCategoriesModal,
   RenameGameModal,
   LaunchOptionsModal
 ];

@@ -6,6 +6,7 @@ import { Achievement, AchievementExtras, AchievementSource, GameAchievements } f
 import { BackupRecord, GameSaveConfig } from '@shared/types/cloudsync';
 import { ProfileCustom, SteamProfileIdentity } from '@shared/types/profile';
 import { GameList } from '@shared/types/lists';
+import { GameCategory } from '@shared/types/categories';
 import { WishlistItem } from '@shared/types/wishlist';
 import { ScreenshotMove } from '@shared/types/screenshots';
 import { StoredActivity } from '@shared/types/activity';
@@ -86,6 +87,7 @@ export interface DatabaseSchema {
   steamProfileCache?: SteamProfileIdentity;
   playLengthCache?: Record<string, CachedPlayLength>;
   gameLists?: GameList[];
+  gameCategories?: GameCategory[];  // Na ordem em que aparecem na lista lateral
   wishlist?: WishlistItem[];
   screenshotMoves?: ScreenshotMove[];
   profileWeb?: { repoUrl: string; lastPublishedAt?: string };
@@ -301,6 +303,10 @@ class DatabaseService {
     for (const entry of this.data.activityLog ?? []) {
       if (entry.gameId === oldId) entry.gameId = newId;
     }
+    // Listas e categorias seguem o jogo, sem repetir quem já estava nelas com o id novo
+    for (const group of [...(this.data.gameLists ?? []), ...(this.data.gameCategories ?? [])]) {
+      if (group.gameIds.includes(oldId)) group.gameIds = [...new Set(group.gameIds.map((id) => (id === oldId ? newId : id)))];
+    }
     this.data.games = this.data.games.filter((g) => g.id !== oldId);
     this.persist();
   }
@@ -309,7 +315,12 @@ class DatabaseService {
     const initialLen = this.data.games.length;
     this.data.games = this.data.games.filter((g) => g.id !== id);
     const deleted = this.data.games.length < initialLen;
-    if (deleted) this.persist();
+    if (deleted) {
+      for (const category of this.data.gameCategories ?? []) {
+        if (category.gameIds.includes(id)) category.gameIds = category.gameIds.filter((gameId) => gameId !== id);
+      }
+      this.persist();
+    }
     return deleted;
   }
 
@@ -465,6 +476,22 @@ class DatabaseService {
   deleteGameList(id: string): void {
     this.data.gameLists = this.getGameLists().filter((l) => l.id !== id);
     this.persist();
+  }
+
+  // Categorias da biblioteca
+  getGameCategories(): GameCategory[] {
+    return this.data.gameCategories ?? [];
+  }
+
+  setGameCategories(categories: GameCategory[]): GameCategory[] {
+    this.data.gameCategories = categories;
+    this.persist();
+    return categories;
+  }
+
+  // Está em alguma lista ou categoria: o jogador arrumou este jogo à mão
+  isGameOrganized(gameId: string): boolean {
+    return this.getGameCategories().some((c) => c.gameIds.includes(gameId)) || this.getGameLists().some((l) => l.gameIds.includes(gameId));
   }
 
   getScreenshotMoves(): ScreenshotMove[] {

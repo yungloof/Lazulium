@@ -1,14 +1,17 @@
 import React, { memo, useDeferredValue, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Gamepad2, Home, Search, Star, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Gamepad2, Home, Plus, Search, Settings2, Star, X } from 'lucide-react';
 import { Game, GamePlatform } from '@shared/types/game';
 import { Select } from './Select';
 import { useLibraryStore } from '../stores/useLibraryStore';
-import { useLibraryViewStore } from '../stores/useLibraryViewStore';
+import { SidebarGrouping, useLibraryViewStore } from '../stores/useLibraryViewStore';
+import { useCategoriesStore } from '../stores/useCategoriesStore';
 import { useUiStore } from '../stores/useUiStore';
-import { compareByTitle, LibraryFilter, useFilteredGames, useVisibleFilters } from '../hooks/useLibraryGames';
+import { compareByTitle, LibraryFilter, UNCATEGORIZED_LABEL, useFilteredGames, useVisibleFilters } from '../hooks/useLibraryGames';
 import { launchGame, openContextMenu, openGame } from '../utils/gameActions';
 import { PLATFORM_GROUP } from '../utils/platform';
-import { Skeleton, compactInputClass, compactSelectClass, focusRing, focusRingInset } from './ui';
+import { ipcErrorMessage } from '../utils/ipcErrorMessage';
+import { isGameDrag, readGameDrag, startGameDrag } from '../utils/dragGame';
+import { Skeleton, compactInputClass, compactSelectClass, focusRing, focusRingInset, iconButtonClass, segmentClass, segmentedClass } from './ui';
 
 export type { LibraryFilter } from '../hooks/useLibraryGames';
 
@@ -17,6 +20,22 @@ const SIDEBAR_WIDTH_KEY = 'lazulium.sidebarWidth';
 const DEFAULT_WIDTH = 288;
 const MIN_WIDTH = 220;
 const MAX_WIDTH = 420;
+
+const GROUPINGS: { id: SidebarGrouping; label: string }[] = [
+  { id: 'category', label: 'Categorias' },
+  { id: 'platform', label: 'Plataformas' }
+];
+
+interface SidebarGroup {
+  key: string;
+  label: string;
+  games: Game[];
+  favorite?: boolean;
+  categoryId?: string;              // Grupo de uma categoria do jogador: aceita jogos arrastados
+  uncategorized?: boolean;          // Soltar aqui tira o jogo da categoria de onde ele veio
+}
+
+const openCategories = () => useUiStore.getState().openModal({ kind: 'categories' });
 
 const GROUP_ORDER: GamePlatform[] = ['steam', 'standalone', 'emulator', 'gog', 'epic', 'riot', 'xbox', 'battlenet', 'ea', 'ubisoft'];
 
@@ -62,7 +81,7 @@ const GameIcon: React.FC<{ game: Game }> = ({ game }) => {
 };
 
 // Linha memorizada: favoritar ou atualizar um jogo só redesenha a linha dele
-const GameRow = memo<{ game: Game; selected: boolean }>(({ game, selected }) => {
+const GameRow = memo<{ game: Game; selected: boolean; categoryId?: string }>(({ game, selected, categoryId }) => {
   const state = useLibraryStore((s) => s.launchStatuses[game.id]?.state);
   const hasPlaytime = (game.totalPlaytimeSeconds ?? 0) >= 60;
   const removed = game.isInstalled === false;
@@ -72,6 +91,8 @@ const GameRow = memo<{ game: Game; selected: boolean }>(({ game, selected }) => 
       onClick={() => openGame(game)}
       onDoubleClick={() => void launchGame(game)}
       onContextMenu={(e) => openContextMenu(game, e)}
+      draggable
+      onDragStart={(e) => startGameDrag(e, game.id, categoryId)}
       aria-current={selected ? 'page' : undefined}
       title={`${game.title} — clique duplo para jogar, botão direito para opções`}
       className={`group relative w-[calc(100%-0.75rem)] mx-1.5 flex items-center gap-2.5 pl-3.5 pr-2.5 py-[5px] rounded-md text-left text-[13px] transition-colors ${focusRingInset} ${
@@ -128,6 +149,13 @@ export const LibrarySidebar: React.FC = () => {
   const games = useFilteredGames(deferredQuery);
   const isHome = view === 'home';
 
+  const categories = useCategoriesStore((s) => s.categories);
+  const savedGrouping = useLibraryViewStore((s) => s.sidebarGrouping);
+  const setSidebarGrouping = useLibraryViewStore((s) => s.setSidebarGrouping);
+  // Quem ainda não escolheu passa a ver por categoria assim que cria a primeira
+  const grouping: SidebarGrouping = savedGrouping ?? (categories.length > 0 ? 'category' : 'platform');
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
   const [width, setWidth] = useState<number>(loadWidth);
 
@@ -162,21 +190,57 @@ export const LibrarySidebar: React.FC = () => {
       return next;
     });
 
-  // Favoritos no topo, depois um grupo por plataforma (como as categorias da Steam), em ordem alfabética
+  const searching = !!searchQuery.trim();
+
+  // Favoritos no topo; depois as categorias do jogador (e o que sobrou em "Sem categoria") ou um grupo por plataforma
   const groups = useMemo(() => {
-    const result: { key: string; label: string; games: Game[]; favorite?: boolean }[] = [];
-    const favorites = games.filter((g) => g.isFavorite).sort(compareByTitle);
+    const result: SidebarGroup[] = [];
+    const sorted = [...games].sort(compareByTitle);
+    const favorites = sorted.filter((g) => g.isFavorite);
     if (favorites.length > 0 && activeFilter !== 'favorites') {
       result.push({ key: 'favorites', label: 'Favoritos', games: favorites, favorite: true });
     }
-    for (const platform of GROUP_ORDER) {
-      const list = games.filter((g) => g.platform === platform).sort(compareByTitle);
-      if (list.length > 0) result.push({ key: platform, label: PLATFORM_GROUP[platform], games: list });
+    if (grouping === 'platform') {
+      for (const platform of GROUP_ORDER) {
+        const list = sorted.filter((g) => g.platform === platform);
+        if (list.length > 0) result.push({ key: platform, label: PLATFORM_GROUP[platform], games: list });
+      }
+      return result;
     }
+    // Categoria vazia só aparece com a biblioteca inteira à vista: serve de destino para arrastar
+    const showEmpty = activeFilter === 'all' && !searching;
+    const categorized = new Set<string>();
+    for (const category of categories) {
+      const ids = new Set(category.gameIds);
+      for (const id of ids) categorized.add(id);
+      const list = sorted.filter((g) => ids.has(g.id));
+      if (list.length > 0 || showEmpty) result.push({ key: `category:${category.id}`, label: category.name, games: list, categoryId: category.id });
+    }
+    const rest = sorted.filter((g) => !categorized.has(g.id));
+    if (rest.length > 0) result.push({ key: 'uncategorized', label: UNCATEGORIZED_LABEL, games: rest, uncategorized: true });
     return result;
-  }, [games, activeFilter]);
+  }, [games, activeFilter, grouping, categories, searching]);
 
-  const searching = !!searchQuery.trim();
+  // Soltar numa categoria põe o jogo nela (ele continua nas outras); soltar em "Sem categoria" tira da categoria de onde veio
+  const handleDrop = (group: SidebarGroup, e: React.DragEvent) => {
+    setDropTarget(null);
+    const drag = readGameDrag(e);
+    if (!drag) return;
+    e.preventDefault();
+    const store = useCategoriesStore.getState();
+    const title = useLibraryStore.getState().games.find((g) => g.id === drag.gameId)?.title ?? 'O jogo';
+    const ui = useUiStore.getState();
+    const task = group.categoryId
+      ? group.categoryId === drag.fromCategoryId || store.categories.find((c) => c.id === group.categoryId)?.gameIds.includes(drag.gameId)
+        ? null
+        : store.setGames(group.categoryId, [drag.gameId], true).then(() => ui.showNotice({ text: `${title} entrou em ${group.label}.`, tone: 'ok' }))
+      : drag.fromCategoryId
+        ? store.setGames(drag.fromCategoryId, [drag.gameId], false)
+        : null;
+    task?.catch((err) => ui.showNotice({ text: ipcErrorMessage(err), tone: 'warn' }));
+  };
+
+  const acceptsDrop = (group: SidebarGroup) => !!group.categoryId || !!group.uncategorized;
 
   return (
     <aside
@@ -208,7 +272,7 @@ export const LibrarySidebar: React.FC = () => {
           value={activeFilter}
           options={filters.map((f) => ({ value: f.id, label: f.label }))}
           onChange={(f: LibraryFilter) => setActiveFilter(f)}
-          ariaLabel="Filtrar por plataforma"
+          ariaLabel="Filtrar a biblioteca"
           className={`${compactSelectClass} w-full justify-between !text-xs !py-2`}
         >
           {filters.find((f) => f.id === activeFilter)?.label}
@@ -245,12 +309,24 @@ export const LibrarySidebar: React.FC = () => {
           />
           Mostrar não instalados
         </label>
+        <div className="flex items-center gap-1.5 pt-0.5">
+          <div className={`${segmentedClass} flex-1`} role="group" aria-label="Agrupar a lista por">
+            {GROUPINGS.map((option) => (
+              <button key={option.id} onClick={() => setSidebarGrouping(option.id)} aria-pressed={grouping === option.id} className={`${segmentClass(grouping === option.id)} flex-1 text-center`}>
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <button onClick={openCategories} title="Organizar categorias" aria-label="Organizar categorias" className={iconButtonClass}>
+            <Settings2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto pb-3" aria-label="Jogos">
         {!isLoaded ? (
           <SidebarSkeleton />
-        ) : groups.length === 0 ? (
+        ) : groups.length === 0 && !(grouping === 'category' && !searching && activeFilter === 'all') ? (
           <div className="px-4 py-8 text-center space-y-2">
             <p className="text-xs text-slate-400">{searching ? `Nada com “${searchQuery.trim()}”.` : 'Nenhum jogo neste filtro.'}</p>
             {(searching || activeFilter !== 'all') && (
@@ -266,31 +342,81 @@ export const LibrarySidebar: React.FC = () => {
             )}
           </div>
         ) : (
-          groups.map((group) => {
-            // Buscando, mostra tudo aberto para não esconder resultados
-            const isCollapsed = !searching && collapsed[group.key];
-            return (
-              <section key={group.key}>
-                <button
-                  onClick={() => toggleGroup(group.key)}
-                  aria-expanded={!isCollapsed}
-                  className={`sticky top-0 z-10 w-full flex items-center gap-1.5 px-3 pt-3 pb-1.5 bg-steam-sidebar/95 backdrop-blur-sm text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition-colors ${focusRingInset}`}
+          <>
+            {groups.map((group) => {
+              // Buscando, mostra tudo aberto para não esconder resultados
+              const isCollapsed = !searching && collapsed[group.key];
+              const droppable = acceptsDrop(group);
+              const isDropTarget = dropTarget === group.key;
+              return (
+                <section
+                  key={group.key}
+                  onDragOver={
+                    droppable
+                      ? (e) => {
+                          if (!isGameDrag(e)) return;
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = group.categoryId ? 'copy' : 'move';
+                          if (dropTarget !== group.key) setDropTarget(group.key);
+                        }
+                      : undefined
+                  }
+                  onDragLeave={
+                    droppable
+                      ? (e) => {
+                          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropTarget((current) => (current === group.key ? null : current));
+                        }
+                      : undefined
+                  }
+                  onDrop={droppable ? (e) => handleDrop(group, e) : undefined}
+                  className={isDropTarget ? 'rounded-lg bg-indigo-500/10 ring-1 ring-inset ring-indigo-400/60' : undefined}
                 >
-                  {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                  {group.favorite && <Star className="w-3 h-3 text-amber-400 fill-amber-400" />}
-                  {group.label}
-                  <span className="font-medium text-slate-500 tabular-nums">{group.games.length}</span>
-                </button>
-                {!isCollapsed && (
-                  <div className="space-y-px">
-                    {group.games.map((game) => (
-                      <GameRow key={`${group.key}-${game.id}`} game={game} selected={!isHome && game.id === selectedGameId} />
-                    ))}
-                  </div>
+                  <button
+                    onClick={() => toggleGroup(group.key)}
+                    onContextMenu={
+                      group.categoryId
+                        ? (e) => {
+                            e.preventDefault();
+                            openCategories();
+                          }
+                        : undefined
+                    }
+                    aria-expanded={!isCollapsed}
+                    title={group.categoryId ? `${group.label} — botão direito para organizar as categorias` : undefined}
+                    className={`sticky top-0 z-10 w-full flex items-center gap-1.5 px-3 pt-3 pb-1.5 backdrop-blur-sm text-[11px] font-bold uppercase tracking-wider text-left text-slate-400 hover:text-slate-200 transition-colors ${
+                      isDropTarget ? 'bg-transparent' : 'bg-steam-sidebar/95'
+                    } ${focusRingInset}`}
+                  >
+                    {isCollapsed ? <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />}
+                    {group.favorite && <Star className="w-3 h-3 flex-shrink-0 text-amber-400 fill-amber-400" />}
+                    <span className="truncate">{group.label}</span>
+                    <span className="font-medium text-slate-500 tabular-nums">{group.games.length}</span>
+                  </button>
+                  {!isCollapsed && group.games.length > 0 && (
+                    <div className="space-y-px">
+                      {group.games.map((game) => (
+                        <GameRow key={`${group.key}-${game.id}`} game={game} selected={!isHome && game.id === selectedGameId} categoryId={group.categoryId} />
+                      ))}
+                    </div>
+                  )}
+                  {!isCollapsed && group.games.length === 0 && <p className="px-4 pb-1.5 text-[11px] text-slate-500">Arraste jogos para cá.</p>}
+                </section>
+              );
+            })}
+            {grouping === 'category' && !searching && (
+              <div className="px-3 pt-3 space-y-2">
+                {categories.length === 0 && (
+                  <p className="text-[11px] leading-relaxed text-slate-400">Crie categorias para arrumar a biblioteca do seu jeito: por gênero, por série, o que jogar com a galera.</p>
                 )}
-              </section>
-            );
-          })
+                <button
+                  onClick={openCategories}
+                  className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-slate-700 text-[11px] font-semibold text-slate-400 hover:text-white hover:border-slate-500 transition-colors ${focusRing}`}
+                >
+                  <Plus className="w-3.5 h-3.5" /> Nova categoria
+                </button>
+              </div>
+            )}
+          </>
         )}
       </nav>
     </aside>
