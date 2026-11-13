@@ -30,9 +30,9 @@ export function registerJournalHandlers(): void {
   handle(IPC_CHANNELS.GAME_RENAME, (_event, gameId: string, title: string | null) => {
     const game = renameGame(gameId, title);
     playLengthService.forget(game.id);
-    gameMetadataService.forget(game.id);
+    const cleared = gameMetadataService.forget(game.id);
     gameMetadataService.enqueueMissing([game.id]);
-    return game;
+    return cleared ?? game;
   });
 
   handle(IPC_CHANNELS.JOURNAL_EXPORT, (event) =>

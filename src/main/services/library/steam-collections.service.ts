@@ -1,4 +1,4 @@
-import { readFile } from 'fs/promises';
+import { readFile, stat } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { Game } from '@shared/types/game';
@@ -88,8 +88,22 @@ async function readSteamCollectionsFile(): Promise<ParsedSteamCollection[]> {
   if (!steamPath) throw new Error('Pasta da Steam não encontrada neste computador.');
 
   const accountDirs = await getAccountDirs(steamPath);
-  for (const accountDir of accountDirs) {
-    const filePath = join(accountDir, 'config', 'cloudstorage', 'cloud-storage-namespace-1.json');
+  const candidates = await Promise.all(
+    accountDirs.map(async (accountDir) => {
+      const filePath = join(accountDir, 'config', 'cloudstorage', 'cloud-storage-namespace-1.json');
+      try {
+        const info = await stat(filePath);
+        return { filePath, mtimeMs: info.mtimeMs };
+      } catch {
+        return null;
+      }
+    })
+  );
+  const ordered = candidates
+    .filter((item): item is { filePath: string; mtimeMs: number } => item !== null)
+    .sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+  for (const { filePath } of ordered) {
     try {
       const content = await readFile(filePath, 'utf-8');
       const parsed = JSON.parse(content) as unknown;

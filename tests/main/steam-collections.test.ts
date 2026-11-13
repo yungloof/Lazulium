@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, utimesSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useTempUserData } from '../helpers/electron-mock';
@@ -157,5 +157,28 @@ describe('importSteamCollections', () => {
     expect(saved.find((c) => c.name === 'Coop')?.rule).toEqual({ genres: ['Ação'] });
     expect(saved.find((c) => c.name === 'Coop (Steam)')?.gameIds).toEqual(['steam_620']);
     expect(saved.find((c) => c.name === 'Zerar depois')?.gameIds).toEqual(['steam_620']);
+  });
+
+  it('quando há múltiplas contas locais, prioriza o cloudstorage alterado mais recentemente', async () => {
+    db.upsertGames([
+      makeGame({ id: 'steam_620', title: 'Portal 2', platform: 'steam', platformGameId: '620' }),
+      makeGame({ id: 'steam_220', title: 'Half-Life 2', platform: 'steam', platformGameId: '220' })
+    ]);
+
+    const olderAccount = join(userDataDir, 'steam', 'userdata', '111');
+    const newerAccount = join(userDataDir, 'steam', 'userdata', '222');
+    steamMockState.steamPath = join(userDataDir, 'steam');
+    steamMockState.accountDirs = [olderAccount, newerAccount];
+
+    writeCloudStorage(olderAccount, [makeStorageEntry('user-collections.uc-old', { id: 'uc-old', name: 'Conta Antiga', added: [220] })]);
+    writeCloudStorage(newerAccount, [makeStorageEntry('user-collections.uc-new', { id: 'uc-new', name: 'Conta Atual', added: [620] })]);
+
+    const oldFile = join(olderAccount, 'config', 'cloudstorage', 'cloud-storage-namespace-1.json');
+    const newFile = join(newerAccount, 'config', 'cloudstorage', 'cloud-storage-namespace-1.json');
+    utimesSync(oldFile, new Date('2025-01-01T00:00:00Z'), new Date('2025-01-01T00:00:00Z'));
+    utimesSync(newFile, new Date('2026-11-13T00:00:00Z'), new Date('2026-11-13T00:00:00Z'));
+
+    const { result } = await importSteamCollections();
+    expect(result.categories.map((c) => c.name)).toEqual(['Conta Atual']);
   });
 });

@@ -53,6 +53,7 @@ afterEach(async () => {
 describe('normalização de consulta e gêneros IGDB', () => {
   it('limpa sufixos entre parênteses, símbolos e espaços excessivos do título', () => {
     expect(cleanQueryTitle('Portal 2™ (GOTY) [PT-BR]®   Edition')).toBe('Portal 2 Edition');
+    expect(cleanQueryTitle('[1999]')).toBe('[1999]');
     expect(cleanQueryTitle('a'.repeat(200)).length).toBeLessThanOrEqual(120);
   });
 
@@ -68,8 +69,8 @@ describe('normalização de consulta e gêneros IGDB', () => {
 });
 
 describe('gameMetadataService', () => {
-  it('busca por steamAppId + título para jogos Steam e omite steamAppId em outras lojas', async () => {
-    const remoteSteam = await fetchGameMetadataRemote({ platform: 'steam', platformGameId: '620', title: 'Portal 2™' });
+  it('busca por steamAppId + título para jogos Steam e omite steamAppId em outras lojas ou atalhos', async () => {
+    const remoteSteam = await fetchGameMetadataRemote({ id: 'steam-620', platform: 'steam', platformGameId: '620', title: 'Portal 2™' });
     expect(remoteSteam).toEqual({
       genres: ['Ação', 'Tiro', 'Quebra-cabeça'],
       releaseYear: 2011,
@@ -78,12 +79,16 @@ describe('gameMetadataService', () => {
     expect(requests[0]).toContain('steamAppId=620');
     expect(requests[0]).toContain('title=Portal+2');
 
-    await fetchGameMetadataRemote({ platform: 'gog', platformGameId: '1234', title: 'Control (Ultimate)' });
+    await fetchGameMetadataRemote({ id: 'steam-shortcut-12345', platform: 'steam', platformGameId: '3123456789', title: 'Celeste (Switch)' });
     expect(requests[1]).not.toContain('steamAppId=');
-    expect(requests[1]).toContain('title=Control');
+    expect(requests[1]).toContain('title=Celeste');
+
+    await fetchGameMetadataRemote({ platform: 'gog', platformGameId: '1234', title: 'Control (Ultimate)' });
+    expect(requests[2]).not.toContain('steamAppId=');
+    expect(requests[2]).toContain('title=Control');
   });
 
-  it('salva gêneros/ano/série ao chamar ensure, usa cache e permite limpar via forget', async () => {
+  it('salva gêneros/ano/série ao chamar ensure, usa cache e retorna objeto limpo via forget', async () => {
     db.upsertGames([makeGame({ id: 'steam_620', title: 'Portal 2', platform: 'steam', platformGameId: '620' })]);
     const notified: string[] = [];
     gameMetadataService.setGameUpdatedListener((g) => notified.push(g.id));
@@ -100,7 +105,8 @@ describe('gameMetadataService', () => {
     expect(second?.series).toBe('Portal');
     expect(requests).toHaveLength(1);
 
-    gameMetadataService.forget('steam_620');
+    const forgotten = gameMetadataService.forget('steam_620');
+    expect(forgotten?.series).toBeUndefined();
     expect(db.getGameById('steam_620')?.series).toBeUndefined();
     expect(db.getGameById('steam_620')?.metadataCheckedAt).toBeUndefined();
 

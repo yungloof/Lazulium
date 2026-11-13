@@ -167,6 +167,11 @@ const RuleEditorPanel: React.FC<RuleEditorProps> = ({ title, draft, onChange, ga
           </p>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          {summary && (
+            <Button type="button" onClick={() => onChange({})}>
+              Limpar
+            </Button>
+          )}
           {onSave && (
             <Button type="button" variant="primary" disabled={saveDisabled} onClick={onSave}>
               Salvar regras

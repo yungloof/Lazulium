@@ -32,24 +32,28 @@ const needsLookup = (game: Game, now = Date.now()): boolean => {
 
 // Remove parênteses de região/versão e caracteres inválidos antes de consultar o proxy
 export function cleanQueryTitle(value: string): string {
-  return value
-    .replace(/[([][^)\]]*[)\]]/g, ' ')
-    .replace(/[™®©]/g, '')
-    .replace(/["\\;*]/g, ' ')
-    .replace(/\p{C}/gu, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim()
-    .slice(0, MAX_TITLE_LENGTH)
-    .trim();
+  const sanitize = (raw: string) =>
+    raw
+      .replace(/[™®©]/g, '')
+      .replace(/["\\;*]/g, ' ')
+      .replace(/\p{C}/gu, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+      .slice(0, MAX_TITLE_LENGTH)
+      .trim();
+
+  const stripped = sanitize(value.replace(/[([][^)\]]*[)\]]/g, ' '));
+  return stripped.length >= 2 ? stripped : sanitize(value);
 }
 
-export async function fetchGameMetadataRemote(game: Pick<Game, 'platform' | 'platformGameId' | 'title'>): Promise<{
+export async function fetchGameMetadataRemote(game: Pick<Game, 'platform' | 'platformGameId' | 'title'> & { id?: string }): Promise<{
   genres: string[];
   releaseYear?: number;
   series?: string;
 } | null> {
   const params = new URLSearchParams();
-  const appId = game.platform === 'steam' ? game.platformGameId : undefined;
+  const isSteamShortcut = Boolean(game.id?.startsWith('steam-shortcut-'));
+  const appId = game.platform === 'steam' && !isSteamShortcut ? game.platformGameId : undefined;
   const cleanTitle = cleanQueryTitle(game.title);
   if (appId && /^\d{1,10}$/.test(appId)) params.set('steamAppId', appId);
   if (cleanTitle.length >= 2) params.set('title', cleanTitle);
@@ -122,14 +126,15 @@ class GameMetadataService {
     return task;
   }
 
-  forget(gameId: string): void {
+  forget(gameId: string): Game | null {
     const game = db.getGameById(gameId);
-    if (!game) return;
-    if (!game.genres && game.releaseYear === undefined && !game.series && !game.metadataCheckedAt) return;
+    if (!game) return null;
+    if (!game.genres && game.releaseYear === undefined && !game.series && !game.metadataCheckedAt) return game;
     const { genres: _g, releaseYear: _y, series: _s, metadataCheckedAt: _c, ...rest } = game;
     const updated: Game = { ...rest, updatedAt: new Date().toISOString() };
     db.upsertGames([updated]);
     this.listener(updated);
+    return updated;
   }
 
   private async drain(): Promise<void> {

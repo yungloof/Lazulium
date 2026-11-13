@@ -1,16 +1,19 @@
 import React, { memo, useDeferredValue, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Clock, Cpu, Dices, EyeOff, FilterX, Gamepad2, Layers, Loader2, Play, Plus, RefreshCw, Search, Sparkles } from 'lucide-react';
+import { ChevronDown, Clock, Cpu, Dices, EyeOff, FilterX, Gamepad2, Layers, Loader2, Play, Plus, RefreshCw, Search, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { Game } from '@shared/types/game';
+import { formatCategoryRuleSummary } from '@shared/utils/categories';
 import { LOG_STATUS } from './GameLogFields';
 import { GameCard } from './GameCard';
 import { Select, SelectOption } from './Select';
 import { pickSuggestion } from '../utils/suggestGame';
+import { useCategoriesStore } from '../stores/useCategoriesStore';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { GRID_DENSITY, GridDensity, LibrarySort, LibraryStatusFilter, useLibraryViewStore } from '../stores/useLibraryViewStore';
 import { useUiStore } from '../stores/useUiStore';
 import { categoryIdOf, LIBRARY_FILTERS, sortLibrary, useFilteredGames, useVisibleFilters } from '../hooks/useLibraryGames';
 import { useGridColumns } from '../hooks/useGridColumns';
 import { formatLastPlayed, formatPlaytimeShort } from '../utils/format';
+import { PLATFORM_SHORT } from '../utils/platform';
 import { launchGame, openContextMenu, openGame, scanLibraries, skipSuggestion } from '../utils/gameActions';
 import { Button, EmptyState, SectionHeader, Skeleton, compactSelectClass, focusRing, segmentClass, segmentedClass } from './ui';
 
@@ -444,8 +447,20 @@ export const LibraryHome: React.FC = () => {
   const hasAttributeFilter =
     statusFilter !== 'all' || effectivePlatform !== 'all' || genreFilter !== 'all' || seriesFilter !== 'all' || yearFilter !== 'all';
   const isFiltered = activeFilter !== 'all' || !!deferredQuery.trim() || hasAttributeFilter;
+  const categories = useCategoriesStore((s) => s.categories);
+  const activeCategoryId = categoryIdOf(activeFilter);
+  const activeCategory = activeCategoryId ? categories.find((c) => c.id === activeCategoryId) : undefined;
   const filterLabel = useVisibleFilters().find((f) => f.id === activeFilter)?.label;
-  const emptyCategory = !!categoryIdOf(activeFilter) && filtered.length === 0 && !deferredQuery.trim() && !hasAttributeFilter;
+  const emptyCategory = !!activeCategoryId && filtered.length === 0 && !deferredQuery.trim() && !hasAttributeFilter;
+  const emptyDynamicCategory = emptyCategory && Boolean(activeCategory?.rule);
+  const dynamicRuleSummary =
+    emptyDynamicCategory && activeCategory?.rule
+      ? formatCategoryRuleSummary(
+          activeCategory.rule,
+          (p) => PLATFORM_SHORT[p],
+          (st) => (st === 'unplayed' ? 'Não jogado' : LOG_STATUS.find((s) => s.id === st)?.label ?? st)
+        )
+      : '';
 
   const recent = useMemo(
     () =>
@@ -499,19 +514,34 @@ export const LibraryHome: React.FC = () => {
         ) : (
           <div className="rounded-lg border border-dashed border-slate-800 bg-slate-900/30">
             <EmptyState
-              icon={FilterX}
-              title={emptyCategory ? 'Categoria vazia' : 'Nenhum jogo encontrado'}
+              icon={emptyDynamicCategory ? SlidersHorizontal : FilterX}
+              title={emptyDynamicCategory ? 'Nenhum jogo combina com esta categoria' : emptyCategory ? 'Categoria vazia' : 'Nenhum jogo encontrado'}
               description={
-                emptyCategory
+                emptyDynamicCategory
+                  ? dynamicRuleSummary
+                    ? `Regras atuais: ${dynamicRuleSummary}. Nenhum jogo da biblioteca combina com esses critérios agora.`
+                    : 'Nenhum jogo da biblioteca combina com as regras desta categoria dinâmica.'
+                  : emptyCategory
                   ? 'Arraste jogos para ela na lista lateral, ou clique com o botão direito em um jogo e escolha Categorias.'
                   : deferredQuery.trim()
                   ? 'Confira o nome ou tente as iniciais. Jogos não instalados também aparecem na busca.'
                   : 'Nenhum jogo combina com estes filtros. Se instalou algo agora, use Escanear no topo.'
               }
               actions={
-                <Button variant="primary" size="md" data-nav-start onClick={clearFilters}>
-                  <FilterX className="w-3.5 h-3.5" /> Limpar busca e filtros
-                </Button>
+                emptyDynamicCategory ? (
+                  <>
+                    <Button variant="primary" size="md" data-nav-start onClick={() => useUiStore.getState().openModal({ kind: 'categories' })}>
+                      <SlidersHorizontal className="w-3.5 h-3.5" /> Editar regras
+                    </Button>
+                    <Button size="md" onClick={clearFilters}>
+                      <FilterX className="w-3.5 h-3.5" /> Ver todos os jogos
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="primary" size="md" data-nav-start onClick={clearFilters}>
+                    <FilterX className="w-3.5 h-3.5" /> Limpar busca e filtros
+                  </Button>
+                )
               }
               compact
             />
