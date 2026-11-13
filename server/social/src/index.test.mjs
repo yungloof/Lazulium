@@ -2,8 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import worker from './index.js';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import worker, { retryPurges } from './index.js';
 import { openD1 } from './d1-sqlite.js';
+import { createMediaStore } from './media-store.js';
+import { signTicket, verifyTicket } from './media-ticket.js';
 
 const SCHEMA = join(dirname(fileURLToPath(import.meta.url)), '..', 'schema.sql');
 const ORIGIN = 'https://social.test';
@@ -344,7 +348,8 @@ test('limites: lote grande demais e JSON quebrado', async (t) => {
 
 // ---------- Vitrine do perfil ----------
 const SHOWCASE = { schema: 'lazulium-profile/1', displayName: 'Amiga </script><script>alert(1)</script>', custom: {}, featuredGames: [] };
-const PAGE = '<!doctype html><html><head><title>Perfil</title></head><body></body></html>';
+const PAGE =
+  '<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src https:; media-src https://*.steamstatic.com; connect-src \'self\'; base-uri \'none\'; form-action \'none\'"><title>Perfil</title></head><body></body></html>';
 
 test('vitrine: amigo abre pelo link temporário; JSON embutido não fecha a tag', async (t) => {
   const steam = fakeSteam();
@@ -399,4 +404,232 @@ test('imagens: envio troca a anterior, endereço público serve o arquivo', asyn
   // Apagar a conta leva as imagens
   await s.call('DELETE', '/v1/me', { token: a.token });
   assert.equal((await worker.fetch(new Request(second.body.url), s.env)).status, 404);
+});
+
+// ---------- GIF maior e vídeo de fundo (guarda de arquivos da VPS) ----------
+const STORE_ORIGIN = 'https://arquivos.test';
+const MEDIA_SECRET = 'segredo-de-teste-com-mais-de-32-caracteres';
+const WEBM = Buffer.concat([Buffer.from('1a45dfa3', 'hex'), Buffer.alloc(60, 7)]);
+const MP4 = Buffer.concat([Buffer.from('00000018', 'hex'), Buffer.from('ftypmp42'), Buffer.alloc(40, 3)]);
+const BIG_GIF = Buffer.concat([Buffer.from('GIF89a'), Buffer.alloc(50, 1)]);
+const PNG = Buffer.from('89504e470d0a1a0a', 'hex').toString('base64');
+
+// Servidor da conta e guarda de arquivos ligados no mesmo processo, com a pasta num diretório temporário
+function setupWithStore(t, options = {}) {
+  const dir = mkdtempSync(join(tmpdir(), 'lazulium-media-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const store = createMediaStore({ dir, secret: MEDIA_SECRET, publicOrigin: STORE_ORIGIN, minFreeBytes: 0, ...options });
+  const s = setup();
+  Object.assign(s.env, { MEDIA_STORE_URL: STORE_ORIGIN, MEDIA_SECRET, MEDIA_STORE: store });
+  const ticket = (token, mime, size) => s.call('POST', '/v1/me/media/background/upload', { token, body: { mime, size } });
+  const put = (ticketText, mime, bytes) =>
+    store.fetch(new Request(`${STORE_ORIGIN}/media/upload`, { method: 'PUT', headers: { Authorization: `Bearer ${ticketText}`, 'Content-Type': mime, 'Content-Length': String(bytes.length) }, body: bytes }));
+  const send = async (token, mime, bytes) => {
+    const issued = await ticket(token, mime, bytes.length);
+    assert.equal(issued.status, 200);
+    const res = await put(issued.body.ticket, mime, bytes);
+    return { status: res.status, body: await res.json() };
+  };
+  const get = (url, headers = {}) => store.fetch(new Request(url, { headers }));
+  const files = () => readdirSync(dir, { recursive: true }).filter((name) => /\.(gif|webm|mp4)$/.test(String(name)));
+  return { ...s, dir, store, ticket, put, send, get, files };
+}
+
+const statusOf = async (response) => (await response).status;
+
+test('arquivo grande: sem guarda configurada o servidor avisa e o resto segue igual', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  s.env.PROFILE_PAGE = PAGE;
+  const a = await login(s, '76561198000000001');
+  assert.equal((await s.call('POST', '/v1/me/media/background/upload', { token: a.token, body: { mime: 'video/webm', size: 100 } })).status, 501);
+  // Endereço sem segredo (ou com segredo curto) não liga nada
+  s.env.MEDIA_STORE_URL = STORE_ORIGIN;
+  s.env.MEDIA_SECRET = 'curto';
+  assert.equal((await s.call('POST', '/v1/me/media/background/upload', { token: a.token, body: { mime: 'video/webm', size: 100 } })).status, 501);
+  await s.call('PUT', '/v1/me/showcase', { token: a.token, body: SHOWCASE });
+  const link = await s.call('POST', `/v1/users/${a.user.id}/view`, { token: a.token });
+  const pageRes = await worker.fetch(new Request(link.body.url), s.env);
+  const csp = pageRes.headers.get('Content-Security-Policy');
+  const html = await pageRes.text();
+  assert.match(csp, /media-src https:\/\/\*\.steamstatic\.com;/);
+  assert.match(html, /media-src https:\/\/\*\.steamstatic\.com;/);
+  // Imagem comum e apagar a conta não dependem da tabela nova nem da VPS
+  s.env.DB.raw.exec('DROP TABLE stored_media');
+  assert.equal((await s.call('PUT', '/v1/me/media/background', { token: a.token, body: { mime: 'image/png', data: PNG } })).status, 200);
+  assert.equal((await s.call('DELETE', '/v1/me', { token: a.token })).status, 200);
+});
+
+test('arquivo grande: bilhete só para fundo, GIF ou vídeo, dentro do limite', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setupWithStore(t);
+  const a = await login(s, '76561198000000001');
+  assert.equal((await s.call('POST', '/v1/me/media/background/upload', { body: { mime: 'video/webm', size: 100 } })).status, 401);
+  assert.equal((await s.call('POST', '/v1/me/media/avatar/upload', { token: a.token, body: { mime: 'image/gif', size: 100 } })).status, 404);
+  assert.equal((await s.ticket(a.token, 'image/png', 100)).status, 400);
+  assert.equal((await s.ticket(a.token, 'video/webm', 0)).status, 400);
+  assert.equal((await s.ticket(a.token, 'video/webm', 50 * 1024 * 1024 + 1)).status, 413);
+  const ok = await s.ticket(a.token, 'video/mp4', 50 * 1024 * 1024);
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.uploadUrl, `${STORE_ORIGIN}/media/upload`);
+  assert.equal(ok.body.maxBytes, 50 * 1024 * 1024);
+  const payload = await verifyTicket(MEDIA_SECRET, ok.body.ticket);
+  assert.deepEqual({ a: payload.a, u: payload.u, k: payload.k }, { a: 'put', u: a.user.id, k: 'background' });
+  assert.equal(await verifyTicket('outro-segredo-com-mais-de-32-caracteres!', ok.body.ticket), null);
+});
+
+test('arquivo grande: envio com bilhete, endereço público com faixas, troca o anterior', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setupWithStore(t);
+  s.env.PROFILE_PAGE = PAGE;
+  const a = await login(s, '76561198000000001');
+  // A imagem pequena que estava no banco sai quando o vídeo toma o lugar
+  const inline = await s.call('PUT', '/v1/me/media/background', { token: a.token, body: { mime: 'image/png', data: PNG } });
+  const video = await s.send(a.token, 'video/webm', WEBM);
+  assert.equal(video.status, 200);
+  assert.match(video.body.url, new RegExp(`^${STORE_ORIGIN}/media/f/${a.user.id}/background-[A-Za-z0-9_-]+\\.webm$`));
+  assert.equal((await worker.fetch(new Request(inline.body.url), s.env)).status, 404);
+
+  const whole = await s.get(video.body.url);
+  assert.equal(whole.status, 200);
+  assert.equal(whole.headers.get('Content-Type'), 'video/webm');
+  assert.equal(whole.headers.get('Accept-Ranges'), 'bytes');
+  assert.equal(whole.headers.get('X-Content-Type-Options'), 'nosniff');
+  assert.deepEqual(Buffer.from(await whole.arrayBuffer()), WEBM);
+  const part = await s.get(video.body.url, { Range: 'bytes=4-9' });
+  assert.equal(part.status, 206);
+  assert.equal(part.headers.get('Content-Range'), `bytes 4-9/${WEBM.length}`);
+  assert.deepEqual(Buffer.from(await part.arrayBuffer()), WEBM.subarray(4, 10));
+  const tail = await s.get(video.body.url, { Range: 'bytes=-8' });
+  assert.equal(tail.headers.get('Content-Range'), `bytes ${WEBM.length - 8}-${WEBM.length - 1}/${WEBM.length}`);
+  assert.equal((await tail.arrayBuffer()).byteLength, 8);
+  const open = await s.get(video.body.url, { Range: 'bytes=60-' });
+  assert.equal((await open.arrayBuffer()).byteLength, WEBM.length - 60);
+  assert.equal(await statusOf(s.get(video.body.url, { Range: `bytes=${WEBM.length}-` })), 416);
+  const head = await s.store.fetch(new Request(video.body.url, { method: 'HEAD' }));
+  assert.equal(head.headers.get('Content-Length'), String(WEBM.length));
+
+  // Outro envio troca o anterior: um arquivo por conta
+  const gif = await s.send(a.token, 'image/gif', BIG_GIF);
+  assert.match(gif.body.url, /\.gif$/);
+  assert.equal(await statusOf(s.get(video.body.url)), 404);
+  const servedGif = await s.get(gif.body.url);
+  assert.equal(servedGif.headers.get('Content-Type'), 'image/gif');
+  await servedGif.arrayBuffer();
+  assert.equal((await s.send(a.token, 'video/mp4', MP4)).status, 200);
+  assert.equal(s.files().length, 1);
+
+  // A página do amigo pode tocar vídeo da guarda de arquivos (e da Steam), de mais nenhum lugar
+  await s.call('PUT', '/v1/me/showcase', { token: a.token, body: SHOWCASE });
+  const link = await s.call('POST', `/v1/users/${a.user.id}/view`, { token: a.token });
+  const pageRes = await worker.fetch(new Request(link.body.url), s.env);
+  const csp = pageRes.headers.get('Content-Security-Policy');
+  const html = await pageRes.text();
+  assert.match(csp, /media-src https:\/\/\*\.steamstatic\.com https:\/\/arquivos\.test;/);
+  assert.match(html, /media-src https:\/\/\*\.steamstatic\.com https:\/\/arquivos\.test;/);
+});
+
+test('arquivo grande: a guarda recusa bilhete falso ou vencido, tipo trocado e arquivo acima do limite', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setupWithStore(t, { maxBytes: 200 });
+  const a = await login(s, '76561198000000001');
+  const { ticket } = (await s.ticket(a.token, 'video/webm', WEBM.length)).body;
+  assert.equal(await statusOf(s.put('', 'video/webm', WEBM)), 401);
+  assert.equal(await statusOf(s.put(`${ticket}x`, 'video/webm', WEBM)), 401);
+  const forged = await signTicket('outro-segredo-com-mais-de-32-caracteres!', { a: 'put', u: a.user.id, k: 'background', e: Date.now() + 60_000, m: 200 });
+  assert.equal(await statusOf(s.put(forged, 'video/webm', WEBM)), 401);
+  const expired = await signTicket(MEDIA_SECRET, { a: 'put', u: a.user.id, k: 'background', e: Date.now() - 1, m: 200 });
+  assert.equal(await statusOf(s.put(expired, 'video/webm', WEBM)), 401);
+  // Bilhete de apagar não serve para enviar, nem o de enviar para apagar
+  const del = await signTicket(MEDIA_SECRET, { a: 'del', u: a.user.id, k: 'background', e: Date.now() + 60_000 });
+  assert.equal(await statusOf(s.put(del, 'video/webm', WEBM)), 401);
+  assert.equal(await statusOf(s.store.fetch(new Request(`${STORE_ORIGIN}/media/purge`, { method: 'POST', headers: { Authorization: `Bearer ${ticket}` } }))), 401);
+  // O conteúdo precisa ser do tipo anunciado
+  assert.equal(await statusOf(s.put(ticket, 'text/html', WEBM)), 400);
+  assert.equal(await statusOf(s.put(ticket, 'video/webm', Buffer.from('<html><script>alert(1)</script></html>'))), 400);
+  assert.equal(await statusOf(s.put(ticket, 'video/mp4', WEBM)), 400);
+  assert.equal(await statusOf(s.put(ticket, 'image/gif', Buffer.from('GIF'))), 400);
+  // Limite: pelo tamanho anunciado e pelo que chega de verdade
+  const big = Buffer.concat([WEBM, Buffer.alloc(200)]);
+  assert.equal(await statusOf(s.put(ticket, 'video/webm', big)), 413);
+  const unannounced = new Request(`${STORE_ORIGIN}/media/upload`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${ticket}`, 'Content-Type': 'video/webm' },
+    body: new Blob([big]).stream(),
+    duplex: 'half'
+  });
+  assert.equal(await statusOf(s.store.fetch(unannounced)), 413);
+  assert.equal(s.files().length, 0);
+  assert.deepEqual(readdirSync(s.dir).filter((name) => name.startsWith('.tmp-')), [], 'nada de sobra de envio recusado');
+  // Caminho fora do padrão não sai da pasta; rota de outro servidor não é com a guarda
+  assert.equal(await statusOf(s.get(`${STORE_ORIGIN}/media/f/${a.user.id}/..%2F..%2Fsegredo.mp4`)), 404);
+  assert.equal(await s.store.fetch(new Request(`${STORE_ORIGIN}/v1/me`)), null);
+});
+
+test('arquivo grande: sem espaço em disco a guarda recusa', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setupWithStore(t, { minFreeBytes: Number.MAX_SAFE_INTEGER });
+  const a = await login(s, '76561198000000001');
+  assert.equal((await s.send(a.token, 'video/webm', WEBM)).status, 507);
+});
+
+test('arquivo grande: imagem nova, tirar o fundo e apagar a conta levam o arquivo da VPS', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setupWithStore(t);
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  const rows = () => s.env.DB.raw.prepare('SELECT user_id, purge FROM stored_media ORDER BY user_id').all();
+
+  // Voltar para uma imagem comum apaga o vídeo
+  const first = await s.send(a.token, 'video/webm', WEBM);
+  await s.call('PUT', '/v1/me/media/background', { token: a.token, body: { mime: 'image/png', data: PNG } });
+  assert.equal(await statusOf(s.get(first.body.url)), 404);
+  assert.equal(rows().length, 0);
+  // Tirar o fundo também
+  const second = await s.send(a.token, 'video/webm', WEBM);
+  assert.equal((await s.call('DELETE', '/v1/me/media/background', { token: a.token })).status, 200);
+  assert.equal(await statusOf(s.get(second.body.url)), 404);
+  // Avatar novo não mexe no fundo
+  const third = await s.send(a.token, 'video/webm', WEBM);
+  await s.call('PUT', '/v1/me/media/avatar', { token: a.token, body: { mime: 'image/png', data: PNG } });
+  assert.equal(s.files().length, 1);
+  // Apagar a conta leva o arquivo dela e só o dela
+  const other = await s.send(b.token, 'image/gif', BIG_GIF);
+  assert.equal((await s.call('DELETE', '/v1/me', { token: a.token })).status, 200);
+  assert.equal(await statusOf(s.get(third.body.url)), 404);
+  assert.deepEqual(s.files().map((name) => String(name).replace(/\\/g, '/')), [new URL(other.body.url).pathname.replace('/media/f/', '')]);
+  assert.deepEqual(rows().map((r) => r.user_id), [b.user.id]);
+});
+
+test('arquivo grande: VPS fora do ar não impede apagar a conta; o pedido é repetido depois', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setupWithStore(t);
+  const a = await login(s, '76561198000000001');
+  const sent = await s.send(a.token, 'video/webm', WEBM);
+  const working = s.env.MEDIA_STORE;
+  s.env.MEDIA_STORE = {
+    fetch: async () => {
+      throw new Error('fora do ar');
+    }
+  };
+  assert.equal((await s.call('DELETE', '/v1/me', { token: a.token })).status, 200);
+  assert.equal((await s.call('GET', '/v1/me', { token: a.token })).status, 401);
+  assert.equal(s.env.DB.raw.prepare('SELECT purge FROM stored_media').get().purge, 1);
+  assert.equal(s.files().length, 1, 'o arquivo ainda está lá');
+  // Ainda fora do ar: continua anotado
+  await worker.scheduled(null, s.env);
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM stored_media').get().n, 1);
+  // Voltou: a rodada de hora em hora apaga e dá baixa
+  s.env.MEDIA_STORE = working;
+  assert.equal(await retryPurges(s.env), 1);
+  assert.equal(await statusOf(working.fetch(new Request(sent.body.url))), 404);
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM stored_media').get().n, 0);
+  assert.equal(s.files().length, 0);
 });

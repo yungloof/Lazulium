@@ -11,11 +11,11 @@ Da versão mais nova para a mais antiga.
 - **Fundo do perfil por inteiro.** O fundo não escurece mais para baixo nem nas bordas. Ele aparece com a mesma força do alto ao fim da página e fica parado enquanto você rola.
 - **Perfil e fundo como uma coisa só.** Com um fundo escolhido, os painéis do perfil ficam translúcidos e sem borda, e a arte passa por trás deles.
 - **Amigos veem o mesmo visual.** A página que abre quando alguém vê seu perfil na aba Amigos (e a publicada na web) ganhou o mesmo fundo contínuo e os mesmos painéis.
-- **GIF de fundo animado para os amigos.** Em *Editar perfil → Fundo → Imagem, GIF ou vídeo meu*, um GIF de até 1 MB agora chega animado a quem abre seu perfil.
+- **GIF e vídeo de fundo animados para os amigos.** Em *Editar perfil → Fundo → Imagem, GIF ou vídeo meu*, GIFs e vídeos (`WEBM` e `MP4`) de até 50 MB agora chegam animados a quem abre seu perfil (GIFs de até ~1 MB vão pelo servidor social; GIFs maiores e vídeos ficam na guarda de arquivos da VPS).
 
 ### Bom saber
 
-- **GIF maior e vídeo de fundo.** Continuam aparecendo só no seu PC. Para os amigos, o perfil fica sem o fundo personalizado.
+- **Acima de 50 MB.** Vídeos maiores (o app aceita até 200 MB) continuam aparecendo só no seu PC; na vitrine para os amigos, o perfil fica sem o fundo personalizado.
 
 ---
 

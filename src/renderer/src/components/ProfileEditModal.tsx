@@ -197,7 +197,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ profile, onC
                 <button onClick={() => pickMedia('background')} className={buttonClass('secondary')}>
                   <ImagePlus className="w-3.5 h-3.5" /> Escolher arquivo
                 </button>
-                <span className="text-[11px] text-slate-500">{form.backgroundUrl ? 'Arquivo escolhido.' : 'PNG, JPG, WEBP, GIF, WEBM ou MP4 (vídeo até 200 MB).'}</span>
+                <span className="text-[11px] text-slate-500">{form.backgroundUrl ? 'Arquivo escolhido.' : 'PNG, JPG, WEBP, GIF, WEBM ou MP4 (até 50 MB para amigos; 200 MB no PC).'}</span>
               </div>
             )}
           </div>

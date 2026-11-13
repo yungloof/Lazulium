@@ -1,6 +1,7 @@
 // Conta Lazulium: login pela Steam (verificado aqui, não no app), amigos, "jogando agora" e feed.
 // Roda no Cloudflare Workers com D1 (env.DB). O server.mjs roda o mesmo código em Node com SQLite (VPS e testes).
 // Nada de e-mail, senha, caminhos do PC ou chaves: só o que aparece para os amigos.
+import { signTicket } from './media-ticket.js';
 
 const STEAM_OPENID = 'https://steamcommunity.com/openid/login';
 const OPENID_NS = 'http://specs.openid.net/auth/2.0';
@@ -24,6 +25,14 @@ const MAX_SHOWCASE_BYTES = 400_000;
 const MAX_MEDIA_BASE64 = 1_500_000;       // ~1,1 MB de imagem: o app reduz antes de enviar
 const MEDIA_KINDS = ['avatar', 'background', 'artwork'];
 const MEDIA_MIME = /^image\/(jpeg|png|webp|gif)$/;   // GIF vai como está, para chegar animado
+// GIF maior e vídeo de fundo não cabem no D1 (2 MB por valor): ficam em disco na VPS (src/media-store.js)
+const MAX_STORE_BYTES = 50 * 1024 * 1024;
+const STORE_KINDS = ['background'];
+const STORE_MIME = /^(image\/gif|video\/(webm|mp4))$/;
+const UPLOAD_TICKET_TTL_MS = 10 * 60 * 1000;
+const PURGE_TICKET_TTL_MS = 60 * 1000;
+const PURGE_TIMEOUT_MS = 8_000;
+const MAX_PURGE_RETRIES = 20;
 const VIEW_LINK_TTL_MS = 30 * 60 * 1000;
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // Sem 0/O e 1/I, para ditar por voz
 
@@ -290,6 +299,7 @@ async function handleMe(request, env, auth) {
         .map((sql) => env.DB.prepare(sql).bind(user.id))
         .concat(env.DB.prepare('DELETE FROM friendships WHERE user_a = ? OR user_b = ?').bind(user.id, user.id))
     );
+    await purgeStored(env, user.id);
     return json({ deleted: true });
   }
   throw new HttpError(405, 'method_not_allowed');
@@ -571,6 +581,7 @@ async function handleMediaUpload(request, env, auth, kind, origin) {
   if (!MEDIA_KINDS.includes(kind)) throw new HttpError(404, 'not_found');
   if (request.method === 'DELETE') {
     await env.DB.prepare('DELETE FROM media WHERE user_id = ? AND kind = ?').bind(auth.user.id, kind).run();
+    await purgeStored(env, auth.user.id, kind);
     return json({ ok: true });
   }
   if (request.method !== 'PUT') throw new HttpError(405, 'method_not_allowed');
@@ -583,6 +594,8 @@ async function handleMediaUpload(request, env, auth, kind, origin) {
     env.DB.prepare('DELETE FROM media WHERE user_id = ? AND kind = ?').bind(auth.user.id, kind),
     env.DB.prepare('INSERT INTO media (token, user_id, kind, mime, data, updated_at) VALUES (?, ?, ?, ?, ?, ?)').bind(token, auth.user.id, kind, mime, data, nowIso())
   ]);
+  // A imagem nova toma o lugar do GIF ou vídeo que estava na VPS
+  await purgeStored(env, auth.user.id, kind);
   return json({ url: `${origin}/v1/media/${token}` });
 }
 
@@ -592,6 +605,83 @@ async function handleMediaGet(env, token) {
   const bytes = Uint8Array.from(atob(row.data), (c) => c.charCodeAt(0));
   // O endereço muda a cada envio: pode ficar em cache para sempre
   return new Response(bytes, { headers: { 'Content-Type': row.mime, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' } });
+}
+
+// ---------- Arquivos grandes (GIF e vídeo de fundo) ----------
+// O arquivo vai direto do app para a guarda de arquivos da VPS. Aqui só sai o bilhete assinado que autoriza o envio
+// e fica anotado quem tem arquivo lá (stored_media), para apagar junto com a conta.
+
+// null quando falta o endereço (MEDIA_STORE_URL) ou o segredo (MEDIA_SECRET): o app segue como antes, sem GIF grande nem vídeo
+function mediaStore(env) {
+  if (typeof env.MEDIA_SECRET !== 'string' || env.MEDIA_SECRET.length < 32) return null;
+  let url;
+  try {
+    url = new URL(env.MEDIA_STORE_URL);
+  } catch {
+    return null;
+  }
+  const local = url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname);
+  if (url.protocol !== 'https:' && !local) return null;
+  // MEDIA_STORE: a guarda no mesmo processo (server.mjs e testes), no formato de um service binding
+  return { origin: url.origin, secret: env.MEDIA_SECRET, fetch: (request) => (env.MEDIA_STORE ? env.MEDIA_STORE.fetch(request) : fetch(request)) };
+}
+
+async function handleUploadTicket(request, env, auth, kind) {
+  if (!STORE_KINDS.includes(kind)) throw new HttpError(404, 'not_found');
+  if (request.method !== 'POST') throw new HttpError(405, 'method_not_allowed');
+  const store = mediaStore(env);
+  if (!store) throw new HttpError(501, 'no_store');
+  const body = await readJson(request, 1_000);
+  const mime = typeof body?.mime === 'string' && STORE_MIME.test(body.mime) ? body.mime : null;
+  const size = Number.isInteger(body?.size) && body.size > 0 ? body.size : null;
+  if (!mime || !size) throw new HttpError(400, 'invalid_media');
+  if (size > MAX_STORE_BYTES) throw new HttpError(413, 'too_large');
+  const expiresAt = Date.now() + UPLOAD_TICKET_TTL_MS;
+  await env.DB.batch([
+    // O arquivo da VPS toma o lugar da imagem que estava aqui
+    env.DB.prepare('DELETE FROM media WHERE user_id = ? AND kind = ?').bind(auth.user.id, kind),
+    env.DB.prepare(
+      'INSERT INTO stored_media (user_id, kind, purge, updated_at) VALUES (?, ?, 0, ?) ON CONFLICT (user_id, kind) DO UPDATE SET purge = 0, updated_at = excluded.updated_at'
+    ).bind(auth.user.id, kind, nowIso())
+  ]);
+  const ticket = await signTicket(store.secret, { a: 'put', u: auth.user.id, k: kind, e: expiresAt, m: MAX_STORE_BYTES });
+  return json({ uploadUrl: `${store.origin}/media/upload`, ticket, maxBytes: MAX_STORE_BYTES, expiresAt: new Date(expiresAt).toISOString() });
+}
+
+async function sendPurge(store, userId, kind) {
+  try {
+    const ticket = await signTicket(store.secret, { a: 'del', u: userId, k: kind, e: Date.now() + PURGE_TICKET_TTL_MS });
+    const request = new Request(`${store.origin}/media/purge`, { method: 'POST', headers: { Authorization: `Bearer ${ticket}` }, signal: AbortSignal.timeout(PURGE_TIMEOUT_MS) });
+    return (await store.fetch(request)).ok;
+  } catch {
+    return false;
+  }
+}
+
+// Apaga da VPS o arquivo da pessoa (um tipo, ou todos quando a conta é apagada).
+// Se a VPS não confirmar, o pedido fica anotado (purge = 1) e é repetido de hora em hora.
+async function purgeStored(env, userId, kind) {
+  const store = mediaStore(env);
+  if (!store || (kind && !STORE_KINDS.includes(kind))) return;
+  const filter = kind ? 'user_id = ? AND kind = ?' : 'user_id = ?';
+  const args = kind ? [userId, kind] : [userId];
+  const { results } = await env.DB.prepare(`SELECT kind FROM stored_media WHERE ${filter}`).bind(...args).all();
+  if (!results.length) return;
+  if (await sendPurge(store, userId, kind ?? '*')) await env.DB.prepare(`DELETE FROM stored_media WHERE ${filter}`).bind(...args).run();
+  else await env.DB.prepare(`UPDATE stored_media SET purge = 1, updated_at = ? WHERE ${filter}`).bind(nowIso(), ...args).run();
+}
+
+export async function retryPurges(env) {
+  const store = env.DB ? mediaStore(env) : null;
+  if (!store) return 0;
+  const { results } = await env.DB.prepare('SELECT user_id, kind FROM stored_media WHERE purge = 1 ORDER BY updated_at LIMIT ?').bind(MAX_PURGE_RETRIES).all();
+  let done = 0;
+  for (const row of results) {
+    if (!(await sendPurge(store, row.user_id, row.kind))) break;   // VPS ainda fora do ar: fica para a próxima hora
+    await env.DB.prepare('DELETE FROM stored_media WHERE user_id = ? AND kind = ? AND purge = 1').bind(row.user_id, row.kind).run();
+    done++;
+  }
+  return done;
 }
 
 // O app pede um link de 30 minutos para mostrar a vitrine de um amigo (ou a própria) numa moldura
@@ -612,15 +702,23 @@ async function handleViewLink(env, auth, ownerId, origin) {
 
 // A mesma política da página (que também vem no <meta>), agora no cabeçalho: vale antes de qualquer HTML ser lido.
 // A página não faz pedidos de rede (o perfil vem embutido) nem envia formulários.
-const PAGE_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src https:; media-src https://*.steamstatic.com; connect-src 'none'; base-uri 'none'; form-action 'none'";
-const PAGE_HEADERS = {
-  'Content-Type': 'text/html; charset=utf-8',
-  'Cache-Control': 'no-store',
-  'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'no-referrer',
-  'Content-Security-Policy': PAGE_CSP,
-  'Cross-Origin-Opener-Policy': 'same-origin'
-};
+// Vídeo só da Steam e da guarda de arquivos do Lazulium (o vídeo de fundo que a pessoa escolheu).
+function pageCsp(env) {
+  const store = mediaStore(env);
+  const media = `https://*.steamstatic.com${store ? ` ${store.origin}` : ''}`;
+  return `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src https:; media-src ${media}; connect-src 'none'; base-uri 'none'; form-action 'none'`;
+}
+
+function pageHeaders(env) {
+  return {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
+    'Content-Security-Policy': pageCsp(env),
+    'Cross-Origin-Opener-Policy': 'same-origin'
+  };
+}
 const UNAVAILABLE_PAGE =
   '<!doctype html><meta charset="utf-8"><body style="font-family:system-ui;background:#0b1020;color:#cbd5e1;display:grid;place-items:center;height:100vh;margin:0">Este perfil não está disponível agora.';
 
@@ -631,9 +729,15 @@ async function handleView(env, token) {
   const link = await env.DB.prepare('SELECT owner_id, expires_at FROM view_links WHERE token = ?').bind(token).first();
   const owner = link && link.expires_at > nowIso() ? await env.DB.prepare('SELECT settings FROM users WHERE id = ?').bind(link.owner_id).first() : null;
   const showcase = owner && parseSettings(owner.settings).shareProfile ? await env.DB.prepare('SELECT data FROM showcases WHERE user_id = ?').bind(link.owner_id).first() : null;
-  if (!showcase || !env.PROFILE_PAGE) return new Response(UNAVAILABLE_PAGE, { status: 404, headers: PAGE_HEADERS });
+  if (!showcase || !env.PROFILE_PAGE) return new Response(UNAVAILABLE_PAGE, { status: 404, headers: pageHeaders(env) });
+  const csp = pageCsp(env);
+  // Alinha o <meta> ao cabeçalho para que o navegador não bloqueie o vídeo vindo de MEDIA_STORE_URL
+  const page = env.PROFILE_PAGE.replace(
+    /<meta http-equiv="Content-Security-Policy" content="[^"]*">/,
+    `<meta http-equiv="Content-Security-Policy" content="${csp}">`
+  );
   const inline = `<script>window.LAZULIUM_PROFILE = ${scriptSafeJson(showcase.data)};</script>`;
-  return new Response(env.PROFILE_PAGE.replace('</head>', `${inline}\n</head>`), { headers: PAGE_HEADERS });
+  return new Response(page.replace('</head>', `${inline}\n</head>`), { headers: pageHeaders(env) });
 }
 
 // ---------- Roteamento ----------
@@ -669,6 +773,8 @@ async function route(request, env) {
   if (path === '/v1/me/now-playing') return handleNowPlaying(request, env, auth);
   if (path === '/v1/me/summary') return handleSummary(request, env, auth);
   if (path === '/v1/me/showcase') return handleShowcase(request, env, auth);
+  const mediaTicket = path.match(/^\/v1\/me\/media\/([a-z]+)\/upload$/);
+  if (mediaTicket) return handleUploadTicket(request, env, auth, mediaTicket[1]);
   const mediaPut = path.match(/^\/v1\/me\/media\/([a-z]+)$/);
   if (mediaPut) return handleMediaUpload(request, env, auth, mediaPut[1], url.origin);
   if (path === '/v1/friends/invite') return handleInvite(request, env, auth);
@@ -693,5 +799,9 @@ export default {
       console.error(`Erro inesperado: ${err?.name ?? 'Error'}: ${String(err?.message ?? '')}`);
       return json({ error: 'internal_error' }, 500);
     }
+  },
+  // De hora em hora (gatilho no wrangler.toml; no server.mjs, um setInterval)
+  async scheduled(_event, env) {
+    await retryPurges(env);
   }
 };

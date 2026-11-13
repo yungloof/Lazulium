@@ -18,6 +18,16 @@ namespace_id = "1002"
   limit = 120
   period = 60
 
+# GIF maior e vídeo de fundo ficam na VPS (media-server.mjs). Só vale com o segredo, o mesmo da VPS:
+#   npx wrangler secret put MEDIA_SECRET
+# Sem o segredo, o servidor segue como antes (GIF até ~1 MB, sem vídeo).
+[vars]
+MEDIA_STORE_URL = "https://147-15-123-238.sslip.io"
+
+# De hora em hora: repete pedidos de apagar arquivo que a VPS não confirmou
+[triggers]
+crons = ["23 * * * *"]
+
 # A página do perfil entra no pacote como texto
 [[rules]]
 type = "Text"

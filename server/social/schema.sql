@@ -88,6 +88,17 @@ CREATE TABLE IF NOT EXISTS media (
 );
 CREATE INDEX IF NOT EXISTS media_user ON media (user_id, kind);
 
+-- GIF maior e vídeo de fundo ficam em disco na VPS (src/media-store.js), não aqui. Esta tabela só anota quem tem
+-- arquivo lá, para apagar junto com a conta. purge = 1: pedido de apagar que a VPS ainda não confirmou
+-- (a linha sobrevive à conta até a VPS confirmar; só tem o id aleatório da conta e o tipo).
+CREATE TABLE IF NOT EXISTS stored_media (
+  user_id     TEXT NOT NULL,
+  kind        TEXT NOT NULL,
+  purge       INTEGER NOT NULL DEFAULT 0,
+  updated_at  TEXT NOT NULL,
+  PRIMARY KEY (user_id, kind)
+);
+
 -- Link temporário para um amigo ver a vitrine (a página não recebe o token da conta)
 CREATE TABLE IF NOT EXISTS view_links (
   token       TEXT PRIMARY KEY,

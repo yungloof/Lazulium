@@ -1,6 +1,6 @@
 # Política de privacidade do Lazulium
 
-*Última atualização: 12 de novembro de 2026 · vale para o Lazulium 2.2.0 e posteriores*
+*Última atualização: 13 de novembro de 2026 · vale para o Lazulium 2.5.1 e posteriores*
 
 O Lazulium é um app para Windows que junta seus jogos de PC numa biblioteca só. Quem faz e responde por esta política é Lazuli Fool, de forma independente. Contato: **yungloof06@gmail.com**.
 
@@ -47,7 +47,7 @@ O Lazulium só se conecta a estes serviços (cada um tem a própria política de
 | **RetroAchievements** | Ao buscar conquistas de jogos de emulador | Seu nome de usuário, sua chave de API do RetroAchievements e uma "impressão digital" (hash MD5) ou o nome do jogo, para reconhecê-lo. O arquivo do jogo nunca é enviado. |
 | **Servidor do Lazulium** (Cloudflare Workers) | Tempo para zerar, busca de jogos ao registrar, capas de jogos fora da Steam (sem conta do SteamGridDB) e preços em outras lojas | O nome e/ou código Steam do jogo, o texto que você digitou na busca e os códigos Steam da sua lista de desejos. Nada que identifique você. O servidor consulta o IGDB (Twitch) e o GG.deals com credenciais próprias e guarda as respostas por jogo (até 30 dias), sem relação com quem perguntou. A Cloudflare recebe o seu endereço IP, como qualquer site; o Lazulium o usa só para limitar abusos e não o guarda. |
 | **Epic Games** (opcional) | Só se você clicar em *Entrar com a Epic*, e depois a cada 6 horas | O login acontece no site da Epic, numa janela do Lazulium. Depois, o Lazulium usa a autorização da sua conta para pedir à própria Epic as horas de cada jogo. A autorização fica cifrada no seu PC e não vai para nenhum outro lugar. |
-| **Conta Lazulium** (Cloudflare Workers + D1) | Só se você entrar na conta Lazulium (aba *Amigos*) | O que aparece para os seus amigos. Veja a seção 4. |
+| **Conta Lazulium** (Cloudflare Workers + D1 e VPS Oracle) | Só se você entrar na conta Lazulium (aba *Amigos*) | O que aparece para os seus amigos (e, se usar vídeo ou GIF acima de 1 MB no fundo, o arquivo enviado vai para a VPS do Lazulium). Veja a seção 4. |
 | **Google** (Drive) | Só se você clicar em *Entrar com Google* | Veja a seção 3. |
 | **GitHub** (atualizações) | Ao procurar versão nova (ao abrir e a cada 4 horas) | O pedido do arquivo da versão mais recente e, na versão instalada, o download do instalador novo. Nenhum dado seu vai junto. |
 | **GitHub** | Só se você usar *Perfil → Publicar na web* | A página do perfil e o arquivo com os dados públicos do perfil (nome, avatar, horas, conquistas, listas e resenhas que você escolheu mostrar), enviados para um repositório seu, com o seu login do Git. Fica público na internet. Seu e-mail não vai junto. |
@@ -79,14 +79,14 @@ A conta é opcional e serve para você ver o que seus amigos jogam e eles verem 
 
 **Como você entra.** Pela Steam, no seu navegador. A Steam só confirma ao servidor do Lazulium qual é o seu SteamID; a senha fica na Steam. Não pedimos e-mail nem criamos senha.
 
-**O que fica no servidor** (Cloudflare Workers e banco D1):
+**O que fica no servidor** (Cloudflare Workers + banco D1 e, para fundo animado grande, a VPS na Oracle em `147-15-123-238.sslip.io`):
 
 - seu SteamID, o nome e o avatar públicos da sua conta Steam e, se você escolher, outro nome para os amigos;
 - as suas escolhas do que mostrar (as chaves em *Configurações → Contas*);
 - os eventos que vão para o feed: jogou (o jogo e quanto tempo no dia), começou, zerou, 100%, largou, conquistas do dia, nota e resenha. Cada evento leva o nome do jogo, a data e, quando existe, o endereço público da capa (Steam, IGDB ou SteamGridDB). Ficam os 2.000 mais recentes;
 - o jogo aberto agora ("jogando agora"), que some sozinho 15 minutos depois do último sinal do app;
 - um resumo do seu perfil: número de jogos, horas, zerados, conquistas e os 12 mais jogados;
-- a vitrine do perfil (o mesmo conteúdo da página que o *Perfil → Publicar na web* gera: nome, bio, jogos e conquistas em destaque, mais jogados, nível e insígnias da Steam) e, se você escolheu no Lazulium, o avatar, o fundo e a arte em destaque, em tamanho reduzido (um GIF de até cerca de 1 MB vai como está, para aparecer animado; vídeo de fundo não é enviado). Seus amigos abrem a vitrine por um link que vale 30 minutos. Dá para esconder em *Vitrine do perfil*;
+- a vitrine do perfil (o mesmo conteúdo da página que o *Perfil → Publicar na web* gera: nome, bio, jogos e conquistas em destaque, mais jogados, nível e insígnias da Steam) e, se você escolheu no Lazulium, o avatar, o fundo e a arte em destaque. Avatar, arte e imagens normais vão reduzidos; GIFs de até ~1,1 MB ficam no banco do servidor; e GIF maior ou vídeo de fundo (WEBM ou MP4) de até 50 MB ficam em disco na VPS (`147-15-123-238.sslip.io`), apagados ao trocar o fundo ou apagar a conta (acima de 50 MB fica só no seu PC). Seus amigos abrem a vitrine por um link que vale 30 minutos. Dá para esconder em *Vitrine do perfil*;
 - a lista de amigos e os códigos de convite (valem 7 dias);
 - a sessão de login, guardada só como uma impressão (hash) do código, que vence em 180 dias.
 
@@ -94,9 +94,9 @@ A conta é opcional e serve para você ver o que seus amigos jogam e eles verem 
 
 **Quem vê.** Só as pessoas que viraram suas amigas com o seu código de convite (ou você com o delas). Não existe perfil público nem busca de pessoas. Cada chave desligada some do feed e do seu perfil para os amigos na hora, e o app para de enviar aquele tipo de evento.
 
-**Sair e apagar.** *Sair* encerra a sessão neste PC e mantém a conta. *Apagar conta Lazulium* (em *Configurações → Contas*) remove do servidor, na hora, tudo da lista acima, inclusive as amizades. O que está no seu PC continua.
+**Sair e apagar.** *Sair* encerra a sessão neste PC e mantém a conta. *Apagar conta Lazulium* (em *Configurações → Contas*) remove do servidor (e da VPS, se houver fundo guardado), na hora, tudo da lista acima, inclusive as amizades. Se a VPS estiver fora do ar na hora, o servidor tenta apagar de hora em hora até conseguir. O que está no seu PC continua.
 
-A Cloudflare recebe o seu endereço IP, como em qualquer site; o servidor o usa só para limitar abusos e não o guarda.
+A Cloudflare e a VPS da Oracle (`147-15-123-238.sslip.io`, usada só para guardar e servir GIFs maiores de 1 MB e vídeos de fundo) recebem o seu endereço IP na conexão HTTP, como em qualquer site; os servidores do Lazulium usam o IP só para limitar abusos e não o guardam em banco.
 
 ## 5. O log de diagnóstico
 

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src https:; media-src https://*.steamstatic.com; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src https:; media-src https://*.steamstatic.com https://147-15-123-238.sslip.io; connect-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <title>Perfil Lazulium</title>
   <style>
@@ -190,11 +190,15 @@
       const video = https(background && background.videoUrl);
       if (poster) box.append(el('img', { src: poster, alt: '', referrerpolicy: 'no-referrer' }));
       if (video && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        const node = el('video', { src: video, poster, loop: '', playsinline: '', preload: 'auto' });
+        const node = el('video', { src: video, poster, preload: 'auto' });
         node.muted = true;
+        node.defaultMuted = true;
         node.autoplay = true;
+        node.loop = true;
+        node.playsInline = true;
         node.addEventListener('error', () => node.remove());
         box.append(node);
+        node.play().catch(() => {});
         document.addEventListener('visibilitychange', () => (document.hidden ? node.pause() : node.play().catch(() => {})));
       }
     }

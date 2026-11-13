@@ -18,7 +18,19 @@ npx wrangler@latest deploy
 
 O endereço (`https://lazulium-social.<conta>.workers.dev`) vai em `SOCIAL_SERVER_URL`, em `src/main/services/social/social.service.ts`. Para testar o app com outro servidor: `LAZULIUM_SOCIAL_URL`.
 
-Não há segredos: o login é confirmado pela própria Steam (OpenID `check_authentication`).
+Não há segredos para o login (a própria Steam confirma via OpenID `check_authentication`). Para aceitar **GIF acima de ~1,1 MB e vídeo de fundo (até 50 MB)** em disco fora do D1, configure o mesmo segredo (`>= 32` caracteres) no Worker e na guarda de arquivos (`media-server.mjs`) da VPS (`MEDIA_STORE_URL` no `wrangler.toml`):
+
+```powershell
+npx wrangler@latest secret put MEDIA_SECRET
+```
+
+Na VPS:
+
+```bash
+MEDIA_SECRET="<mesmo-segredo>" PUBLIC_ORIGIN=https://147-15-123-238.sslip.io MEDIA_DIR=/home/ubuntu/lazulium/media PORT=3200 node media-server.mjs
+```
+
+Um cron horário no Worker (`triggers = ["23 * * * *"]`) repete pedidos de exclusão (`stored_media.purge = 1`) se a VPS estiver fora do ar no momento em que o usuário remover o fundo ou apagar a conta.
 
 ## Rodar fora da Cloudflare (VPS ou teste)
 
@@ -62,6 +74,7 @@ A Steam é simulada; o banco é SQLite em memória com o mesmo `schema.sql`.
 | GET | `/v1/users/:id` | Perfil de um amigo (só amigos) |
 | PUT / DELETE | `/v1/me/showcase` | Vitrine (o JSON do perfil web) |
 | PUT / DELETE | `/v1/me/media/:kind` | Avatar, fundo ou arte (JPEG/PNG/WebP/GIF em base64, até ~1,1 MB); devolve o endereço público |
+| POST | `/v1/me/media/background/upload` | Emite bilhete HMAC-SHA-256 (10 min) para enviar GIF > 1,1 MB ou vídeo (`video/webm`, `video/mp4`) de até 50 MB direto para a VPS (`PUT /media/upload`) |
 | POST | `/v1/users/:id/view` | Link de 30 min para a vitrine de um amigo (`/v1/view/<token>`, página do perfil web com o JSON embutido) |
 
 Capas e avatares só passam se forem de CDNs conhecidos (Steam, IGDB, SteamGridDB). Limite de 120 pedidos por minuto por endereço.

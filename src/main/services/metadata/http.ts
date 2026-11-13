@@ -27,6 +27,7 @@ export interface HttpOptions extends Omit<RequestInit, 'signal'> {
   retries?: number;                 // Novas tentativas em 429/5xx (e em falha de rede, com retryNetwork)
   retryNetwork?: boolean;           // Só para quem não pode desistir na primeira queda (ex: envio ao Drive)
   service?: string;                 // Com artigo, para as mensagens: "a Steam", "o Google Drive"
+  duplex?: 'half';                  // Necessário no Node/fetch quando o corpo é ReadableStream
 }
 
 export const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -77,7 +78,7 @@ export async function httpRequest(url: string | URL, options: HttpOptions = {}):
   for (let attempt = 0; ; attempt++) {
     let res: Response;
     try {
-      res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+      res = await fetch(url, { ...(init as RequestInit), signal: AbortSignal.timeout(timeoutMs) });
     } catch (err) {
       if (retryNetwork && attempt < retries) {
         await sleep(backoff(attempt));

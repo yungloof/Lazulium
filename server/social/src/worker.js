@@ -4,5 +4,6 @@ import app from './index.js';
 import page from '../../../web/profile/index.html';
 
 export default {
-  fetch: (request, env) => app.fetch(request, { ...env, PROFILE_PAGE: page })
+  fetch: (request, env) => app.fetch(request, { ...env, PROFILE_PAGE: page }),
+  scheduled: (event, env) => app.scheduled(event, env)
 };
