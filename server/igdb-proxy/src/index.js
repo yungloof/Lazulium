@@ -17,6 +17,9 @@ const MIN_SEARCH_LENGTH = 2;
 const GGDEALS_URL = 'https://api.gg.deals/v1/prices/by-steam-app-id/';
 const GGDEALS_REGION = 'br';
 const MAX_PRICE_IDS = 50;
+// No plano Free do Cloudflare Workers, cache.match/put e fetch dividem o teto de 50 subrequests:
+// acima de 20 jogos (20 match + 1 fetch + 20 put = 41), guarda o lote inteiro em 1 entrada para clientes antigos (50 ids).
+const MAX_PER_ITEM_CACHE_IDS = 20;
 const PRICES_TTL_SECONDS = 6 * 60 * 60;
 const IMAGE_URL = (size, imageId) => `https://images.igdb.com/igdb/image/upload/${size}/${imageId}.jpg`;
 const COVER_URL = (imageId) => IMAGE_URL('t_cover_big', imageId);
@@ -203,8 +206,36 @@ export function toDeal(entry) {
 
 const priceCacheKey = (id) => new Request(`https://cache.lazulium/prices/v2/${GGDEALS_REGION}/${id}`);
 
+async function batchPriceCacheKey(ids) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${GGDEALS_REGION}:${ids.join(',')}`));
+  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return new Request(`https://cache.lazulium/prices-batch/v2/${GGDEALS_REGION}/${hex}`);
+}
+
+const rateLimitedResponse = (retryAfter) =>
+  new Response(JSON.stringify({ error: 'rate_limited' }), {
+    status: 429,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+      ...(retryAfter && /^\d{1,5}$/.test(retryAfter) ? { 'Retry-After': retryAfter } : {})
+    }
+  });
+
+async function fetchGgDeals(ids, env) {
+  const params = new URLSearchParams({ ids: ids.join(','), key: env.GGDEALS_API_KEY, region: GGDEALS_REGION });
+  const res = await fetch(`${GGDEALS_URL}?${params}`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+  if (res.status === 429) return { ok: false, retryAfter: res.headers.get('Retry-After') };
+  if (!res.ok) throw new UpstreamError(`GG.deals respondeu ${res.status}`);
+  const body = await res.json().catch(() => null);
+  if (!body || body.success !== true || typeof body.data !== 'object' || body.data === null || Array.isArray(body.data)) {
+    throw new UpstreamError('GG.deals devolveu um formato inesperado');
+  }
+  return { ok: true, deals: Object.fromEntries(ids.map((id) => [id, toDeal(body.data[id])])) };
+}
+
 // A chave do GG.deals tem limite por jogo consultado (100 por minuto, 1.000 por hora), e cada pessoa tem uma lista diferente:
-// o cache é por jogo, na borda da Cloudflare (não gasta a cota de escrita do KV), e só os que faltam vão ao GG.deals.
+// ate 20 jogos o cache e por jogo na borda da Cloudflare (cabe nas 50 subrequests); lotes maiores usam 1 chave de lote.
 async function handlePrices(url, request, env) {
   const raw = url.searchParams.get('steamAppIds') ?? '';
   const ids = [...new Set(raw.split(',').filter(Boolean))];
@@ -214,6 +245,27 @@ async function handlePrices(url, request, env) {
 
   ids.sort((a, b) => Number(a) - Number(b));
   const edgeCache = globalThis.caches?.default;
+
+  if (ids.length > MAX_PER_ITEM_CACHE_IDS) {
+    const batchKey = await batchPriceCacheKey(ids);
+    const hit = await edgeCache?.match(batchKey).catch(() => undefined);
+    const cached = hit ? await hit.json().catch(() => undefined) : undefined;
+    if (cached && typeof cached === 'object' && cached.prices && typeof cached.prices === 'object') {
+      return json({ source: 'gg.deals', region: GGDEALS_REGION, prices: cached.prices });
+    }
+    try {
+      const result = await fetchGgDeals(ids, env);
+      if (!result.ok) return rateLimitedResponse(result.retryAfter);
+      if (edgeCache) {
+        const stored = new Response(JSON.stringify({ prices: result.deals }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${PRICES_TTL_SECONDS}` } });
+        await edgeCache.put(batchKey, stored).catch(() => undefined);
+      }
+      return json({ source: 'gg.deals', region: GGDEALS_REGION, prices: result.deals });
+    } catch (err) {
+      return upstreamFailure(err);
+    }
+  }
+
   const prices = {};
   const missing = [];
   for (const id of ids) {
@@ -225,24 +277,14 @@ async function handlePrices(url, request, env) {
   if (missing.length === 0) return json({ source: 'gg.deals', region: GGDEALS_REGION, prices });
 
   try {
-    const params = new URLSearchParams({ ids: missing.join(','), key: env.GGDEALS_API_KEY, region: GGDEALS_REGION });
-    const res = await fetch(`${GGDEALS_URL}?${params}`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
-    if (res.status === 429) {
+    const result = await fetchGgDeals(missing, env);
+    if (!result.ok) {
       // Cota da chave esgotada: o app tenta de novo na próxima atualização; o que já estava em cache segue junto
-      const retryAfter = res.headers.get('Retry-After');
       if (Object.keys(prices).length > 0) return json({ source: 'gg.deals', region: GGDEALS_REGION, prices, incomplete: true });
-      return new Response(JSON.stringify({ error: 'rate_limited' }), {
-        status: 429,
-        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...(retryAfter && /^\d{1,5}$/.test(retryAfter) ? { 'Retry-After': retryAfter } : {}) }
-      });
-    }
-    if (!res.ok) throw new UpstreamError(`GG.deals respondeu ${res.status}`);
-    const body = await res.json().catch(() => null);
-    if (!body || body.success !== true || typeof body.data !== 'object' || body.data === null || Array.isArray(body.data)) {
-      throw new UpstreamError('GG.deals devolveu um formato inesperado');
+      return rateLimitedResponse(result.retryAfter);
     }
     for (const id of missing) {
-      const deal = toDeal(body.data[id]);
+      const deal = result.deals[id];
       prices[id] = deal;
       if (edgeCache) {
         const stored = new Response(JSON.stringify({ deal }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${PRICES_TTL_SECONDS}` } });

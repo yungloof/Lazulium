@@ -78,7 +78,7 @@ Depois, coloque a URL em `IGDB_PROXY_URL`, em `src/main/services/metadata/play-l
 
 - Repassa só `url`, `currency` e os quatro preços do GG.deals (atual e menor histórico, lojas oficiais e revendedores de chaves), em centavos. Jogo que o GG.deals não conhece vem como `null`.
 - O GG.deals manda os preços como texto decimal (`"91.99"`); texto em outro formato vira `null` em vez de um preço errado.
-- A chave tem limite por jogo consultado (100 por minuto, 1.000 por hora): cada jogo fica 6 horas no cache da borda da Cloudflare e só os que faltam são consultados. Cota esgotada responde 429, ou devolve só a parte em cache com `"incomplete": true`.
+- A chave tem limite por jogo consultado (100 por minuto, 1.000 por hora): até 20 jogos por chamada usa cache por jogo por 6 horas na borda da Cloudflare (cabendo nas 50 subrequests do plano gratuito) e só consulta o que falta; chamadas maiores (21 a 50 jogos, de clientes antigos) usam 1 chave de lote. Cota esgotada responde 429, ou devolve só a parte em cache com `"incomplete": true`.
 - O GG.deals pede crédito com link para o site em toda tela que mostra os preços.
 
 ## Limites

@@ -12,7 +12,7 @@ const REQUEST_TIMEOUT_MS = 12_000;
 const LAST_SYNC_SETTING = 'wishlistSyncAt';
 const SYNC_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const SILENT_MODE = process.env.LAZULIUM_SILENT === '1';
-const DEALS_BATCH = 50;             // O servidor aceita até 50 jogos por pedido (o GG.deals conta cada jogo no limite da chave)
+const DEALS_BATCH = 20;             // Cabe no limite de 50 subrequests do cache por jogo do Worker (20 match + 1 fetch + 20 put)
 const STEAM = { service: 'a Steam', timeoutMs: REQUEST_TIMEOUT_MS };
 const STORE = { service: 'a loja da Steam', timeoutMs: REQUEST_TIMEOUT_MS, retries: 1 };
 const OFFLINE_WARNING = 'Sem conexão com a internet: a lista mostra os preços da última atualização. Com a conexão de volta, clique em Atualizar.';
@@ -85,32 +85,53 @@ interface DealsResponse {
   prices?: Record<string, { url?: unknown; currency?: unknown; retail?: unknown; keyshops?: unknown; lowestRetail?: unknown; lowestKeyshops?: unknown } | null>;
 }
 
+interface DealsBatchResult {
+  deals: Map<number, WishlistDeals>;
+  failed: boolean;
+  errorMessage?: string;
+}
+
+// Prioriza jogos ainda sem preços ou com consulta mais antiga para que listas grandes avancem mesmo se bater cota.
+export function orderDealsTargets(list: readonly WishlistItem[]): number[] {
+  return [...list]
+    .sort((a, b) => {
+      if (Boolean(a.deals) !== Boolean(b.deals)) return a.deals ? 1 : -1;
+      return (a.deals?.checkedAt ?? '').localeCompare(b.deals?.checkedAt ?? '');
+    })
+    .map((item) => item.appId);
+}
+
 // Outras lojas, pelo nosso servidor (é ele que guarda a chave do GG.deals). Fora do ar ou sem chave, a lista segue só com a Steam.
-async function fetchDeals(appIds: number[]): Promise<Map<number, WishlistDeals>> {
+export async function fetchDeals(appIds: number[]): Promise<DealsBatchResult> {
   const deals = new Map<number, WishlistDeals>();
   const checkedAt = new Date().toISOString();
   for (let i = 0; i < appIds.length; i += DEALS_BATCH) {
     const batch = appIds.slice(i, i + DEALS_BATCH);
-    const data = await fetchJson<DealsResponse | null>(`${igdbProxyUrl()}/v1/prices?steamAppIds=${batch.join(',')}`, {
-      service: 'o servidor de preços do Lazulium',
-      timeoutMs: REQUEST_TIMEOUT_MS
-    });
-    const prices = data?.prices && typeof data.prices === 'object' ? data.prices : {};
-    for (const id of batch) {
-      const entry = prices[String(id)];
-      if (!entry || typeof entry !== 'object' || typeof entry.currency !== 'string' || !/^[A-Z]{3}$/.test(entry.currency)) continue;
-      deals.set(id, {
-        url: typeof entry.url === 'string' && entry.url.startsWith('https://gg.deals/') ? entry.url : undefined,
-        currency: entry.currency,
-        retailCents: cents(entry.retail),
-        keyshopCents: cents(entry.keyshops),
-        lowestRetailCents: cents(entry.lowestRetail),
-        lowestKeyshopCents: cents(entry.lowestKeyshops),
-        checkedAt
+    try {
+      const data = await fetchJson<DealsResponse | null>(`${igdbProxyUrl()}/v1/prices?steamAppIds=${batch.join(',')}`, {
+        service: 'o servidor de preços do Lazulium',
+        timeoutMs: REQUEST_TIMEOUT_MS
       });
+      const prices = data?.prices && typeof data.prices === 'object' ? data.prices : {};
+      for (const id of batch) {
+        const entry = prices[String(id)];
+        if (!entry || typeof entry !== 'object' || typeof entry.currency !== 'string' || !/^[A-Z]{3}$/.test(entry.currency)) continue;
+        deals.set(id, {
+          url: typeof entry.url === 'string' && entry.url.startsWith('https://gg.deals/') ? entry.url : undefined,
+          currency: entry.currency,
+          retailCents: cents(entry.retail),
+          keyshopCents: cents(entry.keyshops),
+          lowestRetailCents: cents(entry.lowestRetail),
+          lowestKeyshopCents: cents(entry.lowestKeyshops),
+          checkedAt
+        });
+      }
+    } catch (err) {
+      // Mantém os lotes já recebidos: listas muito grandes não perdem tudo se um lote posterior falhar
+      return { deals, failed: true, errorMessage: describeError(err) };
     }
   }
-  return deals;
+  return { deals, failed: false };
 }
 
 // Menor preço em loja oficial: a Steam ou outra que o GG.deals achou
@@ -214,13 +235,13 @@ class WishlistService {
           item.priceLabel = price?.final_formatted;
           if (price?.final !== undefined) item.lowestCents = Math.min(item.lowestCents ?? price.final, price.final);
         }
-        try {
-          const deals = await fetchDeals(list.map((item) => item.appId));
-          for (const item of list) item.deals = deals.get(item.appId) ?? item.deals;
+        const { deals, failed, errorMessage } = await fetchDeals(orderDealsTargets(list));
+        for (const item of list) item.deals = deals.get(item.appId) ?? item.deals;
+        if (!failed) {
           this.dealsWarned = false;
-        } catch (err) {
-          // Servidor de preços fora do ar ou sem a chave do GG.deals: avisa uma vez por sessão, não a cada atualização
-          if (!this.dealsWarned) console.warn(`[Desejos] Preços de outras lojas indisponíveis: ${describeError(err)}`);
+        } else {
+          // Servidor de preços fora do ar, sem a chave do GG.deals ou cota momentânea: avisa uma vez por sessão
+          if (!this.dealsWarned) console.warn(`[Desejos] Preços de outras lojas indisponíveis: ${errorMessage ?? 'erro desconhecido'}`);
           this.dealsWarned = true;
         }
         this.notify(list);

@@ -544,3 +544,51 @@ test('artwork: título inválido responde 400 sem consultar o IGDB', async (t) =
   assert.equal((await getArtwork(s, `title=${'a'.repeat(200)}`)).status, 400);
   assert.equal(s.calls.igdb.length, 0);
 });
+
+test('Preços: lotes de 20 e de 50 jogos cabem no teto de 50 subrequests da Cloudflare', async (t) => {
+  const edge = fakeEdgeCache();
+  let subrequests = 0;
+  const countOp = () => {
+    subrequests += 1;
+    if (subrequests > 50) throw new Error('Too many subrequests.');
+  };
+  const meteredEdge = {
+    store: edge.store,
+    match: async (req) => { countOp(); return edge.match(req); },
+    put: async (req, res) => { countOp(); return edge.put(req, res); }
+  };
+  const s = setupPrices(
+    (params) => {
+      countOp();
+      return ok({ success: true, data: Object.fromEntries(params.get('ids').split(',').map((id) => [id, GG_EXAMPLE.data[420]])) });
+    },
+    { edgeCache: meteredEdge }
+  );
+  t.after(s.restore);
+
+  const ids50 = Array.from({ length: 50 }, (_, i) => i + 100).join(',');
+  subrequests = 0;
+  const first50 = await s.get(`steamAppIds=${ids50}`);
+  assert.equal(first50.status, 200);
+  assert.equal(Object.keys(first50.body.prices).length, 50);
+  assert.ok(subrequests <= 3, `50 IDs usaram ${subrequests} subrequests`);
+
+  subrequests = 0;
+  const second50 = await s.get(`steamAppIds=${ids50}`);
+  assert.equal(second50.status, 200);
+  assert.equal(s.calls.length, 1, '50 IDs aproveitam o cache do lote');
+  assert.equal(subrequests, 1);
+
+  const ids20 = Array.from({ length: 20 }, (_, i) => i + 1000).join(',');
+  subrequests = 0;
+  const first20 = await s.get(`steamAppIds=${ids20}`);
+  assert.equal(first20.status, 200);
+  assert.equal(Object.keys(first20.body.prices).length, 20);
+  assert.ok(subrequests <= 41, `20 IDs usaram ${subrequests} subrequests`);
+
+  subrequests = 0;
+  const second20 = await s.get(`steamAppIds=${ids20}`);
+  assert.equal(second20.status, 200);
+  assert.equal(s.calls.length, 2, '20 IDs reaproveitam cache por jogo');
+  assert.equal(subrequests, 20);
+});

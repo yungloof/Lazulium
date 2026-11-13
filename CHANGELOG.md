@@ -4,6 +4,14 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.5.3 — 13 de novembro de 2026
+
+### Correções
+
+- **Preços de outras lojas em listas de desejos grandes.** O proxy do GG.deals passou a respeitar o limite de subrequests por chamada do Cloudflare Workers gratuito em lotes maiores, e o app agora consulta de 20 em 20 jogos (priorizando quem ainda está sem preço e preservando os lotes já recebidos caso bata cota momentânea).
+
+---
+
 ## 2.5.2 — 13 de novembro de 2026
 
 ### Melhorias
