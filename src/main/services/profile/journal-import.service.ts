@@ -42,7 +42,10 @@ function buildIndex(games: Game[]) {
 function plan(items: JournalImportItem[], options: JournalImportOptions): Plan[] {
   const index = buildIndex(db.getGames());
   return items.slice(0, MAX_ITEMS).map((item) => {
-    const incoming = sanitizeLog(item.log ?? {});
+    // Resenha de quem não trouxe as datas do jogo (aba Jogos): a data da postagem serve de data de término de quem zerou
+    const dated = item.log?.startedOn || item.log?.finishedOn;
+    const finished = item.log?.status === 'finished' || item.log?.status === 'completed';
+    const incoming = sanitizeLog(item.postedOn && !dated && finished ? { ...item.log, finishedOn: item.postedOn } : (item.log ?? {}));
     const game = (item.steamAppId && index.bySteam.get(item.steamAppId)) || index.byTitle.get(titleKey(item.title)) || null;
     const changes: Array<keyof GameLog> = [];
     const kept: Array<keyof GameLog> = [];

@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { mergeImportParses } from '../../src/renderer/src/utils/importers';
 import { parseLazuliumJournal } from '../../src/renderer/src/utils/importers/lazulium-json';
-import { mergeYgpResults, parseBrDate, parsePlaytime, parseYgpHtml } from '../../src/renderer/src/utils/importers/ygp-html';
+import { mergeYgpResults, parseBrDate, parsePlaytime, parsePostedDate, parseYgpHtml } from '../../src/renderer/src/utils/importers/ygp-html';
 
 // Estrelas: cada caixa tem uma camada com a largura (%) do quanto está cheia
 const stars = (...fills: number[]) =>
@@ -74,6 +74,15 @@ describe('leitor da página salva do YGP', () => {
     expect(parseBrDate('99/99/26')).toBeUndefined();
   });
 
+  it('lê a data da postagem: com ano, sem ano e sem cair no futuro', () => {
+    const now = new Date(2026, 10, 13); // 13/11/2026
+    expect(parsePostedDate('· 30 jul 2025', now)).toBe('2025-07-30');
+    expect(parsePostedDate('· 14 ago', now)).toBe('2026-08-14');
+    expect(parsePostedDate('· 1 fev 2025', now)).toBe('2025-02-01');
+    expect(parsePostedDate('· 20 dez', now)).toBe('2025-12-20'); // dezembro ainda não chegou: é do ano passado
+    expect(parsePostedDate('há 2 dias', now)).toBeUndefined();
+  });
+
   it('lê as resenhas: status, nota em meia estrela, horas, conquistas, plataforma e texto', () => {
     const { items, expectedGames } = parseYgpHtml(reviewsPage);
     expect(items).toHaveLength(2);
@@ -93,6 +102,7 @@ describe('leitor da página salva do YGP', () => {
     expect(garde.log.review).toBe('Primeiro parágrafo com negrito & entidade.\n\nLinha um\nlinha dois\n\n- item A\n- item B');
     expect(cyber.log.rating).toBe(5);
     expect(cyber.log.status).toBeUndefined();
+    expect(garde.postedOn).toMatch(/^\d{4}-08-14$/);
   });
 
   it('conta resenhas que ainda estavam recolhidas ("Ler mais")', () => {

@@ -67,6 +67,24 @@ describe('importação para o Diário', () => {
     expect(result.games.map((g) => g.id)).toEqual([created.id]);
   });
 
+  it('sem as datas do jogo, a data da postagem vira o término de quem zerou', () => {
+    const [done, paused, dated] = service.previewJournalImport(
+      [
+        item('Wavetale', { status: 'finished' }, { postedOn: '2026-02-10' }),
+        item('Hades', { status: 'paused' }, { postedOn: '2026-02-10' }),
+        item('Skate.', { status: 'finished', finishedOn: '2025-12-01' }, { postedOn: '2026-02-10' })
+      ],
+      keep
+    );
+    expect(done.changes).toContain('finishedOn');
+    expect(paused.changes).not.toContain('finishedOn');
+    expect(dated.changes).toContain('finishedOn');
+
+    service.applyJournalImport([item('Wavetale', { status: 'finished' }, { postedOn: '2026-02-10' }), item('Skate.', { status: 'finished', finishedOn: '2025-12-01' }, { postedOn: '2026-02-10' })], keep);
+    expect(db.getGames().find((g) => g.title === 'Wavetale')!.log?.finishedOn).toBe('2026-02-10');
+    expect(db.getGameById('epic-1')!.log?.finishedOn).toBe('2025-12-01'); // a data real do jogo vence a da postagem
+  });
+
   it('aceita o status Contínuo (jogos sem fim, como multiplayer)', () => {
     service.applyJournalImport([item('Skate.', { status: 'endless' })], keep);
     expect(db.getGameById('epic-1')!.log?.status).toBe('endless');

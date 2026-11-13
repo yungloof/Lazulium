@@ -67,6 +67,20 @@ export function parseBrDate(text: string): string | undefined {
   return `${year}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
+const MONTHS: Record<string, number> = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12, feb: 2, apr: 4, may: 5, aug: 8, sep: 9, oct: 10, dec: 12 };
+
+// "· 14 ago" ou "· 30 jul 2025" (data da postagem) → "AAAA-MM-DD". Sem ano, vale o mais recente que não está no futuro.
+export function parsePostedDate(text: string, now = new Date()): string | undefined {
+  const match = /^·?\s*(\d{1,2})\s+([a-zç]{3,4})\.?(?:\s+(\d{4}))?$/i.exec(text.trim());
+  if (!match) return undefined;
+  const month = MONTHS[match[2].toLowerCase()];
+  const day = Number(match[1]);
+  if (!month || day < 1 || day > 31) return undefined;
+  let year = match[3] ? Number(match[3]) : now.getFullYear();
+  if (!match[3] && new Date(year, month - 1, day).getTime() > now.getTime()) year -= 1;
+  return year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+}
+
 // As cinco estrelas são caixas com uma camada de largura proporcional ao quanto estão cheias
 function readRating(root: Element): number | undefined {
   const boxes = Array.from(root.querySelectorAll('div.h-3.w-3')).slice(0, 5);
@@ -137,6 +151,7 @@ function readSection({ root, isReview }: Section): (JournalImportItem & { trunca
   let platform: string | undefined;
   let startedOn: string | undefined;
   let finishedOn: string | undefined;
+  let postedOn: string | undefined;
 
   for (const span of spans) {
     const text = clean(span.textContent);
@@ -159,6 +174,7 @@ function readSection({ root, isReview }: Section): (JournalImportItem & { trunca
       startedOn = from;
       finishedOn = to;
     }
+    if (isReview && !postedOn && text.startsWith('·')) postedOn = parsePostedDate(text);
     if (!platform && /^em\s+\S/i.test(text)) platform = text.replace(/^em\s+/i, '');
   }
 
@@ -179,6 +195,7 @@ function readSection({ root, isReview }: Section): (JournalImportItem & { trunca
     platform,
     playtimeSeconds: playtime,
     achievements,
+    postedOn,
     log,
     truncated
   };
@@ -193,6 +210,7 @@ function mergeItems(a: JournalImportItem, b: JournalImportItem): JournalImportIt
     platform: a.platform ?? b.platform,
     playtimeSeconds: a.playtimeSeconds ?? b.playtimeSeconds,
     achievements: a.achievements ?? b.achievements,
+    postedOn: a.postedOn ?? b.postedOn,
     log: {
       status: a.log.status ?? b.log.status,
       rating: a.log.rating ?? b.log.rating,

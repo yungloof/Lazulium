@@ -4,6 +4,14 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.7.4 — 13 de novembro de 2026
+
+### Correções
+
+- **Datas na importação do YGP.** A aba *Avaliações* do YGP não traz as datas em que você jogou, só a da publicação da resenha, e a aba *Jogos* salva só as linhas visíveis. Por isso muitos jogos ficavam sem data. Agora, quando o arquivo não tem as datas do jogo, a data da publicação da resenha vira a data de término de quem zerou ou fez 100%. A data real do jogo, quando existe, continua valendo. Quem já importou pode importar de novo: só o que está vazio é preenchido.
+
+---
+
 ## 2.7.3 — 13 de novembro de 2026
 
 ### Novidades

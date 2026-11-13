@@ -10,8 +10,8 @@ Baixe um destes na página de downloads do Lazulium no GitHub:
 
 | Arquivo | |
 |---|---|
-| **`Lazulium-Setup-2.7.3.exe`** *(recomendado)* | Instala só para o seu usuário, sem pedir administrador, e cria os atalhos. |
-| **`Lazulium-Portable-2.7.3.exe`** | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
+| **`Lazulium-Setup-2.7.4.exe`** *(recomendado)* | Instala só para o seu usuário, sem pedir administrador, e cria os atalhos. |
+| **`Lazulium-Portable-2.7.4.exe`** | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
 
 Se já testou uma versão antiga, instale por cima. Nada se perde.
 
@@ -78,7 +78,7 @@ O log tem erros, versões e caminhos de pasta, como `C:\Users\SeuNome\Games\...`
 ## 4. Modelo de relato
 
 ```text
---- RELATO DE TESTE - LAZULIUM 2.7.3 ---
+--- RELATO DE TESTE - LAZULIUM 2.7.4 ---
 1. O que eu tentei fazer:
 (Ex: conectar a Steam / abrir o Elden Ring / registrar um jogo no Diário)
 

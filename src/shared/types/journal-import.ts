@@ -9,6 +9,7 @@ export interface JournalImportItem {
   steamAppId?: string;              // Só nas cópias do Lazulium: casa o jogo da Steam sem depender do nome
   playtimeSeconds?: number;         // Vale só para jogos novos no Diário; na biblioteca o Lazulium já mede
   achievements?: { unlocked: number; total: number };
+  postedOn?: string;                // Dia em que a resenha foi publicada no YGP (AAAA-MM-DD). Só serve de data de término quando o arquivo não traz as datas do jogo.
   log: GameLog;
 }
 
