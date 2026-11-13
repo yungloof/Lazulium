@@ -10,6 +10,7 @@ import {
   ProfileCustom,
   ProfileGame,
   ProfileMediaKind,
+  ProfileReview,
   ProfileScreenshot,
   ProfileSectionId,
   ProfileUnlockedAchievement,
@@ -24,6 +25,9 @@ import { isBetaTester } from '@shared/constants/beta-testers';
 import { describeError, logBackgroundFailure, sleep } from '../metadata/http';
 
 const MAX_ACHIEVEMENT_CHOICES = 300;
+const MAX_RATINGS = 300;                // Jogos avaliados na página do perfil
+const MAX_REVIEW_TEXT = 6000;           // Por resenha
+const MAX_RATINGS_TEXT_TOTAL = 450_000; // Texto de todas as resenhas juntas (a vitrine no servidor tem teto de tamanho)
 const MAX_FEATURED_GAMES = 12;
 const MAX_FEATURED_ACHIEVEMENTS = 12;
 const SECTION_IDS: ProfileSectionId[] = ['artwork', 'activity', 'featured', 'reviews', 'lists', 'achievements', 'screenshots', 'mostPlayed'];
@@ -442,6 +446,34 @@ class ProfileService {
   }
 
   // Para a página web: só URLs públicas (artes e capturas locais não existem fora deste PC)
+  // Jogos com nota ou resenha, do mais recente ao mais antigo. O texto das resenhas tem teto por resenha e no total
+  // para a página (e a vitrine no servidor) não ficarem enormes.
+  private exportableRatings(): ProfileReview[] {
+    let textBudget = MAX_RATINGS_TEXT_TOTAL;
+    return db
+      .getGames()
+      .filter((g) => !g.isHidden && (g.log?.rating || g.log?.review?.trim()))
+      .map((g) => ({ game: g, date: g.log?.finishedOn ?? g.updatedAt.slice(0, 10) }))
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, MAX_RATINGS)
+      .map(({ game, date }) => {
+        const full = game.log?.review?.trim();
+        const review = full ? full.slice(0, Math.min(MAX_REVIEW_TEXT, textBudget)) || undefined : undefined;
+        if (review) textBudget -= review.length;
+        return {
+          id: game.id,
+          title: game.title,
+          coverUrl: game.media?.coverUrl && game.media.coverUrl.startsWith('https://') ? game.media.coverUrl : undefined,
+          platform: game.manualPlatform ?? game.platform,
+          rating: game.log?.rating,
+          status: game.log?.status,
+          playtimeSeconds: game.totalPlaytimeSeconds ?? 0,
+          date,
+          review
+        };
+      });
+  }
+
   toExportable(profile: PlayerProfile): PlayerProfile {
     const publicUrl = (url?: string) => (url && /^https:\/\//.test(url) ? url : undefined);
     const mapGame = (g: ProfileGame) => ({ ...g, coverUrl: publicUrl(g.coverUrl), heroUrl: publicUrl(g.heroUrl) });
@@ -465,6 +497,7 @@ class ProfileService {
         favoriteBadge: steam?.favoriteBadge,
         badges: steam?.badges
       },
+      ratings: this.exportableRatings(),
       achievementChoices: [],
       activityByDay: {},
       steamAchievementsHidden: undefined,

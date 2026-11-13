@@ -1,4 +1,4 @@
-import { GamePlatform } from './game';
+import { GameLogStatus, GamePlatform } from './game';
 
 export interface ProfileGame {
   id: string;
@@ -12,6 +12,19 @@ export interface ProfileGame {
   achievementsUnlocked?: number;    // Do cache de conquistas, quando sincronizado
   achievementsTotal?: number;
   recentAchievementIcons?: { name: string; iconUrl: string }[]; // Últimas conquistas neste jogo
+}
+
+// Jogo avaliado (nota e/ou resenha), como a página do perfil mostra na aba Avaliações
+export interface ProfileReview {
+  id: string;
+  title: string;
+  coverUrl?: string;
+  platform: string;                 // Id da plataforma ou o nome digitado à mão (console)
+  rating?: number;                  // 0,5 a 5
+  status?: GameLogStatus;
+  playtimeSeconds: number;
+  date?: string;                    // AAAA-MM-DD: quando terminou ou, sem isso, a última atualização
+  review?: string;
 }
 
 export interface ProfileAchievement {
@@ -139,6 +152,7 @@ export interface PlayerProfile {
   steam?: SteamProfileIdentity;
   background?: { imageUrl?: string; videoUrl?: string };
   web?: ProfileWebExtras;           // Só na exportação
+  ratings?: ProfileReview[];        // Só na exportação: jogos com nota ou resenha (aba Avaliações da página)
   featuredGames: ProfileGame[];
   featuredAchievements: ProfileUnlockedAchievement[];
   achievementChoices: ProfileUnlockedAchievement[]; // Mais raras primeiro, para o editor

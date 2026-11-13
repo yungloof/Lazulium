@@ -712,6 +712,13 @@ class SocialService {
       const game = db.getGameById(g.id);
       return { ...hours, coverUrl: (game && publicCoverOf(game)) || undefined };
     };
+    // Notas e resenhas só vão se a pessoa deixou essa chave ligada; as capas são as públicas
+    showcase.ratings = settings.shareReviews
+      ? (showcase.ratings ?? []).map((r) => {
+          const game = db.getGameById(r.id);
+          return { ...r, coverUrl: (game && publicCoverOf(game)) || undefined, playtimeSeconds: settings.sharePlaytime ? r.playtimeSeconds : 0 };
+        })
+      : [];
     if (!settings.sharePlaytime) {
       showcase.totals = { ...showcase.totals, playtimeSeconds: 0 };
       showcase.recentPlaytimeSeconds = 0;

@@ -4,6 +4,14 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.7.3 — 13 de novembro de 2026
+
+### Novidades
+
+- **Avaliações no perfil dos amigos.** A página do perfil (a que o amigo vê no Lazulium e a publicada na web) ganhou a aba *Avaliações*, ao lado de *Visão geral*: todos os jogos com nota ou resenha, em formato de publicação, com o filtro *Só com resenha* e *Ler mais* nas resenhas compridas. Vale para quem tiver a 2.7.3 e a chave *Notas e resenhas* ligada em *Amigos → Privacidade*; com ela desligada, a aba não aparece.
+
+---
+
 ## 2.7.2 — 13 de novembro de 2026
 
 ### Novidades

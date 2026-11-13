@@ -261,5 +261,48 @@
       "globalPercent": 12.8,
       "unlockedAt": "2026-03-21T01:05:00.000Z"
     }
+  ],
+  "ratings": [
+    {
+      "id": "steam-1145360",
+      "title": "Hades",
+      "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/library_600x900.jpg",
+      "platform": "steam",
+      "rating": 5,
+      "status": "completed",
+      "playtimeSeconds": 40464,
+      "date": "2026-10-12",
+      "review": "Joguei por impulso e fiquei preso por semanas. A cada tentativa a história avança um pouco, e o combate é tão bom que morrer nunca irrita de verdade.\n\nO que mais me ganhou foi o elenco: todo personagem tem algo para dizer depois de cada fuga, e as conversas mudam conforme você avança. A trilha sonora combina com tudo.\n\nO único ponto fraco é o fim de jogo, que repete bastante. Mesmo assim, é dos melhores que já joguei.\n\nRecomendo para quem gosta de jogos rápidos e viciantes, sem precisar de muita paciência no começo."
+    },
+    {
+      "id": "steam-367520",
+      "title": "Hollow Knight",
+      "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg",
+      "platform": "steam",
+      "rating": 4.5,
+      "status": "finished",
+      "playtimeSeconds": 93600,
+      "date": "2026-08-02",
+      "review": "Mundo lindo e difícil na medida certa."
+    },
+    {
+      "id": "log-1",
+      "title": "Celeste",
+      "platform": "Switch",
+      "rating": 4,
+      "status": "finished",
+      "playtimeSeconds": 36000,
+      "date": "2026-03-20"
+    },
+    {
+      "id": "steam-264710",
+      "title": "Subnautica",
+      "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/264710/library_600x900.jpg",
+      "platform": "steam",
+      "status": "paused",
+      "playtimeSeconds": 7200,
+      "date": "2026-01-05",
+      "review": "Parei no meio, mas pretendo voltar."
+    }
   ]
 }
