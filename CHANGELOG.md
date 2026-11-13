@@ -4,6 +4,15 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.5.4 — 13 de novembro de 2026
+
+### Correções
+
+- **Sincronização de conquistas da Steam.** Redirecionamentos para nomes curtos (como *Portal 2* e *Team Fortress 2*) agora mantêm `?xml=1` em vez de cair na página HTML, páginas HTML de erro temporário ou de permissão não são mais confundidas com "jogo sem conquistas", jogos em cache válido não sofrem pausa de rede, erros `429` usam espera escalonada antes de desistir e as falhas passaram a registrar o motivo real no log e na tela do Perfil.
+- **Menu e avisos do Perfil.** O menu `...` do Perfil agora ajusta a largura pelo conteúdo e abre alinhado à direita sem cortar os textos nem sair da janela, e os avisos de falha de sincronização do topo e do corpo da página se limpam mutuamente para não aparecerem duplicados.
+
+---
+
 ## 2.5.3 — 13 de novembro de 2026
 
 ### Correções

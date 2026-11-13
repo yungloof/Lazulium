@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search } from 'lucide-react';
 import { focusRing } from './ui';
@@ -15,6 +15,7 @@ interface SelectProps<T extends string> {
   onChange: (value: T) => void;
   ariaLabel?: string;
   id?: string;
+  align?: 'left' | 'right' | 'auto'; // Alinhamento horizontal da lista em relação ao botão
   className?: string;               // Substitui o visual do botão
   children?: React.ReactNode;       // Substitui o conteúdo do botão
 }
@@ -28,7 +29,7 @@ const WINDOW_MARGIN = 8;
 const defaultTrigger = `flex items-center justify-between gap-2 px-3 py-2 text-[13px] bg-slate-900 border border-slate-700/80 rounded-lg text-slate-200 hover:border-slate-600 transition-colors ${focusRing}`;
 
 // Menu do próprio app: o <select> nativo abre na cor do sistema e não dá para estilizar
-export function Select<T extends string>({ value, options, onChange, ariaLabel, id, className, children }: SelectProps<T>): React.ReactElement {
+export function Select<T extends string>({ value, options, onChange, ariaLabel, id, align = 'auto', className, children }: SelectProps<T>): React.ReactElement {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -62,16 +63,34 @@ export function Select<T extends string>({ value, options, onChange, ariaLabel, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const preferRight = (rect: DOMRect) => align === 'right' || (align === 'auto' && Boolean(children) && rect.left > window.innerWidth / 2);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const el = listRef.current;
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!el || !rect) return;
+    // Usa a largura real renderizada para caber opções longas sem sair pelas bordas da janela
+    const width = el.offsetWidth;
+    const targetLeft = preferRight(rect) ? rect.right - width : rect.left;
+    el.style.left = `${Math.max(WINDOW_MARGIN, Math.min(targetLeft, window.innerWidth - width - WINDOW_MARGIN))}px`;
+    el.style.right = 'auto';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, visible.length, searchable, align, children]);
+
   const position = (): React.CSSProperties => {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return {};
     const height = Math.min(options.length * ROW_HEIGHT + 10 + (searchable ? 44 : 0), MAX_LIST_HEIGHT);
-    const width = Math.max(rect.width, MIN_LIST_WIDTH);
-    const left = Math.max(WINDOW_MARGIN, Math.min(rect.left, window.innerWidth - width - WINDOW_MARGIN));
+    const minWidth = Math.max(rect.width, MIN_LIST_WIDTH);
+    const maxWidth = Math.max(MIN_LIST_WIDTH, window.innerWidth - WINDOW_MARGIN * 2);
+    const horizontal: React.CSSProperties = preferRight(rect)
+      ? { right: Math.max(WINDOW_MARGIN, window.innerWidth - rect.right) }
+      : { left: Math.max(WINDOW_MARGIN, Math.min(rect.left, window.innerWidth - minWidth - WINDOW_MARGIN)) };
     const fitsBelow = rect.bottom + height + WINDOW_MARGIN < window.innerHeight;
     return fitsBelow
-      ? { left, width, top: rect.bottom + 4, maxHeight: MAX_LIST_HEIGHT }
-      : { left, width, bottom: window.innerHeight - rect.top + 4, maxHeight: Math.min(MAX_LIST_HEIGHT, rect.top - WINDOW_MARGIN) };
+      ? { ...horizontal, minWidth, maxWidth, width: 'max-content', top: rect.bottom + 4, maxHeight: MAX_LIST_HEIGHT }
+      : { ...horizontal, minWidth, maxWidth, width: 'max-content', bottom: window.innerHeight - rect.top + 4, maxHeight: Math.min(MAX_LIST_HEIGHT, rect.top - WINDOW_MARGIN) };
   };
 
   return (

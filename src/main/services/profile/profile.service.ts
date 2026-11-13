@@ -20,7 +20,7 @@ import { achievementsService } from '../achievements/achievements.service';
 import { screenshotsService } from '../metadata/screenshots.service';
 import { readSteamProfileStats, SteamAppStats } from '../scanners/steam-scanner.service';
 import { steamProfileService } from './steam-profile.service';
-import { logBackgroundFailure, sleep } from '../metadata/http';
+import { describeError, logBackgroundFailure, sleep } from '../metadata/http';
 
 const MAX_ACHIEVEMENT_CHOICES = 300;
 const MAX_FEATURED_GAMES = 12;
@@ -59,8 +59,14 @@ const TOP_RECENT_ACHIEVEMENTS = 10;
 const TOP_SCREENSHOTS = 8;
 const SCREENSHOT_SOURCE_GAMES = 8;     // Jogos (mais recentes) consultados para a vitrine de capturas
 const RECENT_WINDOW_MS = 14 * 86_400_000;
-const SYNC_DELAY_MS = 400;             // Espaço entre jogos para não estourar limites das APIs
+const SYNC_DELAY_MS = 450;             // Espaço entre jogos para não estourar limites das APIs
+const SYNC_CAUTIOUS_DELAY_MS = 750;    // Ritmo reduzido após encontrar limite de pedidos (429)
+const RATE_LIMIT_COOLDOWN_MS = [10_000, 20_000, 35_000]; // Espera escalonada quando a Steam devolve 429
+const MAX_RATE_LIMIT_PAUSES = 6;       // Evita loop infinito de pausas numa sincronização longa
 const MAX_CONSECUTIVE_TRANSIENT_FAILURES = 8; // Sem rede ou com a Steam fora, interrompe cedo em vez de tentar a biblioteca toda
+const MAX_FAILURE_LOGS = 5;
+
+const isRateLimitWarning = (warning?: string): boolean => Boolean(warning && /\b429\b|limite|pedidos demais/i.test(warning));
 
 // Chave do jogo no localconfig.vdf: AppID da Steam ou appid do atalho em int32 com sinal
 function steamStatsKey(game: Game): string | undefined {
@@ -342,6 +348,21 @@ class ProfileService {
       let failed = 0;
       let privateGames = 0;
       let consecutiveFailures = 0;
+      let consecutiveRateLimits = 0;
+      let totalRateLimitPauses = 0;
+      let rateLimitedBefore = false;
+      let loggedFailures = 0;
+      let firstReason: string | undefined;
+
+      const recordFailure = (game: Game, reason?: string) => {
+        const clean = reason?.trim() || undefined;
+        if (!firstReason && clean) firstReason = clean;
+        if (loggedFailures < MAX_FAILURE_LOGS) {
+          loggedFailures++;
+          console.warn(`[Conquistas] Falha em "${game.title}" (${game.id}): ${clean ?? 'erro temporário'}`);
+        }
+      };
+
       try {
         const candidates = db
           .getGames()
@@ -349,34 +370,71 @@ class ProfileService {
           .filter((g) => !g.isHidden && (g.platform === 'steam' ? (g.totalPlaytimeSeconds ?? 0) > 0 : g.isInstalled !== false || (g.totalPlaytimeSeconds ?? 0) > 0 || isJournalEntry(g)));
         for (let i = 0; i < candidates.length; i++) {
           const game = candidates[i];
+          const prevCached = db.getGameAchievements(game.id);
+          let touchedNetwork = true;
           try {
             const result = await achievementsService.getAchievements(game.id, false);
+            const hitCache = Boolean(
+              prevCached &&
+                !prevCached.retryable &&
+                !prevCached.warning &&
+                result &&
+                !result.retryable &&
+                result.syncedAt === prevCached.syncedAt
+            );
+            touchedNetwork = result?.source !== 'lazulium' && !hitCache;
+
             if (result?.retryable) {
+              const rateLimited = isRateLimitWarning(result.warning);
+              if (rateLimited && consecutiveRateLimits < RATE_LIMIT_COOLDOWN_MS.length && totalRateLimitPauses < MAX_RATE_LIMIT_PAUSES) {
+                const cooldown = RATE_LIMIT_COOLDOWN_MS[consecutiveRateLimits];
+                consecutiveRateLimits++;
+                totalRateLimitPauses++;
+                rateLimitedBefore = true;
+                firstReason ??= result.warning?.trim();
+                console.warn(`[Conquistas] Steam limitou pedidos (429) em "${game.title}" (${i + 1}/${candidates.length}); aguardando ${cooldown / 1000}s...`);
+                await sleep(cooldown);
+                i--;
+                continue;
+              }
+              if (!rateLimited) consecutiveRateLimits = 0;
               failed++;
               consecutiveFailures++;
+              recordFailure(game, result.warning);
             } else {
+              consecutiveRateLimits = 0;
               // Marcos são calculados aqui mesmo: não provam que a rede voltou (sem internet, a biblioteca mista seguiria até o fim)
               if (result?.source !== 'lazulium') consecutiveFailures = 0;
               if (result && result.total > 0) synced++;
               if (result?.warning?.startsWith('Perfil da Steam privado')) privateGames++;
             }
-          } catch {
+          } catch (err) {
+            consecutiveRateLimits = 0;
             failed++;
             consecutiveFailures++;
+            recordFailure(game, describeError(err));
           }
 
-          if (consecutiveFailures >= MAX_CONSECUTIVE_TRANSIENT_FAILURES) {
-            failed += candidates.length - (i + 1);
+          if (consecutiveFailures >= MAX_CONSECUTIVE_TRANSIENT_FAILURES || consecutiveRateLimits >= RATE_LIMIT_COOLDOWN_MS.length) {
+            const remaining = candidates.length - (i + 1);
+            failed += remaining;
+            console.warn(
+              `[Conquistas] Sincronização interrompida em ${i + 1}/${candidates.length} após falhas seguidas (${firstReason ?? 'sem detalhe'}). Restantes: ${remaining}.`
+            );
             break;
           }
 
-          // Marcos são calculados aqui mesmo: só espera quando falou com um serviço de fora
-          if (db.getGameAchievements(game.id)?.source !== 'lazulium') await sleep(SYNC_DELAY_MS);
+          // Só pausa quando houve ida à rede (cache local e marcos não gastam limite de API)
+          if (touchedNetwork && i < candidates.length - 1) await sleep(rateLimitedBefore ? SYNC_CAUTIOUS_DELAY_MS : SYNC_DELAY_MS);
         }
       } finally {
         this.syncingPromise = undefined;
       }
-      return { synced, failed, privateGames };
+
+      if (failed > 0) {
+        console.warn(`[Conquistas] Resumo: ${synced} sincronizado(s), ${failed} falha(s), ${privateGames} privado(s). Motivo: ${firstReason ?? 'não informado'}`);
+      }
+      return { synced, failed, privateGames, ...(failed > 0 && firstReason ? { reason: firstReason } : {}) };
     })();
     return this.syncingPromise;
   }

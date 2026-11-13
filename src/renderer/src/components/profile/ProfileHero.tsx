@@ -92,7 +92,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({ profile, stats, presen
           <Button size="md" icon={<CalendarDays className="w-3.5 h-3.5" />} onClick={onYearReview}>
             Retrospectiva
           </Button>
-          <Select<ProfileAction | ''> value="" options={actions} onChange={(v) => v && onAction(v)} ariaLabel="Mais ações do perfil" className={buttonClass('secondary', 'md')}>
+          <Select<ProfileAction | ''> value="" options={actions} onChange={(v) => v && onAction(v)} ariaLabel="Mais ações do perfil" align="right" className={buttonClass('secondary', 'md')}>
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <MoreHorizontal className="w-4 h-4" />}
           </Select>
         </div>

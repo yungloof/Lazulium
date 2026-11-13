@@ -53,6 +53,7 @@ const ProfileSkeleton: React.FC = () => (
 export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSelectGame, onOpenList }) => {
   const isSyncingAchievements = useLibraryStore((s) => s.isSyncingAchievements);
   const setIsSyncingAchievements = useLibraryStore((s) => s.setIsSyncingAchievements);
+  const setAchievementsSyncError = useLibraryStore((s) => s.setAchievementsSyncError);
   const allGames = useLibraryStore((s) => s.games);
   const launchStatuses = useLibraryStore((s) => s.launchStatuses);
   const lists = useListsStore((s) => s.lists);
@@ -104,9 +105,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
     window.electronAPI?.getProfileWebStatus().then(setWebStatus).catch(() => undefined);
   }, [load, loadLists]);
 
-  // A busca de conquistas terminou (aqui ou no aviso do topo): números novos
+  // A busca de conquistas terminou (aqui ou no aviso do topo): números novos; ao começar pelo aviso, limpa o banner anterior
   const prevSyncingRef = useRef(isSyncingAchievements);
   useEffect(() => {
+    if (!prevSyncingRef.current && isSyncingAchievements) setFeedback(null);
     if (prevSyncingRef.current && !isSyncingAchievements) void load();
     prevSyncingRef.current = isSyncingAchievements;
   }, [isSyncingAchievements, load]);
@@ -130,13 +132,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
     if (action === 'sync') {
       void run(async () => {
         setIsSyncingAchievements(true);
+        setAchievementsSyncError(null);
         try {
           const result = await window.electronAPI?.syncAllAchievements();
           // Números e o aviso de conquistas escondidas atualizam na hora
           await load();
+          const detail = result?.reason || 'Confira a internet e tente de novo.';
           return {
             tone: result?.failed ? 'error' : 'success',
-            text: `Conquistas atualizadas em ${result?.synced ?? 0} jogo(s)${result?.failed ? `; ${result.failed} falharam. Confira a internet e tente de novo.` : '.'}${
+            text: `${
+              result?.failed && !result.synced
+                ? `Não foi possível atualizar as conquistas (${result.failed} falharam). ${detail}`
+                : `Conquistas atualizadas em ${result?.synced ?? 0} jogo(s)${result?.failed ? `; ${result.failed} falharam. ${detail}` : '.'}`
+            }${
               result?.privateGames ? ` A Steam escondeu ${result.privateGames} jogo(s): deixe "Detalhes do jogo" como Público na privacidade da Steam e atualize de novo.` : ''
             }`
           };

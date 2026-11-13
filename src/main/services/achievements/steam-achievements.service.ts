@@ -3,11 +3,18 @@ import { Achievement, GameAchievements } from '@shared/types/achievements';
 import { ApiKeyTestResult } from '@shared/types/ipc';
 import { HttpError, describeError, fetchJson, httpRequest } from '../metadata/http';
 
+const STEAM_COMMUNITY = 'https://steamcommunity.com';
 const STEAM_API = 'https://api.steampowered.com';
 const API_TIMEOUT_MS = 12_000;
 const COMMUNITY_TIMEOUT_MS = 15_000;
 const PERCENT_TIMEOUT_MS = 10_000;
+const MAX_COMMUNITY_REDIRECTS = 3;
 const STEAM = { service: 'a Steam' };
+
+const steamHttpWarning = (status: number): string =>
+  status === 429
+    ? 'A Steam limitou os pedidos temporariamente (erro 429). Espere alguns minutos e tente de novo.'
+    : `A Steam não respondeu agora (erro ${status}).`;
 
 interface SteamPlayerAchievement {
   apiname: string;
@@ -47,6 +54,51 @@ async function fetchGlobalPercents(appId: string): Promise<Map<string, number>> 
   return map;
 }
 
+const cdata = (block: string, tag: string): string =>
+  block.match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>|([^<]*))</${tag}>`))?.slice(1).find((v) => v !== undefined)?.trim() ?? '';
+
+/**
+ * Classifica uma resposta pública sem blocos de conquista entre perfil privado, jogo sem lista ou erro transitório da Steam.
+ */
+function classifyEmptyCommunityResponse(body: string): Result {
+  const privacy = cdata(body, 'privacyState');
+  const xmlError = cdata(body, 'error');
+  const htmlError = body.match(/<div class="profile_fatalerror_message">([\s\S]*?)<\/div>/i)?.[1]?.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() ?? '';
+  const steamError = xmlError || htmlError;
+
+  if ((privacy && privacy !== 'public') || /private|permission to view/i.test(steamError)) {
+    return emptyResult({
+      warning: 'Perfil da Steam privado: deixe "Detalhes do jogo" como público na privacidade da Steam para ver as conquistas.'
+    });
+  }
+
+  // XML explícito sem conquistas, ou página informando ausência de estatísticas
+  const confirmedNoStats =
+    (/<playerstats\b/i.test(body) && privacy === 'public' && !steamError) ||
+    /no stats|not available|does not have|not played/i.test(steamError);
+  if (confirmedNoStats) {
+    return emptyResult({ noList: true, warning: 'Este jogo não tem conquistas na Steam.' });
+  }
+
+  if (/<title>Steam Community :: Error<\/title>/i.test(body) || Boolean(htmlError)) {
+    return emptyResult({
+      retryable: true,
+      warning: htmlError ? `Steam: ${htmlError.slice(0, 200)}` : 'A Steam retornou uma página de erro temporário.'
+    });
+  }
+
+  if (steamError) {
+    const transient = /busy|try again|unavailable|timed out|failure|communicating/i.test(steamError);
+    return emptyResult({ ...(transient ? { retryable: true } : {}), warning: `Steam: ${steamError.slice(0, 200)}` });
+  }
+
+  if (/<html\b/i.test(body)) {
+    return emptyResult({ warning: 'Este jogo não tem conquistas na Steam.' });
+  }
+
+  return emptyResult({ noList: true, warning: 'Este jogo não tem conquistas na Steam.' });
+}
+
 export class SteamAchievementsService {
   /**
    * Testa a validade da Web API Key e do SteamID64 usando ISteamUser/GetPlayerSummaries/v2
@@ -77,42 +129,75 @@ export class SteamAchievementsService {
     }
   }
 
-  // XML público: https://steamcommunity.com/profiles/<id>/stats/<appid>/achievements/?xml=1
-  // closed="1" = desbloqueada; iconClosed é o ícone colorido e iconOpen o cinza.
-  private async fetchFromCommunity(appId: string, steamId: string): Promise<Result> {
-    let xml: string;
-    try {
-      const res = await httpRequest(
-        `https://steamcommunity.com/profiles/${encodeURIComponent(steamId)}/stats/${encodeURIComponent(appId)}/achievements/?xml=1&l=brazilian`,
-        { ...STEAM, timeoutMs: COMMUNITY_TIMEOUT_MS, retries: 1 }
-      );
+  /**
+   * Busca o XML público de conquistas preservando `?xml=1` quando a Steam redireciona AppIDs para nomes curtos (ex: Portal2, TF2).
+   */
+  private async fetchCommunityXml(appId: string, steamId: string): Promise<{ xml?: string; result?: Result }> {
+    let url = `${STEAM_COMMUNITY}/profiles/${encodeURIComponent(steamId)}/stats/${encodeURIComponent(appId)}/achievements/?xml=1&l=brazilian`;
+    const visited = new Set<string>([url]);
+
+    for (let hop = 0; hop <= MAX_COMMUNITY_REDIRECTS; hop++) {
+      const res = await httpRequest(url, {
+        ...STEAM,
+        timeoutMs: COMMUNITY_TIMEOUT_MS,
+        retries: 2,
+        retryNetwork: true,
+        redirect: 'manual'
+      });
+
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get('location');
+        await res.body?.cancel().catch(() => undefined);
+        if (!location) return { result: emptyResult({ retryable: true, warning: steamHttpWarning(res.status) }) };
+
+        let target: URL;
+        try {
+          target = new URL(location, url);
+        } catch {
+          return { result: emptyResult({ warning: 'Este jogo não tem conquistas na Steam.' }) };
+        }
+        if (target.origin !== STEAM_COMMUNITY) {
+          return { result: emptyResult({ warning: 'Este jogo não tem conquistas na Steam.' }) };
+        }
+
+        // Redirecionamento direto para a raiz do perfil indica jogo sem página de estatísticas/conquistas na Steam
+        if (/^\/(?:profiles|id)\/[^/]+\/?$/i.test(target.pathname)) {
+          return { result: emptyResult({ noList: true, warning: 'Este jogo não tem conquistas na Steam.' }) };
+        }
+
+        const statsMatch = target.pathname.match(/^(\/(?:profiles|id)\/[^/]+\/stats\/[^/?#]+)/i);
+        const nextUrl = statsMatch ? `${STEAM_COMMUNITY}${statsMatch[1]}/achievements/?xml=1&l=brazilian` : target.href;
+        if (visited.has(nextUrl)) return { result: emptyResult({ warning: 'Este jogo não tem conquistas na Steam.' }) };
+        visited.add(nextUrl);
+        url = nextUrl;
+        continue;
+      }
+
       // Limite de pedidos ou Steam fora do ar não pode virar "este jogo não possui conquistas"
       if (!res.ok) {
         await res.body?.cancel().catch(() => undefined);
-        return emptyResult({ retryable: true, warning: `A Steam não respondeu agora (erro ${res.status}).` });
+        return { result: emptyResult({ retryable: true, warning: steamHttpWarning(res.status) }) };
       }
-      xml = await res.text();
+      return { xml: await res.text() };
+    }
+
+    return { result: emptyResult({ warning: 'Este jogo não tem conquistas na Steam.' }) };
+  }
+
+  // XML público: https://steamcommunity.com/profiles/<id>/stats/<appid>/achievements/?xml=1
+  // closed="1" = desbloqueada; iconClosed é o ícone colorido e iconOpen o cinza.
+  private async fetchFromCommunity(appId: string, steamId: string): Promise<Result> {
+    let xml = '';
+    try {
+      const response = await this.fetchCommunityXml(appId, steamId);
+      if (response.result) return response.result;
+      xml = response.xml ?? '';
     } catch (err) {
       return emptyResult({ retryable: true, warning: describeError(err) });
     }
 
-    const cdata = (block: string, tag: string) =>
-      block.match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>|([^<]*))</${tag}>`))?.slice(1).find((v) => v !== undefined)?.trim() ?? '';
-
     const blocks = xml.match(/<achievement closed="[01]">[\s\S]*?<\/achievement>/g) ?? [];
-    if (blocks.length === 0) {
-      // A Steam responde em HTML (sem as tags do XML) para vários jogos sem página de conquistas: é resposta definitiva
-      const privacy = cdata(xml, 'privacyState');
-      const error = cdata(xml, 'error');
-      return emptyResult({
-        warning:
-          (privacy && privacy !== 'public') || /private/i.test(error)
-            ? 'Perfil da Steam privado: deixe "Detalhes do jogo" como público na privacidade da Steam para ver as conquistas.'
-            : error
-              ? `Steam: ${error.slice(0, 200)}`
-              : 'Este jogo não tem conquistas na Steam.'
-      });
-    }
+    if (blocks.length === 0) return classifyEmptyCommunityResponse(xml);
 
     const globalPercent = await fetchGlobalPercents(appId);
     const items: Achievement[] = blocks.flatMap((block) => {
@@ -144,11 +229,13 @@ export class SteamAchievementsService {
     const [schemaRes, playerRes, globalPercent] = await Promise.allSettled([
       httpRequest(`${STEAM_API}/ISteamUserStats/GetSchemaForGame/v2/?key=${encodeURIComponent(key)}&appid=${encodeURIComponent(appId)}&l=brazilian`, {
         ...STEAM,
-        timeoutMs: API_TIMEOUT_MS
+        timeoutMs: API_TIMEOUT_MS,
+        retries: 1,
+        retryNetwork: true
       }),
       httpRequest(
         `${STEAM_API}/ISteamUserStats/GetPlayerAchievements/v1/?key=${encodeURIComponent(key)}&steamid=${encodeURIComponent(steamId)}&appid=${encodeURIComponent(appId)}&l=brazilian`,
-        { ...STEAM, timeoutMs: API_TIMEOUT_MS }
+        { ...STEAM, timeoutMs: API_TIMEOUT_MS, retries: 1, retryNetwork: true }
       ),
       fetchGlobalPercents(appId)
     ]);
@@ -159,7 +246,7 @@ export class SteamAchievementsService {
     const schema = schemaRes.value;
     if (schema.status === 429 || schema.status >= 500) {
       await schema.body?.cancel().catch(() => undefined);
-      return emptyResult({ retryable: true, warning: `A Steam não respondeu agora (erro ${schema.status}).` });
+      return emptyResult({ retryable: true, warning: steamHttpWarning(schema.status) });
     }
 
     let schemaList: SteamSchemaAchievement[] = [];
@@ -189,7 +276,7 @@ export class SteamAchievementsService {
       if (res.status === 401 || res.status === 403) {
         warning = 'Perfil da Steam privado ou conquistas ocultas nas configurações de privacidade.';
       } else if (res.status === 429 || res.status >= 500) {
-        warning = `A Steam não respondeu agora (erro ${res.status}). O Lazulium tenta de novo mais tarde.`;
+        warning = steamHttpWarning(res.status);
         retryable = true;
       } else if (res.ok) {
         try {
