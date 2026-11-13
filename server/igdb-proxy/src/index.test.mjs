@@ -246,6 +246,43 @@ test('Falha ao gravar no cache não derruba a resposta', async (t) => {
   assert.equal(body.found, true);
 });
 
+test('KV sem cota (leitura e gravação) não derruba a resposta nem o token', async (t) => {
+  const s = setup((endpoint) => (endpoint === 'games' ? ok([{ id: 7, name: 'Jogo' }]) : ok([TTB])));
+  t.after(s.restore);
+  const quota = async () => {
+    throw new Error('limite diário do KV excedido');
+  };
+  s.kv.get = quota;
+  s.kv.put = quota;
+  const { status, body } = await s.get('title=Jogo');
+  assert.equal(status, 200);
+  assert.equal(body.found, true);
+});
+
+test('A cache da borda fica na frente do KV: repetir a consulta não lê nem grava no KV', async (t) => {
+  const s = setup((endpoint) => (endpoint === 'games' ? ok([{ id: 7, name: 'Jogo' }]) : ok([TTB])));
+  t.after(s.restore);
+  const edge = fakeEdgeCache();
+  const original = globalThis.caches;
+  globalThis.caches = { default: edge };
+  t.after(() => (globalThis.caches = original));
+
+  assert.equal((await s.get('title=Jogo')).body.found, true);
+  assert.ok(edge.store.has('https://cache.lazulium/kv/ttb%3Av1%3Atitle%3Ajogo'), 'resultado e token vão para a borda');
+  assert.ok(edge.store.has('https://cache.lazulium/kv/twitch%3Atoken'));
+  assert.equal(s.calls.tokens, 1);
+
+  // Segunda consulta: o KV ficou sem cota, mas a borda responde sem chamar o IGDB de novo
+  const igdbCalls = s.calls.igdb.length;
+  s.kv.get = async () => {
+    throw new Error('limite diário do KV excedido');
+  };
+  s.kv.put = s.kv.get;
+  const again = await s.get('title=Jogo');
+  assert.equal(again.body.found, true);
+  assert.equal(s.calls.igdb.length, igdbCalls);
+});
+
 test('Limpeza de título', () => {
   assert.equal(cleanTitle('The Legend of Zelda (1986)'), 'The Legend of Zelda');
   assert.equal(cleanTitle("Link's Awakening (SWITCH)"), "Link's Awakening");

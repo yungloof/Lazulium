@@ -90,7 +90,7 @@ Depois, coloque a URL em `IGDB_PROXY_URL`, em `src/main/services/metadata/play-l
 ## Limites
 
 - **IGDB:** 4 requisições por segundo e até 8 abertas. Com o cache, isso só pesa em jogos ainda não consultados.
-- **Cloudflare gratuito:** 100 mil requisições e 100 mil leituras de KV por dia, e 1.000 escritas de KV por dia. Se a cota de escrita acabar, as respostas continuam, só que sem cache.
+- **Cloudflare gratuito:** 100 mil requisições e 100 mil leituras de KV por dia, e 1.000 escritas de KV por dia. A cache da borda (`caches.default`, sem cota) fica na frente do KV, então a maioria das consultas repetidas nem o toca. Se a cota do KV acabar (leitura ou escrita), as respostas continuam, só que sem o cache do KV; a cota volta à meia-noite UTC (21h em Brasília).
 - **Uso comercial:** a API é gratuita para uso não comercial. Se o Lazulium passar a ganhar dinheiro, é preciso pedir a parceria em `partner@igdb.com`, que exige citar o IGDB de forma visível.
 
 ## Testes

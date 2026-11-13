@@ -8,6 +8,7 @@ const TOKEN_URL = 'https://id.twitch.tv/oauth2/token';
 const STEAM_SOURCE = 1;             // external_game_sources: Steam
 const TOKEN_KEY = 'twitch:token';
 const TOKEN_MARGIN_SECONDS = 24 * 60 * 60;
+const EDGE_FILL_TTL_SECONDS = 24 * 60 * 60;   // Resultado que veio do KV volta para a borda só por um dia
 const FOUND_TTL_SECONDS = 30 * 24 * 60 * 60;
 const NOT_FOUND_TTL_SECONDS = 7 * 24 * 60 * 60;
 const MAX_TITLE_LENGTH = 120;
@@ -28,6 +29,35 @@ const RETRY_DELAY_MS = 300;
 const UPSTREAM_TIMEOUT_MS = 10_000;  // Twitch, IGDB ou GG.deals travados não seguram o app esperando
 
 class UpstreamError extends Error {}
+
+// O KV do plano Free tem cota diária (100 mil leituras e mil gravações) e, esgotada, lança erro. A cache da borda
+// (caches.default) não tem essa cota: fica na frente do KV, então a maioria das consultas nem chega nele, e uma falha do KV
+// vira "sem cache" em vez de derrubar a resposta.
+const edgeKey = (key) => new Request(`https://cache.lazulium/kv/${encodeURIComponent(key)}`);
+
+async function edgeRead(key) {
+  const hit = await globalThis.caches?.default?.match(edgeKey(key)).catch(() => undefined);
+  return hit ? hit.text().catch(() => undefined) : undefined;
+}
+
+async function edgeWrite(key, text, ttl) {
+  const edge = globalThis.caches?.default;
+  if (!edge) return;
+  await edge.put(edgeKey(key), new Response(text, { headers: { 'Cache-Control': `public, max-age=${ttl}` } })).catch(() => undefined);
+}
+
+const kvRead = (env, key) => env.IGDB_CACHE.get(key).catch(() => null);
+const kvWrite = (env, key, text, ttl) => env.IGDB_CACHE.put(key, text, { expirationTtl: ttl }).catch(() => undefined);
+
+async function readStored(env, key) {
+  const fromEdge = await edgeRead(key);
+  if (fromEdge) return fromEdge;
+  const fromKv = await kvRead(env, key);
+  if (fromKv) await edgeWrite(key, fromKv, EDGE_FILL_TTL_SECONDS);
+  return fromKv;
+}
+
+const writeStored = (env, key, text, ttl) => Promise.all([kvWrite(env, key, text, ttl), edgeWrite(key, text, ttl)]);
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
@@ -68,12 +98,12 @@ async function requestToken(env) {
   if (!data.access_token) throw new UpstreamError('Twitch não devolveu token');
   // A Twitch mantém só 25 tokens ativos: guardar evita gerar um a cada requisição
   const ttl = Math.max(60, (data.expires_in ?? 0) - TOKEN_MARGIN_SECONDS);
-  await env.IGDB_CACHE.put(TOKEN_KEY, data.access_token, { expirationTtl: ttl });
+  await writeStored(env, TOKEN_KEY, data.access_token, ttl);
   return data.access_token;
 }
 
 async function igdb(env, endpoint, body, state) {
-  state.token ??= (await env.IGDB_CACHE.get(TOKEN_KEY)) ?? (await requestToken(env));
+  state.token ??= (await readStored(env, TOKEN_KEY)) ?? (await requestToken(env));
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(`${IGDB_BASE}/${endpoint}`, {
       method: 'POST',
@@ -262,11 +292,17 @@ function parseSteamOrTitle(url) {
 }
 
 async function cached(env, key, load) {
-  const hit = await env.IGDB_CACHE.get(key, 'json');
-  if (hit) return hit;
+  const stored = await readStored(env, key);
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {
+      // Entrada corrompida: consulta de novo
+    }
+  }
   const result = await load();
   // Cota de escrita esgotada não pode derrubar uma resposta que já está pronta
-  await env.IGDB_CACHE.put(key, JSON.stringify(result), { expirationTtl: result.found ? FOUND_TTL_SECONDS : NOT_FOUND_TTL_SECONDS }).catch(() => undefined);
+  await writeStored(env, key, JSON.stringify(result), result.found ? FOUND_TTL_SECONDS : NOT_FOUND_TTL_SECONDS);
   return result;
 }
 
