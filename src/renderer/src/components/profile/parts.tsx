@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Clock } from 'lucide-react';
 import { Game } from '@shared/types/game';
 import { ProfileGame } from '@shared/types/profile';
 import { buttonClass, focusRing } from '../ui';
 import { Stars, StatusDot } from '../GameLogFields';
 import { GameCover, coverFrame } from '../journal/CoverCard';
 import { formatDay, formatHours, percent, shortDate } from '../journal/format';
+import { PLATFORM_FULL } from '../../utils/platform';
 
 // Com fundo escolhido (data-backdrop na raiz do perfil), o painel deixa de ser caixa: vira um véu preto sem borda nem sombra,
 // a arte passa por trás e a página parece uma coisa só. Escuro o bastante para ler sobre imagem ou vídeo claro.
@@ -60,24 +62,47 @@ export const AchievementTile: React.FC<{ name: string; gameTitle: string; iconUr
   );
 };
 
+const REVIEW_COLLAPSED_CHARS = 360; // Acima disso a resenha começa recolhida, com "Ler mais"
+
+// Resenha no formato de publicação: capa à esquerda; nome e data; nota, horas, status e plataforma; e o texto que abre e fecha
 export const ReviewCard: React.FC<{ game: Game; onOpen: () => void }> = ({ game, onOpen }) => {
+  const [expanded, setExpanded] = useState(false);
   const date = game.log?.finishedOn ?? game.lastPlayedAt?.slice(0, 10);
+  const review = game.log?.review?.trim();
+  const long = !!review && (review.length > REVIEW_COLLAPSED_CHARS || review.split('\n').length > 5);
   return (
-    <article className="grid grid-cols-[88px_minmax(0,1fr)] gap-4 py-4 first:pt-0 last:pb-0 border-b border-slate-800/80 last:border-b-0">
-      <button type="button" onClick={onOpen} title={game.title} className={`${coverFrame} hover:border-slate-500 ${focusRing}`}>
+    <article className="grid grid-cols-[72px_minmax(0,1fr)] sm:grid-cols-[96px_minmax(0,1fr)] gap-x-4 py-4 first:pt-0 last:pb-0 border-b border-slate-800/80 last:border-b-0">
+      <button type="button" onClick={onOpen} title={game.title} className={`${coverFrame} self-start hover:border-slate-500 ${focusRing}`}>
         <GameCover src={game.media?.coverUrl} title={game.title} gameId={game.id} />
       </button>
       <div className="min-w-0">
-        <div className="flex items-baseline justify-between gap-3">
-          <h3 className="min-w-0 text-base text-white truncate">{game.title}</h3>
-          {date && <span className="flex-shrink-0 text-xs text-slate-500">{formatDay(date, 'long')}</span>}
+        <div className="flex items-baseline gap-2 min-w-0">
+          <button type="button" onClick={onOpen} className={`min-w-0 truncate text-left text-[15px] font-bold text-white hover:underline rounded-sm ${focusRing}`}>
+            {game.title}
+          </button>
+          {date && <span className="flex-shrink-0 text-sm text-slate-500">· {formatDay(date, 'long')}</span>}
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-          {!!game.log?.rating && <Stars value={game.log.rating} size="w-4 h-4" />}
+        <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-slate-400">
+          {!!game.log?.rating && <Stars value={game.log.rating} size="w-3.5 h-3.5" />}
+          {(game.totalPlaytimeSeconds ?? 0) > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-slate-500" />
+              {formatHours(game.totalPlaytimeSeconds)}
+            </span>
+          )}
           <StatusDot status={game.log?.status} />
-          <span>{formatHours(game.totalPlaytimeSeconds)}</span>
+          <span className="truncate">em {game.manualPlatform ?? PLATFORM_FULL[game.platform]}</span>
         </div>
-        {game.log?.review?.trim() && <p className="mt-2.5 text-sm leading-relaxed text-slate-300 line-clamp-4 whitespace-pre-wrap select-text">{game.log.review}</p>}
+        {review && (
+          <>
+            <p className={`mt-3 text-[15px] leading-relaxed text-slate-300 whitespace-pre-wrap break-words select-text ${expanded ? '' : 'line-clamp-5'}`}>{review}</p>
+            {long && (
+              <button type="button" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded} className={`mt-1 text-[15px] text-indigo-300 hover:underline rounded-sm ${focusRing}`}>
+                {expanded ? 'Ler menos' : 'Ler mais'}
+              </button>
+            )}
+          </>
+        )}
       </div>
     </article>
   );

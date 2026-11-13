@@ -10,6 +10,7 @@ import { StarRating, Stars, StatusDot, StatusPill } from './GameLogFields';
 import { Select, SelectOption } from './Select';
 import { Button, EmptyState, Notice, focusRing, inputClass, segmentClass, segmentedClass } from './ui';
 import { CoverCard, GameCover } from './journal/CoverCard';
+import { ReviewCard } from './profile/parts';
 import { PageHeader, StatStrip, emptyBox, pageClass } from './journal/PageLayout';
 import { StatusChips, StatusFilter, countByStatus, matchesStatus } from './journal/StatusChips';
 import { formatDay, formatHours, formatNumber } from './journal/format';
@@ -178,14 +179,14 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
 
   // Por data vira um diário de verdade: separado por mês
   const groups = useMemo(() => {
-    if (sort !== 'recent') return [{ label: '', games: visible }];
+    if (sort !== 'recent' || reviewFilter === 'review') return [{ label: '', games: visible }];
     const byMonth = new Map<string, Game[]>();
     for (const game of visible) {
       const label = monthLabel(entryDate(game));
       byMonth.set(label, [...(byMonth.get(label) ?? []), game]);
     }
     return [...byMonth].map(([label, list]) => ({ label, games: list }));
-  }, [visible, sort]);
+  }, [visible, sort, reviewFilter]);
 
   const saveLog = async (game: Game, changes: Partial<GameLog>) => {
     try {
@@ -323,7 +324,14 @@ export const JournalPage: React.FC<JournalPageProps> = ({ onOpenGame, onEditPlay
                     <span className="flex-1 h-px bg-slate-800" />
                   </h2>
                 )}
-                {view === 'grid' ? (
+                {reviewFilter === 'review' ? (
+                  // Só resenhas: vira uma lista de publicações, com o texto à mostra
+                  <div className="rounded-xl bg-slate-900/40 border border-slate-800/80 px-5 py-5">
+                    {group.games.map((game) => (
+                      <ReviewCard key={game.id} game={game} onOpen={() => onOpenGame(game)} />
+                    ))}
+                  </div>
+                ) : view === 'grid' ? (
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-4 gap-y-6">
                     {group.games.map((game, index) => (
                       <CoverCard
