@@ -4,6 +4,14 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.7.1 — 13 de novembro de 2026
+
+### Novidades
+
+- **Resenhas e notas separadas no Diário.** Um seletor novo (*Tudo*, *Com resenha*, *Só nota*) mostra só os jogos em que você escreveu uma resenha ou só os que têm nota sem texto, com a contagem de cada um. As capas com resenha ganham o selo *Resenha*.
+
+---
+
 ## 2.7.0 — 13 de novembro de 2026
 
 O Diário aprende a receber o que você já registrou em outros lugares, ganha um status para jogos sem fim e o perfil dos amigos vira uma página inteira.
