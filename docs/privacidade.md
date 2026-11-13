@@ -1,6 +1,6 @@
 # Política de privacidade do Lazulium
 
-*Última atualização: 13 de novembro de 2026 · vale para o Lazulium 2.5.1 e posteriores*
+*Última atualização: 13 de novembro de 2026 · vale para o Lazulium 2.6.0 e posteriores*
 
 O Lazulium é um app para Windows que junta seus jogos de PC numa biblioteca só. Quem faz e responde por esta política é Lazuli Fool, de forma independente. Contato: **yungloof06@gmail.com**.
 
@@ -29,7 +29,7 @@ Desinstalar não apaga essa pasta, para o histórico não se perder. Para apagar
 
 Para achar os jogos e contar o tempo, o app lê (sem alterar):
 
-- as pastas e arquivos de configuração e instalação da Steam, Epic Games, GOG Galaxy, Battle.net, EA App, Ubisoft Connect, Riot Games, Xbox / Microsoft Store e dos emuladores, incluindo as contas da Steam que já entraram neste PC (nome público e SteamID, para o login de um clique) e as capturas da Steam e da Xbox Game Bar;
+- as pastas e arquivos de configuração e instalação da Steam, Epic Games, GOG Galaxy, Battle.net, EA App, Ubisoft Connect, Riot Games, Xbox / Microsoft Store e dos emuladores, incluindo as contas da Steam que já entraram neste PC (nome público e SteamID, para o login de um clique), as coleções locais da Steam (`cloudstorage`) quando você pedir para importar categorias e as capturas da Steam e da Xbox Game Bar;
 - a lista de programas abertos, para saber quando um jogo da sua biblioteca começou e terminou, inclusive quando você o abre por outro launcher (dá para desligar em *Configurações → Comportamento*). O Lazulium só compara o caminho dos programas com as pastas dos seus jogos; nada disso sai do PC;
 - há quanto tempo não há uso do teclado, mouse ou controle, para descontar o tempo ausente. O Lazulium não registra o que você digita nem onde clica;
 - as pastas de saves dos jogos, só se você ligar o backup (na tela de boas-vindas ou em Configurações) ou escolher uma pasta.
@@ -45,7 +45,7 @@ O Lazulium só se conecta a estes serviços (cada um tem a própria política de
 | **Steam** (Valve) | Ao conectar sua conta e ao atualizar conquistas, perfil, desejos, nomes e preços | Seu SteamID (identificador público da conta) e os códigos (AppID) dos jogos. O login pelo navegador acontece no site da Steam. Se você informar uma chave da Steam Web API nas opções avançadas, ela vai junto nas consultas à Steam. |
 | **SteamGridDB** (opcional) | Se você conectar a conta, ao buscar capas, logos e ícones | O nome ou o código Steam do jogo e a sua chave de API do SteamGridDB. |
 | **RetroAchievements** | Ao buscar conquistas de jogos de emulador | Seu nome de usuário, sua chave de API do RetroAchievements e uma "impressão digital" (hash MD5) ou o nome do jogo, para reconhecê-lo. O arquivo do jogo nunca é enviado. |
-| **Servidor do Lazulium** (Cloudflare Workers) | Tempo para zerar, busca de jogos ao registrar, capas de jogos fora da Steam (sem conta do SteamGridDB) e preços em outras lojas | O nome e/ou código Steam do jogo, o texto que você digitou na busca e os códigos Steam da sua lista de desejos. Nada que identifique você. O servidor consulta o IGDB (Twitch) e o GG.deals com credenciais próprias e guarda as respostas por jogo (até 30 dias), sem relação com quem perguntou. A Cloudflare recebe o seu endereço IP, como qualquer site; o Lazulium o usa só para limitar abusos e não o guarda. |
+| **Servidor do Lazulium** (Cloudflare Workers) | Gênero, ano de lançamento e série dos jogos, tempo para zerar, busca de jogos ao registrar, capas de jogos fora da Steam (sem conta do SteamGridDB) e preços em outras lojas | O nome e/ou código Steam do jogo, o texto que você digitou na busca e os códigos Steam da sua lista de desejos. Nada que identifique você. O servidor consulta o IGDB (Twitch) e o GG.deals com credenciais próprias e guarda as respostas por jogo (até 30 dias), sem relação com quem perguntou. A Cloudflare recebe o seu endereço IP, como qualquer site; o Lazulium o usa só para limitar abusos e não o guarda. |
 | **Epic Games** (opcional) | Só se você clicar em *Entrar com a Epic*, e depois a cada 6 horas | O login acontece no site da Epic, numa janela do Lazulium. Depois, o Lazulium usa a autorização da sua conta para pedir à própria Epic as horas de cada jogo. A autorização fica cifrada no seu PC e não vai para nenhum outro lugar. |
 | **Conta Lazulium** (Cloudflare Workers + D1 e VPS Oracle) | Só se você entrar na conta Lazulium (aba *Amigos*) | O que aparece para os seus amigos (e, se usar vídeo ou GIF acima de 1 MB no fundo, o arquivo enviado vai para a VPS do Lazulium). Veja a seção 4. |
 | **Google** (Drive) | Só se você clicar em *Entrar com Google* | Veja a seção 3. |

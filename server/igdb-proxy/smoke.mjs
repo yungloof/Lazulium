@@ -38,5 +38,16 @@ for (const [label, query, check] of checks) {
   console.log(`${passed ? 'ok  ' : 'FALHOU'} ${label}: status ${result.status}`);
 }
 
+for (const [label, query, verify] of [
+  ['Metadata: Portal 2 (Steam)', 'steamAppId=620', (b) => b?.found && b.year === 2011 && b.series === 'Portal' && Array.isArray(b.genres) && b.genres.length > 0],
+  ['Metadata: Hollow Knight (Título)', `title=${encodeURIComponent('Hollow Knight')}`, (b) => b?.found && b.year === 2017 && Array.isArray(b.genres) && b.genres.includes('Indie')]
+]) {
+  const res = await fetch(`${base}/v1/metadata?${query}`, { signal: AbortSignal.timeout(20000) });
+  const body = await res.json().catch(() => null);
+  const ok = res.status === 200 && verify(body);
+  if (!ok) failures.push(label);
+  console.log(`${ok ? 'ok  ' : 'FALHOU'} ${label}: ${ok ? `${body.name} (${body.year}) · ${body.series ?? '-'} · ${body.genres.join(', ')}` : `status ${res.status} ${JSON.stringify(body)}`}`);
+}
+
 console.log(failures.length ? `\n${failures.length} falha(s).` : '\nTudo certo.');
 process.exit(failures.length ? 1 : 0);

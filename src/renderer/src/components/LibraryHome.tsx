@@ -8,7 +8,7 @@ import { pickSuggestion } from '../utils/suggestGame';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { GRID_DENSITY, GridDensity, LibrarySort, LibraryStatusFilter, useLibraryViewStore } from '../stores/useLibraryViewStore';
 import { useUiStore } from '../stores/useUiStore';
-import { categoryIdOf, sortLibrary, useFilteredGames, useVisibleFilters } from '../hooks/useLibraryGames';
+import { categoryIdOf, LIBRARY_FILTERS, sortLibrary, useFilteredGames, useVisibleFilters } from '../hooks/useLibraryGames';
 import { useGridColumns } from '../hooks/useGridColumns';
 import { formatLastPlayed, formatPlaytimeShort } from '../utils/format';
 import { launchGame, openContextMenu, openGame, scanLibraries, skipSuggestion } from '../utils/gameActions';
@@ -21,8 +21,47 @@ const SORT_OPTIONS: SelectOption<LibrarySort>[] = [
   { value: 'recent', label: 'Jogados por último' },
   { value: 'hours', label: 'Mais jogados' },
   { value: 'added', label: 'Adicionados por último' },
-  { value: 'rating', label: 'Melhor nota' }
+  { value: 'rating', label: 'Melhor nota' },
+  { value: 'released', label: 'Lançamento' }
 ];
+
+const SIDEBAR_PLATFORM_IDS = new Set(LIBRARY_FILTERS.slice(2).map((f) => f.id));
+
+function buildYearOptions(games: Game[], current: string): SelectOption<string>[] {
+  const years = new Set<number>();
+  const decades = new Set<number>();
+  let hasOlder = false;
+  for (const g of games) {
+    if (g.releaseYear === undefined) continue;
+    years.add(g.releaseYear);
+    if (g.releaseYear < 1990) hasOlder = true;
+    else decades.add(Math.floor(g.releaseYear / 10) * 10);
+  }
+  const opts: SelectOption<string>[] = [{ value: 'all', label: 'Todos os anos' }];
+  for (const d of [...decades].sort((a, b) => b - a)) {
+    opts.push({ value: `${d}s`, label: `Anos ${d}` });
+  }
+  if (hasOlder) opts.push({ value: 'older', label: 'Antes de 1990' });
+  for (const y of [...years].sort((a, b) => b - a)) {
+    opts.push({ value: String(y), label: String(y) });
+  }
+  if (current !== 'all' && !opts.some((o) => o.value === current)) {
+    opts.push({ value: current, label: current === 'older' ? 'Antes de 1990' : current.endsWith('s') ? `Anos ${current.slice(0, -1)}` : current });
+  }
+  return opts;
+}
+
+function buildTextOptions(values: (string | undefined)[], allLabel: string, current: string): SelectOption<string>[] {
+  const counts = new Map<string, string>();
+  for (const raw of values) {
+    if (!raw) continue;
+    const key = raw.toLowerCase();
+    if (!counts.has(key)) counts.set(key, raw);
+  }
+  const sorted = [...counts.values()].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+  if (current !== 'all' && !counts.has(current.toLowerCase())) sorted.unshift(current);
+  return [{ value: 'all', label: allLabel }, ...sorted.map((v) => ({ value: v, label: v }))];
+}
 
 const STATUS_OPTIONS: SelectOption<LibraryStatusFilter>[] = [
   { value: 'all', label: 'Todos os status' },
@@ -211,19 +250,94 @@ const NowPlaying: React.FC<{ games: Game[] }> = ({ games }) => {
 
 // --- Grade de todos os jogos ---
 
-const GridToolbar: React.FC = () => {
+const GridToolbar: React.FC<{ sourceGames: Game[] }> = ({ sourceGames }) => {
+  const activeFilter = useLibraryStore((s) => s.activeFilter);
   const sort = useLibraryViewStore((s) => s.sort);
   const setSort = useLibraryViewStore((s) => s.setSort);
   const statusFilter = useLibraryViewStore((s) => s.statusFilter);
   const setStatusFilter = useLibraryViewStore((s) => s.setStatusFilter);
+  const platformFilter = useLibraryViewStore((s) => s.platformFilter);
+  const setPlatformFilter = useLibraryViewStore((s) => s.setPlatformFilter);
+  const genreFilter = useLibraryViewStore((s) => s.genreFilter);
+  const setGenreFilter = useLibraryViewStore((s) => s.setGenreFilter);
+  const seriesFilter = useLibraryViewStore((s) => s.seriesFilter);
+  const setSeriesFilter = useLibraryViewStore((s) => s.setSeriesFilter);
+  const yearFilter = useLibraryViewStore((s) => s.yearFilter);
+  const setYearFilter = useLibraryViewStore((s) => s.setYearFilter);
+  const resetAttributeFilters = useLibraryViewStore((s) => s.resetAttributeFilters);
   const density = useLibraryViewStore((s) => s.density);
   const setDensity = useLibraryViewStore((s) => s.setDensity);
+
+  const isSidebarPlatform = SIDEBAR_PLATFORM_IDS.has(activeFilter);
+  const effectivePlatform = isSidebarPlatform ? 'all' : platformFilter;
+
+  const platformOptions = useMemo(() => {
+    const present = new Set(sourceGames.map((g) => g.platform));
+    const list = LIBRARY_FILTERS.slice(2)
+      .filter((f) => present.has(f.id as Game['platform']) || f.id === effectivePlatform)
+      .map((f) => ({ value: f.id, label: f.label }));
+    return [{ value: 'all', label: 'Todas as plataformas' }, ...list];
+  }, [sourceGames, effectivePlatform]);
+
+  const genreOptions = useMemo(
+    () => buildTextOptions(sourceGames.flatMap((g) => g.genres ?? []), 'Todos os gêneros', genreFilter),
+    [sourceGames, genreFilter]
+  );
+  const seriesOptions = useMemo(
+    () => buildTextOptions(sourceGames.map((g) => g.series), 'Todas as séries', seriesFilter),
+    [sourceGames, seriesFilter]
+  );
+  const yearOptions = useMemo(() => buildYearOptions(sourceGames, yearFilter), [sourceGames, yearFilter]);
+
+  const hasAttributeFilter =
+    statusFilter !== 'all' || effectivePlatform !== 'all' || genreFilter !== 'all' || seriesFilter !== 'all' || yearFilter !== 'all';
+
   return (
     <>
+      {!isSidebarPlatform && platformOptions.length > 2 && (
+        <Select
+          value={effectivePlatform}
+          options={platformOptions}
+          onChange={(v) => setPlatformFilter(v as 'all' | Game['platform'])}
+          ariaLabel="Filtrar por plataforma"
+          className={compactSelectClass}
+        >
+          {platformOptions.find((o) => o.value === effectivePlatform)?.label}
+          <ChevronDown className="w-3 h-3 text-slate-400" />
+        </Select>
+      )}
       <Select value={statusFilter} options={STATUS_OPTIONS} onChange={setStatusFilter} ariaLabel="Filtrar por status" className={compactSelectClass}>
         {STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}
         <ChevronDown className="w-3 h-3 text-slate-400" />
       </Select>
+      {genreOptions.length > 1 && (
+        <Select value={genreFilter} options={genreOptions} onChange={setGenreFilter} ariaLabel="Filtrar por gênero" className={compactSelectClass}>
+          {genreOptions.find((o) => o.value === genreFilter)?.label}
+          <ChevronDown className="w-3 h-3 text-slate-400" />
+        </Select>
+      )}
+      {seriesOptions.length > 1 && (
+        <Select value={seriesFilter} options={seriesOptions} onChange={setSeriesFilter} ariaLabel="Filtrar por série" className={compactSelectClass}>
+          {seriesOptions.find((o) => o.value === seriesFilter)?.label}
+          <ChevronDown className="w-3 h-3 text-slate-400" />
+        </Select>
+      )}
+      {yearOptions.length > 1 && (
+        <Select value={yearFilter} options={yearOptions} onChange={setYearFilter} ariaLabel="Filtrar por ano" className={compactSelectClass}>
+          {yearOptions.find((o) => o.value === yearFilter)?.label}
+          <ChevronDown className="w-3 h-3 text-slate-400" />
+        </Select>
+      )}
+      {hasAttributeFilter && (
+        <button
+          type="button"
+          onClick={resetAttributeFilters}
+          title="Limpar filtros combinados"
+          className={`${compactSelectClass} !text-indigo-300 hover:!text-white`}
+        >
+          <FilterX className="w-3 h-3" /> Limpar
+        </button>
+      )}
       <Select value={sort} options={SORT_OPTIONS} onChange={setSort} ariaLabel="Ordenar a biblioteca" className={compactSelectClass}>
         {SORT_OPTIONS.find((o) => o.value === sort)?.label}
         <ChevronDown className="w-3 h-3 text-slate-400" />
@@ -314,14 +428,24 @@ export const LibraryHome: React.FC = () => {
   const searchQuery = useLibraryStore((s) => s.searchQuery);
   const sort = useLibraryViewStore((s) => s.sort);
   const statusFilter = useLibraryViewStore((s) => s.statusFilter);
+  const platformFilter = useLibraryViewStore((s) => s.platformFilter);
+  const genreFilter = useLibraryViewStore((s) => s.genreFilter);
+  const seriesFilter = useLibraryViewStore((s) => s.seriesFilter);
+  const yearFilter = useLibraryViewStore((s) => s.yearFilter);
   const density = useLibraryViewStore((s) => s.density);
   // A grade acompanha a digitação da busca sem travar o campo
   const deferredQuery = useDeferredValue(searchQuery);
   const filtered = useFilteredGames(deferredQuery);
-  const games = useMemo(() => sortLibrary(filtered, sort, statusFilter), [filtered, sort, statusFilter]);
-  const isFiltered = activeFilter !== 'all' || !!deferredQuery.trim() || statusFilter !== 'all';
+  const effectivePlatform = SIDEBAR_PLATFORM_IDS.has(activeFilter) ? 'all' : platformFilter;
+  const games = useMemo(
+    () => sortLibrary(filtered, sort, statusFilter, { platform: effectivePlatform, genre: genreFilter, series: seriesFilter, year: yearFilter }),
+    [filtered, sort, statusFilter, effectivePlatform, genreFilter, seriesFilter, yearFilter]
+  );
+  const hasAttributeFilter =
+    statusFilter !== 'all' || effectivePlatform !== 'all' || genreFilter !== 'all' || seriesFilter !== 'all' || yearFilter !== 'all';
+  const isFiltered = activeFilter !== 'all' || !!deferredQuery.trim() || hasAttributeFilter;
   const filterLabel = useVisibleFilters().find((f) => f.id === activeFilter)?.label;
-  const emptyCategory = !!categoryIdOf(activeFilter) && filtered.length === 0 && !deferredQuery.trim();
+  const emptyCategory = !!categoryIdOf(activeFilter) && filtered.length === 0 && !deferredQuery.trim() && !hasAttributeFilter;
 
   const recent = useMemo(
     () =>
@@ -347,7 +471,7 @@ export const LibraryHome: React.FC = () => {
     const library = useLibraryStore.getState();
     library.setSearchQuery('');
     library.setActiveFilter('all');
-    useLibraryViewStore.getState().setStatusFilter('all');
+    useLibraryViewStore.getState().resetAttributeFilters();
   };
 
   const { minWidth, gap } = GRID_DENSITY[density];
@@ -363,7 +487,7 @@ export const LibraryHome: React.FC = () => {
           icon={isFiltered ? Search : Layers}
           title={deferredQuery.trim() ? `Resultados para “${deferredQuery.trim()}”` : activeFilter !== 'all' && filterLabel ? filterLabel : isFiltered ? 'Resultados' : 'Todos os jogos'}
           count={games.length}
-          actions={<GridToolbar />}
+          actions={<GridToolbar sourceGames={filtered} />}
         />
 
         {games.length > 0 ? (

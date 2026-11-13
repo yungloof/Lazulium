@@ -59,15 +59,18 @@ export const IPC_CHANNELS = {
   CATEGORIES_GET: 'categories:get',
   CATEGORIES_CREATE: 'categories:create',
   CATEGORIES_RENAME: 'categories:rename',
+  CATEGORIES_UPDATE_RULE: 'categories:update-rule',
   CATEGORIES_DELETE: 'categories:delete',
   CATEGORIES_REORDER: 'categories:reorder',
   CATEGORIES_SET_GAMES: 'categories:set-games',
+  CATEGORIES_IMPORT_STEAM: 'categories:import-steam',
 
   // SteamGridDB & Media Metadata
   METADATA_FETCH_ASSETS: 'metadata:fetch-assets',
   METADATA_SET_CUSTOM_ASSET: 'metadata:set-custom-asset',
   METADATA_TEST_API_KEY: 'metadata:test-api-key',
   METADATA_FETCH_MISSING: 'metadata:fetch-missing',
+  METADATA_FETCH_GAME_INFO: 'metadata:fetch-game-info',
   METADATA_REPORT_BROKEN: 'metadata:report-broken',
   LIBRARY_GAME_UPDATED: 'library:game-updated',
 

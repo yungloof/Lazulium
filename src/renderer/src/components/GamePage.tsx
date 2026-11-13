@@ -26,6 +26,7 @@ import { GameStats } from './GameStats';
 import { GameLogCard } from './GameLogCard';
 import { LOG_STATUS } from './GameLogFields';
 import { useLibraryStore } from '../stores/useLibraryStore';
+import { useLibraryViewStore } from '../stores/useLibraryViewStore';
 import { GameModalKind, useUiStore } from '../stores/useUiStore';
 import { formatLastPlayed, formatPlaytimeLong } from '../utils/format';
 import { PLATFORM_FULL } from '../utils/platform';
@@ -144,6 +145,30 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
     };
   }, [game.id, game.title]);
 
+  useEffect(() => {
+    let cancelled = false;
+    window.electronAPI
+      ?.fetchGameMetadata(game.id)
+      .then((updated) => {
+        if (!cancelled && updated) useLibraryStore.getState().upsertGameLocal(updated);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [game.id, game.title]);
+
+  const filterInLibrary = (apply: (view: ReturnType<typeof useLibraryViewStore.getState>) => void) => {
+    const library = useLibraryStore.getState();
+    const view = useLibraryViewStore.getState();
+    library.setActiveFilter('all');
+    library.setSearchQuery('');
+    view.setStatusFilter('all');
+    view.resetAttributeFilters();
+    apply(view);
+    useUiStore.getState().goHome();
+  };
+
   const heroUrl = !heroFailed ? game.media?.heroUrl : undefined;
   const logoUrl = !logoFailed ? game.media?.logoUrl : undefined;
   const hasAchievements = !!achievements && achievements.total > 0;
@@ -201,6 +226,37 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
           )}
           <div className="flex flex-wrap items-center gap-1.5">
             <span className={`${chipClass} bg-black/45 border-white/10 backdrop-blur-sm`}>{platformText}</span>
+            {game.releaseYear && (
+              <button
+                type="button"
+                onClick={() => filterInLibrary((view) => view.setYearFilter(String(game.releaseYear)))}
+                title={`Filtrar biblioteca pelo ano ${game.releaseYear}`}
+                className={`${chipClass} bg-black/45 border-white/10 backdrop-blur-sm hover:bg-black/65 hover:border-white/25 transition-colors cursor-pointer ${focusRing}`}
+              >
+                {game.releaseYear}
+              </button>
+            )}
+            {game.series && (
+              <button
+                type="button"
+                onClick={() => filterInLibrary((view) => view.setSeriesFilter(game.series!))}
+                title={`Ver jogos da série ${game.series}`}
+                className={`${chipClass} bg-black/45 border-white/10 backdrop-blur-sm hover:bg-black/65 hover:border-white/25 transition-colors cursor-pointer ${focusRing}`}
+              >
+                {game.series}
+              </button>
+            )}
+            {(game.genres ?? []).slice(0, 3).map((genre) => (
+              <button
+                key={genre}
+                type="button"
+                onClick={() => filterInLibrary((view) => view.setGenreFilter(genre))}
+                title={`Filtrar biblioteca por ${genre}`}
+                className={`${chipClass} bg-black/45 border-white/10 backdrop-blur-sm hover:bg-black/65 hover:border-white/25 transition-colors cursor-pointer ${focusRing}`}
+              >
+                {genre}
+              </button>
+            ))}
             {status && (
               <span className={`${chipClass} bg-black/45 border-white/10 backdrop-blur-sm`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} /> {status.label}
@@ -452,6 +508,53 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
                   {game.isInstalled === false && !game.manualEntry && ' · não instalado'}
                 </dd>
               </div>
+              {game.series && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-slate-400">Série</dt>
+                  <dd className="text-right">
+                    <button
+                      type="button"
+                      onClick={() => filterInLibrary((view) => view.setSeriesFilter(game.series!))}
+                      className={`text-slate-200 hover:text-white hover:underline rounded-sm ${focusRing}`}
+                    >
+                      {game.series}
+                    </button>
+                  </dd>
+                </div>
+              )}
+              {game.releaseYear && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-slate-400">Lançamento</dt>
+                  <dd className="text-right">
+                    <button
+                      type="button"
+                      onClick={() => filterInLibrary((view) => view.setYearFilter(String(game.releaseYear)))}
+                      className={`text-slate-200 hover:text-white hover:underline tabular-nums rounded-sm ${focusRing}`}
+                    >
+                      {game.releaseYear}
+                    </button>
+                  </dd>
+                </div>
+              )}
+              {game.genres && game.genres.length > 0 && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-slate-400 flex-shrink-0">Gêneros</dt>
+                  <dd className="text-slate-200 text-right">
+                    {game.genres.map((genre, index) => (
+                      <React.Fragment key={genre}>
+                        {index > 0 && ', '}
+                        <button
+                          type="button"
+                          onClick={() => filterInLibrary((view) => view.setGenreFilter(genre))}
+                          className={`hover:text-white hover:underline rounded-sm ${focusRing}`}
+                        >
+                          {genre}
+                        </button>
+                      </React.Fragment>
+                    ))}
+                  </dd>
+                </div>
+              )}
               {game.installPath && (
                 <div className="flex justify-between gap-3">
                   <dt className="text-slate-400 flex-shrink-0 flex items-center gap-1">

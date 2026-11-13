@@ -1,6 +1,6 @@
 import { EmulatorConfig, Game, GameLog, GamePlatform, GameSearchResult, PlaytimeSession, GamePlayLength } from './game';
 import { GameList, GameListInput } from './lists';
-import { GameCategory } from './categories';
+import { CategoryRule, GameCategory, SteamCollectionsImportResult } from './categories';
 import { WishlistState } from './wishlist';
 import { Achievement, GameAchievements } from './achievements';
 import { AccountService, AccountsStatus, SteamLocalAccount } from './accounts';
@@ -161,11 +161,13 @@ export interface ElectronAPI {
   deleteGameList: (id: string) => Promise<void>;
   // Categorias da biblioteca: toda mudança devolve a lista inteira, já na ordem
   getGameCategories: () => Promise<GameCategory[]>;
-  createGameCategory: (name: string, gameIds?: string[]) => Promise<GameCategory[]>;
+  createGameCategory: (name: string, gameIds?: string[], rule?: CategoryRule) => Promise<GameCategory[]>;
   renameGameCategory: (id: string, name: string) => Promise<GameCategory[]>;
+  updateGameCategoryRule: (id: string, rule: CategoryRule) => Promise<GameCategory[]>;
   deleteGameCategory: (id: string) => Promise<GameCategory[]>;
   reorderGameCategories: (ids: string[]) => Promise<GameCategory[]>;
   setGameCategoryGames: (id: string, gameIds: string[], member: boolean) => Promise<GameCategory[]>;
+  importSteamCollections: () => Promise<SteamCollectionsImportResult>;
   exportJournal: () => Promise<string | null>;                 // Caminho salvo (null se cancelado)
   setPlaytime: (gameId: string, totalSeconds: number, lastPlayedOn?: string) => Promise<Game>;   // Ajuste manual (não-Steam)
   onGameStatusChanged: (callback: (status: GameLaunchStatus) => void) => () => void;
@@ -175,6 +177,7 @@ export interface ElectronAPI {
   applyGameAsset: (gameId: string, assetType: MediaAssetType, assetUrl: string) => Promise<Game>;
   testSteamGridDbKey: (apiKey: string) => Promise<ApiKeyTestResult>;
   fetchMissingArtwork: () => Promise<number>;                 // Quantidade de jogos enfileirados
+  fetchGameMetadata: (gameId: string) => Promise<Game | null>;
   reportBrokenArtwork: (gameId: string, assetType: MediaAssetType) => Promise<void>;
   onGameUpdated: (callback: (game: Game) => void) => () => void;
 

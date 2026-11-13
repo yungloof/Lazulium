@@ -95,4 +95,38 @@ describe('categorias da biblioteca', () => {
       ['Multiplayer', ['b', 'c']]
     ]);
   });
+
+  it('cria, edita e persiste categoria dinâmica e bloqueia edição manual de jogos', async () => {
+    const { normalizeCategoryRule } = await import('@shared/utils/categories');
+    expect(normalizeCategoryRule({})).toBeUndefined();
+    expect(normalizeCategoryRule({ yearFrom: 2010, yearTo: 1995, minRating: 6, genres: ['RPG', 'rpg', ''] })).toEqual({
+      yearFrom: 1995,
+      yearTo: 2010,
+      minRating: 5,
+      genres: ['RPG']
+    });
+
+    expect(() => service.createCategory('Vazia', undefined, {})).toThrow('pelo menos uma regra');
+
+    const created = service.createCategory('RPGs clássicos', ['a'], {
+      genres: ['RPG'],
+      yearTo: 2005,
+      platforms: ['steam', 'gog']
+    });
+    const dynamicCat = created[0];
+    expect(dynamicCat.gameIds).toEqual([]);
+    expect(dynamicCat.rule).toEqual({ genres: ['RPG'], yearTo: 2005, platforms: ['steam', 'gog'] });
+
+    expect(() => service.setCategoryGames(dynamicCat.id, ['a'], true)).toThrow('regras');
+
+    service.updateCategoryRule(dynamicCat.id, { genres: ['Ação'], favoritesOnly: true });
+    expect(db.getGameCategories()[0].rule).toEqual({ genres: ['Ação'], favoritesOnly: true });
+    expect(() => service.updateCategoryRule(dynamicCat.id, {})).toThrow('pelo menos uma regra');
+
+    db.flush();
+    vi.resetModules();
+    const reopened = (await import('../../src/main/database/db')).db;
+    await reopened.init();
+    expect(reopened.getGameCategories()[0].rule).toEqual({ genres: ['Ação'], favoritesOnly: true });
+  });
 });

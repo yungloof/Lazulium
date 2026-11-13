@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import { GameLogStatus } from '@shared/types/game';
+import { GameLogStatus, GamePlatform } from '@shared/types/game';
 
-// Preferências de exibição da biblioteca (lembradas entre execuções, menos o filtro de status)
+// Preferências de exibição da biblioteca (lembradas entre execuções, menos os filtros da barra)
 
-export type LibrarySort = 'title' | 'recent' | 'hours' | 'added' | 'rating';
+export type LibrarySort = 'title' | 'recent' | 'hours' | 'added' | 'rating' | 'released';
 export type LibraryStatusFilter = 'all' | 'unplayed' | GameLogStatus;
 export type GridDensity = 'compact' | 'normal' | 'large';
 export type SidebarGrouping = 'platform' | 'category';
@@ -13,7 +13,7 @@ const SHOW_REMOVED_KEY = 'lazulium.showRemoved';
 const DENSITY_KEY = 'lazulium.gridDensity';
 const GROUPING_KEY = 'lazulium.sidebarGrouping';
 
-const SORTS: LibrarySort[] = ['title', 'recent', 'hours', 'added', 'rating'];
+const SORTS: LibrarySort[] = ['title', 'recent', 'hours', 'added', 'rating', 'released'];
 const DENSITIES: GridDensity[] = ['compact', 'normal', 'large'];
 
 function read(key: string): string | null {
@@ -35,11 +35,20 @@ function write(key: string, value: string): void {
 interface LibraryViewState {
   sort: LibrarySort;
   statusFilter: LibraryStatusFilter;
+  platformFilter: 'all' | GamePlatform;
+  genreFilter: string;
+  seriesFilter: string;
+  yearFilter: string;
   showRemoved: boolean;
   density: GridDensity;
   sidebarGrouping: SidebarGrouping | null; // null: ainda não escolheu (categorias assim que existir uma)
   setSort: (sort: LibrarySort) => void;
   setStatusFilter: (filter: LibraryStatusFilter) => void;
+  setPlatformFilter: (filter: 'all' | GamePlatform) => void;
+  setGenreFilter: (filter: string) => void;
+  setSeriesFilter: (filter: string) => void;
+  setYearFilter: (filter: string) => void;
+  resetAttributeFilters: () => void;
   setShowRemoved: (show: boolean) => void;
   setDensity: (density: GridDensity) => void;
   setSidebarGrouping: (grouping: SidebarGrouping) => void;
@@ -52,6 +61,10 @@ const savedGrouping = read(GROUPING_KEY);
 export const useLibraryViewStore = create<LibraryViewState>((set) => ({
   sort: savedSort && SORTS.includes(savedSort) ? savedSort : 'title',
   statusFilter: 'all',
+  platformFilter: 'all',
+  genreFilter: 'all',
+  seriesFilter: 'all',
+  yearFilter: 'all',
   showRemoved: read(SHOW_REMOVED_KEY) === 'true',
   density: savedDensity && DENSITIES.includes(savedDensity) ? savedDensity : 'normal',
   setSort: (sort) => {
@@ -59,6 +72,11 @@ export const useLibraryViewStore = create<LibraryViewState>((set) => ({
     set({ sort });
   },
   setStatusFilter: (statusFilter) => set({ statusFilter }),
+  setPlatformFilter: (platformFilter) => set({ platformFilter }),
+  setGenreFilter: (genreFilter) => set({ genreFilter }),
+  setSeriesFilter: (seriesFilter) => set({ seriesFilter }),
+  setYearFilter: (yearFilter) => set({ yearFilter }),
+  resetAttributeFilters: () => set({ statusFilter: 'all', platformFilter: 'all', genreFilter: 'all', seriesFilter: 'all', yearFilter: 'all' }),
   setShowRemoved: (showRemoved) => {
     write(SHOW_REMOVED_KEY, String(showRemoved));
     set({ showRemoved });

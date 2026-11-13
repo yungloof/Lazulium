@@ -7,6 +7,7 @@ import { BackupRecord, GameSaveConfig } from '@shared/types/cloudsync';
 import { ProfileCustom, SteamProfileIdentity } from '@shared/types/profile';
 import { GameList } from '@shared/types/lists';
 import { GameCategory } from '@shared/types/categories';
+import { isGameInCategory } from '@shared/utils/categories';
 import { WishlistItem } from '@shared/types/wishlist';
 import { ScreenshotMove } from '@shared/types/screenshots';
 import { StoredActivity } from '@shared/types/activity';
@@ -596,7 +597,9 @@ export class DatabaseService {
 
   // Está em alguma lista ou categoria: o jogador arrumou este jogo à mão
   isGameOrganized(gameId: string): boolean {
-    return this.getGameCategories().some((c) => c.gameIds.includes(gameId)) || this.getGameLists().some((l) => l.gameIds.includes(gameId));
+    const game = this.getGameById(gameId);
+    const inCategory = game ? this.getGameCategories().some((c) => isGameInCategory(game, c)) : this.getGameCategories().some((c) => c.gameIds.includes(gameId));
+    return inCategory || this.getGameLists().some((l) => l.gameIds.includes(gameId));
   }
 
   getScreenshotMoves(): ScreenshotMove[] {

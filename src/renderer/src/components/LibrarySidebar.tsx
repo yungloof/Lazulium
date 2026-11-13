@@ -1,5 +1,6 @@
 import React, { memo, useDeferredValue, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Gamepad2, Home, Plus, Search, Settings2, Star, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Gamepad2, Home, Plus, Search, Settings2, SlidersHorizontal, Star, X } from 'lucide-react';
+import { isGameInCategory } from '@shared/utils/categories';
 import { Game, GamePlatform } from '@shared/types/game';
 import { Select } from './Select';
 import { useLibraryStore } from '../stores/useLibraryStore';
@@ -31,6 +32,7 @@ interface SidebarGroup {
   label: string;
   games: Game[];
   favorite?: boolean;
+  dynamic?: boolean;                // Categoria com regras automáticas: não aceita jogos arrastados
   categoryId?: string;              // Grupo de uma categoria do jogador: aceita jogos arrastados
   uncategorized?: boolean;          // Soltar aqui tira o jogo da categoria de onde ele veio
 }
@@ -211,10 +213,12 @@ export const LibrarySidebar: React.FC = () => {
     const showEmpty = activeFilter === 'all' && !searching;
     const categorized = new Set<string>();
     for (const category of categories) {
-      const ids = new Set(category.gameIds);
-      for (const id of ids) categorized.add(id);
-      const list = sorted.filter((g) => ids.has(g.id));
-      if (list.length > 0 || showEmpty) result.push({ key: `category:${category.id}`, label: category.name, games: list, categoryId: category.id });
+      const dynamic = Boolean(category.rule);
+      const list = sorted.filter((g) => isGameInCategory(g, category));
+      for (const g of list) categorized.add(g.id);
+      if (list.length > 0 || showEmpty) {
+        result.push({ key: `category:${category.id}`, label: category.name, games: list, categoryId: category.id, dynamic });
+      }
     }
     const rest = sorted.filter((g) => !categorized.has(g.id));
     if (rest.length > 0) result.push({ key: 'uncategorized', label: UNCATEGORIZED_LABEL, games: rest, uncategorized: true });
@@ -224,6 +228,7 @@ export const LibrarySidebar: React.FC = () => {
   // Soltar numa categoria põe o jogo nela (ele continua nas outras); soltar em "Sem categoria" tira da categoria de onde veio
   const handleDrop = (group: SidebarGroup, e: React.DragEvent) => {
     setDropTarget(null);
+    if (group.dynamic) return;
     const drag = readGameDrag(e);
     if (!drag) return;
     e.preventDefault();
@@ -240,7 +245,7 @@ export const LibrarySidebar: React.FC = () => {
     task?.catch((err) => ui.showNotice({ text: ipcErrorMessage(err), tone: 'warn' }));
   };
 
-  const acceptsDrop = (group: SidebarGroup) => !!group.categoryId || !!group.uncategorized;
+  const acceptsDrop = (group: SidebarGroup) => (!!group.categoryId && !group.dynamic) || !!group.uncategorized;
 
   return (
     <aside
@@ -389,17 +394,22 @@ export const LibrarySidebar: React.FC = () => {
                   >
                     {isCollapsed ? <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />}
                     {group.favorite && <Star className="w-3 h-3 flex-shrink-0 text-amber-400 fill-amber-400" />}
+                    {group.dynamic && <SlidersHorizontal className="w-3 h-3 flex-shrink-0 text-indigo-400" />}
                     <span className="truncate">{group.label}</span>
                     <span className="font-medium text-slate-500 tabular-nums">{group.games.length}</span>
                   </button>
                   {!isCollapsed && group.games.length > 0 && (
                     <div className="space-y-px">
                       {group.games.map((game) => (
-                        <GameRow key={`${group.key}-${game.id}`} game={game} selected={!isHome && game.id === selectedGameId} categoryId={group.categoryId} />
+                        <GameRow key={`${group.key}-${game.id}`} game={game} selected={!isHome && game.id === selectedGameId} categoryId={group.dynamic ? undefined : group.categoryId} />
                       ))}
                     </div>
                   )}
-                  {!isCollapsed && group.games.length === 0 && <p className="px-4 pb-1.5 text-[11px] text-slate-500">Arraste jogos para cá.</p>}
+                  {!isCollapsed && group.games.length === 0 && (
+                    <p className="px-4 pb-1.5 text-[11px] text-slate-500">
+                      {group.dynamic ? 'Nenhum jogo combina com as regras.' : 'Arraste jogos para cá.'}
+                    </p>
+                  )}
                 </section>
               );
             })}

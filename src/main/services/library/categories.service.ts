@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
-import { GameCategory, MAX_CATEGORY_NAME } from '@shared/types/categories';
+import { CategoryRule, GameCategory, MAX_CATEGORY_NAME } from '@shared/types/categories';
+import { normalizeCategoryRule } from '@shared/utils/categories';
 import { db } from '../../database/db';
 
 const MAX_CATEGORIES = 200;
@@ -22,11 +23,24 @@ function find(categories: GameCategory[], id: string): GameCategory {
 const existingGames = (gameIds: unknown): string[] =>
   [...new Set(Array.isArray(gameIds) ? gameIds.filter((id): id is string => typeof id === 'string') : [])].filter((id) => db.getGameById(id));
 
-export function createCategory(name: string, gameIds?: string[]): GameCategory[] {
+export function createCategory(name: string, gameIds?: string[], rule?: CategoryRule): GameCategory[] {
   const categories = db.getGameCategories();
   if (categories.length >= MAX_CATEGORIES) throw new Error(`O limite é de ${MAX_CATEGORIES} categorias.`);
   const now = new Date().toISOString();
+  if (rule !== undefined) {
+    const cleanRule = normalizeCategoryRule(rule);
+    if (!cleanRule) throw new Error('Escolha pelo menos uma regra para a categoria dinâmica.');
+    return db.setGameCategories([...categories, { id: randomUUID(), name: cleanName(name), gameIds: [], rule: cleanRule, createdAt: now, updatedAt: now }]);
+  }
   return db.setGameCategories([...categories, { id: randomUUID(), name: cleanName(name), gameIds: existingGames(gameIds), createdAt: now, updatedAt: now }]);
+}
+
+export function updateCategoryRule(id: string, rule: CategoryRule): GameCategory[] {
+  const categories = db.getGameCategories();
+  const category = find(categories, id);
+  const cleanRule = normalizeCategoryRule(rule);
+  if (!cleanRule) throw new Error('Escolha pelo menos uma regra para a categoria dinâmica.');
+  return db.setGameCategories(categories.map((c) => (c === category ? { ...c, gameIds: [], rule: cleanRule, updatedAt: new Date().toISOString() } : c)));
 }
 
 export function renameCategory(id: string, name: string): GameCategory[] {
@@ -52,6 +66,7 @@ export function reorderCategories(ids: string[]): GameCategory[] {
 export function setCategoryGames(id: string, gameIds: string[], member: boolean): GameCategory[] {
   const categories = db.getGameCategories();
   const category = find(categories, id);
+  if (category.rule) throw new Error('Categorias dinâmicas são preenchidas automaticamente pelas regras.');
   const changing = existingGames(gameIds);
   const next = member ? [...new Set([...category.gameIds, ...changing])] : category.gameIds.filter((gameId) => !changing.includes(gameId));
   if (next.length === category.gameIds.length) return categories;

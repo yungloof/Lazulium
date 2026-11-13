@@ -8,6 +8,7 @@ import { BackupEvent, GameSaveConfig } from '@shared/types/cloudsync';
 import { AccountService } from '@shared/types/accounts';
 import { ProfileCustom, ProfileMediaKind, ProfileWebLink } from '@shared/types/profile';
 import { SocialStatus } from '@shared/types/social';
+import { CategoryRule } from '@shared/types/categories';
 
 const electronAPI: ElectronAPI = {
   // Library & Scanners
@@ -59,11 +60,13 @@ const electronAPI: ElectronAPI = {
   saveGameList: (input: GameListInput) => ipcRenderer.invoke(IPC_CHANNELS.LISTS_SAVE, input),
   deleteGameList: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.LISTS_DELETE, id),
   getGameCategories: () => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_GET),
-  createGameCategory: (name: string, gameIds?: string[]) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_CREATE, name, gameIds),
+  createGameCategory: (name: string, gameIds?: string[], rule?: CategoryRule) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_CREATE, name, gameIds, rule),
   renameGameCategory: (id: string, name: string) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_RENAME, id, name),
+  updateGameCategoryRule: (id: string, rule: CategoryRule) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_UPDATE_RULE, id, rule),
   deleteGameCategory: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_DELETE, id),
   reorderGameCategories: (ids: string[]) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_REORDER, ids),
   setGameCategoryGames: (id: string, gameIds: string[], member: boolean) => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_SET_GAMES, id, gameIds, member),
+  importSteamCollections: () => ipcRenderer.invoke(IPC_CHANNELS.CATEGORIES_IMPORT_STEAM),
   setPlaytime: (gameId: string, totalSeconds: number, lastPlayedOn?: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.GAME_SET_PLAYTIME, gameId, totalSeconds, lastPlayedOn),
   onGameStatusChanged: (callback: (status: GameLaunchStatus) => void) => {
@@ -79,6 +82,7 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.invoke(IPC_CHANNELS.METADATA_SET_CUSTOM_ASSET, gameId, assetType, assetUrl),
   testSteamGridDbKey: (apiKey: string) => ipcRenderer.invoke(IPC_CHANNELS.METADATA_TEST_API_KEY, apiKey),
   fetchMissingArtwork: () => ipcRenderer.invoke(IPC_CHANNELS.METADATA_FETCH_MISSING),
+  fetchGameMetadata: (gameId: string) => ipcRenderer.invoke(IPC_CHANNELS.METADATA_FETCH_GAME_INFO, gameId),
   reportBrokenArtwork: (gameId: string, assetType: MediaAssetType) =>
     ipcRenderer.invoke(IPC_CHANNELS.METADATA_REPORT_BROKEN, gameId, assetType),
   onGameUpdated: (callback: (game: Game) => void) => {

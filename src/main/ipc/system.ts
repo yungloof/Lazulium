@@ -4,6 +4,7 @@ import { db } from '../database/db';
 import { getLogsDir } from '../logger';
 import { applyLoginItem, markRendererReady } from '../app-shell';
 import { artworkService } from '../services/metadata/artwork.service';
+import { gameMetadataService } from '../services/metadata/game-metadata.service';
 import { backupService } from '../services/cloudsync/backup.service';
 import { updaterService } from '../services/updater/updater.service';
 import { DRIVE_SETTING_KEYS } from '../services/cloudsync/google-drive.service';
@@ -74,6 +75,7 @@ export function registerSystemHandlers(getMainWindow: WindowGetter): void {
   // Conexão voltou: refaz buscas de artes e envios ao Drive pendentes
   handle(IPC_CHANNELS.APP_NETWORK_ONLINE, async () => {
     artworkService.enqueueMissing();
+    gameMetadataService.enqueueMissing();
     await backupService.retryPendingUploads();
   });
 

@@ -4,6 +4,19 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.6.0 — 13 de novembro de 2026
+
+Sua biblioteca agora entende o catálogo: traz gênero, ano e série dos jogos, ganha categorias dinâmicas por regras, filtros combinados e importação direta das coleções da Steam.
+
+### Novidades
+
+- **Gênero, ano de lançamento e série por jogo.** O servidor do catálogo passa a consultar esses dados no IGDB sem precisar de conta nem chave, preenchendo a biblioteca aos poucos e na hora em que você abre um jogo. Na página do jogo, os selos de ano, série e gênero são clicáveis e filtram a biblioteca na hora.
+- **Categorias dinâmicas por regras.** Em *Categorias*, além das pastas manuais por arrastar e soltar, agora você pode criar categorias dinâmicas combinando plataforma, status do Diário, gênero, série, faixa de ano, nota mínima, favoritos e instalados. Elas se atualizam sozinhas conforme sua biblioteca cresce.
+- **Filtros combinados na biblioteca.** A grade ganhou seletores combináveis de plataforma, status, gênero, série e ano (décadas e anos exatos) e ordenação por lançamento mais recente. A busca também passa a encontrar jogos por gênero e série.
+- **Importar coleções da Steam.** Botão *Importar da Steam* dentro de *Categorias*: lê as coleções e favoritos salvos pela Steam neste computador (sem precisar de login ou chave extra) e mescla tudo na biblioteca.
+
+---
+
 ## 2.5.4 — 13 de novembro de 2026
 
 ### Correções

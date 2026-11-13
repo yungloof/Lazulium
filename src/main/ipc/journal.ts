@@ -2,6 +2,7 @@ import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { GameLog } from '@shared/types/game';
 import { JournalEntryInput } from '@shared/types/ipc';
 import { artworkService } from '../services/metadata/artwork.service';
+import { gameMetadataService } from '../services/metadata/game-metadata.service';
 import { playLengthService } from '../services/metadata/play-length.service';
 import { searchGameCatalog } from '../services/metadata/game-search.service';
 import { socialService } from '../services/social/social.service';
@@ -20,6 +21,7 @@ export function registerJournalHandlers(): void {
     const game = addJournalEntry(entry);
     socialService.scheduleSync();
     artworkService.enqueueMissing([game.id]);
+    gameMetadataService.enqueueMissing([game.id]);
     return game;
   });
 
@@ -28,6 +30,8 @@ export function registerJournalHandlers(): void {
   handle(IPC_CHANNELS.GAME_RENAME, (_event, gameId: string, title: string | null) => {
     const game = renameGame(gameId, title);
     playLengthService.forget(game.id);
+    gameMetadataService.forget(game.id);
+    gameMetadataService.enqueueMissing([game.id]);
     return game;
   });
 

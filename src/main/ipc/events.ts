@@ -4,6 +4,7 @@ import { notify } from '../app-shell';
 import { playtimeService } from '../services/tracker/playtime.service';
 import { steamNamesService } from '../services/scanners/steam-names.service';
 import { artworkService } from '../services/metadata/artwork.service';
+import { gameMetadataService } from '../services/metadata/game-metadata.service';
 import { achievementsService } from '../services/achievements/achievements.service';
 import { backupService } from '../services/cloudsync/backup.service';
 import { screenshotCaptureService } from '../services/metadata/screenshot-capture.service';
@@ -52,6 +53,7 @@ export function registerRendererEvents(getMainWindow: WindowGetter): void {
 
   steamNamesService.setGameUpdatedListener(sendGame);
   artworkService.setGameUpdatedListener(sendGame);
+  gameMetadataService.setGameUpdatedListener(sendGame);
   achievementsService.setGameUpdatedListener(sendGame);
   epicAccountService.setGameUpdatedListener(sendGame);
   achievementsService.setListUpdatedListener((gameId) => sendToRenderer(IPC_CHANNELS.ACHIEVEMENTS_UPDATED, gameId));

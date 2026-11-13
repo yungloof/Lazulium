@@ -6,10 +6,14 @@ import { db } from '../database/db';
 import { markLibraryServed } from '../app-shell';
 import { scanLibraries } from '../services/scanners';
 import { playtimeService } from '../services/tracker/playtime.service';
+import { CategoryRule } from '@shared/types/categories';
 import { artworkService } from '../services/metadata/artwork.service';
+import { gameMetadataService } from '../services/metadata/game-metadata.service';
 import { removeGameMedia } from '../services/metadata/media-cache.service';
 import { saveGameList } from '../services/profile/lists.service';
-import { createCategory, deleteCategory, renameCategory, reorderCategories, setCategoryGames } from '../services/library/categories.service';
+import { createCategory, deleteCategory, renameCategory, reorderCategories, setCategoryGames, updateCategoryRule } from '../services/library/categories.service';
+import { importSteamCollections } from '../services/library/steam-collections.service';
+import { sendToRenderer } from './events';
 import { addGameToSteam, removeGameFromSteam } from '../services/steam/steam-shortcut-writer.service';
 import { cleanPath, handle } from './helpers';
 
@@ -28,6 +32,7 @@ function cleanGameUpdates(updates: Partial<Game>): Partial<Game> {
 async function scanAndQueueArtwork(platforms?: GamePlatform[]) {
   const result = await scanLibraries(platforms);
   artworkService.enqueueMissing();
+  gameMetadataService.enqueueMissing();
   return result;
 }
 
@@ -62,6 +67,7 @@ export function registerLibraryHandlers(): void {
       updatedAt: now
     });
     artworkService.enqueueMissing([saved.id]);
+    gameMetadataService.enqueueMissing([saved.id]);
     return saved;
   });
 
@@ -102,11 +108,17 @@ export function registerLibraryHandlers(): void {
 
   // Categorias da biblioteca
   handle(IPC_CHANNELS.CATEGORIES_GET, () => db.getGameCategories());
-  handle(IPC_CHANNELS.CATEGORIES_CREATE, (_event, name: string, gameIds?: string[]) => createCategory(name, gameIds));
+  handle(IPC_CHANNELS.CATEGORIES_CREATE, (_event, name: string, gameIds?: string[], rule?: CategoryRule) => createCategory(name, gameIds, rule));
   handle(IPC_CHANNELS.CATEGORIES_RENAME, (_event, id: string, name: string) => renameCategory(id, name));
+  handle(IPC_CHANNELS.CATEGORIES_UPDATE_RULE, (_event, id: string, rule: CategoryRule) => updateCategoryRule(id, rule));
   handle(IPC_CHANNELS.CATEGORIES_DELETE, (_event, id: string) => deleteCategory(id));
   handle(IPC_CHANNELS.CATEGORIES_REORDER, (_event, ids: string[]) => reorderCategories(ids));
   handle(IPC_CHANNELS.CATEGORIES_SET_GAMES, (_event, id: string, gameIds: string[], member: boolean) => setCategoryGames(id, gameIds, member));
+  handle(IPC_CHANNELS.CATEGORIES_IMPORT_STEAM, async () => {
+    const { result, updatedGames } = await importSteamCollections();
+    for (const game of updatedGames) sendToRenderer(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
+    return result;
+  });
 
   // Integração com atalhos da Steam (shortcuts.vdf)
   handle(IPC_CHANNELS.STEAM_ADD_SHORTCUT, async (_event, gameId: string) => {

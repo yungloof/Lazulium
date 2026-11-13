@@ -2,6 +2,7 @@ import { EmulatorConfig, Game, PlaytimeSession } from '@shared/types/game';
 import { StoredActivity } from '@shared/types/activity';
 import { GameAchievements } from '@shared/types/achievements';
 import { GameCategory } from '@shared/types/categories';
+import { normalizeCategoryRule } from '@shared/utils/categories';
 import type { ActiveSessionRecord, DatabaseSchema } from './db';
 
 // Versão do formato do banco. Sobe quando um dado guardado precisa ser convertido;
@@ -125,7 +126,15 @@ export function normalizeData(raw: unknown): DatabaseSchema {
   if ('gameCategories' in raw) {
     data.gameCategories = objects(raw.gameCategories)
       .filter((c) => isText(c.id) && c.id && isText(c.name) && c.name.trim())
-      .map((c) => ({ ...c, gameIds: strings(c.gameIds) })) as unknown as GameCategory[];
+      .map((c) => {
+        const base: Record<string, unknown> & { gameIds: string[] } = { ...c, gameIds: strings(c.gameIds) };
+        if ('rule' in c) {
+          const cleanRule = normalizeCategoryRule(c.rule);
+          if (cleanRule) base.rule = cleanRule;
+          else delete base.rule;
+        }
+        return base;
+      }) as unknown as GameCategory[];
   }
   data.schemaVersion = SCHEMA_VERSION;
   return data;

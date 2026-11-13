@@ -87,7 +87,11 @@ export interface Game {
   isFavorite: boolean;
   isHidden: boolean;
   skipSuggestions?: boolean;        // Não aparece em "O que jogar agora" (programas, jogos que não quer ver)
-  tags: string[];                   // Categorias / Gêneros
+  tags: string[];                   // Etiquetas locais do usuário
+  genres?: string[];                // Gêneros vindos do IGDB
+  releaseYear?: number;             // Ano de lançamento no IGDB
+  series?: string;                  // Série ou franquia no IGDB
+  metadataCheckedAt?: number;       // Timestamp da última consulta de metadados ao IGDB
   
   // Estatísticas de Uso
   totalPlaytimeSeconds: number;     // Segundos acumulados jogados

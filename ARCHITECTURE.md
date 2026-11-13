@@ -176,10 +176,12 @@ Unifica conquistas de plataformas de PC e retroemulação:
 
 ---
 
-### 3.5.2.1 Categorias da Biblioteca (`services/library/categories.service.ts`)
-* Categorias criadas pelo jogador, guardadas em `gameCategories` no banco: nome único (sem diferenciar maiúsculas e acentos), jogos por id e a ordem do array como ordem de exibição. Um jogo pode estar em várias.
-* Todo canal `categories:*` devolve a lista inteira; o renderer guarda em `useCategoriesStore`. Apagar um jogo o tira das categorias, e um jogo que muda de id (`moveGameData`) leva as categorias e listas junto.
-* Na interface: grupos da lista lateral (`LibrarySidebar`, por categoria ou por plataforma), arrastar e soltar (`utils/dragGame.ts`), filtro `category:<id>` / `uncategorized` (`useLibraryGames`) e as janelas `ManageCategoriesModal` e `GameCategoriesModal`.
+### 3.5.2.1 Categorias da Biblioteca e Metadados (`services/library/categories.service.ts`, `steam-collections.service.ts`, `metadata/game-metadata.service.ts`)
+* Categorias criadas pelo jogador, guardadas em `gameCategories` no banco: nome único (sem diferenciar maiúsculas e acentos), ordem do array como ordem de exibição, e dois modos — **manuais** (`gameIds`) ou **dinâmicas** (`rule`: plataforma, status, gênero, série, faixa de ano, nota mínima, favoritos e instalados, avaliadas por `@shared/utils/categories`). Um jogo pode estar em várias.
+* **Importação da Steam (`steam-collections.service.ts`):** lê localmente `userdata/<conta>/config/cloudstorage/cloud-storage-namespace-1.json`, promove favoritos (`user-collections.favorite`) e cria ou mescla categorias fixas sem pedir login nem chave de API (coleções dinâmicas puras da Steam são contabilizadas como ignoradas).
+* **Gêneros, ano e série (`game-metadata.service.ts`):** busca `/v1/metadata` no `igdb-proxy` em fila espaçada (~1,15 s por pedido para respeitar o limite do Worker) e sob demanda ao abrir a página do jogo; grava `genres`, `releaseYear`, `series` e `metadataCheckedAt` por jogo e avisa a janela por `LIBRARY_GAME_UPDATED`.
+* Todo canal `categories:*` devolve a lista inteira (com `categories:import-steam` enviando também os jogos que viraram favoritos); o renderer guarda em `useCategoriesStore`. Apagar um jogo o tira das categorias, e um jogo que muda de id (`moveGameData`) leva as categorias e listas junto.
+* Na interface: grupos da lista lateral (`LibrarySidebar`, por categoria ou por plataforma), arrastar e soltar nas categorias manuais (`utils/dragGame.ts`), filtro `category:<id>` / `uncategorized` e filtros combinados na grade (`LibraryHome`: plataforma, status, gênero, série e ano), chips clicáveis na `GamePage` e as janelas `ManageCategoriesModal` e `GameCategoriesModal`.
 
 ---
 
@@ -307,7 +309,7 @@ Toda conexão de rede sai do processo main; o renderer só carrega imagens (CSP 
 | Steam (`steamcommunity.com`, `api.steampowered.com`, `store.steampowered.com`) | conquistas (XML público), perfil, desejos, nomes, preços, análises, OpenID | nenhuma (Web API Key opcional em Avançado) |
 | SteamGridDB (opcional) | escolher artes, logos e ícones | chave do jogador, capturada pela janela de login |
 | RetroAchievements | conquistas de emulador | usuário + chave do jogador |
-| Servidor próprio `server/igdb-proxy` (Cloudflare Worker, `IGDB_PROXY_URL` em `play-length.service.ts`) | tempo para zerar, busca e capas sem conta (`/v1/artwork`, IGDB), preços de outras lojas (`/v1/prices`, GG.deals) | segredos só no Worker (`TWITCH_CLIENT_ID/SECRET`, `GGDEALS_API_KEY`) |
+| Servidor próprio `server/igdb-proxy` (Cloudflare Worker, `IGDB_PROXY_URL` em `play-length.service.ts`) | gênero, ano e série (`/v1/metadata`, IGDB), tempo para zerar, busca e capas sem conta (`/v1/artwork`, IGDB), preços de outras lojas (`/v1/prices`, GG.deals) | segredos só no Worker (`TWITCH_CLIENT_ID/SECRET`, `GGDEALS_API_KEY`) |
 | Google (OAuth + Drive v3) | backup de saves | client OAuth do build (`.env`) + refresh token cifrado |
 | GitHub (via `git` do sistema) | Perfil → Publicar na web | login do Git do jogador |
 | GitHub Releases (`electron-updater`; `latest.yml` na portátil) | atualização automática | nenhuma |

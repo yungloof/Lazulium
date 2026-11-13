@@ -1,7 +1,7 @@
 import { SITE_PAGES } from './site.js';
 // Intermediário entre o Lazulium e o IGDB. A credencial da Twitch fica só aqui: o app nunca a vê.
 // Também guarda a chave do GG.deals e responde "quanto custa este jogo nas lojas".
-// Só responde "quanto tempo leva este jogo", "quais jogos têm esse nome" e "qual a capa deste jogo": não aceita consulta livre, então a URL pública não serve para mais nada.
+// Só responde consultas fechadas (tempo para zerar, metadados, busca e capa): não aceita consulta livre, então a URL pública não serve para mais nada.
 
 const IGDB_BASE = 'https://api.igdb.com/v4';
 const TOKEN_URL = 'https://id.twitch.tv/oauth2/token';
@@ -167,6 +167,98 @@ async function handleArtwork(url, request, env) {
   } catch (err) {
     return upstreamFailure(err);
   }
+}
+
+const METADATA_GAME_FIELDS = 'name,first_release_date,genres.name,themes.name,collections.name,franchises.name,franchise.name,version_parent';
+const METADATA_EXTERNAL_FIELDS = 'game,game.name,game.first_release_date,game.genres.name,game.themes.name,game.collections.name,game.franchises.name,game.franchise.name,game.version_parent';
+
+function namesOf(list) {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const item of list) {
+    const name = typeof item?.name === 'string' ? item.name.trim() : '';
+    if (name && !seen.has(name)) {
+      seen.add(name);
+      out.push(name);
+    }
+  }
+  return out;
+}
+
+function toMetadataResult(game, fallbackName) {
+  if (!game || typeof game !== 'object') return { found: false };
+  const year = typeof game.first_release_date === 'number' && Number.isFinite(game.first_release_date) ? new Date(game.first_release_date * 1000).getUTCFullYear() : null;
+  const genres = namesOf(game.genres);
+  const themes = namesOf(game.themes);
+  const collections = namesOf(game.collections);
+  const franchises = namesOf(game.franchises);
+  const mainFranchise = typeof game.franchise?.name === 'string' ? game.franchise.name.trim() : '';
+  const series = collections[0] ?? franchises[0] ?? (mainFranchise || null);
+  const found = year !== null || genres.length > 0 || themes.length > 0 || series !== null;
+  if (!found) return { found: false };
+  return {
+    found: true,
+    gameId: game.id ?? null,
+    name: game.name ?? fallbackName ?? null,
+    year,
+    genres,
+    themes,
+    series
+  };
+}
+
+async function lookupMetadataBySteam(env, appId, state) {
+  const [external] = await igdb(env, 'external_games', `fields ${METADATA_EXTERNAL_FIELDS}; where external_game_source = ${STEAM_SOURCE} & uid = "${appId}"; limit 1;`, state);
+  if (!external?.game?.id) return null;
+  let game = external.game;
+  if (game.version_parent && (!game.genres?.length || !game.collections?.length || game.first_release_date == null)) {
+    const [parent] = await igdb(env, 'games', `fields ${METADATA_GAME_FIELDS}; where id = ${game.version_parent}; limit 1;`, state);
+    if (parent) {
+      game = {
+        ...parent,
+        ...game,
+        first_release_date: game.first_release_date ?? parent.first_release_date,
+        genres: game.genres?.length ? game.genres : parent.genres,
+        themes: game.themes?.length ? game.themes : parent.themes,
+        collections: game.collections?.length ? game.collections : parent.collections,
+        franchises: game.franchises?.length ? game.franchises : parent.franchises,
+        franchise: game.franchise ?? parent.franchise
+      };
+    }
+  }
+  return toMetadataResult(game, external.game.name);
+}
+
+async function lookupMetadataByTitle(env, title, state) {
+  const wanted = normalizeTitle(title);
+  if (wanted.length < MIN_SEARCH_LENGTH) return { found: false };
+  const games = await igdb(
+    env,
+    'games',
+    `search "${title}"; fields ${METADATA_GAME_FIELDS},alternative_names.name,total_rating_count,rating_count; where version_parent = null; limit 50;`,
+    state
+  );
+  const candidates = games
+    .filter((g) => normalizeTitle(g.name ?? '') === wanted || g.alternative_names?.some((alt) => normalizeTitle(alt.name ?? '') === wanted))
+    .map((g) => ({
+      game: g,
+      result: toMetadataResult(g, title),
+      score: (g.genres?.length ? 1 : 0) + (g.first_release_date != null ? 1 : 0) + (g.collections?.length || g.franchises?.length || g.franchise ? 1 : 0)
+    }))
+    .filter((c) => c.result.found)
+    .sort((a, b) => b.score - a.score || (b.game.total_rating_count ?? b.game.rating_count ?? 0) - (a.game.total_rating_count ?? a.game.rating_count ?? 0));
+  return candidates[0]?.result ?? { found: false };
+}
+
+function parseSteamOrTitle(url) {
+  const appId = url.searchParams.get('steamAppId');
+  const rawTitle = url.searchParams.get('title');
+  const title = rawTitle ? cleanTitle(rawTitle) : '';
+  if (appId !== null && !/^\d{1,10}$/.test(appId)) return { error: json({ error: 'invalid_steam_app_id' }, 400) };
+  if (rawTitle !== null && (rawTitle.length > MAX_TITLE_LENGTH || !title)) return { error: json({ error: 'invalid_title' }, 400) };
+  if (appId === null && !title) return { error: json({ error: 'missing_query' }, 400) };
+  return { appId, title };
 }
 
 async function cached(env, key, load) {
@@ -341,29 +433,30 @@ export default {
     const isSearch = url.pathname === '/v1/search';
     const isPrices = url.pathname === '/v1/prices';
     const isArtwork = url.pathname === '/v1/artwork';
-    if (!isSearch && !isPrices && !isArtwork && url.pathname !== '/v1/time-to-beat') return json({ error: 'not_found' }, 404);
+    const isMetadata = url.pathname === '/v1/metadata';
+    const isTimeToBeat = url.pathname === '/v1/time-to-beat';
+    if (!isSearch && !isPrices && !isArtwork && !isMetadata && !isTimeToBeat) return json({ error: 'not_found' }, 404);
     if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
     if (isPrices) return handlePrices(url, request, env);
     if (!env.TWITCH_CLIENT_ID || !env.TWITCH_CLIENT_SECRET || !env.IGDB_CACHE) return json({ error: 'not_configured' }, 503);
     if (isSearch) return handleSearch(url, request, env);
     if (isArtwork) return handleArtwork(url, request, env);
 
-    const appId = url.searchParams.get('steamAppId');
-    const rawTitle = url.searchParams.get('title');
-    const title = rawTitle ? cleanTitle(rawTitle) : '';
-    if (appId !== null && !/^\d{1,10}$/.test(appId)) return json({ error: 'invalid_steam_app_id' }, 400);
-    if (rawTitle !== null && (rawTitle.length > MAX_TITLE_LENGTH || !title)) return json({ error: 'invalid_title' }, 400);
-    if (appId === null && !title) return json({ error: 'missing_query' }, 400);
+    const parsed = parseSteamOrTitle(url);
+    if (parsed.error) return parsed.error;
 
     if (await isRateLimited(request, env)) return json({ error: 'rate_limited' }, 429);
 
+    const prefix = isMetadata ? 'meta:v1' : 'ttb:v1';
+    const bySteamFn = isMetadata ? lookupMetadataBySteam : lookupBySteam;
+    const byTitleFn = isMetadata ? lookupMetadataByTitle : lookupByTitle;
     const state = {};
     try {
-      if (appId !== null) {
-        const bySteam = await cached(env, `ttb:v1:steam:${appId}`, async () => (await lookupBySteam(env, appId, state)) ?? { found: false, unmapped: true });
-        if (bySteam.found || !bySteam.unmapped || !title) return json(bySteam);
+      if (parsed.appId !== null) {
+        const bySteam = await cached(env, `${prefix}:steam:${parsed.appId}`, async () => (await bySteamFn(env, parsed.appId, state)) ?? { found: false, unmapped: true });
+        if (bySteam.found || !bySteam.unmapped || !parsed.title) return json(bySteam);
       }
-      return json(await cached(env, `ttb:v1:title:${normalizeTitle(title)}`, () => lookupByTitle(env, title, state)));
+      return json(await cached(env, `${prefix}:title:${normalizeTitle(parsed.title)}`, () => byTitleFn(env, parsed.title, state)));
     } catch (err) {
       return upstreamFailure(err);
     }

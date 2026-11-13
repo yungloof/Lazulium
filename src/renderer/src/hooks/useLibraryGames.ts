@@ -1,11 +1,19 @@
 import { useEffect, useMemo } from 'react';
-import { Game } from '@shared/types/game';
+import { Game, GamePlatform } from '@shared/types/game';
 import { GameCategory } from '@shared/types/categories';
+import { isGameInCategory } from '@shared/utils/categories';
 import { LibraryFilter, useLibraryStore } from '../stores/useLibraryStore';
 import { useCategoriesStore } from '../stores/useCategoriesStore';
 import { LibrarySort, LibraryStatusFilter, useLibraryViewStore } from '../stores/useLibraryViewStore';
 
 export type { LibraryFilter } from '../stores/useLibraryStore';
+
+export interface LibraryAttributeFilters {
+  platform?: 'all' | GamePlatform;
+  genre?: string;
+  series?: string;
+  year?: string;
+}
 
 export const LIBRARY_FILTERS: { id: LibraryFilter; label: string }[] = [
   { id: 'all', label: 'Todos os jogos' },
@@ -66,20 +74,27 @@ export function useFilterGuard(): void {
 export function filterGames(games: Game[], filter: LibraryFilter, query: string, showRemoved: boolean, categories: GameCategory[] = []): Game[] {
   const q = query.trim().toLowerCase();
   const categoryId = categoryIdOf(filter);
-  const inCategory = categoryId ? new Set(categories.find((c) => c.id === categoryId)?.gameIds) : null;
-  const inAnyCategory = filter === 'uncategorized' ? new Set(categories.flatMap((c) => c.gameIds)) : null;
+  const selectedCategory = categoryId ? categories.find((c) => c.id === categoryId) ?? null : null;
+  const checkUncategorized = filter === 'uncategorized';
   return games.filter((game) => {
     if (game.isHidden) return false;
     // Desinstalados saem das listas (seguem no Diário), mas aparecem ao buscar pelo nome
     if (game.isInstalled === false && !showRemoved && !q) return false;
-    if (inCategory) {
-      if (!inCategory.has(game.id)) return false;
-    } else if (inAnyCategory) {
-      if (inAnyCategory.has(game.id)) return false;
+    if (categoryId) {
+      if (!selectedCategory || !isGameInCategory(game, selectedCategory)) return false;
+    } else if (checkUncategorized) {
+      if (categories.some((c) => isGameInCategory(game, c))) return false;
     } else if (filter === 'favorites') {
       if (!game.isFavorite) return false;
     } else if (filter !== 'all' && game.platform !== filter) return false;
-    if (q) return game.title.toLowerCase().includes(q) || game.tags?.some((t) => t.toLowerCase().includes(q));
+    if (q) {
+      return (
+        game.title.toLowerCase().includes(q) ||
+        game.tags?.some((t) => t.toLowerCase().includes(q)) ||
+        game.genres?.some((g) => g.toLowerCase().includes(q)) ||
+        Boolean(game.series && game.series.toLowerCase().includes(q))
+      );
+    }
     return true;
   });
 }
@@ -102,12 +117,37 @@ const COMPARE: Record<LibrarySort, (a: Game, b: Game) => number> = {
   recent: (a, b) => (b.lastPlayedAt ?? '').localeCompare(a.lastPlayedAt ?? '') || byTitle(a, b),
   hours: (a, b) => (b.totalPlaytimeSeconds ?? 0) - (a.totalPlaytimeSeconds ?? 0) || byTitle(a, b),
   added: (a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '') || byTitle(a, b),
-  rating: (a, b) => (b.log?.rating ?? 0) - (a.log?.rating ?? 0) || byTitle(a, b)
+  rating: (a, b) => (b.log?.rating ?? 0) - (a.log?.rating ?? 0) || byTitle(a, b),
+  released: (a, b) => (b.releaseYear ?? -1) - (a.releaseYear ?? -1) || byTitle(a, b)
 };
 
-export function sortLibrary(games: Game[], sort: LibrarySort, status: LibraryStatusFilter): Game[] {
+export function matchesYearFilter(releaseYear: number | undefined, yearFilter?: string): boolean {
+  if (!yearFilter || yearFilter === 'all') return true;
+  if (releaseYear === undefined) return false;
+  if (yearFilter === 'older') return releaseYear < 1990;
+  const decade = /^(\d{4})s$/.exec(yearFilter);
+  if (decade) {
+    const start = Number(decade[1]);
+    return releaseYear >= start && releaseYear < start + 10;
+  }
+  return /^\d{4}$/.test(yearFilter) ? releaseYear === Number(yearFilter) : true;
+}
+
+export function sortLibrary(games: Game[], sort: LibrarySort, status: LibraryStatusFilter, attrs?: LibraryAttributeFilters): Game[] {
+  const platform = attrs?.platform && attrs.platform !== 'all' ? attrs.platform : undefined;
+  const genre = attrs?.genre && attrs.genre !== 'all' ? attrs.genre.toLowerCase() : undefined;
+  const series = attrs?.series && attrs.series !== 'all' ? attrs.series.toLowerCase() : undefined;
+  const year = attrs?.year && attrs.year !== 'all' ? attrs.year : undefined;
+
   return games
-    .filter((g) => status === 'all' || (status === 'unplayed' ? (g.totalPlaytimeSeconds ?? 0) < 60 : g.log?.status === status))
+    .filter((g) => {
+      if (status !== 'all' && !(status === 'unplayed' ? (g.totalPlaytimeSeconds ?? 0) < 60 : g.log?.status === status)) return false;
+      if (platform && g.platform !== platform) return false;
+      if (genre && !g.genres?.some((item) => item.toLowerCase() === genre)) return false;
+      if (series && g.series?.toLowerCase() !== series) return false;
+      if (year && !matchesYearFilter(g.releaseYear, year)) return false;
+      return true;
+    })
     .sort(COMPARE[sort]);
 }
 

@@ -592,3 +592,129 @@ test('Preços: lotes de 20 e de 50 jogos cabem no teto de 50 subrequests da Clou
   assert.equal(s.calls.length, 2, '20 IDs reaproveitam cache por jogo');
   assert.equal(subrequests, 20);
 });
+
+const getMetadata = async (s, query, overrideEnv = s.env) => {
+  const res = await worker.fetch(new Request(`https://proxy.test/v1/metadata?${query}`), overrideEnv);
+  return { status: res.status, body: await res.json() };
+};
+
+test('metadata: busca por Steam AppID e extrai ano, gêneros, temas e série', async (t) => {
+  const s = setup((endpoint) => {
+    if (endpoint === 'external_games') {
+      return ok([
+        {
+          id: 1,
+          game: {
+            id: 72,
+            name: 'Portal 2',
+            first_release_date: 1303171200,
+            genres: [{ name: 'Shooter' }, { name: 'Puzzle' }, { name: 'Shooter' }],
+            themes: [{ name: 'Sci-fi' }, { name: 'Comedy' }],
+            collections: [{ name: 'Portal' }]
+          }
+        }
+      ]);
+    }
+    assert.fail(`endpoint inesperado: ${endpoint}`);
+  });
+  t.after(s.restore);
+
+  const { status, body } = await getMetadata(s, 'steamAppId=620&title=Portal%202');
+  assert.equal(status, 200);
+  assert.deepEqual(body, {
+    found: true,
+    gameId: 72,
+    name: 'Portal 2',
+    year: 2011,
+    genres: ['Shooter', 'Puzzle'],
+    themes: ['Sci-fi', 'Comedy'],
+    series: 'Portal'
+  });
+  assert.ok(s.kv.store.has('meta:v1:steam:620'));
+});
+
+test('metadata: completa dados da edição pai quando version_parent está preenchido', async (t) => {
+  const s = setup((endpoint) => {
+    if (endpoint === 'external_games') {
+      return ok([{ game: { id: 900, name: 'The Witcher 3: Complete', version_parent: 1942 } }]);
+    }
+    return ok([
+      {
+        id: 1942,
+        name: 'The Witcher 3: Wild Hunt',
+        first_release_date: 1431993600,
+        genres: [{ name: 'Role-playing (RPG)' }],
+        collections: [{ name: 'The Witcher' }]
+      }
+    ]);
+  });
+  t.after(s.restore);
+
+  const { status, body } = await getMetadata(s, 'steamAppId=292030');
+  assert.equal(status, 200);
+  assert.equal(body.found, true);
+  assert.equal(body.year, 2015);
+  assert.deepEqual(body.genres, ['Role-playing (RPG)']);
+  assert.equal(body.series, 'The Witcher');
+});
+
+test('metadata: fallback por título aceita nome alternativo, usa franquia sem coleção e prioriza melhor correspondência', async (t) => {
+  const s = setup((endpoint) => {
+    if (endpoint === 'external_games') return ok([]);
+    return ok([
+      { id: 1, name: 'Resident Evil Zero', genres: [{ name: 'Shooter' }] },
+      { id: 2, name: 'Biohazard', alternative_names: [{ name: 'Resident Evil' }], first_release_date: 827452800 },
+      {
+        id: 3,
+        name: 'Biohazard',
+        alternative_names: [{ name: 'Resident Evil' }],
+        first_release_date: 827452800,
+        genres: [{ name: 'Adventure' }],
+        themes: [{ name: 'Horror' }],
+        franchises: [{ name: 'Resident Evil' }],
+        total_rating_count: 500
+      }
+    ]);
+  });
+  t.after(s.restore);
+
+  const { status, body } = await getMetadata(s, 'steamAppId=999999&title=Resident%20Evil');
+  assert.equal(status, 200);
+  assert.deepEqual(body, {
+    found: true,
+    gameId: 3,
+    name: 'Biohazard',
+    year: 1996,
+    genres: ['Adventure'],
+    themes: ['Horror'],
+    series: 'Resident Evil'
+  });
+  assert.ok(s.kv.store.has('meta:v1:title:residentevil'));
+});
+
+test('metadata: valida parâmetros e reaproveita cache sem rechamar IGDB', async (t) => {
+  const s = setup(() =>
+    ok([
+      {
+        id: 5,
+        name: 'Celeste',
+        first_release_date: 1516838400,
+        genres: [{ name: 'Platform' }, { name: 'Indie' }],
+        themes: [{ name: 'Action' }]
+      }
+    ])
+  );
+  t.after(s.restore);
+
+  assert.equal((await getMetadata(s, '')).status, 400);
+  assert.equal((await getMetadata(s, 'steamAppId=xyz')).status, 400);
+  assert.equal((await getMetadata(s, 'title=%20')).status, 400);
+
+  const first = await getMetadata(s, 'title=Celeste');
+  assert.equal(first.status, 200);
+  assert.equal(first.body.series, null);
+  const callsBefore = s.calls.igdb.length;
+  const second = await getMetadata(s, 'title=CELESTE');
+  assert.equal(second.status, 200);
+  assert.equal(s.calls.igdb.length, callsBefore);
+});

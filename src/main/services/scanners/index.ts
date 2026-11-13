@@ -206,6 +206,10 @@ async function runScan(platforms?: GamePlatform[]): Promise<ScanWithChanges> {
         existing.lastPlayedAt = [existing.lastPlayedAt, previous.lastPlayedAt].filter(Boolean).sort().pop();
         existing.isFavorite = existing.isFavorite || previous.isFavorite;
         existing.media = { ...previous.media, ...existing.media };
+        existing.genres = existing.genres?.length ? existing.genres : previous.genres;
+        existing.releaseYear = existing.releaseYear ?? previous.releaseYear;
+        existing.series = existing.series ?? previous.series;
+        existing.metadataCheckedAt = existing.metadataCheckedAt ?? previous.metadataCheckedAt;
       } else {
         existing = { ...previous, id: detected.id };
       }

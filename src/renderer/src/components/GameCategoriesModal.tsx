@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Check, Plus, Settings2, Tags } from 'lucide-react';
+import { Check, Plus, Settings2, SlidersHorizontal, Tags } from 'lucide-react';
 import { Game } from '@shared/types/game';
 import { MAX_CATEGORY_NAME } from '@shared/types/categories';
+import { isGameInCategory } from '@shared/utils/categories';
 import { useCategoriesStore } from '../stores/useCategoriesStore';
 import { useUiStore } from '../stores/useUiStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
@@ -74,7 +75,28 @@ export const GameCategoriesModal: React.FC<{ game: Game; onClose: () => void }> 
     >
       <ul className="space-y-0.5">
         {categories.map((category) => {
-          const inCategory = category.gameIds.includes(game.id);
+          const isDynamic = Boolean(category.rule);
+          const inCategory = isGameInCategory(game, category);
+          if (isDynamic) {
+            return (
+              <li key={category.id}>
+                <div
+                  title="Categoria dinâmica (preenchida pelas regras)"
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left ${inCategory ? 'bg-indigo-500/10' : 'opacity-65'}`}
+                >
+                  <span
+                    className={`w-4 h-4 flex-shrink-0 flex items-center justify-center rounded border ${inCategory ? 'bg-indigo-500/70 border-indigo-400/70 text-white' : 'border-slate-700'}`}
+                  >
+                    {inCategory && <Check className="w-3 h-3" />}
+                  </span>
+                  <span className="flex-1 min-w-0 text-sm text-slate-200 truncate">{category.name}</span>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-medium text-slate-400">
+                    <SlidersHorizontal className="w-2.5 h-2.5" /> Dinâmica
+                  </span>
+                </div>
+              </li>
+            );
+          }
           return (
             <li key={category.id}>
               <button

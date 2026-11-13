@@ -10,6 +10,7 @@ import { migrateMediaCache, registerMediaProtocol, registerMediaScheme } from '.
 import { registerScreenshotRoots } from './services/metadata/screenshots.service';
 import { screenshotCaptureService } from './services/metadata/screenshot-capture.service';
 import { artworkService } from './services/metadata/artwork.service';
+import { gameMetadataService } from './services/metadata/game-metadata.service';
 import { wishlistService } from './services/metadata/wishlist.service';
 import { profileService } from './services/profile/profile.service';
 import { scanLibrariesWithChanges } from './services/scanners';
@@ -66,6 +67,7 @@ async function runStartupSync(hadGames: boolean, repairedArtwork: string[]): Pro
   // Jogos novos sem capa (ex: Riot, Xbox) buscam artes no SteamGridDB em segundo plano
   artworkService.enqueueMissing();
   artworkService.enqueueMissing(repairedArtwork);
+  gameMetadataService.enqueueMissing();
   profileService.syncInBackground();
   wishlistService.syncInBackground();
 }

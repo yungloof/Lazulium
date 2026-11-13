@@ -225,9 +225,9 @@ A 3.0 fecha quando o que a pessoa arruma (Diário, categorias, listas) passa a v
 - [ ] Subir para o Electron 46 quando sair a versão estável (em 12/11/2026 só existe alpha).
 
 **Biblioteca que entende os jogos**
-- [ ] Gênero, ano e série pelo IGDB (`server/igdb-proxy`), guardados por jogo.
-- [ ] Categorias dinâmicas, filtros combinados e página do jogo com esses dados.
-- [ ] Importar as coleções da Steam (`userdata/<conta>/config/cloudstorage/cloud-storage-namespace-1.json`, sem chave).
+- [x] Gênero, ano e série pelo IGDB (`server/igdb-proxy`), guardados por jogo.
+- [x] Categorias dinâmicas, filtros combinados e página do jogo com esses dados.
+- [x] Importar as coleções da Steam (`userdata/<conta>/config/cloudstorage/cloud-storage-namespace-1.json`, sem chave).
 
 **Conta que sincroniza**
 - [ ] Comparar conquistas lado a lado e notas dos amigos na página do jogo (fase 4 de `docs/conta-lazulium.md`).

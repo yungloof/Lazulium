@@ -4,7 +4,7 @@
 
 Todos os jogos do PC num lugar só: Steam, Epic, GOG, Battle.net, EA App, Ubisoft Connect, Riot, Xbox, emuladores e o que mais você tiver solto numa pasta. Com horas jogadas, conquistas, capturas, backup dos saves e aba Amigos opcional.
 
-> Versão **2.5.4** · Windows 10 e 11 (64 bits) · Grátis, código aberto (MIT)
+> Versão **2.6.0** · Windows 10 e 11 (64 bits) · Grátis, código aberto (MIT)
 
 ---
 
@@ -31,8 +31,8 @@ Não pede senha nem chave de API (os logins são nos sites oficiais), não tem p
 
    | Arquivo | |
    |---|---|
-   | **`Lazulium-Setup-2.5.4.exe`** *(recomendado)* | Instala, cria atalhos e se atualiza sozinho. Não precisa de administrador. |
-   | `Lazulium-Portable-2.5.4.exe` | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
+   | **`Lazulium-Setup-2.6.0.exe`** *(recomendado)* | Instala, cria atalhos e se atualiza sozinho. Não precisa de administrador. |
+   | `Lazulium-Portable-2.6.0.exe` | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
 
 2. Se o navegador disser que o arquivo "não é baixado com frequência", escolha **Manter** (no Edge: **…** → **Manter** → **Mostrar mais** → **Manter mesmo assim**).
 
@@ -66,7 +66,7 @@ Pelo **Configurações do Windows → Aplicativos**, como qualquer programa. Os 
 - **Backup de saves** no PC (`.zip` conferido) e no Google Drive, com restauração em um clique.
 - **Perfil** com fundo contínuo, painéis translúcidos, GIF ou vídeo (`WEBM`/`MP4`) de fundo e retrospectiva do ano. Vira página na internet só se você pedir.
 - **Amigos (opcional):** entre com a Steam sem nova senha para ver o feed e o "Jogando agora" dos amigos em qualquer loja, receber avisos quando alguém começa a jogar, comparar bibliotecas e abrir a vitrine do perfil (com GIFs e vídeos de até 50 MB).
-- **Categorias** na biblioteca, como as coleções da Steam: crie as suas, arraste os jogos para organizar e alterne entre agrupar por categoria ou plataforma.
+- **Categorias e filtros:** crie categorias manuais (arraste jogos ou **importe suas coleções da Steam**) ou **categorias dinâmicas por regras** (gênero, série, plataforma, status, ano, nota, favoritos e instalados). Combine filtros de plataforma, status, gênero, série e ano na biblioteca, com gênero, ano e série também clicáveis na página do jogo.
 - **Listas**, **lista de desejos** com preço em reais e outras lojas, aviso de promoção, **tempo para zerar**, **O que jogar agora** e **opções de inicialização por jogo** (com exportação `.bat`).
 - **Controle** de Xbox, PlayStation, Switch Pro ou genérico em todas as telas.
 - **Aparência:** temas prontos, cores, fontes e cantos (com exportação e importação).
@@ -81,7 +81,7 @@ A versão completa está em [docs/privacidade.md](docs/privacidade.md). O resumo
 - Tudo fica em `%APPDATA%\Lazulium`: biblioteca, conquistas em arquivo próprio, horas, diário, perfil, artes, capturas, backups e log. Tokens de login são cifrados pelo Windows.
 - Os logins são nas páginas oficiais da Steam, da Epic, do SteamGridDB e do Google (e pela Web API Key do RetroAchievements). O Lazulium nunca vê sua senha.
 - Não tem telemetria nem relatório de erro automático. O log só sai do PC se você mandar.
-- Para buscar capas, conquistas, preços e tempo para zerar, vai o nome ou o código do jogo e, se você conectou, seu SteamID ou usuário do RetroAchievements.
+- Para buscar gênero, ano, série, capas, conquistas, preços e tempo para zerar, vai o nome ou o código do jogo e, se você conectou, seu SteamID ou usuário do RetroAchievements.
 - No Google Drive o app só enxerga a pasta que ele mesmo criou (*Lazulium Backups*), e só manda backup de save para lá.
 - A **Conta Lazulium** é opcional: só sincroniza o que você deixar ligado (atividades, "jogando agora", resumo e vitrine do perfil), fica visível apenas para quem virou amigo por código de convite e pode ser apagada na hora em *Configurações → Contas*. Fundos animados acima de ~1,1 MB e vídeos de até 50 MB ficam em disco na VPS (`147-15-123-238.sslip.io`) e são removidos ao trocar o fundo ou apagar a conta.
 
