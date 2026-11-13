@@ -25,15 +25,18 @@ const hasValue = (log: GameLog | undefined, field: keyof GameLog): boolean => {
 
 function buildIndex(games: Game[]) {
   const bySteam = new Map<string, Game>();
-  const byTitle = new Map<string, Game>();
+  const byTitle = new Map<string, Game[]>();
   for (const game of games) {
     if (game.platform === 'steam' && game.platformGameId && !bySteam.has(game.platformGameId)) bySteam.set(game.platformGameId, game);
-    // Prefere o jogo da biblioteca ao registro manual quando o nome repete
+    // Vários jogos podem ter o mesmo nome (versões diferentes): a lista fica com os da biblioteca antes dos registros manuais
     for (const name of [game.title, game.customTitle, game.detectedTitle]) {
       const key = name ? titleKey(name) : '';
       if (!key) continue;
-      const known = byTitle.get(key);
-      if (!known || (known.manualEntry && !game.manualEntry)) byTitle.set(key, game);
+      const list = byTitle.get(key) ?? [];
+      if (list.includes(game)) continue;
+      if (game.manualEntry) list.push(game);
+      else list.splice(list.filter((g) => !g.manualEntry).length, 0, game);
+      byTitle.set(key, list);
     }
   }
   return { bySteam, byTitle };
@@ -41,12 +44,16 @@ function buildIndex(games: Game[]) {
 
 function plan(items: JournalImportItem[], options: JournalImportOptions): Plan[] {
   const index = buildIndex(db.getGames());
+  // Cada jogo da biblioteca recebe um só item: dois do arquivo com o mesmo nome (ex: Resident Evil 4 de 2005 e o remake) não se sobrescrevem
+  const claimed = new Set<string>();
   return items.slice(0, MAX_ITEMS).map((item) => {
     // Resenha de quem não trouxe as datas do jogo (aba Jogos): a data da postagem serve de data de término de quem zerou
     const dated = item.log?.startedOn || item.log?.finishedOn;
     const finished = item.log?.status === 'finished' || item.log?.status === 'completed';
     const incoming = sanitizeLog(item.postedOn && !dated && finished ? { ...item.log, finishedOn: item.postedOn } : (item.log ?? {}));
-    const game = (item.steamAppId && index.bySteam.get(item.steamAppId)) || index.byTitle.get(titleKey(item.title)) || null;
+    const bySteam = item.steamAppId ? index.bySteam.get(item.steamAppId) : undefined;
+    const game = (bySteam && !claimed.has(bySteam.id) ? bySteam : index.byTitle.get(titleKey(item.title))?.find((g) => !claimed.has(g.id))) ?? null;
+    if (game) claimed.add(game.id);
     const changes: Array<keyof GameLog> = [];
     const kept: Array<keyof GameLog> = [];
     const nextLog: GameLog = { ...(game?.log ?? {}) };

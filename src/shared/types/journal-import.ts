@@ -13,7 +13,7 @@ export interface JournalImportItem {
   log: GameLog;
 }
 
-export type JournalImportSource = 'ygp' | 'lazulium';
+export type JournalImportSource = 'ygp' | 'backloggd' | 'lazulium';
 
 export interface JournalImportParse {
   source: JournalImportSource;

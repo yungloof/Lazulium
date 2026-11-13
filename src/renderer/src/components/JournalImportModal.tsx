@@ -29,7 +29,7 @@ const ACTION_BADGE: Record<JournalImportAction, { label: string; className: stri
 const MAX_ROWS = 300;
 const fieldList = (fields: Array<keyof GameLog>) => fields.map((f) => FIELD_LABEL[f]).join(', ');
 
-// Traz o Diário de outro lugar: a página salva do Your Gamer Profile ou a cópia do Diário do Lazulium.
+// Traz o Diário de outro lugar: a página salva do Your Gamer Profile ou do Backloggd, ou a cópia do Diário do Lazulium.
 // Os arquivos são lidos aqui no computador; nada é enviado para a internet.
 export const JournalImportModal: React.FC<JournalImportModalProps> = ({ onClose, onImported }) => {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -39,6 +39,7 @@ export const JournalImportModal: React.FC<JournalImportModalProps> = ({ onClose,
   const [preview, setPreview] = useState<JournalImportPreviewItem[] | null>(null);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [site, setSite] = useState<'ygp' | 'backloggd'>('ygp');
 
   const merged: JournalImportParse | null = useMemo(() => {
     const parses = files.flatMap((f) => (f.ok ? [f.parse] : []));
@@ -106,7 +107,7 @@ export const JournalImportModal: React.FC<JournalImportModalProps> = ({ onClose,
   return (
     <Modal
       title="Importar para o Diário"
-      subtitle="Traga seus registros do Your Gamer Profile ou de uma cópia do Lazulium."
+      subtitle="Traga seus registros do Your Gamer Profile, do Backloggd ou de uma cópia do Lazulium."
       icon={<FileDown className="w-4 h-4 text-indigo-400" />}
       size="lg"
       onClose={onClose}
@@ -121,25 +122,57 @@ export const JournalImportModal: React.FC<JournalImportModalProps> = ({ onClose,
       }
     >
       <div className="space-y-4">
-        <ol className="space-y-1.5 text-[13px] text-slate-300 list-decimal pl-5 marker:text-slate-500">
-          <li>
-            No Your Gamer Profile, abra seu perfil na aba <strong className="text-white">Avaliações</strong> (traz o texto das resenhas) e/ou na aba <strong className="text-white">Jogos</strong> (traz todos, até os sem
-            texto).
-          </li>
-          <li>Role até o fim para carregar tudo e clique em “Ler mais” nas resenhas compridas.</li>
-          <li>
-            A aba Jogos só guarda no arquivo as linhas que estão na tela: diminua o zoom (<kbd className="px-1 rounded bg-slate-800 text-slate-200">Ctrl</kbd> + <kbd className="px-1 rounded bg-slate-800 text-slate-200">-</kbd>) e salve
-            de novo em outros trechos da lista. Os arquivos se somam e o mesmo jogo não duplica.
-          </li>
-          <li>
-            Salve com <kbd className="px-1 rounded bg-slate-800 text-slate-200">Ctrl</kbd> + <kbd className="px-1 rounded bg-slate-800 text-slate-200">S</kbd> (“Página da Web, completa”) e escolha o arquivo <code className="text-slate-200">.htm</code> aqui.
-            Uma cópia do Diário do Lazulium (<code className="text-slate-200">.json</code>) também serve.
-          </li>
-        </ol>
+        <div className="flex gap-1.5" role="group" aria-label="De onde vêm os arquivos">
+          {([
+            ['ygp', 'Your Gamer Profile'],
+            ['backloggd', 'Backloggd']
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={site === id}
+              onClick={() => setSite(id)}
+              className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${focusRing} ${
+                site === id ? 'bg-indigo-500/20 border-indigo-400/40 text-white' : 'border-slate-700 text-slate-400 hover:text-white'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {site === 'ygp' ? (
+          <ol className="space-y-1.5 text-[13px] text-slate-300 list-decimal pl-5 marker:text-slate-500">
+            <li>
+              No Your Gamer Profile, abra seu perfil na aba <strong className="text-white">Avaliações</strong> (traz o texto das resenhas) e/ou na aba <strong className="text-white">Jogos</strong> (traz todos, até os sem
+              texto).
+            </li>
+            <li>Role até o fim para carregar tudo e clique em “Ler mais” nas resenhas compridas.</li>
+            <li>
+              A aba Jogos só guarda no arquivo as linhas que estão na tela: diminua o zoom (<kbd className="px-1 rounded bg-slate-800 text-slate-200">Ctrl</kbd> + <kbd className="px-1 rounded bg-slate-800 text-slate-200">-</kbd>) e salve
+              de novo em outros trechos da lista. Os arquivos se somam e o mesmo jogo não duplica.
+            </li>
+            <li>
+              Salve com <kbd className="px-1 rounded bg-slate-800 text-slate-200">Ctrl</kbd> + <kbd className="px-1 rounded bg-slate-800 text-slate-200">S</kbd> (“Página da Web, completa”) e escolha o arquivo <code className="text-slate-200">.htm</code> aqui.
+              Uma cópia do Diário do Lazulium (<code className="text-slate-200">.json</code>) também serve.
+            </li>
+          </ol>
+        ) : (
+          <ol className="space-y-1.5 text-[13px] text-slate-300 list-decimal pl-5 marker:text-slate-500">
+            <li>
+              No Backloggd, abra seu perfil na página <strong className="text-white">Games</strong> (traz todos os jogos com nota e status) e/ou na página <strong className="text-white">Reviews</strong> (traz o texto das resenhas e a plataforma).
+            </li>
+            <li>Se a lista tiver mais de uma página, salve cada uma. Os arquivos se somam e o mesmo jogo não duplica.</li>
+            <li>
+              Salve com <kbd className="px-1 rounded bg-slate-800 text-slate-200">Ctrl</kbd> + <kbd className="px-1 rounded bg-slate-800 text-slate-200">S</kbd> (“Página da Web, completa”) e escolha os arquivos <code className="text-slate-200">.htm</code> aqui.
+            </li>
+            <li className="text-slate-400">O Backloggd não guarda horas jogadas nem datas de início e término, então só vêm nota, status, resenha e plataforma.</li>
+          </ol>
+        )}
 
         <p className="flex items-start gap-2 text-xs text-slate-400">
           <ShieldCheck className="w-3.5 h-3.5 mt-0.5 text-emerald-400 flex-shrink-0" />
-          Os arquivos são lidos neste computador e não vão para a internet. O Lazulium não acessa o site do YGP.
+          Os arquivos são lidos neste computador e não vão para a internet. O Lazulium não acessa o site do YGP nem o do Backloggd.
         </p>
 
         <div
@@ -195,10 +228,11 @@ export const JournalImportModal: React.FC<JournalImportModalProps> = ({ onClose,
               {merged.expectedGames ? <span className="text-slate-400"> · o perfil mostra {merged.expectedGames}</span> : null}
             </p>
 
-            {merged.expectedGames && merged.items.length < merged.expectedGames && merged.source === 'ygp' && (
+            {merged.expectedGames && merged.items.length < merged.expectedGames && (merged.source === 'ygp' || merged.source === 'backloggd') && (
               <Notice tone="info">
-                Faltam {merged.expectedGames - merged.items.length} jogos que o YGP lista no perfil. Salve a aba Jogos de novo rolando até outros trechos (e a aba Avaliações, para o texto das resenhas) e escolha os arquivos
-                aqui: eles se somam.
+                {merged.source === 'backloggd'
+                  ? `Faltam ${merged.expectedGames - merged.items.length} jogos que o Backloggd lista no perfil. Salve as outras páginas da lista Games e escolha os arquivos aqui: eles se somam.`
+                  : `Faltam ${merged.expectedGames - merged.items.length} jogos que o YGP lista no perfil. Salve a aba Jogos de novo rolando até outros trechos (e a aba Avaliações, para o texto das resenhas) e escolha os arquivos aqui: eles se somam.`}
               </Notice>
             )}
             {merged.truncatedReviews > 0 && (

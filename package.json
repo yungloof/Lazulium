@@ -1,6 +1,6 @@
 {
   "name": "lazulium",
-  "version": "2.7.4",
+  "version": "2.8.0",
   "description": "Lazulium - Hub universal de jogos para PC e emuladores, com horas jogadas, conquistas e backup de saves",
   "main": "./out/main/index.js",
   "author": {

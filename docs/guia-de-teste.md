@@ -10,8 +10,8 @@ Baixe um destes na página de downloads do Lazulium no GitHub:
 
 | Arquivo | |
 |---|---|
-| **`Lazulium-Setup-2.7.4.exe`** *(recomendado)* | Instala só para o seu usuário, sem pedir administrador, e cria os atalhos. |
-| **`Lazulium-Portable-2.7.4.exe`** | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
+| **`Lazulium-Setup-2.8.0.exe`** *(recomendado)* | Instala só para o seu usuário, sem pedir administrador, e cria os atalhos. |
+| **`Lazulium-Portable-2.8.0.exe`** | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
 
 Se já testou uma versão antiga, instale por cima. Nada se perde.
 
@@ -48,7 +48,7 @@ Os dados ficam em `%APPDATA%\Lazulium` e não são apagados ao desinstalar ou tr
 - No **Perfil**, as horas somadas, as conquistas raras e a retrospectiva do ano fazem sentido? Teste **Editar perfil**.
 
 ### Diário, listas e desejos
-- No **Diário**, marque status, dê nota, escreva uma resenha e use **Registrar jogo** para um jogo de console. Exporte em CSV ou JSON e teste **Importar** com uma cópia JSON ou com a página salva do Your Gamer Profile (a prévia aparece antes de gravar).
+- No **Diário**, marque status, dê nota, escreva uma resenha e use **Registrar jogo** para um jogo de console. Exporte em CSV ou JSON e teste **Importar** com uma cópia JSON ou com a página salva do Your Gamer Profile ou as páginas Games e Reviews do Backloggd (a prévia aparece antes de gravar).
 - Crie uma lista (menu do jogo → *Adicionar à lista*).
 - Em **Desejos**, os preços da sua lista da Steam aparecem? Defina um preço-alvo.
 
@@ -78,7 +78,7 @@ O log tem erros, versões e caminhos de pasta, como `C:\Users\SeuNome\Games\...`
 ## 4. Modelo de relato
 
 ```text
---- RELATO DE TESTE - LAZULIUM 2.7.4 ---
+--- RELATO DE TESTE - LAZULIUM 2.8.0 ---
 1. O que eu tentei fazer:
 (Ex: conectar a Steam / abrir o Elden Ring / registrar um jogo no Diário)
 

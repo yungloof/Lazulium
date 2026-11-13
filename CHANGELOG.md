@@ -4,6 +4,16 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.8.0 — 13 de novembro de 2026
+
+### Novidades
+
+- **Importar do Backloggd.** Em *Diário → Importar* agora dá para trazer o seu perfil do Backloggd. Entre no seu perfil, abra a página *Games* (todos os jogos, com nota e status) e/ou *Reviews* (texto das resenhas e plataforma), salve cada uma com Ctrl+S (“Página da Web, completa”) e escolha os arquivos. Se a lista tiver mais de uma página, salve todas: elas se somam e o mesmo jogo não duplica. Os status viram: *Completed* → Zerado, *Retired* → Contínuo, *Shelved* → Pausado, *Abandoned* → Abandonado; a nota de 0,5 a 5 e a resenha vêm junto. O Backloggd não guarda horas jogadas nem datas de início e término, então esses campos ficam vazios (a data que o site mostra é a do dia em que você lançou o jogo, e quem importou tudo de uma vez ficaria com a mesma data em tudo). O Lazulium só lê os arquivos que você salvou, não acessa o Backloggd.
+- Quando o mesmo jogo vem do YGP e do Backloggd, vale o do YGP.
+- Dois jogos com o mesmo nome no arquivo (como o Resident Evil 4 de 2005 e o remake) agora viram dois registros, em vez de um apagar a nota do outro.
+
+---
+
 ## 2.7.4 — 13 de novembro de 2026
 
 ### Correções

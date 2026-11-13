@@ -99,6 +99,23 @@ describe('importação para o Diário', () => {
     expect(db.getGames()).toHaveLength(total);
   });
 
+  it('dois jogos do arquivo com o mesmo nome (versões diferentes) não se sobrescrevem e não duplicam ao repetir', () => {
+    const twins = [
+      item('Cyberpunk 2077', { status: 'finished', rating: 4 }, { key: 'v1' }),
+      item('Cyberpunk 2077', { status: 'completed', rating: 5 }, { key: 'v2' })
+    ];
+    const first = service.applyJournalImport(twins, keep);
+    // Um fica com o jogo da biblioteca e o outro vira entrada nova, em vez de um apagar o outro
+    expect(first).toMatchObject({ updated: 1, created: 1 });
+    expect(db.getGameById('steam-1')!.log).toMatchObject({ status: 'finished', rating: 4 });
+    const manual = db.getGames().find((g) => g.manualEntry && g.title === 'Cyberpunk 2077')!;
+    expect(manual.log).toMatchObject({ status: 'completed', rating: 5 });
+
+    const total = db.getGames().length;
+    expect(service.applyJournalImport(twins, keep)).toMatchObject({ created: 0, updated: 0, unchanged: 2 });
+    expect(db.getGames()).toHaveLength(total);
+  });
+
   it('descarta valores inválidos em vez de gravar lixo', () => {
     const result = service.applyJournalImport([item('Cyberpunk 2077', { status: 'zoado' as never, rating: 9, startedOn: 'ontem' })], keep);
     expect(result).toMatchObject({ updated: 0, created: 0, unchanged: 1 });
