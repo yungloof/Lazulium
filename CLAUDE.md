@@ -18,7 +18,7 @@ Este documento define padrões de engenharia, arquitetura e convenções de cód
      - `services/accounts/`: Login nas contas (Steam local/OpenID, janelas de login do SteamGridDB/RetroAchievements, Google).
      - `services/social/`: Conta Lazulium (amigos, feed, jogando agora), falando com `server/social`.
      - `services/cloudsync/`: Compacta saves e comunica com Google Drive.
-     - `database/` (`src/main/database/db.ts`): Banco de dados JSON (`lazulium_db.json`), gravação atômica, histórico de 14 dias de backups e recuperação contra corrupção.
+     - `database/` (`src/main/database/db.ts`): Banco de dados JSON (`lazulium_db.json`, com o cache de conquistas à parte em `lazulium_achievements.json`), gravação atômica, histórico de 14 dias de backups e recuperação contra corrupção.
 
 2. **Tipagem Estrita (Zero `any` desnecessário):**
    - Todos os tipos compartilhados entre o `main` e o `renderer` **devem** residir em `src/shared/types/`.
@@ -57,6 +57,7 @@ Lazulium/
 │   └── shared/                  # Código compartilhado entre Main e Renderer
 │       ├── types/               # Tipos TypeScript puros
 │       └── constants/           # Enums, canais IPC, configurações padrão
+├── tests/                       # Testes automatizados (vitest): banco, categorias, mescla do scanner, filtros; Electron trocado por um dublê
 ├── resources/                   # Logo do dono (logo.png, não alterar), ícones e imagens do instalador gerados dela
 ├── scripts/                     # generate-icons.mjs (npm run icons) e check-package.mjs (conferência antes do empacotamento)
 ├── server/igdb-proxy/           # Cloudflare Worker: tempo para zerar, busca e capas (IGDB) e preços (GG.deals)
@@ -94,8 +95,11 @@ npm install
 # Iniciar em modo de desenvolvimento (Electron + Vite HMR)
 npm run dev
 
-# Fazer checagem de tipos TypeScript
+# Fazer checagem de tipos TypeScript (main, renderer e testes)
 npm run typecheck
+
+# Rodar os testes automatizados (também rodam antes de todo build:win)
+npm test
 
 # Gerar build de produção (instalador + portátil em dist/; confere o pacote antes do electron-builder)
 npm run build:win
@@ -121,3 +125,4 @@ npm run icons
   4. Exponha o método no `src/preload/index.ts`.
   5. Consuma no `renderer` através de `window.electronAPI`.
 - Mantenha testes de fumaça manuais simples e instruções claras de como testar cada entrega.
+- Mudou o banco, a mescla do scanner ou uma regra de biblioteca? Acrescente o caso em `tests/` (os serviços que usam o banco recarregam os módulos por teste; veja `tests/main/categories.test.ts`).

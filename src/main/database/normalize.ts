@@ -1,5 +1,6 @@
 import { EmulatorConfig, Game, PlaytimeSession } from '@shared/types/game';
 import { StoredActivity } from '@shared/types/activity';
+import { GameAchievements } from '@shared/types/achievements';
 import { GameCategory } from '@shared/types/categories';
 import type { ActiveSessionRecord, DatabaseSchema } from './db';
 
@@ -79,6 +80,16 @@ function normalizeSettings(raw: unknown): Record<string, string> {
     else if (typeof value === 'number' || typeof value === 'boolean') settings[key] = String(value);
   }
   return settings;
+}
+
+// Arquivo de conquistas (ou o campo de mesmo nome num banco antigo): só entra lista com cara de lista
+export function normalizeAchievements(raw: unknown): Record<string, GameAchievements> {
+  const source = isObject(raw) && isObject(raw.gameAchievements) ? raw.gameAchievements : {};
+  const result: Record<string, GameAchievements> = {};
+  for (const [gameId, entry] of Object.entries(source)) {
+    if (isObject(entry) && Array.isArray(entry.items)) result[gameId] = entry as unknown as GameAchievements;
+  }
+  return result;
 }
 
 // Abre o banco de qualquer versão: preenche o que falta, descarta registros sem identificação

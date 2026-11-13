@@ -11,13 +11,12 @@ import { WishlistItem } from '@shared/types/wishlist';
 import { ScreenshotMove } from '@shared/types/screenshots';
 import { StoredActivity } from '@shared/types/activity';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
-import { createDefaultData, normalizeData } from './normalize';
+import { SCHEMA_VERSION, createDefaultData, normalizeAchievements, normalizeData } from './normalize';
 import { ensureDailyBackup, listDailyBackups, readTextWithRetry, writeAtomic } from './storage';
 
 // Mudanças em rajada (scan, sincronização de conquistas) viram uma gravação só
 const WRITE_DELAY_MS = 250;
 const MAX_ACTIVITY_LOG = 1_000;
-// Gravação que falhou (arquivo preso por outro programa) é tentada de novo sozinha
 const WRITE_RETRY_MS = 3_000;
 const SLOW_WRITE_MS = 250;
 
@@ -33,32 +32,21 @@ const SECRET_SETTING_KEYS = [
 
 const isSecretKey = (key: string): boolean => (SECRET_SETTING_KEYS as readonly string[]).includes(key);
 
-// null: não deu para decifrar neste PC/usuário do Windows (ex: pasta de dados copiada de outro PC)
-function decryptSecret(value: string): string | null {
-  if (!value.startsWith('enc:')) return value; // Texto puro (migração ou sem cifragem)
-  if (!safeStorage.isEncryptionAvailable()) {
+const ENCRYPTED_PREFIX = 'enc:';
+
+// null: não deu para decifrar neste PC/usuário do Windows (ex: pasta de dados copiada de outro PC).
+// stale: o Windows trocou a chave e pede para cifrar de novo com a atual.
+async function decryptSecret(value: string, available: boolean): Promise<{ plain: string; stale: boolean } | null> {
+  if (!available) {
     console.warn('[Database] safeStorage não está disponível para decifrar credenciais.');
     return null;
   }
   try {
-    return safeStorage.decryptString(Buffer.from(value.slice(4), 'base64'));
+    const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(Buffer.from(value.slice(ENCRYPTED_PREFIX.length), 'base64'));
+    return { plain: result, stale: shouldReEncrypt };
   } catch (err) {
     console.error('[Database] Falha ao decifrar segredo:', err);
     return null;
-  }
-}
-
-function encryptSecret(value: string): string {
-  if (value.startsWith('enc:')) return value;
-  if (!safeStorage.isEncryptionAvailable()) {
-    console.warn('[Database] safeStorage não está disponível; mantendo credencial em texto puro.');
-    return value;
-  }
-  try {
-    return `enc:${safeStorage.encryptString(value).toString('base64')}`;
-  } catch (err) {
-    console.error('[Database] Falha ao cifrar segredo:', err);
-    return value;
   }
 }
 
@@ -95,16 +83,28 @@ export interface DatabaseSchema {
   settings: Record<string, string>;
 }
 
-class DatabaseService {
+export class DatabaseService {
   private dataFilePath = '';
+  // Cache de conquistas em arquivo próprio: é quase todo o peso do banco, e o arquivo principal
+  // (biblioteca, Diário, configurações) era regravado inteiro a cada conquista sincronizada
+  private achievementsFilePath = '';
   private data: DatabaseSchema = createDefaultData();
   private initialized = false;
   private writeTimer: NodeJS.Timeout | undefined;
   private dirty = false;
+  private achievementsDirty = false;
+  // Banco de antes da 2.5: as conquistas ainda estão dentro do arquivo principal e só saem
+  // de lá depois que o arquivo próprio for gravado
+  private achievementsInline = false;
   private backupDay: string | undefined;
   // Segredos cifrados que este PC não abre: voltam ao arquivo intactos até o jogador conectar de novo.
   // Gravar vazio no lugar apagaria a conta de vez (ex: chave do Windows recriada, perfil restaurado).
   private undecryptable = new Map<string, string>();
+  // A cifragem é assíncrona e a gravação não: o texto cifrado do valor atual fica pronto aqui
+  private encryptionAvailable = false;
+  private encryptedSecrets = new Map<string, { plain: string; stored: string }>();
+  private encrypting = new Map<string, Promise<void>>();
+  private unencryptable = new Set<string>();
 
   async init(): Promise<void> {
     if (this.initialized) return;
@@ -113,17 +113,31 @@ class DatabaseService {
       const storageDir = join(app.getPath('userData'), 'storage');
       mkdirSync(storageDir, { recursive: true });
       this.dataFilePath = join(storageDir, 'lazulium_db.json');
+      this.achievementsFilePath = join(storageDir, 'lazulium_achievements.json');
+      this.encryptionAvailable = await safeStorage.isAsyncEncryptionAvailable().catch(() => false);
 
       const loaded = this.load();
       if (loaded) {
+        this.loadAchievements(loaded);
+        const pendingEncryption: [string, string][] = [];
         for (const key of SECRET_SETTING_KEYS) {
           const stored = loaded.settings[key];
           if (!stored) continue;
-          const plain = decryptSecret(stored);
-          if (plain === null) this.undecryptable.set(key, stored);
-          loaded.settings[key] = plain ?? '';
+          if (!stored.startsWith(ENCRYPTED_PREFIX)) {
+            // Texto puro (versão antiga ou PC que estava sem cifragem): cifra na próxima gravação
+            pendingEncryption.push([key, stored]);
+            continue;
+          }
+          const secret = await decryptSecret(stored, this.encryptionAvailable);
+          if (!secret) this.undecryptable.set(key, stored);
+          else if (secret.stale) pendingEncryption.push([key, secret.plain]);
+          else this.encryptedSecrets.set(key, { plain: secret.plain, stored });
+          loaded.settings[key] = secret?.plain ?? '';
         }
         this.data = loaded;
+        for (const [key, plain] of pendingEncryption) this.queueEncryption(key, plain);
+        // Só agenda gravação com os dados já no lugar: antes disso o que está na memória é um banco vazio
+        if (this.dirty || this.achievementsDirty) this.writeTimer ??= setTimeout(() => void this.flushWhenEncrypted(), WRITE_DELAY_MS);
       } else {
         this.data = createDefaultData();
         this.dirty = true;
@@ -136,8 +150,72 @@ class DatabaseService {
       console.error('[Database] Failed to initialize database:', err);
       // Sem caminho nada é gravado: uma falha ao abrir nunca pode sobrescrever o histórico com um banco vazio
       this.dataFilePath = '';
+      this.achievementsFilePath = '';
       this.data = createDefaultData();
     }
+  }
+
+  // Junta as conquistas do arquivo próprio com as que ainda estiverem dentro do banco principal
+  // (banco de antes da 2.5 ou cópia de segurança antiga restaurada): o arquivo próprio é o mais novo e vence.
+  private loadAchievements(loaded: DatabaseSchema): void {
+    const inline = loaded.gameAchievements ?? {};
+    let stored: Record<string, GameAchievements> = {};
+    if (existsSync(this.achievementsFilePath)) {
+      try {
+        stored = normalizeAchievements(JSON.parse(readTextWithRetry(this.achievementsFilePath).replace(/^\uFEFF/, '')));
+      } catch (err) {
+        // Arquivo preso por outro programa: o init desiste sem gravar nada (como no banco principal)
+        if ((err as NodeJS.ErrnoException).code) throw err;
+        // Ilegível: é um cache, as conquistas voltam na próxima sincronização
+        console.error('[Database] Arquivo de conquistas corrompido; elas serão buscadas de novo:', err);
+        renameSync(this.achievementsFilePath, `${this.achievementsFilePath}.corrupt-${Date.now()}`);
+      }
+    }
+    loaded.gameAchievements = { ...inline, ...stored };
+    if (Object.keys(inline).length > 0) {
+      this.achievementsInline = true;
+      this.achievementsDirty = true;
+      this.dirty = true;
+    }
+  }
+
+  // Cifra em segundo plano o valor atual de um segredo; a gravação seguinte já leva o texto cifrado
+  private queueEncryption(key: string, plain: string): void {
+    if (!this.encryptionAvailable) return;
+    const task: Promise<void> = safeStorage
+      .encryptStringAsync(plain)
+      .then((buffer) => {
+        // O valor pode ter mudado enquanto cifrava: só vale se ainda for o atual
+        if (this.data.settings[key] !== plain) return;
+        this.encryptedSecrets.set(key, { plain, stored: `${ENCRYPTED_PREFIX}${buffer.toString('base64')}` });
+        this.persist();
+      })
+      .catch((err) => {
+        console.error('[Database] Falha ao cifrar segredo; a credencial fica em texto puro:', err);
+        if (this.data.settings[key] === plain) {
+          this.unencryptable.add(key);
+          this.persist();
+        }
+      })
+      .finally(() => {
+        if (this.encrypting.get(key) === task) this.encrypting.delete(key);
+      });
+    this.encrypting.set(key, task);
+  }
+
+  // Como o segredo vai para o arquivo
+  private storedSecret(key: string, plain: string): string {
+    const encrypted = this.encryptedSecrets.get(key);
+    if (encrypted?.plain === plain) return encrypted.stored;
+    if (!this.encryptionAvailable || this.unencryptable.has(key)) return plain;
+    // Ainda cifrando (o app fechou no instante em que a credencial mudou): fica o que já estava no arquivo
+    return encrypted?.stored ?? '';
+  }
+
+  // Gravação com hora marcada: espera as cifragens em andamento (alguns milissegundos)
+  private async flushWhenEncrypted(): Promise<void> {
+    if (this.encrypting.size > 0) await Promise.allSettled([...this.encrypting.values()]);
+    this.flush();
   }
 
   private readDataFile(path: string): DatabaseSchema {
@@ -181,33 +259,59 @@ class DatabaseService {
   private persist(): void {
     if (!this.dataFilePath) return;
     this.dirty = true;
-    this.writeTimer ??= setTimeout(() => this.flush(), WRITE_DELAY_MS);
+    this.writeTimer ??= setTimeout(() => void this.flushWhenEncrypted(), WRITE_DELAY_MS);
+  }
+
+  // O mesmo, para o arquivo de conquistas: sincronizar conquistas não regrava a biblioteca
+  private persistAchievements(): void {
+    if (!this.dataFilePath) return;
+    this.achievementsDirty = true;
+    this.writeTimer ??= setTimeout(() => void this.flushWhenEncrypted(), WRITE_DELAY_MS);
   }
 
   // Grava agora o que estiver pendente (encerramento do app e testes)
   flush(): void {
     clearTimeout(this.writeTimer);
     this.writeTimer = undefined;
-    if (!this.dirty || !this.dataFilePath) return;
-    this.dirty = false;
-    const startedAt = Date.now();
-    try {
-      const settings = { ...this.data.settings };
-      for (const key of SECRET_SETTING_KEYS) {
-        const value = settings[key];
-        if (value) settings[key] = encryptSecret(value);
-        else if (this.undecryptable.has(key)) settings[key] = this.undecryptable.get(key)!;
+    if (!this.dataFilePath) return;
+    // Primeiro as conquistas: o banco principal só deixa de carregá-las depois que o arquivo delas existir
+    if (this.achievementsDirty) {
+      this.achievementsDirty = false;
+      try {
+        // A cópia diária ainda guarda o banco de antes da separação
+        if (this.achievementsInline) this.backupDay = ensureDailyBackup(this.dataFilePath, this.backupDay);
+        writeAtomic(this.achievementsFilePath, JSON.stringify({ schemaVersion: SCHEMA_VERSION, gameAchievements: this.data.gameAchievements ?? {} }));
+        if (this.achievementsInline) {
+          this.achievementsInline = false;
+          this.dirty = true;
+        }
+      } catch (err) {
+        console.error('[Database] Falha ao gravar as conquistas (nova tentativa em instantes):', err);
+        this.achievementsDirty = true;
       }
-      const text = JSON.stringify({ ...this.data, settings });
-      this.backupDay = ensureDailyBackup(this.dataFilePath, this.backupDay);
-      writeAtomic(this.dataFilePath, text);
-      const elapsed = Date.now() - startedAt;
-      if (elapsed > SLOW_WRITE_MS) console.warn(`[Database] Gravação lenta: ${elapsed} ms (${(text.length / 1048576).toFixed(1)} MB)`);
-    } catch (err) {
-      console.error('[Database] Falha ao gravar o banco (nova tentativa em instantes):', err);
-      this.dirty = true;
-      this.writeTimer = setTimeout(() => this.flush(), WRITE_RETRY_MS);
     }
+    if (this.dirty) {
+      this.dirty = false;
+      const startedAt = Date.now();
+      try {
+        const settings = { ...this.data.settings };
+        for (const key of SECRET_SETTING_KEYS) {
+          const value = settings[key];
+          if (value) settings[key] = this.storedSecret(key, value);
+          else if (this.undecryptable.has(key)) settings[key] = this.undecryptable.get(key)!;
+        }
+        const text = JSON.stringify({ ...this.data, gameAchievements: this.achievementsInline ? this.data.gameAchievements : undefined, settings });
+        this.backupDay = ensureDailyBackup(this.dataFilePath, this.backupDay);
+        writeAtomic(this.dataFilePath, text);
+        const elapsed = Date.now() - startedAt;
+        if (elapsed > SLOW_WRITE_MS) console.warn(`[Database] Gravação lenta: ${elapsed} ms (${(text.length / 1048576).toFixed(1)} MB)`);
+      } catch (err) {
+        console.error('[Database] Falha ao gravar o banco (nova tentativa em instantes):', err);
+        this.dirty = true;
+      }
+    }
+    // Gravação que falhou (arquivo preso por outro programa) é tentada de novo sozinha
+    if (this.dirty || this.achievementsDirty) this.writeTimer = setTimeout(() => void this.flushWhenEncrypted(), WRITE_RETRY_MS);
   }
 
   // Games CRUD
@@ -309,6 +413,7 @@ class DatabaseService {
     }
     this.data.games = this.data.games.filter((g) => g.id !== oldId);
     this.persist();
+    this.persistAchievements();
   }
 
   deleteGame(id: string): boolean {
@@ -375,7 +480,7 @@ class DatabaseService {
   saveGameAchievements(achievements: GameAchievements): void {
     this.data.gameAchievements ??= {};
     this.data.gameAchievements[achievements.gameId] = achievements;
-    this.persist();
+    this.persistAchievements();
   }
 
   // Várias listas de uma vez: o arquivo é grande, e gravar a cada jogo travaria o app
@@ -383,7 +488,7 @@ class DatabaseService {
     if (list.length === 0) return;
     this.data.gameAchievements ??= {};
     for (const achievements of list) this.data.gameAchievements[achievements.gameId] = achievements;
-    this.persist();
+    this.persistAchievements();
   }
 
   getAchievementExtras(gameId: string): AchievementExtras {
@@ -399,7 +504,7 @@ class DatabaseService {
   clearGameAchievements(source: AchievementSource): void {
     const all = this.data.gameAchievements ?? {};
     this.data.gameAchievements = Object.fromEntries(Object.entries(all).filter(([, a]) => a.source !== source));
-    this.persist();
+    this.persistAchievements();
   }
 
   getAchievements(gameId: string): Achievement[] {
@@ -555,8 +660,13 @@ class DatabaseService {
 
   setSetting(key: string, value: string): void {
     this.data.settings[key] = value;
-    // O jogador conectou de novo (ou saiu): a credencial antiga que não abria deixa de valer
-    if (isSecretKey(key)) this.undecryptable.delete(key);
+    if (isSecretKey(key)) {
+      // O jogador conectou de novo (ou saiu): a credencial antiga que não abria deixa de valer
+      this.undecryptable.delete(key);
+      this.unencryptable.delete(key);
+      if (!value) this.encryptedSecrets.delete(key);
+      else if (this.encryptedSecrets.get(key)?.plain !== value) this.queueEncryption(key, value);
+    }
     this.persist();
   }
 }

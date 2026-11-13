@@ -215,6 +215,30 @@ As fases 1 a 11 e as versões de teste fecharam na 1.0. O que ficou para depois 
 
 ---
 
+## Rumo à 3.0: sua biblioteca te acompanha
+A 3.0 fecha quando o que a pessoa arruma (Diário, categorias, listas) passa a valer em qualquer PC. Ordem: fundação, metadados, social, sincronização.
+
+**Fundação**
+- [x] Cache de conquistas em arquivo próprio (`lazulium_achievements.json`): o banco principal caiu de 5,2 MB para 0,3 MB num banco real e deixou de ser regravado a cada conquista.
+- [x] `safeStorage` assíncrono no lugar do síncrono, que sai no Electron 46.
+- [x] Testes automatizados (`npm test`, vitest): banco, categorias, mescla do scanner e filtros da biblioteca. Rodam antes de todo `build:win`.
+- [ ] Subir para o Electron 46 quando sair a versão estável (em 12/11/2026 só existe alpha).
+
+**Biblioteca que entende os jogos**
+- [ ] Gênero, ano e série pelo IGDB (`server/igdb-proxy`), guardados por jogo.
+- [ ] Categorias dinâmicas, filtros combinados e página do jogo com esses dados.
+- [ ] Importar as coleções da Steam (`userdata/<conta>/config/cloudstorage/cloud-storage-namespace-1.json`, sem chave).
+
+**Conta que sincroniza**
+- [ ] Comparar conquistas lado a lado e notas dos amigos na página do jogo (fase 4 de `docs/conta-lazulium.md`).
+- [ ] Diário, categorias, listas e favoritos entre PCs, com consentimento próprio e `docs/privacidade.md` atualizada antes.
+- [ ] Listas compartilhadas.
+
+**Lançamento**
+- [ ] Instalador assinado e GitHub Pages (itens em [Depois da 1.0](#depois-da-10)).
+
+---
+
 ## Depois da 1.0
 Passos que só o dono pode fazer estão detalhados em [docs/publicar-1.0.md](docs/publicar-1.0.md).
 

@@ -13,7 +13,7 @@ Hub de jogos para PC (Steam, Epic, GOG, Riot, Xbox, emuladores e jogos avulsos) 
 | **Frontend UI** | **React 19 + TypeScript** | Tipagem estrita do main ao renderer. |
 | **Estilização** | **Tailwind CSS + Lucide Icons** | Classes utilitárias e tema escuro ajustável pelo editor de aparência. |
 | **Gerenciamento de Estado** | **Zustand** | Estado da biblioteca, do controle e da casca do app sem prop drilling. |
-| **Banco de Dados Local** | **JSON Store (`lazulium_db.json`)** | `userData/storage/lazulium_db.json`, com gravação atômica, cópias diárias de 14 dias e recuperação se o arquivo corromper. Credenciais cifradas com `safeStorage`. |
+| **Banco de Dados Local** | **JSON Store (`lazulium_db.json`)** | `userData/storage/lazulium_db.json`, com gravação atômica, cópias diárias de 14 dias e recuperação se o arquivo corromper. O cache de conquistas fica ao lado, em `lazulium_achievements.json`. Credenciais cifradas com `safeStorage`. |
 | **Navegação de Controle** | **HTML5 Gamepad API + Spatial Navigation Engine** | Sem dependência extra; funciona com Xbox, PlayStation, Switch Pro e genéricos. |
 
 ---
@@ -196,7 +196,8 @@ Unifica conquistas de plataformas de PC e retroemulação:
   * **Gravação Atômica:** Toda persistência escreve primeiro em um arquivo temporário (`lazulium_db.json.tmp`) e executa uma substituição atômica (`renameSync`). Quedas de energia ou travamentos do sistema no meio da gravação nunca corrompem o banco principal.
   * **Backups Diários Automáticos:** Antes da primeira alteração de cada dia, uma cópia completa é salva em `userData/storage/backups/lazulium_db-YYYY-MM-DD.json`, mantendo automaticamente os últimos 14 dias de histórico.
   * **Recuperação Automática de Corrupção (`loadWithRecovery`):** Se o arquivo JSON for danificado ou inválido, ele é renomeado para `lazulium_db.json.corrupt-<timestamp>` e o Lazulium restaura automaticamente a cópia de segurança diária válida mais recente.
-  * **Cifragem de Credenciais:** Tokens sensíveis (chaves de API, segredos OAuth) são cifrados pelo `safeStorage` do Electron no disco (prefixo `enc:`) e decifrados apenas em memória.
+  * **Cifragem de Credenciais:** Tokens sensíveis (chaves de API, segredos OAuth) são cifrados pelo `safeStorage` do Electron no disco (prefixo `enc:`) e decifrados apenas em memória. Usa a API assíncrona (`encryptStringAsync` / `decryptStringAsync`; a síncrona sai no Electron 46): ao mudar uma credencial, o texto cifrado é preparado em segundo plano e a gravação seguinte já o leva. Gravação no meio desse intervalo mantém o que estava no arquivo, nunca texto puro.
+  * **Conquistas em Arquivo Próprio:** `gameAchievements` (o cache das listas, mais de 90% do peso do banco) é gravado em `userData/storage/lazulium_achievements.json`, com gravação atômica e sem cópia diária, porque volta numa sincronização. Sincronizar conquistas não regrava a biblioteca, e mexer na biblioteca não regrava as conquistas. Banco de antes da 2.5 (ou cópia diária antiga restaurada) é convertido ao abrir: o arquivo próprio é gravado primeiro e só depois o principal fica sem o campo. O que o jogador registrou por conta própria (`achievementExtras`) continua no banco principal, coberto pelas cópias diárias.
 
 ---
 
@@ -239,7 +240,7 @@ Passo a passo para um canal novo: ver a seção 5 do `CLAUDE.md`.
 
 ## 5. Estrutura do Banco de Dados Local (JSON - `lazulium_db.json`)
 
-O banco de dados do Lazulium é armazenado em um arquivo JSON único em `userData/storage/lazulium_db.json`, gerenciado centralmente por `src/main/database/db.ts`:
+O banco de dados do Lazulium fica em `userData/storage/lazulium_db.json` (mais o cache de conquistas em `lazulium_achievements.json`, que na memória continua sendo o campo `gameAchievements`), gerenciado centralmente por `src/main/database/db.ts`:
 * `database/storage.ts`: o arquivo no disco (leitura com novas tentativas quando antivírus ou indexador seguram o arquivo, gravação atômica e cópias diárias). Não conhece o formato dos dados.
 * `database/normalize.ts`: `SCHEMA_VERSION` e `normalizeData`, que converte bancos de versões anteriores ao abrir. Mudou o formato de um dado guardado? Suba a versão e converta ali.
 
