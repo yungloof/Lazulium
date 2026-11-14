@@ -141,7 +141,10 @@ export const AccountsSettings: React.FC = () => {
     setEpicMessage(null);
     try {
       const result = await window.electronAPI?.importEpicPlaytime();
-      if (result) setEpicMessage({ ok: true, text: result.updated ? `horas atualizadas em ${result.updated} jogo(s)` : 'horas em dia' });
+      if (result) {
+        const parts = [result.updated ? `horas atualizadas em ${result.updated} jogo(s)` : 'horas em dia', ...(result.added ? [`${result.added} jogo(s) da conta adicionados`] : [])];
+        setEpicMessage({ ok: true, text: parts.join(' · ') });
+      }
     } catch (err) {
       setEpicMessage({ ok: false, text: ipcErrorMessage(err) });
     } finally {
@@ -204,7 +207,7 @@ export const AccountsSettings: React.FC = () => {
           icon={<Clock className="w-5 h-5 text-sky-300" />}
           tint="bg-sky-500/15"
           name="Epic Games (opcional)"
-          purpose="Traz as horas dos jogos da Epic, até as de antes do Lazulium, já que ela não guarda isso no PC"
+          purpose="Traz as horas dos jogos da Epic, até as de antes do Lazulium, e os jogos que você já jogou mesmo sem estarem instalados"
           connectedLabel={
             status.epic.connected
               ? `Conectado${status.epic.displayName ? ` como ${status.epic.displayName}` : ''}${epicMessage?.ok ? ` · ${epicMessage.text}` : ''}`

@@ -1,3 +1,4 @@
+import { epicAccountService } from '../services/accounts/epic-account.service';
 import { randomUUID } from 'crypto';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { Game, GamePlatform } from '@shared/types/game';
@@ -85,9 +86,12 @@ export function registerLibraryHandlers(): void {
 
   handle(IPC_CHANNELS.LIBRARY_TOGGLE_FAVORITE, (_event, id: string) => db.toggleFavorite(id));
 
-  handle(IPC_CHANNELS.LIBRARY_SCAN_ALL, () => {
+  handle(IPC_CHANNELS.LIBRARY_SCAN_ALL, async () => {
     console.log('[IPC] Escanear: todas as plataformas');
-    return scanAndQueueArtwork();
+    const result = await scanAndQueueArtwork();
+    // Com a conta da Epic conectada, o Escanear também traz os jogos dela já jogados e não instalados (chegam à tela sozinhos)
+    if (epicAccountService.isConnected()) void epicAccountService.importPlaytime().catch((err) => console.warn('[Epic] Importação depois do Escanear falhou:', (err as Error).message));
+    return result;
   });
 
   handle(IPC_CHANNELS.LIBRARY_SCAN_PLATFORM, (_event, platform: GamePlatform) => {

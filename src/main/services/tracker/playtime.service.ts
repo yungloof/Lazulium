@@ -1,3 +1,4 @@
+import { canInstallFromStore } from '@shared/utils/install';
 import { execFile } from 'child_process';
 import { randomUUID } from 'crypto';
 import { dirname } from 'path';
@@ -176,8 +177,19 @@ class PlaytimeService {
 
   private async launchUnlocked(game: Game): Promise<boolean> {
     const gameId = game.id;
-    // Desinstalado: a Steam oferece a instalação; nos outros casos só informa
+    // Desinstalado: a Steam e a Epic oferecem a instalação; nos outros casos só informa
     if (game.isInstalled === false || game.manualEntry) {
+      if (game.platform === 'epic' && canInstallFromStore(game)) {
+        const uri = game.launchUri!.replace(/([?&]action=)launch\b/, '$1install');
+        try {
+          await shell.openExternal(uri);
+          return true;
+        } catch (err) {
+          console.warn(`[Playtime] instalação de ${game.title} pela Epic falhou:`, (err as Error).message);
+          this.emit({ gameId, state: 'stopped', isRunning: false, error: 'O launcher da Epic não abriu para instalar o jogo. Confira se ele está instalado neste PC.' });
+          return false;
+        }
+      }
       if (game.platform === 'steam' && game.platformGameId) {
         try {
           await shell.openExternal(`steam://install/${game.platformGameId}`);

@@ -1,3 +1,4 @@
+import { canInstallFromStore } from '@shared/utils/install';
 import React, { useEffect, useState } from 'react';
 import { Game } from '@shared/types/game';
 import { Download, Loader2, Play, Square } from 'lucide-react';
@@ -57,9 +58,9 @@ export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch, size = '
 
   if (game.manualEntry) return null;
 
-  // Desinstalado: a Steam reinstala em um clique; nas outras plataformas só avisa
+  // Desinstalado: a Steam e a Epic instalam em um clique; nas outras plataformas só avisa
   if (game.isInstalled === false) {
-    if (game.platform === 'steam') {
+    if (canInstallFromStore(game)) {
       return (
         <button data-nav-start onClick={() => onLaunch(game)} className={`${base} bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-950/50`}>
           <Download className="w-4 h-4" />

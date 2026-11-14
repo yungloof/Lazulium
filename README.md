@@ -96,7 +96,7 @@ Falta a assinatura digital paga, então o SmartScreen não conhece o programa. A
 Não. Jogo da Steam abre pela Steam (ela inicia sozinha), os outros abrem direto.
 
 **Como funcionam as horas de jogos da Epic, do GOG e de outros lançadores?**
-Steam e GOG Galaxy já trazem as horas que você tinha. Na Epic, conecte sua conta em *Configurações → Contas* para importar as horas anteriores; depois disso, o Lazulium passa a acompanhar automaticamente inclusive os jogos que você abrir por fora dele. Para outros jogos ou ajustes manuais, dá para editar o total na página do jogo.
+Steam e GOG Galaxy já trazem as horas que você tinha. Na Epic, conecte sua conta em *Configurações → Contas* para importar as horas anteriores e os jogos que você já jogou, mesmo não instalados; depois disso, o Lazulium passa a acompanhar automaticamente inclusive os jogos que você abrir por fora dele. Para outros jogos ou ajustes manuais, dá para editar o total na página do jogo.
 
 **As conquistas da Steam não aparecem.**
 Na Steam, em *Perfil → Editar perfil → Privacidade*, deixe **Meu perfil** e **Detalhes dos jogos** como **Público**. Depois peça para buscar de novo no *Perfil* do Lazulium.

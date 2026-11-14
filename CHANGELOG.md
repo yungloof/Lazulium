@@ -6,9 +6,17 @@ Da versão mais nova para a mais antiga.
 
 ## 2.8.3 — 14 de novembro de 2026
 
+### Novidades
+
+- **Jogos da conta da Epic, mesmo não instalados.** Com a conta da Epic conectada (*Configurações → Contas*), os jogos que você já jogou pela Epic entram na biblioteca como não instalados, com nome, capa e horas, como o histórico da Steam. Aparecem com *Mostrar não instalados* ou na busca, e o botão **INSTALAR** abre o launcher da Epic na instalação do jogo. Jogos da conta que você nunca abriu (os brindes semanais, por exemplo) não entram. A lista chega sozinha alguns segundos depois de abrir o app ou de clicar em Escanear.
+
 ### Correções
 
-- **Horas do Fortnite e de outros jogos da Epic com anticheat.** O Lazulium abria o jogo pelo executável que a Epic indica, que nesses jogos é só um lançador: ele abre o jogo de verdade e fecha em segundos, e o Lazulium descartava a sessão como se tivesse durado 3 segundos. Agora, nos jogos da Epic achados pela pasta, o tempo é contado pela pasta do jogo, e a sessão dura enquanto o jogo estiver aberto. Depois de atualizar, clique em Escanear uma vez.
+- **Jogos da Epic achados pela pasta voltam a abrir pelo launcher da Epic.** Na 2.8.1 eles passaram a abrir pelo executável, mas o Fortnite e outros jogos da Epic fecham na hora se não forem abertos pelo launcher. Agora, com o launcher no PC (em qualquer pasta ou disco), o jogo abre por ele; sem o launcher, pelo executável. Se o launcher disser que o jogo não está instalado, instale por ele escolhendo a pasta onde o jogo já está: o launcher costuma conferir os arquivos que já existem em vez de baixar tudo de novo.
+- **Horas do Fortnite e de outros jogos com anticheat.** O tempo passa a ser contado pela pasta do jogo, e não pelo processo que abre o jogo e fecha em segundos (antes a sessão era descartada com 3 segundos).
+- "Epic Online Services", um componente do launcher, não aparece mais como jogo.
+
+Depois de atualizar, clique em **Escanear** uma vez.
 
 ---
 

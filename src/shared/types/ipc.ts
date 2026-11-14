@@ -242,7 +242,7 @@ export interface ElectronAPI {
   loginSteamGridDb: () => Promise<AccountsStatus>;            // Janela de login; captura a chave sozinho
   loginRetroAchievements: (username: string) => Promise<AccountsStatus>;
   loginEpic: () => Promise<AccountsStatus>;
-  importEpicPlaytime: () => Promise<{ updated: number; matched: number }>;
+  importEpicPlaytime: () => Promise<{ updated: number; matched: number; added: number }>;
   loginGoogle: () => Promise<AccountsStatus>;
   logoutAccount: (service: AccountService) => Promise<AccountsStatus>;
 

@@ -1,3 +1,4 @@
+import { canInstallFromStore } from '@shared/utils/install';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Game } from '@shared/types/game';
 import { Clock, Play, Square, ExternalLink, Star, Image as ImageIcon, Save, Camera, FolderOpen, ListPlus, Pencil, EyeOff, SlidersHorizontal, Tags, Trash2, PlusCircle } from 'lucide-react';
@@ -69,7 +70,7 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
   const isRunning = useLibraryStore((s) => s.launchStatuses[game.id]?.state === 'running');
   const isLaunching = useLibraryStore((s) => s.launchStatuses[game.id]?.state === 'launching');
 
-  const canInstall = game.isInstalled === false && game.platform === 'steam';
+  const canInstall = canInstallFromStore(game);
   const canPlay = !game.manualEntry && (game.isInstalled !== false || canInstall);
 
   const items: MenuItem[] = [

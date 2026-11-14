@@ -52,6 +52,16 @@ describe('jogos da Epic fora das pastas padrão', () => {
     expect(game.opensViaLauncher).toBe(true); // o tempo de jogo segue a pasta, não o processo do lançador
   });
 
+  it('com o launcher da Epic instalado, o jogo abre por ele mesmo tendo executável', async () => {
+    const dir = gameFolder('Jogos', 'Fortnite');
+    writeFileSync(join(dir, '.egstore', 'F.mancpn'), JSON.stringify({ AppName: 'Fortnite', CatalogItemId: 'item', CatalogNamespace: 'fn' }));
+    writeFileSync(join(dir, '.egstore', 'F.item'), JSON.stringify({ LaunchExecutable: 'FortniteLauncher.exe' }));
+    writeFileSync(join(dir, 'FortniteLauncher.exe'), '');
+    const game = (await gameFromEgstoreFolder(dir, true))!;
+    expect(game.launchUri).toBe('com.epicgames.launcher://apps/fn%3Aitem%3AFortnite?action=launch&silent=true');
+    expect(game.executablePath).toBe(join(dir, 'FortniteLauncher.exe'));
+  });
+
   it('sem executável, cai no endereço do launcher da Epic com os ids do catálogo', async () => {
     const dir = gameFolder('Jogos', 'SemExe');
     writeFileSync(join(dir, '.egstore', 'X.mancpn'), JSON.stringify({ AppName: 'Foo', CatalogItemId: 'i', CatalogNamespace: 'n' }));

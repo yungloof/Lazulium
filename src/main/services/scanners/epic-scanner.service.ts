@@ -1,7 +1,7 @@
 import { existsSync } from 'fs';
 import { readdir, readFile, stat } from 'fs/promises';
 import { basename, dirname, join, normalize } from 'path';
-import { readRegistryValue } from './registry';
+import { readRegistryKeyValues, readRegistryValue } from './registry';
 import { readEpicManifest } from './epic-manifest';
 import { DetectedGame, PlatformScanner, PlatformScanResult } from './scanner.types';
 
@@ -253,6 +253,7 @@ function buildLaunchUri(namespace?: string, itemId?: string, appName?: string): 
 async function manifestToGame(manifest: EpicManifest): Promise<DetectedGame | null> {
   const { AppName, DisplayName, InstallLocation } = manifest;
   if (!AppName || !DisplayName || !InstallLocation) return null;
+  if (/^epic online services$/i.test(DisplayName.trim())) return null;
   if (!existsSync(InstallLocation)) return null;
 
   const installPath = normalize(InstallLocation);
@@ -391,7 +392,19 @@ async function readMancpn(storeDir: string): Promise<{ AppName?: string; Catalog
   return undefined;
 }
 
-export async function gameFromEgstoreFolder(gameDir: string): Promise<DetectedGame | null> {
+// O launcher da Epic está neste PC? Jogos dela (Fortnite, os com anticheat ou conta) só abrem por ele: o executável sozinho fecha em segundos.
+// O protocolo com.epicgames.launcher:// registrado vale com o launcher instalado em qualquer pasta ou disco.
+export async function epicLauncherInstalled(): Promise<boolean> {
+  const files = [process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', process.env['ProgramFiles'] || 'C:\\Program Files'].flatMap((base) => [
+    join(base, 'Epic Games', 'Launcher', 'Portal', 'Binaries', 'Win32', 'EpicGamesLauncher.exe'),
+    join(base, 'Epic Games', 'Launcher', 'Portal', 'Binaries', 'Win64', 'EpicGamesLauncher.exe')
+  ]);
+  if (existsSync(eglV2Dir()) || files.some((f) => existsSync(f))) return true;
+  const protocol = await readRegistryKeyValues('HKCR\\com.epicgames.launcher');
+  return 'url protocol' in protocol;
+}
+
+export async function gameFromEgstoreFolder(gameDir: string, launcherInstalled = false): Promise<DetectedGame | null> {
   const storeDir = join(gameDir, '.egstore');
   const manifestInStore = (await findItemManifestInFolder(storeDir)) || (await findItemManifestInFolder(gameDir));
   const cpn = await readMancpn(storeDir);
@@ -428,8 +441,8 @@ export async function gameFromEgstoreFolder(gameDir: string): Promise<DetectedGa
     platformGameId: appName,
     executablePath,
     launchArguments: manifestInStore?.LaunchCommand?.trim() || undefined,
-    // Sem o launcher conhecendo a instalação, o endereço da Epic não abre o jogo: com o executável na mão, abre direto
-    launchUri: executablePath && existsSync(executablePath) ? undefined : buildLaunchUri(manifestInStore?.CatalogNamespace || cpn?.CatalogNamespace, manifestInStore?.CatalogItemId || cpn?.CatalogItemId, appName),
+    // Com o launcher da Epic neste PC, o jogo abre por ele (é o que a Epic exige). Sem ele, abre direto pelo executável.
+    launchUri: !launcherInstalled && executablePath && existsSync(executablePath) ? undefined : buildLaunchUri(manifestInStore?.CatalogNamespace || cpn?.CatalogNamespace, manifestInStore?.CatalogItemId || cpn?.CatalogItemId, appName),
     // O executável do manifesto costuma ser só um lançador que abre o jogo e fecha (Fortnite, jogos com anticheat): o tempo vem da pasta do jogo
     opensViaLauncher: true,
     workingDirectory: installPath,
@@ -512,10 +525,11 @@ async function scanLibraryRoots(knownGames: Map<string, DetectedGame>, extraFold
   const folders = await findEgstoreFolders(searchRoots, Date.now() + DEEP_SCAN_BUDGET_MS);
 
   const foundGames: DetectedGame[] = [];
+  const launcherInstalled = await epicLauncherInstalled();
   for (const gameDir of folders) {
     try {
       if (knownPaths.has(normalize(gameDir).toLowerCase())) continue;
-      const game = await gameFromEgstoreFolder(gameDir);
+      const game = await gameFromEgstoreFolder(gameDir, launcherInstalled);
       if (!game || knownGames.has(game.id) || foundGames.some((g) => g.id === game.id)) continue;
       foundGames.push(game);
     } catch (err) {
