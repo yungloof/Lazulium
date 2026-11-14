@@ -45,7 +45,8 @@ export const SOCIAL_SETTING_KEYS = {
   lastSyncAt: 'socialLastSyncAt',
   showcaseHash: 'socialShowcaseHash',
   media: 'socialMedia',               // { avatar: { hash, url }, ... } das imagens já enviadas
-  librarySent: 'socialLibrarySent'    // { at, rows: { titleKey: hash } } da biblioteca resumida já enviada
+  librarySent: 'socialLibrarySent',   // { at, rows: { titleKey: hash } } da biblioteca resumida já enviada
+  notifications: 'socialNotifications' // Avisos de curtida e comentário já buscados (reactions.service)
 } as const;
 // Fora do token: o renderer pode ler e mudar
 export const SOCIAL_NOTIFY_SETTING = 'socialNotifyPlaying';
@@ -88,7 +89,10 @@ const SERVER_ERRORS: Record<string, string> = {
   not_configured: 'O servidor da conta Lazulium ainda não está no ar.',
   call_cooldown: 'Você acabou de chamar. Espere uns segundos para chamar de novo.',
   call_limit: 'Chamadas demais em pouco tempo. Espere alguns minutos.',
-  invalid_status: 'Status inválido.'
+  invalid_status: 'Status inválido.',
+  empty_comment: 'Escreva alguma coisa antes de enviar.',
+  comment_limit: 'Comentários demais em pouco tempo. Espere uns minutos.',
+  invalid_target: 'Não dá para reagir a isso.'
 };
 
 const CALLBACK_PAGE = `<!doctype html><meta charset="utf-8"><title>Lazulium</title>

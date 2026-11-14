@@ -66,6 +66,12 @@ settings     (user_id PK, share_playtime, share_achievements, share_reviews, sha
 | POST | `/v1/me/library` | Biblioteca resumida: o app manda só os jogos que mudaram (`reset` no envio completo) |
 | GET | `/v1/games/friends?key=` | Amigos que têm o jogo (pelo nome `t:` ou pelo AppID `steam:`), com o que cada um deixa ver |
 | GET | `/v1/users/:id/games` | Biblioteca resumida do amigo, para a aba Comparar (o app cruza com a sua) |
+| POST | `/v1/social/summary` | Curtidas, se você curtiu e quantos comentários, de até 100 resenhas/listas |
+| GET | `/v1/social/thread?owner&kind&target` | Quem curtiu e os comentários de uma resenha ou lista |
+| POST | `/v1/social/like` | Curtir (`like: false` desfaz) |
+| POST/DELETE | `/v1/social/comments` / `/v1/social/comments/:id` | Comentar; apaga quem escreveu ou o dono |
+| GET | `/v1/me/notifications?since=` | Avisos: curtiram, comentaram ou responderam onde você comentou |
+| * | `/v1/view/:token/(summary\|thread\|like\|comments)` | O mesmo, pela vitrine aberta por link, em nome de quem pediu o link |
 
 Limite de pedidos por usuário no Worker (`RATE_LIMITER`), como no `/v1/prices`.
 

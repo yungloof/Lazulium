@@ -155,3 +155,37 @@ CREATE TABLE IF NOT EXISTS library_games (
 );
 CREATE INDEX IF NOT EXISTS library_games_title ON library_games (title_key);
 CREATE INDEX IF NOT EXISTS library_games_steam ON library_games (steam_key);
+
+-- Curtidas e comentários em resenhas (target = t:<jogo>) e listas (target = id da lista). Só entre amigos do dono.
+-- target_title: nome do jogo ou da lista na hora, para os avisos ("curtiu sua resenha de Hades")
+CREATE TABLE IF NOT EXISTS reactions (
+  owner_id      TEXT NOT NULL,
+  kind          TEXT NOT NULL,              -- review | list
+  target        TEXT NOT NULL,
+  user_id       TEXT NOT NULL,
+  target_title  TEXT,
+  created_at    TEXT NOT NULL,
+  PRIMARY KEY (owner_id, kind, target, user_id)
+);
+CREATE INDEX IF NOT EXISTS reactions_owner_at ON reactions (owner_id, created_at);
+CREATE INDEX IF NOT EXISTS reactions_user ON reactions (user_id);
+
+CREATE TABLE IF NOT EXISTS comments (
+  id            TEXT PRIMARY KEY,
+  owner_id      TEXT NOT NULL,
+  kind          TEXT NOT NULL,
+  target        TEXT NOT NULL,
+  user_id       TEXT NOT NULL,
+  text          TEXT NOT NULL,
+  target_title  TEXT,
+  created_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS comments_target ON comments (owner_id, kind, target, created_at);
+CREATE INDEX IF NOT EXISTS comments_owner_at ON comments (owner_id, created_at);
+CREATE INDEX IF NOT EXISTS comments_user ON comments (user_id, created_at);
+
+-- Quem abriu a vitrine por um link (a página curte e comenta como essa pessoa)
+CREATE TABLE IF NOT EXISTS view_viewers (
+  token       TEXT PRIMARY KEY,
+  viewer_id   TEXT NOT NULL
+);

@@ -11,6 +11,11 @@ import {
   CallAnswer,
   CallEvent,
   FriendComparison,
+  ReactionSummary,
+  ReactionTarget,
+  ReactionThread,
+  SocialNotifications,
+  SocialNotificationsEvent,
   GameFriend,
   IncomingCall,
   PresenceState,
@@ -315,6 +320,16 @@ export interface ElectronAPI {
   socialGetGameFriends: (gameIds: string[]) => Promise<GameFriend[] | null>;
   // Aba Comparar: jogos em comum com o amigo
   socialCompareGames: (friendId: string) => Promise<FriendComparison>;
+  // Curtidas e comentários em resenhas e listas (as chaves vêm de reactionKey)
+  socialGetReactions: (targets: ReactionTarget[]) => Promise<Record<string, ReactionSummary>>;
+  socialGetReactionThread: (target: ReactionTarget) => Promise<ReactionThread>;
+  socialSetLike: (target: ReactionTarget, like: boolean) => Promise<ReactionSummary>;
+  socialAddComment: (target: ReactionTarget, text: string) => Promise<ReactionThread>;
+  socialDeleteComment: (commentId: string) => Promise<ReactionThread>;
+  // Avisos de curtida e comentário
+  socialGetNotifications: () => Promise<SocialNotifications>;
+  socialMarkNotificationsRead: () => Promise<SocialNotifications>;
+  onSocialNotifications: (callback: (event: SocialNotificationsEvent) => void) => () => void;
 
   // Integração de atalhos da Steam (adicionar jogos que não são da Steam à Steam)
   addSteamShortcut: (gameId: string) => Promise<{ ok: boolean; appId?: number; error?: string }>;

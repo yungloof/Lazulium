@@ -170,6 +170,14 @@ export const IPC_CHANNELS = {
   SOCIAL_CALL_EVENT: 'social:call-event',
   SOCIAL_GAME_FRIENDS: 'social:game-friends',
   SOCIAL_FRIEND_GAMES: 'social:friend-games',
+  SOCIAL_REACTIONS: 'social:reactions',
+  SOCIAL_REACTION_THREAD: 'social:reaction-thread',
+  SOCIAL_REACTION_LIKE: 'social:reaction-like',
+  SOCIAL_COMMENT_ADD: 'social:comment-add',
+  SOCIAL_COMMENT_DELETE: 'social:comment-delete',
+  SOCIAL_NOTIFICATIONS: 'social:notifications',
+  SOCIAL_NOTIFICATIONS_READ: 'social:notifications-read',
+  SOCIAL_NOTIFICATIONS_CHANGED: 'social:notifications-changed',
 
   // Atalhos da Steam (Adicionar jogo não-Steam)
   STEAM_ADD_SHORTCUT: 'steam:add-shortcut',

@@ -8,6 +8,7 @@ import { formatLastPlayed, formatPlaytimeShort } from '../../utils/format';
 import { LOG_STATUS, Stars } from '../GameLogFields';
 import { focusRing } from '../ui';
 import { PresenceAvatar } from './presence';
+import { ReactionBar } from './Reactions';
 
 // Página do jogo: os amigos que jogaram, com horas, status do Diário, nota, resenha e conquistas.
 // Cada pedaço só aparece se o amigo deixou ver (as chaves de privacidade dele valem no servidor).
@@ -101,6 +102,9 @@ const FriendRow: React.FC<{ friend: GameFriend; mine: GameAchievements | null }>
                 </button>
               )}
             </div>
+          )}
+          {friend.titleKey && (friend.review || friend.rating) && (
+            <ReactionBar target={{ owner: friend.user.id, kind: 'review', target: friend.titleKey, title: friend.title }} className="mt-2" />
           )}
         </div>
       </div>

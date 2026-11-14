@@ -9,6 +9,7 @@ import { isNewerVersion } from '@shared/utils/version';
 import { parseEditionPrefs } from '@shared/utils/editions';
 import { CALL_ANSWER_TEXT } from '@shared/utils/presence';
 import { useSocialLiveStore } from '../stores/useSocialLiveStore';
+import { useReactionsStore } from '../stores/useReactionsStore';
 
 const GAME_UPDATE_BATCH_MS = 120;
 const ASK_STATUS_AFTER_SECONDS = 10 * 60;
@@ -202,10 +203,15 @@ export function useAppEvents(): void {
       live.setConnected(connected);
       if (!connected) return;
       api.socialGetPendingCalls().then((calls) => useSocialLiveStore.getState().setIncoming(calls)).catch(() => undefined);
+      api.socialGetNotifications().then((n) => useReactionsStore.getState().setNotifications(n)).catch(() => undefined);
     };
-    api.getSocialStatus().then((status) => loadLive(status.connected)).catch(() => undefined);
+    api.getSocialStatus().then((status) => {
+      useReactionsStore.getState().setMe(status.user?.id ?? null);
+      loadLive(status.connected);
+    }).catch(() => undefined);
     api.socialGetPresence().then((state) => useSocialLiveStore.getState().setPresence(state)).catch(() => undefined);
     const offStatus = api.onSocialStatus((status) => {
+      useReactionsStore.getState().setMe(status.user?.id ?? null);
       if (status.connected !== useSocialLiveStore.getState().connected) loadLive(status.connected);
     });
     const offPresence = api.onPresenceChanged((state) => useSocialLiveStore.getState().setPresence(state));
@@ -219,10 +225,21 @@ export function useAppEvents(): void {
         useUiStore.getState().showNotice({ text: `${notice.user.name}: ${CALL_ANSWER_TEXT[notice.answer]}`, tone: notice.answer === 'yes' ? 'ok' : 'warn' });
       }
     });
+    // Curtiram ou comentaram algo seu: o número na aba Amigos e, se quiser, um aviso
+    const offNotifications = api.onSocialNotifications(({ state, fresh }) => {
+      useReactionsStore.getState().setNotifications(state);
+      if (fresh.length === 0) return;
+      useUiStore.getState().showNotice({
+        text: fresh.length === 1 ? fresh[0] : `${fresh[0]} e mais ${fresh.length - 1}`,
+        tone: 'ok',
+        action: { label: 'Ver', run: () => useUiStore.getState().setView('friends') }
+      });
+    });
     return () => {
       offStatus();
       offPresence();
       offCalls();
+      offNotifications();
     };
   }, []);
 

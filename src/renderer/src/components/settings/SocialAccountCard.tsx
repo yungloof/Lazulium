@@ -24,16 +24,24 @@ export const SocialAccountCard: React.FC<{ fallbackName?: string }> = ({ fallbac
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [notifyPlaying, setNotifyPlaying] = useState(true);
+  const [notifyReactions, setNotifyReactions] = useState(true);
 
   useEffect(() => {
     window.electronAPI
       ?.getSettings()
-      .then((s) => setNotifyPlaying(s.socialNotifyPlaying !== 'false'))
+      .then((s) => {
+        setNotifyPlaying(s.socialNotifyPlaying !== 'false');
+        setNotifyReactions(s.socialNotifyReactions !== 'false');
+      })
       .catch(() => undefined);
   }, []);
   const toggleNotify = (checked: boolean) => {
     setNotifyPlaying(checked);
     void window.electronAPI?.setSetting('socialNotifyPlaying', String(checked));
+  };
+  const toggleNotifyReactions = (checked: boolean) => {
+    setNotifyReactions(checked);
+    void window.electronAPI?.setSetting('socialNotifyReactions', String(checked));
   };
 
   useEffect(() => {
@@ -150,6 +158,12 @@ export const SocialAccountCard: React.FC<{ fallbackName?: string }> = ({ fallbac
           hint="Um aviso no Lazulium (ou do Windows, com o app minimizado). Vale só neste PC."
           checked={notifyPlaying}
           onChange={toggleNotify}
+        />
+        <ToggleRow
+          label="Avisar curtidas e comentários"
+          hint="Quando curtirem ou comentarem suas resenhas e listas, ou responderem onde você comentou. Os avisos ficam na aba Amigos mesmo desligado."
+          checked={notifyReactions}
+          onChange={toggleNotifyReactions}
         />
       </div>
 

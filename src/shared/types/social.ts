@@ -142,6 +142,7 @@ export interface GameFriend {
   review?: string;
   reviewAt?: string;
   achievements?: FriendGameAchievements;
+  titleKey?: string;                // t:<nome>: chave da resenha para curtir e comentar (servidor antigo não manda)
 }
 
 // Aba Comparar: a biblioteca resumida de um amigo (sem resenha nem lista de conquistas)
@@ -182,4 +183,60 @@ export interface SocialStatus {
   settings?: SocialSettings;
   lastSyncAt?: string;
   syncError?: string;
+}
+
+// ---------- Curtidas e comentários ----------
+
+// Resenha de um jogo (target = t:<nome>) ou lista (target = id). Só o dono e os amigos dele veem e reagem
+export type ReactionKind = 'review' | 'list';
+
+export interface ReactionTarget {
+  owner: string;                    // Id da conta Lazulium de quem escreveu a resenha ou fez a lista
+  kind: ReactionKind;
+  target: string;
+  title?: string;                   // Nome do jogo ou da lista, para o aviso de quem recebe
+}
+
+export interface ReactionSummary {
+  likes: number;
+  liked: boolean;
+  comments: number;
+}
+
+export interface ReactionComment {
+  id: string;
+  user: SocialUser;
+  text: string;
+  createdAt: string;
+}
+
+// O número de comentários é comments.length (até 200)
+export interface ReactionThread extends Omit<ReactionSummary, 'comments'> {
+  likers: SocialUser[];             // Os 20 mais recentes
+  comments: ReactionComment[];
+}
+
+// Avisos: curtiram ou comentaram algo seu, ou responderam onde você comentou
+export interface SocialNotification {
+  type: 'like' | 'comment' | 'reply';
+  kind: ReactionKind;
+  target: string;
+  owner: string;
+  title: string | null;
+  user: SocialUser;
+  at: string;
+  id?: string;                      // Do comentário
+  text?: string;
+  ownerName?: string;               // Resposta: de quem é a resenha ou lista
+}
+
+export interface SocialNotifications {
+  items: SocialNotification[];
+  unread: number;
+}
+
+// Chegou aviso novo: a lista toda e o texto dos novos (para o aviso dentro do app)
+export interface SocialNotificationsEvent {
+  state: SocialNotifications;
+  fresh: string[];
 }

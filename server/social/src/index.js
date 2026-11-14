@@ -56,6 +56,14 @@ export const LIBRARY_STATUSES = ['backlog', 'playing', 'endless', 'paused', 'fin
 const ACHIEVEMENT_SOURCES = ['steam', 'retroachievements'];
 const TITLE_KEY = /^t:[a-z0-9]{1,120}$/;
 const STEAM_KEY = /^steam:\d{1,10}$/;
+// Curtidas e comentários
+export const REACTION_KINDS = ['review', 'list'];
+const MAX_COMMENT_TEXT = 1_000;
+const MAX_COMMENTS_PER_WINDOW = 30;            // Por pessoa, a cada 10 min
+const COMMENT_WINDOW_MS = 10 * 60_000;
+const MAX_COMMENTS_PER_THREAD = 200;
+const MAX_SUMMARY_TARGETS = 100;
+const MAX_NOTIFICATIONS = 50;
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // Sem 0/O e 1/I, para ditar por voz
 
 export const ACTIVITY_KINDS = ['played', 'started', 'finished', 'completed', 'dropped', 'rated', 'reviewed', 'achievements', 'perfect'];
@@ -323,6 +331,8 @@ async function handleMe(request, env, auth) {
         'DELETE FROM view_links WHERE owner_id = ?',
         'DELETE FROM presence WHERE user_id = ?',
         'DELETE FROM library_games WHERE user_id = ?',
+        'DELETE FROM reactions WHERE owner_id = ?1 OR user_id = ?1',
+        'DELETE FROM comments WHERE owner_id = ?1 OR user_id = ?1',
         'DELETE FROM calls WHERE from_id = ?1 OR to_id = ?1',
         'DELETE FROM users WHERE id = ?'
       ]
@@ -769,6 +779,188 @@ async function handleUserGames(env, auth, userId) {
   return json({ games: results.map((row) => ({ ...libraryView(row, settings, { withDetails: false }), steamKey: row.steam_key ?? undefined })) });
 }
 
+// ---------- Curtidas e comentários (resenhas e listas) ----------
+
+// Alvo: resenha de um jogo (t:<nome>) ou lista (id). Quem vê: o dono e os amigos dele
+function cleanTarget(raw) {
+  const owner = typeof raw?.owner === 'string' && UUID.test(raw.owner) ? raw.owner : null;
+  const kind = REACTION_KINDS.includes(raw?.kind) ? raw.kind : null;
+  const target = typeof raw?.target === 'string' ? raw.target : '';
+  if (!owner || !kind) return null;
+  if (kind === 'review' && !TITLE_KEY.test(target)) return null;
+  if (kind === 'list' && !UUID.test(target)) return null;
+  return { owner, kind, target };
+}
+
+async function canSee(env, viewerId, ownerId) {
+  return viewerId === ownerId || (await areFriends(env, viewerId, ownerId));
+}
+
+const targetKey = (t) => `${t.owner}|${t.kind}|${t.target}`;
+
+const commentJson = (row) => ({
+  id: row.id,
+  user: { id: row.user_id, name: row.custom_name || row.steam_name || 'Jogador', avatarUrl: row.steam_avatar || null },
+  text: row.text,
+  createdAt: row.created_at
+});
+
+// Contagens de vários alvos de uma vez (feed, aba Avaliações): curtidas, se eu curti e quantos comentários
+async function reactionSummary(env, viewerId, targets) {
+  const allowed = [];
+  const checked = new Map();
+  for (const t of targets) {
+    if (!checked.has(t.owner)) checked.set(t.owner, await canSee(env, viewerId, t.owner));
+    if (checked.get(t.owner)) allowed.push(t);
+  }
+  const items = {};
+  for (const t of allowed) items[targetKey(t)] = { likes: 0, liked: false, comments: 0 };
+  if (allowed.length === 0) return items;
+  const where = allowed.map(() => '(owner_id = ? AND kind = ? AND target = ?)').join(' OR ');
+  const args = allowed.flatMap((t) => [t.owner, t.kind, t.target]);
+  const [likes, comments] = await Promise.all([
+    env.DB.prepare(`SELECT owner_id, kind, target, COUNT(*) AS n, SUM(user_id = ?) AS mine FROM reactions WHERE ${where} GROUP BY owner_id, kind, target`).bind(viewerId, ...args).all(),
+    env.DB.prepare(`SELECT owner_id, kind, target, COUNT(*) AS n FROM comments WHERE ${where} GROUP BY owner_id, kind, target`).bind(...args).all()
+  ]);
+  for (const row of likes.results) {
+    const item = items[targetKey({ owner: row.owner_id, kind: row.kind, target: row.target })];
+    if (item) {
+      item.likes = row.n;
+      item.liked = row.mine > 0;
+    }
+  }
+  for (const row of comments.results) {
+    const item = items[targetKey({ owner: row.owner_id, kind: row.kind, target: row.target })];
+    if (item) item.comments = row.n;
+  }
+  return items;
+}
+
+async function reactionThread(env, viewerId, t) {
+  if (!(await canSee(env, viewerId, t.owner))) throw new HttpError(404, 'not_found');
+  const [summary, comments, likers] = await Promise.all([
+    reactionSummary(env, viewerId, [t]),
+    env.DB.prepare(
+      `SELECT c.*, u.custom_name, u.steam_name, u.steam_avatar FROM comments c JOIN users u ON u.id = c.user_id
+       WHERE c.owner_id = ? AND c.kind = ? AND c.target = ? ORDER BY c.created_at ASC LIMIT ?`
+    ).bind(t.owner, t.kind, t.target, MAX_COMMENTS_PER_THREAD).all(),
+    env.DB.prepare(
+      `SELECT u.id, u.custom_name, u.steam_name, u.steam_avatar FROM reactions r JOIN users u ON u.id = r.user_id
+       WHERE r.owner_id = ? AND r.kind = ? AND r.target = ? ORDER BY r.created_at DESC LIMIT 20`
+    ).bind(t.owner, t.kind, t.target).all()
+  ]);
+  return {
+    ...summary[targetKey(t)],
+    likers: likers.results.map((u) => publicUser(u)),
+    comments: comments.results.map(commentJson)
+  };
+}
+
+async function setLike(env, viewerId, t, like, title) {
+  if (!(await canSee(env, viewerId, t.owner))) throw new HttpError(404, 'not_found');
+  if (like) {
+    await env.DB.prepare('INSERT OR IGNORE INTO reactions (owner_id, kind, target, user_id, target_title, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(t.owner, t.kind, t.target, viewerId, cleanText(title, MAX_TITLE) || null, nowIso())
+      .run();
+  } else {
+    await env.DB.prepare('DELETE FROM reactions WHERE owner_id = ? AND kind = ? AND target = ? AND user_id = ?').bind(t.owner, t.kind, t.target, viewerId).run();
+  }
+  return (await reactionSummary(env, viewerId, [t]))[targetKey(t)];
+}
+
+async function addComment(env, viewerId, t, text, title) {
+  if (!(await canSee(env, viewerId, t.owner))) throw new HttpError(404, 'not_found');
+  const clean = typeof text === 'string' ? text.replace(/\r\n?/g, '\n').replace(/[^\P{C}\n]/gu, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, MAX_COMMENT_TEXT) : '';
+  if (!clean) throw new HttpError(400, 'empty_comment');
+  const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM comments WHERE user_id = ? AND created_at > ?')
+    .bind(viewerId, new Date(Date.now() - COMMENT_WINDOW_MS).toISOString())
+    .first();
+  if ((recent?.n ?? 0) >= MAX_COMMENTS_PER_WINDOW) throw new HttpError(429, 'comment_limit');
+  const id = crypto.randomUUID();
+  await env.DB.prepare('INSERT INTO comments (id, owner_id, kind, target, user_id, text, target_title, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(id, t.owner, t.kind, t.target, viewerId, clean, cleanText(title, MAX_TITLE) || null, nowIso())
+    .run();
+  return reactionThread(env, viewerId, t);
+}
+
+// Apaga quem escreveu ou o dono da resenha/lista
+async function deleteComment(env, viewerId, id) {
+  const row = await env.DB.prepare('SELECT owner_id, kind, target, user_id FROM comments WHERE id = ?').bind(id).first();
+  if (!row || (row.user_id !== viewerId && row.owner_id !== viewerId)) throw new HttpError(404, 'not_found');
+  await env.DB.prepare('DELETE FROM comments WHERE id = ?').bind(id).run();
+  return reactionThread(env, viewerId, { owner: row.owner_id, kind: row.kind, target: row.target });
+}
+
+// POST /v1/social/summary { targets } | GET /v1/social/thread?owner&kind&target | POST /v1/social/like | POST /v1/social/comments | DELETE /v1/social/comments/:id
+async function handleReactions(request, url, env, viewerId, action, commentId) {
+  if (action === 'summary' && request.method === 'POST') {
+    const body = await readJson(request, 50_000);
+    const targets = (Array.isArray(body?.targets) ? body.targets : []).slice(0, MAX_SUMMARY_TARGETS).map(cleanTarget).filter(Boolean);
+    return json({ items: await reactionSummary(env, viewerId, targets) });
+  }
+  if (action === 'thread' && request.method === 'GET') {
+    const t = cleanTarget({ owner: url.searchParams.get('owner'), kind: url.searchParams.get('kind'), target: url.searchParams.get('target') });
+    if (!t) throw new HttpError(400, 'invalid_target');
+    return json(await reactionThread(env, viewerId, t));
+  }
+  if (action === 'like' && request.method === 'POST') {
+    const body = await readJson(request, 2_000);
+    const t = cleanTarget(body);
+    if (!t) throw new HttpError(400, 'invalid_target');
+    return json(await setLike(env, viewerId, t, body.like !== false, body.title));
+  }
+  if (action === 'comments' && request.method === 'POST') {
+    const body = await readJson(request, 8_000);
+    const t = cleanTarget(body);
+    if (!t) throw new HttpError(400, 'invalid_target');
+    return json(await addComment(env, viewerId, t, body.text, body.title));
+  }
+  if (action === 'comments' && commentId && request.method === 'DELETE') return json(await deleteComment(env, viewerId, commentId));
+  throw new HttpError(405, 'method_not_allowed');
+}
+
+// Avisos: curtidas e comentários nas minhas resenhas e listas, e respostas onde eu comentei
+async function handleNotifications(url, env, auth) {
+  const sinceRaw = url.searchParams.get('since');
+  const since = sinceRaw && !Number.isNaN(Date.parse(sinceRaw)) ? new Date(sinceRaw).toISOString() : new Date(Date.now() - 14 * DAY_MS).toISOString();
+  const me = auth.user.id;
+  const userCols = 'u.id AS u_id, u.custom_name, u.steam_name, u.steam_avatar';
+  const [likes, comments, replies] = await Promise.all([
+    env.DB.prepare(
+      `SELECT r.kind, r.target, r.target_title, r.created_at, r.owner_id, ${userCols} FROM reactions r JOIN users u ON u.id = r.user_id
+       WHERE r.owner_id = ? AND r.user_id != ? AND r.created_at > ? ORDER BY r.created_at DESC LIMIT ?`
+    ).bind(me, me, since, MAX_NOTIFICATIONS).all(),
+    env.DB.prepare(
+      `SELECT c.id, c.kind, c.target, c.target_title, c.text, c.created_at, c.owner_id, ${userCols} FROM comments c JOIN users u ON u.id = c.user_id
+       WHERE c.owner_id = ? AND c.user_id != ? AND c.created_at > ? ORDER BY c.created_at DESC LIMIT ?`
+    ).bind(me, me, since, MAX_NOTIFICATIONS).all(),
+    env.DB.prepare(
+      `SELECT c.id, c.kind, c.target, c.target_title, c.text, c.created_at, c.owner_id, ${userCols}, o.custom_name AS o_custom, o.steam_name AS o_steam
+       FROM comments c JOIN users u ON u.id = c.user_id JOIN users o ON o.id = c.owner_id
+       WHERE c.owner_id != ?1 AND c.user_id != ?1 AND c.created_at > ?2
+         AND EXISTS (SELECT 1 FROM comments m WHERE m.owner_id = c.owner_id AND m.kind = c.kind AND m.target = c.target AND m.user_id = ?1 AND m.created_at < c.created_at)
+       ORDER BY c.created_at DESC LIMIT ?3`
+    ).bind(me, since, MAX_NOTIFICATIONS).all()
+  ]);
+  const who = (row) => ({ id: row.u_id, name: row.custom_name || row.steam_name || 'Jogador', avatarUrl: row.steam_avatar || null });
+  const base = (row) => ({ kind: row.kind, target: row.target, owner: row.owner_id, title: row.target_title ?? null, user: who(row), at: row.created_at });
+  const items = [
+    ...likes.results.map((row) => ({ type: 'like', ...base(row) })),
+    ...comments.results.map((row) => ({ type: 'comment', id: row.id, text: row.text, ...base(row) })),
+    ...replies.results.map((row) => ({ type: 'reply', id: row.id, text: row.text, ownerName: row.o_custom || row.o_steam || 'Jogador', ...base(row) }))
+  ]
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, MAX_NOTIFICATIONS);
+  return json({ items });
+}
+
+// A vitrine aberta por link curte e comenta como quem pediu o link (o token da conta não vai para a página)
+async function viewerOf(env, token) {
+  const row = await env.DB.prepare('SELECT l.owner_id, l.expires_at, v.viewer_id FROM view_links l JOIN view_viewers v ON v.token = l.token WHERE l.token = ?').bind(token).first();
+  if (!row || row.expires_at <= nowIso()) throw new HttpError(401, 'link_expired');
+  return { viewerId: row.viewer_id, ownerId: row.owner_id };
+}
+
 // ---------- Status e chamadas ----------
 
 // O que vale agora: escolha com prazo vencido volta para online
@@ -1014,18 +1206,20 @@ async function handleViewLink(env, auth, ownerId, origin) {
   const token = randomToken(24);
   await env.DB.batch([
     env.DB.prepare('DELETE FROM view_links WHERE expires_at < ?').bind(nowIso()),
-    env.DB.prepare('INSERT INTO view_links (token, owner_id, expires_at) VALUES (?, ?, ?)').bind(token, ownerId, later(VIEW_LINK_TTL_MS))
+    env.DB.prepare('INSERT INTO view_links (token, owner_id, expires_at) VALUES (?, ?, ?)').bind(token, ownerId, later(VIEW_LINK_TTL_MS)),
+    env.DB.prepare('INSERT INTO view_viewers (token, viewer_id) VALUES (?, ?)').bind(token, auth.user.id),
+    env.DB.prepare('DELETE FROM view_viewers WHERE token NOT IN (SELECT token FROM view_links)')
   ]);
   return json({ url: `${origin}/v1/view/${token}` });
 }
 
 // A mesma política da página (que também vem no <meta>), agora no cabeçalho: vale antes de qualquer HTML ser lido.
-// A página não faz pedidos de rede (o perfil vem embutido) nem envia formulários.
+// A página só fala com este servidor (curtidas e comentários pelo link) e não envia formulários.
 // Vídeo só da Steam e da guarda de arquivos do Lazulium (o vídeo de fundo que a pessoa escolheu).
 function pageCsp(env) {
   const store = mediaStore(env);
   const media = `https://*.steamstatic.com${store ? ` ${store.origin}` : ''}`;
-  return `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src https:; media-src ${media}; connect-src 'none'; base-uri 'none'; form-action 'none'`;
+  return `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src https:; media-src ${media}; connect-src 'self'; base-uri 'none'; form-action 'none'`;
 }
 
 function pageHeaders(env) {
@@ -1055,7 +1249,9 @@ async function handleView(env, token) {
     /<meta http-equiv="Content-Security-Policy" content="[^"]*">/,
     `<meta http-equiv="Content-Security-Policy" content="${csp}">`
   );
-  const inline = `<script>window.LAZULIUM_PROFILE = ${scriptSafeJson(showcase.data)};</script>`;
+  const viewer = await env.DB.prepare('SELECT viewer_id FROM view_viewers WHERE token = ?').bind(token).first();
+  const social = viewer ? { token, viewerId: viewer.viewer_id, ownerId: link.owner_id } : null;
+  const inline = `<script>window.LAZULIUM_PROFILE = ${scriptSafeJson(showcase.data)};${social ? ` window.LAZULIUM_SOCIAL = ${scriptSafeJson(JSON.stringify(social))};` : ''}</script>`;
   return new Response(page.replace('</head>', `${inline}\n</head>`), { headers: pageHeaders(env) });
 }
 
@@ -1078,6 +1274,12 @@ async function route(request, env) {
   if (mediaGet && request.method === 'GET') return handleMediaGet(env, mediaGet[1]);
   const view = path.match(/^\/v1\/view\/([A-Za-z0-9_-]{20,64})$/);
   if (view && request.method === 'GET') return handleView(env, view[1]);
+  const viewSocial = path.match(/^\/v1\/view\/([A-Za-z0-9_-]{20,64})\/(summary|thread|like|comments)(?:\/([0-9a-f-]{36}))?$/);
+  if (viewSocial) {
+    if (await isRateLimited(request, env, `view:${viewSocial[1]}`)) return json({ error: 'rate_limited' }, 429);
+    const { viewerId } = await viewerOf(env, viewSocial[1]);
+    return handleReactions(request, url, env, viewerId, viewSocial[2], viewSocial[3]);
+  }
   if (await isRateLimited(request, env)) return json({ error: 'rate_limited' }, 429);
   if (path === '/v1/auth/exchange' && request.method === 'POST') return handleExchange(request, env);
 
@@ -1094,6 +1296,9 @@ async function route(request, env) {
   if (path === '/v1/me/showcase') return handleShowcase(request, env, auth);
   if (path === '/v1/me/presence') return handlePresence(request, env, auth);
   if (path === '/v1/me/library') return handleLibrary(request, env, auth);
+  if (path === '/v1/me/notifications' && request.method === 'GET') return handleNotifications(url, env, auth);
+  const social = path.match(/^\/v1\/social\/(summary|thread|like|comments)(?:\/([0-9a-f-]{36}))?$/);
+  if (social) return handleReactions(request, url, env, auth.user.id, social[1], social[2]);
   if (path === '/v1/games/friends' && request.method === 'GET') return handleGameFriends(url, env, auth);
   if (path === '/v1/calls' && request.method === 'POST') return handleCallCreate(request, env, auth);
   if (path === '/v1/calls' && request.method === 'GET') return handleCalls(env, auth);

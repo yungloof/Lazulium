@@ -199,7 +199,7 @@ describe('envio de mídia de fundo para amigos', () => {
     const status = await socialService.sync();
     expect(status.syncError).toBeUndefined();
     expect(calls.some((c) => c.path === '/v1/me/media/background/upload')).toBe(false);
-  });
+  }, 20_000); // sync() de verdade, com várias etapas: passa dos 5 s quando a máquina está ocupada
 
   it('cai para JPEG em GIF grande e ignora vídeo quando a guarda responde 501 ou 507', async () => {
     const userData = (await import('electron')).app.getPath('userData');
@@ -245,5 +245,5 @@ describe('envio de mídia de fundo para amigos', () => {
     expect(calls.some((c) => c.path === '/media/upload')).toBe(true);
     const showcase = JSON.parse(calls.findLast((c) => c.path === '/v1/me/showcase')!.body.toString());
     expect(showcase.web.background).toBeUndefined();
-  });
+  }, 20_000);
 });

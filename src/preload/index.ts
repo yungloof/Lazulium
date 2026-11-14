@@ -7,7 +7,7 @@ import { EmulatorConfig, Game, GameLog, GamePlatform } from '@shared/types/game'
 import { BackupEvent, GameSaveConfig } from '@shared/types/cloudsync';
 import { AccountService } from '@shared/types/accounts';
 import { ProfileCustom, ProfileMediaKind, ProfileWebLink } from '@shared/types/profile';
-import { CallEvent, PresenceState, SocialStatus } from '@shared/types/social';
+import { CallEvent, PresenceState, SocialNotificationsEvent, SocialStatus } from '@shared/types/social';
 import { CategoryRule } from '@shared/types/categories';
 
 const electronAPI: ElectronAPI = {
@@ -241,6 +241,18 @@ const electronAPI: ElectronAPI = {
   socialGetPendingCalls: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_CALL_PENDING),
   socialGetGameFriends: (gameIds: string[]) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GAME_FRIENDS, gameIds),
   socialCompareGames: (friendId: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_FRIEND_GAMES, friendId),
+  socialGetReactions: (targets) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_REACTIONS, targets),
+  socialGetReactionThread: (target) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_REACTION_THREAD, target),
+  socialSetLike: (target, like) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_REACTION_LIKE, target, like),
+  socialAddComment: (target, text) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_COMMENT_ADD, target, text),
+  socialDeleteComment: (commentId) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_COMMENT_DELETE, commentId),
+  socialGetNotifications: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_NOTIFICATIONS),
+  socialMarkNotificationsRead: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_NOTIFICATIONS_READ),
+  onSocialNotifications: (callback: (event: SocialNotificationsEvent) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, event: SocialNotificationsEvent) => callback(event);
+    ipcRenderer.on(IPC_CHANNELS.SOCIAL_NOTIFICATIONS_CHANGED, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SOCIAL_NOTIFICATIONS_CHANGED, subscription);
+  },
   socialTestCall: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_CALL_TEST),
   onCallEvent: (callback: (event: CallEvent) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, event: CallEvent) => callback(event);

@@ -13,6 +13,7 @@ import { CoverCard, GameCover } from './journal/CoverCard';
 import { CreateListModal, LIST_IDEAS } from './journal/CreateListModal';
 import { PageHeader, emptyBox, pageClass } from './journal/PageLayout';
 import { plural } from './journal/format';
+import { MyReactionBar } from './friends/Reactions';
 
 interface ListsPageProps {
   openListId?: string;
@@ -136,6 +137,7 @@ const ListDetail: React.FC<{ list: GameList; games: Map<string, Game>; startPick
           aria-label="Descrição da lista"
           className={`w-full px-2 py-1 -ml-2 text-sm leading-relaxed text-slate-300 placeholder-slate-600 bg-transparent border border-transparent rounded-lg resize-none hover:border-slate-700 focus:border-indigo-400 ${focusRing}`}
         />
+        <MyReactionBar kind="list" target={list.id} title={list.title} />
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="primary" size="md" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setPicking(true)}>
             Adicionar jogos

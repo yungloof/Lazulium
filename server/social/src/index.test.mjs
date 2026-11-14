@@ -371,7 +371,7 @@ test('vitrine: amigo abre pelo link temporário; JSON embutido não fecha a tag'
   assert.equal(res.status, 200);
   assert.match(html, /window\.LAZULIUM_PROFILE = /);
   assert.ok(!html.includes('</script><script>alert(1)'), 'texto do perfil não pode fechar a tag');
-  assert.match(res.headers.get('Content-Security-Policy') ?? '', /default-src 'none'.*connect-src 'none'/);
+  assert.match(res.headers.get('Content-Security-Policy') ?? '', /default-src 'none'.*connect-src 'self'/);
   // Quem não é amigo não consegue link
   assert.equal((await s.call('POST', `/v1/users/${b.user.id}/view`, { token: c.token })).status, 404);
   // Vitrine escondida: link novo não sai e o antigo para de abrir
@@ -791,4 +791,85 @@ test('biblioteca resumida: amigos no jogo, por AppID ou nome, com as chaves de p
   await s.call('POST', '/v1/me/library', { token: b.token, body: { games: [portal] } });
   await s.call('DELETE', '/v1/me', { token: b.token });
   assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM library_games').get().n, 0);
+});
+
+test('curtidas e comentários: só amigos do dono, contagens, avisos e respostas; a vitrine comenta pelo link', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  s.env.PROFILE_PAGE = PAGE;
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  const c = await login(s, '76561198000000003');
+  const d = await login(s, '76561198000000004');
+  await befriend(s, a, b);
+  await befriend(s, a, c);
+  const review = { owner: a.user.id, kind: 'review', target: 't:hades', title: 'Hades' };
+  const list = { owner: a.user.id, kind: 'list', target: '0b6f7f0e-2f7a-4c55-9d7a-1f0a3c1d2e3f', title: 'Top 10' };
+
+  // Quem não é amigo do dono não curte nem vê
+  assert.equal((await s.call('POST', '/v1/social/like', { token: d.token, body: review })).status, 404);
+  assert.equal((await s.call('GET', `/v1/social/thread?owner=${a.user.id}&kind=review&target=t:hades`, { token: d.token })).status, 404);
+  assert.equal((await s.call('POST', '/v1/social/like', { token: b.token, body: { ...review, target: 'hades' } })).status, 400);
+
+  assert.deepEqual((await s.call('POST', '/v1/social/like', { token: b.token, body: review })).body, { likes: 1, liked: true, comments: 0 });
+  await s.call('POST', '/v1/social/like', { token: c.token, body: review });
+  await s.call('POST', '/v1/social/like', { token: b.token, body: review }); // de novo não conta duas vezes
+  const commented = await s.call('POST', '/v1/social/comments', { token: b.token, body: { ...review, text: '  Melhor roguelike!\u0007\n\n\n\nconcordo?  ' } });
+  assert.equal(commented.status, 200);
+  assert.equal(commented.body.comments[0].text, 'Melhor roguelike! \n\nconcordo?');
+  assert.equal((await s.call('POST', '/v1/social/comments', { token: b.token, body: { ...review, text: '   ' } })).status, 400);
+
+  // C, amigo do dono mas não de B, vê o comentário de B; e responde
+  const thread = (await s.call('GET', `/v1/social/thread?owner=${a.user.id}&kind=review&target=t:hades`, { token: c.token })).body;
+  assert.equal(thread.likes, 2);
+  assert.equal(thread.liked, true);
+  assert.equal(thread.comments[0].user.id, b.user.id);
+  assert.equal(thread.likers.length, 2);
+  await s.call('POST', '/v1/social/comments', { token: c.token, body: { ...review, text: 'Concordo' } });
+  await s.call('POST', '/v1/social/like', { token: b.token, body: list });
+
+  // Contagens de vários alvos (os de quem não é amigo ficam de fora)
+  const summary = (await s.call('POST', '/v1/social/summary', { token: b.token, body: { targets: [review, list, { owner: d.user.id, kind: 'review', target: 't:x' }] } })).body.items;
+  assert.deepEqual(summary[`${a.user.id}|review|t:hades`], { likes: 2, liked: true, comments: 2 });
+  assert.deepEqual(summary[`${a.user.id}|list|${list.target}`], { likes: 1, liked: true, comments: 0 });
+  assert.equal(Object.keys(summary).length, 2);
+
+  // Avisos do dono: curtidas e comentários dos outros; B recebe a resposta de C
+  const mine = (await s.call('GET', '/v1/me/notifications', { token: a.token })).body.items;
+  assert.equal(mine.filter((n) => n.type === 'like').length, 3);
+  assert.equal(mine.filter((n) => n.type === 'comment').length, 2);
+  assert.equal(mine.find((n) => n.type === 'like' && n.kind === 'list').title, 'Top 10');
+  const forB = (await s.call('GET', '/v1/me/notifications', { token: b.token })).body.items;
+  assert.equal(forB.length, 1);
+  assert.equal(forB[0].type, 'reply');
+  assert.equal(forB[0].user.id, c.user.id);
+  const later = new Date(Date.now() + 1000).toISOString();
+  assert.equal((await s.call('GET', `/v1/me/notifications?since=${later}`, { token: a.token })).body.items.length, 0);
+
+  // Apagar: quem escreveu ou o dono; os outros não
+  const commentId = thread.comments[0].id;
+  assert.equal((await s.call('DELETE', `/v1/social/comments/${commentId}`, { token: c.token })).status, 404);
+  assert.equal((await s.call('DELETE', `/v1/social/comments/${commentId}`, { token: a.token })).body.comments.length, 1);
+  // Descurtir
+  assert.equal((await s.call('POST', '/v1/social/like', { token: c.token, body: { ...review, like: false } })).body.likes, 1);
+
+  // Vitrine aberta por B: a página comenta como B, sem o token da conta
+  await s.call('PUT', '/v1/me/showcase', { token: a.token, body: SHOWCASE });
+  const link = (await s.call('POST', `/v1/users/${a.user.id}/view`, { token: b.token })).body.url;
+  const html = await (await worker.fetch(new Request(link), s.env)).text();
+  assert.match(html, new RegExp(`"viewerId":"${b.user.id}"`));
+  assert.ok(!html.includes(b.token));
+  const viaPage = await worker.fetch(
+    new Request(`${link}/comments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...list, text: 'Lista boa' }) }),
+    s.env
+  );
+  assert.equal(viaPage.status, 200);
+  assert.equal((await viaPage.json()).comments[0].user.id, b.user.id);
+  assert.equal((await worker.fetch(new Request(`https://social.test/v1/view/${'x'.repeat(30)}/like`, { method: 'POST', body: JSON.stringify(list) }), s.env)).status, 401);
+
+  // Apagar a conta leva curtidas e comentários dela
+  await s.call('DELETE', '/v1/me', { token: b.token });
+  const left = s.env.DB.raw.prepare('SELECT (SELECT COUNT(*) FROM reactions WHERE user_id = ?1) + (SELECT COUNT(*) FROM comments WHERE user_id = ?1) AS n').get(b.user.id);
+  assert.equal(left.n, 0);
 });

@@ -5,6 +5,8 @@ import { useLibraryStore } from '../stores/useLibraryStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { DateField, StarRating, StatusPicker } from './GameLogFields';
 import { Notice, cardClass, inputClass, labelClass } from './ui';
+import { MyReactionBar } from './friends/Reactions';
+import { titleKey } from '@shared/utils/title-key';
 
 const SAVE_DELAY_MS = 700;
 
@@ -106,20 +108,26 @@ export const GameLogCard: React.FC<{ game: Game }> = ({ game }) => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-4">
-          <label className="block">
-            <span className={labelClass}>Minha resenha</span>
-            <textarea
-              value={review}
-              onChange={(e) => {
-                setReview(e.target.value);
-                typeText({ review: e.target.value });
-              }}
-              onBlur={flush}
-              rows={8}
-              placeholder="O que achou do jogo? História, gameplay, o que ficou na memória..."
-              className={textArea}
-            />
-          </label>
+          <div>
+            <label className="block">
+              <span className={labelClass}>Minha resenha</span>
+              <textarea
+                value={review}
+                onChange={(e) => {
+                  setReview(e.target.value);
+                  typeText({ review: e.target.value });
+                }}
+                onBlur={flush}
+                rows={8}
+                placeholder="O que achou do jogo? História, gameplay, o que ficou na memória..."
+                className={textArea}
+              />
+            </label>
+            {/* Curtidas e comentários dos amigos na sua resenha (só aparece quando alguém reagiu) */}
+            {(game.log?.review || game.log?.rating) && titleKey(game.title) && (
+              <MyReactionBar kind="review" target={`t:${titleKey(game.title)}`} title={game.title} className="mt-2" />
+            )}
+          </div>
           <label className="block">
             <span className={labelClass}>Anotações de progresso</span>
             <textarea

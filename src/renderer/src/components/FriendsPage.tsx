@@ -6,6 +6,8 @@ import { useSocial } from '../hooks/useSocial';
 import { useUiStore } from '../stores/useUiStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { ActivityCard } from './friends/parts';
+import { NotificationsBox } from './friends/Notifications';
+import { forgetReactions } from '../stores/useReactionsStore';
 import { PresenceAvatar, PresenceLine } from './friends/presence';
 import { PageHeader, emptyBox, pageClass } from './journal/PageLayout';
 import { Button, EmptyState, Notice, SectionHeader, Skeleton, focusRing, inputClass } from './ui';
@@ -166,6 +168,7 @@ export const FriendsPage: React.FC = () => {
 
   const load = useCallback(async () => {
     setError(null);
+    forgetReactions();
     try {
       const [f, items] = await Promise.all([window.electronAPI?.socialGetFriends(), window.electronAPI?.socialGetFeed()]);
       setFriends(f ?? []);
@@ -262,6 +265,7 @@ export const FriendsPage: React.FC = () => {
         </section>
 
         <aside className="space-y-4">
+          <NotificationsBox />
           {playing.length > 0 && (
             <section className="rounded-xl bg-emerald-500/5 border border-emerald-400/20 p-3">
               <h3 className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-emerald-300">Jogando agora</h3>

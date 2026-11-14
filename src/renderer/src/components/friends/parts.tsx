@@ -3,6 +3,8 @@ import { Gamepad2, UserRound } from 'lucide-react';
 import { SocialActivity, SocialNowPlaying, SocialUser } from '@shared/types/social';
 import { formatLastPlayed } from '../../utils/format';
 import { ACTIVITY_ICON, describeActivity } from '../profile/ActivityTimeline';
+import { reviewTarget } from '@shared/utils/reactions';
+import { ReactionBar } from './Reactions';
 
 export const Avatar: React.FC<{ user: Pick<SocialUser, 'avatarUrl' | 'name'>; size?: 'xs' | 'sm' | 'md' | 'lg' }> = ({ user, size = 'md' }) => {
   const box = size === 'lg' ? 'w-16 h-16 rounded-2xl' : size === 'sm' ? 'w-8 h-8 rounded-lg' : size === 'xs' ? 'w-5 h-5 rounded-md' : 'w-10 h-10 rounded-xl';
@@ -77,6 +79,7 @@ export const ActivityCard: React.FC<{ activity: SocialActivity; user?: SocialUse
           {activity.text}
         </blockquote>
       )}
+      {user && (activity.kind === 'reviewed' || activity.kind === 'rated') && <ReactionBar target={reviewTarget(user.id, activity.gameTitle)} className="mt-2" />}
     </div>
   </article>
 );

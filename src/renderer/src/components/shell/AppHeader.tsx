@@ -7,6 +7,7 @@ import { scanLibraries } from '../../utils/gameActions';
 import { focusRing } from '../ui';
 import { UpdateIndicator } from './UpdateIndicator';
 import { StatusMenu } from './StatusMenu';
+import { useReactionsStore } from '../../stores/useReactionsStore';
 
 const TABS: { label: string; view: AppView }[] = [
   { label: 'Biblioteca', view: 'home' },
@@ -24,6 +25,7 @@ const actionButton = `w-8 h-8 flex items-center justify-center rounded-lg text-s
 export const AppHeader: React.FC = () => {
   const view = useUiStore((s) => s.view);
   const isScanning = useLibraryStore((s) => s.isScanning);
+  const unread = useReactionsStore((s) => s.notifications?.unread ?? 0);
 
   const goTo = (target: AppView) => {
     const ui = useUiStore.getState();
@@ -43,9 +45,15 @@ export const AppHeader: React.FC = () => {
               key={tab.view}
               onClick={() => goTo(tab.view)}
               aria-current={active ? 'page' : undefined}
+              aria-label={tab.view === 'friends' && unread > 0 ? `Amigos, ${unread} ${unread === 1 ? 'aviso novo' : 'avisos novos'}` : undefined}
               className={`relative px-2.5 xl:px-3.5 h-12 text-sm transition-colors ${focusRing} ${active ? 'text-white font-semibold' : 'text-slate-400 hover:text-slate-100'}`}
             >
               {tab.label}
+              {tab.view === 'friends' && unread > 0 && (
+                <span className="absolute top-2 right-0.5 xl:right-1.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-[10px] font-bold leading-4 text-white tabular-nums" aria-hidden>
+                  {unread > 9 ? '9+' : unread}
+                </span>
+              )}
               <span
                 className={`absolute left-2.5 right-2.5 xl:left-3.5 xl:right-3.5 bottom-0 h-0.5 rounded-full bg-indigo-400 transition-[opacity,transform] duration-200 ${
                   active ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-50'

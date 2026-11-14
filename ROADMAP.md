@@ -231,6 +231,7 @@ A 3.0 fecha quando o que a pessoa arruma (Diário, categorias, listas) passa a v
 
 **Conta que sincroniza**
 - [x] Comparar conquistas lado a lado e notas dos amigos na página do jogo (fase 4 de `docs/conta-lazulium.md`): cartão Amigos na página do jogo, quem tem cada conquista e o filtro "Amigos têm, você não", e a aba Comparar com todos os jogos em comum.
+- [x] Curtir e comentar resenhas e listas dos amigos (no feed, na página do jogo, na vitrine e nas suas), com avisos na aba Amigos e do Windows.
 - [ ] Diário, categorias, listas e favoritos entre PCs, com consentimento próprio e `docs/privacidade.md` atualizada antes.
 - [ ] Listas compartilhadas.
 
