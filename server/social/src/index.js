@@ -104,6 +104,8 @@ function parseSettings(raw) {
   return settings;
 }
 
+const LAST_SEEN_REFRESH_MS = 3 * 60 * 1000;
+
 const publicUser = (row) => ({
   id: row.id,
   name: row.custom_name || row.steam_name || 'Jogador',
@@ -238,8 +240,9 @@ async function authenticate(request, env) {
     .bind(hash)
     .first();
   if (!row || row.session_expires < nowIso()) throw new HttpError(401, 'unauthorized');
-  // "Visto por último" com folga de 10 min: não grava a cada pedido
-  if (Date.parse(row.last_seen_at) < Date.now() - 10 * 60 * 1000) {
+  // "Visto por último" com folga de 3 min: não grava a cada pedido. O app aberto consulta os amigos a cada 90 s,
+  // então quem foi visto há menos de 5 min está com o app aberto (On-line na lista dos amigos)
+  if (Date.parse(row.last_seen_at) < Date.now() - LAST_SEEN_REFRESH_MS) {
     await env.DB.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').bind(nowIso(), row.id).run();
   }
   return { user: row, tokenHash: hash };

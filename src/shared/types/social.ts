@@ -2,6 +2,12 @@ import { ActivityKind } from './activity';
 
 // Conta Lazulium (2.0): amigos, "jogando agora" e feed. Servidor em server/social.
 
+// O app aberto fala com o servidor a cada 90 s e o servidor grava o "visto" a cada 3 min: visto há menos de 5 min = app aberto
+export const FRIEND_ONLINE_WINDOW_MS = 5 * 60_000;
+
+export const isFriendOnline = (lastSeenAt: string | undefined, now = Date.now()): boolean =>
+  !!lastSeenAt && now - Date.parse(lastSeenAt) < FRIEND_ONLINE_WINDOW_MS;
+
 export interface SocialUser {
   id: string;
   name: string;

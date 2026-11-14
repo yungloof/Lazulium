@@ -371,8 +371,9 @@ class SocialService {
   }
 
   // "Fulano começou a jogar X": compara quem está jogando agora com a leitura anterior
+  // A cada 90 s: consulta os amigos (o pedido também mantém você On-line para eles) e avisa quem começou a jogar
   private async watchFriends(): Promise<void> {
-    if (!this.token() || db.getSettings()[SOCIAL_NOTIFY_SETTING] === 'false') {
+    if (!this.token()) {
       this.friendsPlaying = undefined;
       return;
     }
@@ -380,6 +381,10 @@ class SocialService {
     try {
       friends = await this.getFriends();
     } catch {
+      return;
+    }
+    if (db.getSettings()[SOCIAL_NOTIFY_SETTING] === 'false') {
+      this.friendsPlaying = undefined;
       return;
     }
     const current = new Map(friends.filter((f) => f.nowPlaying).map((f) => [f.id, f.nowPlaying!.gameKey]));

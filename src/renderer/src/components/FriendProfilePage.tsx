@@ -5,7 +5,8 @@ import { useLibraryStore } from '../stores/useLibraryStore';
 import { useUiStore } from '../stores/useUiStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { formatPlaytimeShort } from '../utils/format';
-import { ActivityCard, Avatar, Cover, NowPlayingLine } from './friends/parts';
+import { isFriendOnline } from '@shared/types/social';
+import { ActivityCard, Avatar, Cover, NowPlayingLine, OnlineLine } from './friends/parts';
 import { StatStrip } from './journal/PageLayout';
 import { Button, Notice, Skeleton, focusRing } from './ui';
 
@@ -81,10 +82,16 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
               <Avatar user={profile.user} size="sm" />
               <div className="min-w-0">
                 <h1 className="text-base leading-tight text-white truncate">{profile.user.name}</h1>
-                {profile.nowPlaying && (
+                {profile.nowPlaying ? (
                   <p className="text-xs">
                     <NowPlayingLine nowPlaying={profile.nowPlaying} />
                   </p>
+                ) : (
+                  isFriendOnline(profile.user.lastSeenAt) && (
+                    <p className="text-xs">
+                      <OnlineLine />
+                    </p>
+                  )
                 )}
               </div>
             </div>

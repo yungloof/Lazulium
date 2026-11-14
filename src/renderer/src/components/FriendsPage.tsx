@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Check, Copy, Eye, Gamepad2, LogIn, RefreshCw, Rss, Shield, Ticket, UserPlus, Users } from 'lucide-react';
-import { SocialFeedItem, SocialFriend, SocialInvite } from '@shared/types/social';
+import { SocialFeedItem, SocialFriend, SocialInvite, isFriendOnline } from '@shared/types/social';
 import { useSocial } from '../hooks/useSocial';
 import { useUiStore } from '../stores/useUiStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
-import { ActivityCard, Avatar, NowPlayingLine } from './friends/parts';
+import { ActivityCard, Avatar, NowPlayingLine, OnlineLine } from './friends/parts';
 import { PageHeader, emptyBox, pageClass } from './journal/PageLayout';
 import { Button, EmptyState, Notice, SectionHeader, Skeleton, focusRing, inputClass } from './ui';
 
@@ -135,6 +135,8 @@ const FriendRow: React.FC<{ friend: SocialFriend }> = ({ friend }) => (
         <span className="block text-sm font-semibold text-slate-100 truncate">{friend.name}</span>
         {friend.nowPlaying ? (
           <NowPlayingLine nowPlaying={friend.nowPlaying} />
+        ) : isFriendOnline(friend.lastSeenAt) ? (
+          <OnlineLine />
         ) : (
           <span className="block text-xs text-slate-500 truncate">Visto {friend.lastSeenAt ? formatSeen(friend.lastSeenAt) : 'há tempo'}</span>
         )}

@@ -44,6 +44,13 @@ export const NowPlayingLine: React.FC<{ nowPlaying: SocialNowPlaying }> = ({ now
   </span>
 );
 
+export const OnlineLine: React.FC = () => (
+  <span className="flex items-center gap-1.5 text-xs text-sky-300 truncate">
+    <span className="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0" aria-hidden />
+    On-line
+  </span>
+);
+
 const stars = (rating: number) => '★'.repeat(Math.floor(rating)) + (rating % 1 ? '½' : '');
 
 // Um evento do feed: quem, o quê, quando e, se houver, a resenha
