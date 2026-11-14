@@ -20,6 +20,7 @@ interface ListsPageProps {
 }
 
 const COLLAGE_SIZE = 5;
+const COLLAGE_STEP = (100 - 34) / (COLLAGE_SIZE - 1); // % da largura entre uma capa e a próxima
 
 // Capas sobrepostas: a cara da lista, em qualquer tela
 export const ListCard: React.FC<{ list: GameList; games: Map<string, Game>; onOpen: () => void }> = ({ list, games, onOpen }) => {
@@ -32,18 +33,19 @@ export const ListCard: React.FC<{ list: GameList; games: Map<string, Game>; onOp
       data-list-id={list.id}
       className={`group text-left p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-slate-600 hover:bg-slate-900/80 transition-colors ${focusRing}`}
     >
-      <span className="relative flex h-40 mb-3.5 pr-16">
+      {/* Tudo em proporção da largura do cartão: cada capa tem 34% da largura e as 5 cabem sem vazar, em qualquer coluna */}
+      <span className="relative block w-full aspect-[100/51] mb-3.5">
         {covers.map((id, index) => (
           <span
             key={id}
-            className="relative h-full aspect-[2/3] flex-shrink-0 overflow-hidden rounded-md bg-slate-800 shadow-[4px_0_12px_rgba(0,0,0,0.45)] transition-transform duration-200 group-hover:-translate-y-1"
-            style={{ marginLeft: index === 0 ? 0 : -48, zIndex: COLLAGE_SIZE - index, transitionDelay: `${index * 25}ms` }}
+            className="absolute top-0 h-full aspect-[2/3] overflow-hidden rounded-md bg-slate-800 shadow-[4px_0_12px_rgba(0,0,0,0.45)] transition-transform duration-200 group-hover:-translate-y-1"
+            style={{ left: `${index * COLLAGE_STEP}%`, zIndex: COLLAGE_SIZE - index, transitionDelay: `${index * 25}ms` }}
           >
-            <GameCover src={games.get(id)?.media?.coverUrl} title={games.get(id)?.title ?? ''} />
+            <GameCover src={games.get(id)?.media?.coverUrl} title={games.get(id)?.title ?? ''} gameId={id} className="object-cover" />
           </span>
         ))}
         {covers.length === 0 && (
-          <span className="h-full aspect-[2/3] rounded-md bg-slate-800/50 border border-dashed border-slate-700 flex items-center justify-center">
+          <span className="absolute top-0 left-0 h-full aspect-[2/3] rounded-md bg-slate-800/50 border border-dashed border-slate-700 flex items-center justify-center">
             <Plus className="w-5 h-5 text-slate-600" />
           </span>
         )}
