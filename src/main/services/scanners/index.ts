@@ -2,7 +2,7 @@ import { Game, GamePlatform, isJournalEntry } from '@shared/types/game';
 import { ScanResult } from '@shared/types/ipc';
 import { db } from '../../database/db';
 import { steamScanner } from './steam-scanner.service';
-import { epicScanner } from './epic-scanner.service';
+import { createEpicScanner } from './epic-scanner.service';
 import { gogScanner } from './gog-scanner.service';
 import { riotScanner } from './riot-scanner.service';
 import { xboxScanner } from './xbox-scanner.service';
@@ -20,7 +20,7 @@ import { dirname } from 'path';
 
 const SCANNERS: PlatformScanner[] = [
   steamScanner,
-  epicScanner,
+  createEpicScanner(() => [...db.getStandaloneDirectories(), ...commonGameFolders()]),
   gogScanner,
   riotScanner,
   xboxScanner,

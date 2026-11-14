@@ -19,7 +19,7 @@ const scans = vi.hoisted(() => {
 });
 
 vi.mock('../../src/main/services/scanners/steam-scanner.service', () => ({ steamScanner: scans.scanner('steam'), findSteamPath: async () => null }));
-vi.mock('../../src/main/services/scanners/epic-scanner.service', () => ({ epicScanner: scans.scanner('epic') }));
+vi.mock('../../src/main/services/scanners/epic-scanner.service', () => ({ createEpicScanner: () => scans.scanner('epic') }));
 vi.mock('../../src/main/services/scanners/gog-scanner.service', () => ({ gogScanner: scans.scanner('gog') }));
 vi.mock('../../src/main/services/scanners/riot-scanner.service', () => ({ riotScanner: scans.scanner('riot') }));
 vi.mock('../../src/main/services/scanners/xbox-scanner.service', () => ({ xboxScanner: scans.scanner('xbox') }));

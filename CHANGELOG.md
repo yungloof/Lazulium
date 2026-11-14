@@ -4,6 +4,14 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.8.1 — 14 de novembro de 2026
+
+### Correções
+
+- **Jogos da Epic fora das pastas padrão.** Quem instala a Epic em outra pasta ou disco, move os jogos ou tem instalações que o launcher não lista ficava com a Epic vazia no Lazulium. Agora o Escanear procura a pasta `.egstore` que todo jogo da Epic tem: nas pastas de jogos que você adicionou em *Configurações → Biblioteca*, em `Games` e `Jogos` de cada disco e, em até 3 níveis, nos seus discos (sem mexer em Windows, ProgramData e afins; a busca tem limite de 5 segundos). Se o jogo não está na lista do launcher, ele abre direto pelo executável, e as horas da conta da Epic entram normalmente porque o nome interno do jogo é o mesmo.
+
+---
+
 ## 2.8.0 — 13 de novembro de 2026
 
 ### Novidades

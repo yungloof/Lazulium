@@ -74,6 +74,7 @@ Responsável por identificar jogos instalados no PC e extrair executáveis, argu
 * **Epic Games Scanner:**
   * Lê manifests JSON em `C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests\*.item`.
   * Extrai `DisplayName`, `InstallLocation`, `LaunchExecutable`, `AppName`.
+  * Jogos fora das listas do launcher (pasta personalizada, outro disco, instalação copiada): busca pela pasta `.egstore` que todo jogo da Epic tem (`findEgstoreFolders`), a partir das pastas de jogos da pessoa e dos discos (3 níveis, no máximo 5 s e 15 mil pastas, ignorando Windows, ProgramData, AppData e steamapps). O `AppName` vem do `.mancpn` ou do manifesto binário, e é ele que casa com as horas da conta da Epic. Sem o launcher conhecer a instalação, o jogo abre pelo executável.
 * **GOG Galaxy Scanner:**
   * Lê entradas no registro do Windows (`HKLM\SOFTWARE\WOW6432Node\GOG.com\Games\*`) e manifests de instalação.
 * **Emuladores Scanner (`services/scanners/emulator.scanner.ts`):**
