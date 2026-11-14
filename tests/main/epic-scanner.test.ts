@@ -49,6 +49,7 @@ describe('jogos da Epic fora das pastas padrão', () => {
     const game = (await gameFromEgstoreFolder(dir))!;
     expect(game).toMatchObject({ id: 'epic-Sugar', platform: 'epic', platformGameId: 'Sugar', title: 'Meu Jogo', executablePath: join(dir, 'Game.exe') });
     expect(game.launchUri).toBeUndefined();
+    expect(game.opensViaLauncher).toBe(true); // o tempo de jogo segue a pasta, não o processo do lançador
   });
 
   it('sem executável, cai no endereço do launcher da Epic com os ids do catálogo', async () => {

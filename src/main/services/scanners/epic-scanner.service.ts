@@ -430,6 +430,8 @@ export async function gameFromEgstoreFolder(gameDir: string): Promise<DetectedGa
     launchArguments: manifestInStore?.LaunchCommand?.trim() || undefined,
     // Sem o launcher conhecendo a instalação, o endereço da Epic não abre o jogo: com o executável na mão, abre direto
     launchUri: executablePath && existsSync(executablePath) ? undefined : buildLaunchUri(manifestInStore?.CatalogNamespace || cpn?.CatalogNamespace, manifestInStore?.CatalogItemId || cpn?.CatalogItemId, appName),
+    // O executável do manifesto costuma ser só um lançador que abre o jogo e fecha (Fortnite, jogos com anticheat): o tempo vem da pasta do jogo
+    opensViaLauncher: true,
     workingDirectory: installPath,
     installPath
   };

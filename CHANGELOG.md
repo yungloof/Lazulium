@@ -4,6 +4,14 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.8.3 — 14 de novembro de 2026
+
+### Correções
+
+- **Horas do Fortnite e de outros jogos da Epic com anticheat.** O Lazulium abria o jogo pelo executável que a Epic indica, que nesses jogos é só um lançador: ele abre o jogo de verdade e fecha em segundos, e o Lazulium descartava a sessão como se tivesse durado 3 segundos. Agora, nos jogos da Epic achados pela pasta, o tempo é contado pela pasta do jogo, e a sessão dura enquanto o jogo estiver aberto. Depois de atualizar, clique em Escanear uma vez.
+
+---
+
 ## 2.8.2 — 14 de novembro de 2026
 
 ### Correções
