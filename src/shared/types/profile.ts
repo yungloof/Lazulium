@@ -141,13 +141,24 @@ export interface YearReview {
   trackedSeconds: number;           // Só sessões abertas pelo Lazulium
 }
 
+// Tag ao lado do nome ("Beta tester", "MALDITO"), dada pelo Steam ID em shared/constants/profile-tags.ts
+export type ProfileTagId = 'beta' | 'maldito';
+
+export interface ProfileTag {
+  id: ProfileTagId;
+  label: string;
+  title: string;                    // Explicação ao passar o mouse
+  tone: 'indigo' | 'red';
+}
+
 export interface PlayerProfile {
   schema: 'lazulium-profile/1';     // Versão do formato (exportação para web/site)
   generatedAt: string;
   displayName: string;
   avatarUrl?: string;
   steamLevel?: number;
-  betaTester?: boolean;             // Steam ID em BETA_TESTER_STEAM_IDS: tag "Beta tester" no perfil e na página dos amigos
+  betaTester?: boolean;             // Tag "Beta tester": fica para páginas antigas dos amigos, que só conhecem esta
+  tags?: ProfileTag[];              // Tags do Steam ID (profile-tags.ts), no perfil, na página dos amigos e na web
   custom: ProfileCustom;
   steam?: SteamProfileIdentity;
   background?: { imageUrl?: string; videoUrl?: string };

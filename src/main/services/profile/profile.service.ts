@@ -21,7 +21,7 @@ import { achievementsService } from '../achievements/achievements.service';
 import { screenshotsService } from '../metadata/screenshots.service';
 import { readSteamProfileStats, SteamAppStats } from '../scanners/steam-scanner.service';
 import { steamProfileService } from './steam-profile.service';
-import { isBetaTester } from '@shared/constants/beta-testers';
+import { isBetaTester, profileTagsFor } from '@shared/constants/profile-tags';
 import { describeError, logBackgroundFailure, sleep } from '../metadata/http';
 import { reviewDateOf, sortByReviewDate } from '@shared/utils/review-order';
 
@@ -248,6 +248,7 @@ class ProfileService {
         .slice(0, MAX_ACHIEVEMENT_CHOICES),
       steamLevel: steamId ? playerLevel : undefined,
       betaTester: isBetaTester(steamId) || undefined,
+      tags: profileTagsFor(steamId).length ? profileTagsFor(steamId) : undefined,
       activityByDay,
       recentPlaytimeSeconds:
         steamIdentity?.recentHours !== undefined

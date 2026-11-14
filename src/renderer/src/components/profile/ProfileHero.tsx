@@ -1,11 +1,16 @@
 import React from 'react';
 import { CalendarDays, Loader2, MoreHorizontal, Pencil, UserRound } from 'lucide-react';
-import { FlaskConical } from 'lucide-react';
+import { FlaskConical, Skull } from 'lucide-react';
 import { PlayerProfile } from '@shared/types/profile';
 import { Select } from '../Select';
 import { Button, buttonClass } from '../ui';
 import { Stat, StatStrip } from '../journal/PageLayout';
 import { panel } from './parts';
+
+const TAG_TONE: Record<string, string> = {
+  indigo: 'bg-indigo-500/20 ring-indigo-400/40 font-medium text-indigo-200',
+  red: 'bg-red-600/25 ring-red-500/60 font-bold tracking-wide text-red-300'
+};
 
 // Cores do nível da Steam (as mesmas do site da Steam, a cada 10 níveis)
 const LEVEL_COLORS = ['#9b9b9b', '#c02942', '#d95b43', '#fecc23', '#467a3c', '#4e8ddb', '#7652c9', '#c252c9', '#542437', '#997c52'];
@@ -63,11 +68,14 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({ profile, stats, presen
                 {profile.steamLevel}
               </span>
             )}
-            {profile.betaTester && (
-              <span title="Ajudou a testar o Lazulium desde as primeiras versões" className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full bg-indigo-500/20 ring-1 ring-inset ring-indigo-400/40 text-xs font-medium text-indigo-200">
-                <FlaskConical className="w-3 h-3" aria-hidden="true" /> Beta tester
-              </span>
-            )}
+            {(profile.tags ?? (profile.betaTester ? [{ id: 'beta', label: 'Beta tester', title: 'Ajudou a testar o Lazulium desde as primeiras versões', tone: 'indigo' } as const] : [])).map((tag) => {
+              const Icon = tag.id === 'maldito' ? Skull : FlaskConical;
+              return (
+                <span key={tag.id} title={tag.title} className={`inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full ring-1 ring-inset text-xs ${TAG_TONE[tag.tone] ?? TAG_TONE.indigo}`}>
+                  <Icon className="w-3 h-3" aria-hidden="true" /> {tag.label}
+                </span>
+              );
+            })}
             {presence && (
               <span className={`inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full bg-slate-900/80 text-xs ${presence.className}`}>
                 <span className="w-1.5 h-1.5 rounded-full bg-current" /> {presence.text}

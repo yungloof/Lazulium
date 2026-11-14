@@ -48,6 +48,9 @@
     #identity .text { min-width: 0; padding-top: 4px; }
     h1 { font-size: 28px; font-weight: 400; line-height: 1.2; overflow-wrap: anywhere; }
     #name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+    #tags { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+    #tags:empty { display: none; }
+    .beta.red { background: rgba(220, 38, 38, 0.25); box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.6); color: #fca5a5; font-weight: 700; letter-spacing: 0.04em; }
     .beta { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; background: rgba(99, 102, 241, 0.2); box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.4); color: #c7d2fe; font-size: 12px; font-weight: 600; }
     #bio { margin-top: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
     #side { grid-row: span 2; padding: 20px; display: flex; flex-direction: column; gap: 24px; min-width: 0; }
@@ -151,7 +154,7 @@
     <header id="identity" class="panel">
       <div id="avatar"></div>
       <div class="text">
-        <div id="name-row"><h1 id="name">Carregando...</h1><span id="beta" class="beta" title="Ajudou a testar o Lazulium desde as primeiras versões" hidden>Beta tester</span></div>
+        <div id="name-row"><h1 id="name">Carregando...</h1><span id="tags"></span></div>
         <p id="bio" hidden></p>
       </div>
     </header>
@@ -393,7 +396,10 @@
       const name = profile.displayName || 'Jogador';
       document.title = name + ' · Perfil Lazulium';
       document.getElementById('name').textContent = name;
-      document.getElementById('beta').hidden = profile.betaTester !== true;
+      // Tags do perfil; perfis de versões antigas só mandam betaTester
+      const tags = Array.isArray(profile.tags) ? profile.tags : profile.betaTester === true ? [{ label: 'Beta tester', title: 'Ajudou a testar o Lazulium desde as primeiras versões', tone: 'indigo' }] : [];
+      document.getElementById('tags').replaceChildren(...tags.filter((t) => t && typeof t.label === 'string').slice(0, 4).map((t) =>
+        el('span', { class: 'beta' + (t.tone === 'red' ? ' red' : ''), title: String(t.title || '') }, String(t.label).slice(0, 24))));
 
       const avatar = document.getElementById('avatar');
       avatar.replaceChildren(image(profile.avatarUrl, name, 'photo') || el('div', { class: 'letter' }, name.charAt(0).toUpperCase()));
