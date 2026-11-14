@@ -31,8 +31,7 @@ const openSettings = () => useUiStore.getState().openModal({ kind: 'settings' })
 const rescan = () => void scanLibraries();
 
 const onGameAdded = (game: Game) => {
-  const library = useLibraryStore.getState();
-  library.setGames([...library.games, game]);
+  useLibraryStore.getState().upsertGameLocal(game);
   openGame(game);
 };
 const onScanComplete = (games: Game[]) => useLibraryStore.getState().setGames(games);
@@ -46,8 +45,13 @@ const closeScreenshots = () => {
   useUiStore.getState().bumpScreenshots();
 };
 
+// Horas, opções de abertura e saves são de cada loja: usam o registro daquela loja, não o card juntado
+const PER_STORE_MODALS = new Set<AppModal['kind']>(['playtime', 'launchOptions', 'saves']);
+
 const ModalContent: React.FC<{ modal: AppModal }> = ({ modal }) => {
-  const game = useLibraryStore((s) => ('gameId' in modal ? s.games.find((g) => g.id === modal.gameId) : undefined));
+  const game = useLibraryStore((s) =>
+    'gameId' in modal ? (PER_STORE_MODALS.has(modal.kind) ? s.rawGames.find((g) => g.id === modal.gameId) : s.gamesById.get(modal.gameId)) : undefined
+  );
 
   switch (modal.kind) {
     case 'settings':

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Check, ListPlus, Plus } from 'lucide-react';
 import { Game } from '@shared/types/game';
+import { editionIds } from '@shared/utils/editions';
 import { useListsStore } from '../stores/useListsStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { Button, Modal, Notice, focusRing, inputClass } from './ui';
@@ -59,11 +60,13 @@ export const AddToListModal: React.FC<{ game: Game; onClose: () => void }> = ({ 
     >
       <ul className="space-y-0.5">
         {lists.map((list) => {
-          const inList = list.gameIds.includes(game.id);
+          // Jogo juntado: conta o id de qualquer loja dele
+          const ids = new Set(editionIds(game));
+          const inList = list.gameIds.some((id) => ids.has(id));
           return (
             <li key={list.id}>
               <button
-                onClick={() => run(() => save({ id: list.id, title: list.title, gameIds: inList ? list.gameIds.filter((id) => id !== game.id) : [...list.gameIds, game.id] }))}
+                onClick={() => run(() => save({ id: list.id, title: list.title, gameIds: inList ? list.gameIds.filter((id) => !ids.has(id)) : [...list.gameIds, game.id] }))}
                 aria-pressed={inList}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${inList ? 'bg-indigo-500/15 hover:bg-indigo-500/20' : 'hover:bg-slate-800'} ${focusRing}`}
               >

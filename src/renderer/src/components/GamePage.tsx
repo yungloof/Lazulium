@@ -15,6 +15,7 @@ import {
   Pencil,
   Save,
   Star,
+  Store,
   Trophy,
   Users
 } from 'lucide-react';
@@ -28,9 +29,10 @@ import { LOG_STATUS } from './GameLogFields';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { useLibraryViewStore } from '../stores/useLibraryViewStore';
 import { GameModalKind, useUiStore } from '../stores/useUiStore';
-import { formatLastPlayed, formatPlaytimeLong } from '../utils/format';
+import { formatLastPlayed, formatPlaytimeLong, formatPlaytimeShort } from '../utils/format';
 import { PLATFORM_FULL } from '../utils/platform';
-import { launchGame, openGameFolder, toggleFavorite } from '../utils/gameActions';
+import { launchGame, openGameFolder, setEditionsSplit, setPreferredEdition, toggleFavorite } from '../utils/gameActions';
+import { editionKey, launchEdition } from '@shared/utils/editions';
 import { Skeleton, buttonClass, chipClass, focusRing, iconButtonSolidClass } from './ui';
 
 interface GamePageProps {
@@ -93,6 +95,85 @@ const Stat: React.FC<{ icon: React.ElementType; label: React.ReactNode; children
     </span>
   </span>
 );
+
+// O mesmo jogo em mais de uma loja: as horas somam e o jogador escolhe por onde abrir
+const EditionsCard: React.FC<{ game: Game }> = ({ game }) => {
+  const editions = game.editions ?? [];
+  const preferred = useLibraryStore((s) => s.editionPrefs.preferred[game.id]);
+  const opensWith = launchEdition(game, preferred);
+  const anyInstalled = editions.some((e) => e.isInstalled);
+
+  const split = () => {
+    setEditionsSplit(game, true);
+    const ui = useUiStore.getState();
+    ui.showNotice({
+      text: `${game.title} voltou a aparecer uma vez por loja.`,
+      tone: 'ok',
+      action: {
+        label: 'Desfazer',
+        run: () => {
+          useUiStore.getState().dismissNotice();
+          setEditionsSplit(game, false);
+        }
+      }
+    });
+  };
+
+  return (
+    <Card
+      title="Lojas"
+      icon={Store}
+      action={
+        <button onClick={split} title="Não é o mesmo jogo? Mostra um card por loja" className={linkButton}>
+          Separar
+        </button>
+      }
+    >
+      <p className="text-xs leading-relaxed text-slate-400 mb-3">Você tem este jogo em mais de uma loja. As horas somam; escolha por onde ele abre.</p>
+      <div role="radiogroup" aria-label="Abrir pela loja" className="space-y-1.5">
+        {editions.map((edition) => {
+          const chosen = edition.id === opensWith;
+          const unavailable = !edition.isInstalled && anyInstalled;
+          return (
+            <div key={edition.id} className="flex items-center gap-1.5">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={chosen}
+                disabled={unavailable}
+                onClick={() => setPreferredEdition(game.id, edition.id)}
+                title={unavailable ? 'Não instalado nesta loja' : `Abrir pela ${PLATFORM_FULL[edition.platform]}`}
+                className={`flex-1 min-w-0 flex items-center gap-3 px-3 py-2 rounded-lg border text-left transition-colors disabled:opacity-50 disabled:cursor-default ${
+                  chosen ? 'border-indigo-400/60 bg-indigo-500/15' : 'border-slate-800 hover:bg-slate-800/60'
+                } ${focusRing}`}
+              >
+                <span className={`w-3.5 h-3.5 flex-shrink-0 rounded-full border-2 ${chosen ? 'border-indigo-400 bg-indigo-400 shadow-[inset_0_0_0_2px_rgb(15,23,42)]' : 'border-slate-600'}`} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] text-slate-100 truncate">{PLATFORM_FULL[edition.platform]}</span>
+                  <span className="block text-[11px] text-slate-400 tabular-nums">
+                    {formatPlaytimeShort(edition.playtimeSeconds, edition.lastPlayedAt)}
+                    {!edition.isInstalled && ' · não instalado'}
+                  </span>
+                </span>
+              </button>
+              {edition.platform !== 'steam' && (
+                <button
+                  type="button"
+                  onClick={() => open('playtime', edition.id)}
+                  title={`Ajustar as horas da ${PLATFORM_FULL[edition.platform]}`}
+                  aria-label={`Ajustar as horas da ${PLATFORM_FULL[edition.platform]}`}
+                  className={`p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/70 transition-colors ${focusRing}`}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+};
 
 // Página de um jogo com cara de vitrine: arte grande, logo, ação principal e o resto em cartões
 export const GamePage: React.FC<GamePageProps> = ({ game }) => {
@@ -176,7 +257,10 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
   // Uma linha só: até 6 ícones, ou 5 e o "+N"
   const badgeCount = hasAchievements && achievements!.total > MAX_BADGE_PREVIEW ? MAX_BADGE_PREVIEW - 1 : MAX_BADGE_PREVIEW;
   const badgePreview = hasAchievements ? [...achievements!.items].sort((a, b) => Number(b.unlocked) - Number(a.unlocked)).slice(0, badgeCount) : [];
-  const canEditPlaytime = game.platform !== 'steam';
+  // Jogo juntado: cada loja tem as suas horas, ajustadas no cartão Lojas
+  const canEditPlaytime = game.platform !== 'steam' && !game.editions;
+  const splitKey = editionKey(game);
+  const isSplit = useLibraryStore((s) => !!splitKey && s.editionPrefs.split.includes(splitKey));
   const status = LOG_STATUS.find((s) => s.id === game.log?.status);
 
   // Noção de quanto falta. Zerado, sem fim definido ou com dados fracos, a barra só atrapalharia.
@@ -184,7 +268,11 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
   const finished = game.log?.status === 'finished' || game.log?.status === 'completed';
   const progress = typicalHours && !finished && game.totalPlaytimeSeconds > 0 ? Math.min(100, Math.round((game.totalPlaytimeSeconds / 3600 / typicalHours) * 100)) : null;
 
-  const platformText = game.platform === 'emulator' ? `Emulador · ${game.emulatorId ?? ''}` : PLATFORM_FULL[game.platform];
+  const platformText = game.editions
+    ? game.editions.map((e) => PLATFORM_FULL[e.platform]).join(' e ')
+    : game.platform === 'emulator'
+      ? `Emulador · ${game.emulatorId ?? ''}`
+      : PLATFORM_FULL[game.platform];
 
   return (
     <div className="min-h-full animate-fade-in">
@@ -288,7 +376,7 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
         <button
           onClick={canEditPlaytime ? () => open('playtime', game.id) : undefined}
           disabled={!canEditPlaytime}
-          title={canEditPlaytime ? 'Ajustar tempo jogado' : 'Tempo importado da Steam'}
+          title={canEditPlaytime ? 'Ajustar tempo jogado' : game.editions ? 'Soma das lojas: ajuste cada uma no cartão Lojas' : 'Tempo importado da Steam'}
           className={`rounded-md -mx-2 px-2 py-1 transition-colors ${canEditPlaytime ? `hover:bg-slate-800/70 ${focusRing}` : 'cursor-default'}`}
         >
           <Stat
@@ -425,6 +513,7 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
         </div>
 
         <div className="space-y-6">
+          {game.editions && <EditionsCard game={game} />}
           <Card
             title="Conquistas"
             icon={Trophy}
@@ -508,6 +597,16 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
                   {game.isInstalled === false && !game.manualEntry && ' · não instalado'}
                 </dd>
               </div>
+              {isSplit && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-slate-400">Outras lojas</dt>
+                  <dd className="text-right">
+                    <button type="button" onClick={() => setEditionsSplit(game, false)} title="Mostrar como um jogo só, com as horas somadas" className={linkButton}>
+                      Juntar de novo
+                    </button>
+                  </dd>
+                </div>
+              )}
               {game.series && (
                 <div className="flex justify-between gap-3">
                   <dt className="text-slate-400">Série</dt>

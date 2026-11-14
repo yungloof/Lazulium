@@ -6,11 +6,12 @@ import { useUiStore } from '../stores/useUiStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { scanLibraries } from '../utils/gameActions';
 import { isNewerVersion } from '@shared/utils/version';
+import { parseEditionPrefs } from '@shared/utils/editions';
 
 const GAME_UPDATE_BATCH_MS = 120;
 const ASK_STATUS_AFTER_SECONDS = 10 * 60;
 
-const titleOf = (gameId: string, fallback?: string) => fallback ?? useLibraryStore.getState().games.find((g) => g.id === gameId)?.title ?? 'Jogo';
+const titleOf = (gameId: string, fallback?: string) => fallback ?? useLibraryStore.getState().gamesById.get(gameId)?.title ?? 'Jogo';
 
 // Tudo que chega do processo principal: biblioteca, execução, capturas, backups, rede e bandeja
 export function useAppEvents(): void {
@@ -23,7 +24,9 @@ export function useAppEvents(): void {
       .catch((err) => console.error('Failed to load categories:', err));
     (async () => {
       try {
-        const loaded = await window.electronAPI?.getGames();
+        // As escolhas de lojas juntadas vêm antes dos jogos: a grade já abre com cada jogo uma vez
+        const [loaded, settings] = await Promise.all([window.electronAPI?.getGames(), window.electronAPI?.getSettings().catch(() => undefined)]);
+        library.setEditionPrefs(parseEditionPrefs(settings));
         if (loaded && loaded.length > 0) {
           library.setGames(loaded);
           library.setIsLoaded(true);
@@ -93,7 +96,7 @@ export function useAppEvents(): void {
         const minutes = Math.max(1, Math.round(status.sessionSeconds / 60));
         const idleMin = status.idleSeconds ? Math.round(status.idleSeconds / 60) : 0;
         const idleText = idleMin > 0 ? ` (${idleMin} min ausente descontados)` : '';
-        const played = useLibraryStore.getState().games.find((g) => g.id === status.gameId);
+        const played = useLibraryStore.getState().gamesById.get(status.gameId);
         // Sessão de verdade em jogo sem status: um clique para entrar no Diário
         const askStatus = played && !played.log?.status && status.sessionSeconds >= ASK_STATUS_AFTER_SECONDS;
         showNotice({

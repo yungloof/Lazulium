@@ -29,7 +29,7 @@ const PageContent: React.FC<{ view: AppView }> = ({ view }) => {
   const screenshotsVersion = useUiStore((s) => s.screenshotsVersion);
   const selectedGameId = useUiStore((s) => s.selectedGameId);
   // A página acompanha o store (horas, favorito, execução) sem cópia própria do jogo
-  const selectedGame = useLibraryStore((s) => (view === 'game' && selectedGameId ? s.games.find((g) => g.id === selectedGameId) : undefined));
+  const selectedGame = useLibraryStore((s) => (view === 'game' && selectedGameId ? s.gamesById.get(selectedGameId) : undefined));
 
   switch (view) {
     case 'gallery':

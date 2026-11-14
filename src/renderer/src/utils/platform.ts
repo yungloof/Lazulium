@@ -41,6 +41,10 @@ export const PLATFORM_FULL: Record<GamePlatform, string> = {
   standalone: 'PC'
 };
 
-// Na capa: o emulador aparece pelo nome (Ryujinx, Dolphin...)
-export const platformBadge = (game: Pick<Game, 'platform' | 'emulatorId'>): string =>
-  game.platform === 'emulator' ? game.emulatorId || PLATFORM_SHORT.emulator : PLATFORM_SHORT[game.platform];
+// Na capa: o emulador aparece pelo nome (Ryujinx, Dolphin...); jogo juntado, pelas lojas dele (Steam + Epic)
+export const platformBadge = (game: Pick<Game, 'platform' | 'emulatorId' | 'editions'>): string =>
+  game.editions
+    ? game.editions.map((e) => PLATFORM_SHORT[e.platform]).join(' + ')
+    : game.platform === 'emulator'
+      ? game.emulatorId || PLATFORM_SHORT.emulator
+      : PLATFORM_SHORT[game.platform];

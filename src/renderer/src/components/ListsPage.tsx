@@ -4,6 +4,7 @@ import { Game } from '@shared/types/game';
 import { GameList } from '@shared/types/lists';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { useListsStore } from '../stores/useListsStore';
+import { resolveEditionIds } from '@shared/utils/editions';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { GamePickerModal } from './GamePickerModal';
 import { TierListDetail } from './TierListDetail';
@@ -25,7 +26,8 @@ const COLLAGE_STEP = (100 - 34) / (COLLAGE_SIZE - 1); // % da largura entre uma 
 // Capas sobrepostas: a cara da lista, em qualquer tela
 export const ListCard: React.FC<{ list: GameList; games: Map<string, Game>; onOpen: () => void }> = ({ list, games, onOpen }) => {
   const ordered = list.tiers ? [...list.tiers.flatMap((t) => t.gameIds), ...list.gameIds] : list.gameIds;
-  const covers = [...new Set(ordered)].filter((id) => games.has(id)).slice(0, COLLAGE_SIZE);
+  // O mesmo jogo por duas lojas (lista antiga) aparece uma vez só
+  const covers = [...new Map(ordered.flatMap((id) => (games.has(id) ? [[games.get(id)!.id, id] as const] : []))).values()].slice(0, COLLAGE_SIZE);
   return (
     <button
       type="button"
@@ -261,7 +263,7 @@ const ListDetail: React.FC<{ list: GameList; games: Map<string, Game>; startPick
 };
 
 export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, onOpenGame }) => {
-  const allGames = useLibraryStore((s) => s.games);
+  const allGames = useLibraryStore((s) => s.gamesById);
   const lists = useListsStore((s) => s.lists);
   const load = useListsStore((s) => s.load);
   const [error, setError] = useState<string | null>(null);
@@ -273,8 +275,19 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
     setCreating(title);
   };
   const [justCreated, setJustCreated] = useState<string | null>(null);
-  const games = useMemo(() => new Map(allGames.filter((g) => !g.isHidden).map((g) => [g.id, g])), [allGames]);
-  const opened = lists.find((l) => l.id === openListId);
+  const primaryOf = useLibraryStore((s) => s.primaryOf);
+  const games = useMemo(() => new Map([...allGames].filter(([, g]) => !g.isHidden)), [allGames]);
+  const openedRaw = lists.find((l) => l.id === openListId);
+  // Ids da outra loja de um jogo juntado viram o id do card: mover, tirar e ordenar funcionam igual
+  const opened = useMemo(
+    () =>
+      openedRaw && {
+        ...openedRaw,
+        gameIds: resolveEditionIds(openedRaw.gameIds, primaryOf),
+        ...(openedRaw.tiers ? { tiers: openedRaw.tiers.map((t) => ({ ...t, gameIds: resolveEditionIds(t.gameIds, primaryOf) })) } : {})
+      },
+    [openedRaw, primaryOf]
+  );
 
   useEffect(() => {
     load()

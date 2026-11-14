@@ -76,7 +76,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
   const year = new Date().getFullYear();
 
   const games = useMemo(() => allGames.filter((g) => !g.isHidden), [allGames]);
-  const gamesById = useMemo(() => new Map(games.map((g) => [g.id, g])), [games]);
+  const allById = useLibraryStore((s) => s.gamesById);
+  const gamesById = useMemo(() => new Map([...allById].filter(([, g]) => !g.isHidden)), [allById]);
   const reviews = useMemo(
     () => sortByReviewDate(games.filter((g) => g.log?.review?.trim())),
     [games]

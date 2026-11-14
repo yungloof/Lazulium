@@ -87,7 +87,8 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
             }
           }
         ]),
-    ...(game.platform === 'steam' ? [] : [{ id: 'playtime', label: 'Ajustar tempo jogado', icon: <Clock className={icon} />, action: () => onEditPlaytime(game) }]),
+    // Jogo juntado: as horas de cada loja são ajustadas no cartão Lojas da página dele
+    ...(game.platform === 'steam' || game.editions ? [] : [{ id: 'playtime', label: 'Ajustar tempo jogado', icon: <Clock className={icon} />, action: () => onEditPlaytime(game) }]),
     { id: 'open', label: 'Abrir página do jogo', icon: <ExternalLink className={icon} />, action: () => onOpenPage(game) },
     {
       id: 'favorite',
@@ -190,7 +191,7 @@ const closeMenu = () => useUiStore.getState().setContextMenu(null);
 
 // Liga o menu às ações do app (o App só diz onde abrir)
 export const GameContextMenuHost: React.FC<{ menu: ContextMenuState }> = ({ menu }) => {
-  const game = useLibraryStore((s) => s.games.find((g) => g.id === menu.gameId));
+  const game = useLibraryStore((s) => s.gamesById.get(menu.gameId));
   if (!game) return null;
   return (
     <GameContextMenu

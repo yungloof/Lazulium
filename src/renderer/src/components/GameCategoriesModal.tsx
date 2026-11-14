@@ -3,6 +3,7 @@ import { Check, Plus, Settings2, SlidersHorizontal, Tags } from 'lucide-react';
 import { Game } from '@shared/types/game';
 import { MAX_CATEGORY_NAME } from '@shared/types/categories';
 import { isGameInCategory } from '@shared/utils/categories';
+import { editionIds } from '@shared/utils/editions';
 import { useCategoriesStore } from '../stores/useCategoriesStore';
 import { useUiStore } from '../stores/useUiStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
@@ -100,7 +101,7 @@ export const GameCategoriesModal: React.FC<{ game: Game; onClose: () => void }> 
           return (
             <li key={category.id}>
               <button
-                onClick={() => run(() => useCategoriesStore.getState().setGames(category.id, [game.id], !inCategory))}
+                onClick={() => run(() => useCategoriesStore.getState().setGames(category.id, inCategory ? editionIds(game) : [game.id], !inCategory))}
                 aria-pressed={inCategory}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${inCategory ? 'bg-indigo-500/15 hover:bg-indigo-500/20' : 'hover:bg-slate-800'} ${focusRing}`}
               >

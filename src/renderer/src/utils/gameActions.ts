@@ -4,6 +4,7 @@ import { useLibraryStore } from '../stores/useLibraryStore';
 import { useUiStore } from '../stores/useUiStore';
 import { useCategoriesStore } from '../stores/useCategoriesStore';
 import { ipcErrorMessage } from './ipcErrorMessage';
+import { EDITION_SETTING_KEYS, editionIds, editionKey, launchEdition } from '@shared/utils/editions';
 
 // Ações sobre jogos usadas em várias telas. São funções fixas (não mudam a cada render),
 // então as capas memorizadas não precisam renderizar de novo por causa delas.
@@ -14,22 +15,59 @@ export function openGame(game: Pick<Game, 'id'>): void {
   useUiStore.getState().openGameId(game.id);
 }
 
-export async function launchGame(game: Pick<Game, 'id'>): Promise<void> {
+// Jogo em mais de uma loja: abre pela escolhida (ou pela instalada jogada por último)
+function editionToOpen(game: Pick<Game, 'id' | 'editions'>): string {
+  const library = useLibraryStore.getState();
+  const card = library.gamesById.get(game.id) ?? game;
+  return launchEdition(card, library.editionPrefs.preferred[card.id]);
+}
+
+export async function launchGame(game: Pick<Game, 'id' | 'editions'>): Promise<void> {
   try {
-    await window.electronAPI?.launchGame(game.id);
+    await window.electronAPI?.launchGame(editionToOpen(game));
   } catch (err) {
     console.error('Error launching game:', err);
   }
 }
 
-export function stopGame(game: Pick<Game, 'id'>): void {
-  void window.electronAPI?.stopGame(game.id);
+export function stopGame(game: Pick<Game, 'id' | 'editions'>): void {
+  // Encerra a loja que está rodando (o status do card é o espelho dela)
+  const library = useLibraryStore.getState();
+  const card = library.gamesById.get(game.id) ?? game;
+  const running = editionIds(card).find((id) => library.launchStatuses[id] && id !== card.id) ?? library.launchStatuses[card.id]?.gameId ?? card.id;
+  void window.electronAPI?.stopGame(running);
+}
+
+// Loja escolhida para abrir um jogo juntado
+export function setPreferredEdition(cardId: string, editionId: string): void {
+  const library = useLibraryStore.getState();
+  const preferred = { ...library.editionPrefs.preferred, [cardId]: editionId };
+  library.setEditionPrefs({ ...library.editionPrefs, preferred });
+  window.electronAPI?.setSetting(EDITION_SETTING_KEYS.preferred, JSON.stringify(preferred)).catch(warn);
+}
+
+// Juntou dois jogos que não são o mesmo: separa de vez (ou junta de novo)
+export function setEditionsSplit(game: Pick<Game, 'title' | 'detectedTitle' | 'platform' | 'manualEntry' | 'isHidden'>, split: boolean): void {
+  const key = editionKey(game);
+  if (!key) return;
+  const library = useLibraryStore.getState();
+  const keys = new Set(library.editionPrefs.split);
+  if (split) keys.add(key);
+  else keys.delete(key);
+  const next = [...keys];
+  library.setEditionPrefs({ ...library.editionPrefs, split: next });
+  window.electronAPI?.setSetting(EDITION_SETTING_KEYS.split, JSON.stringify(next)).catch(warn);
 }
 
 export async function toggleFavorite(id: string): Promise<void> {
-  useLibraryStore.getState().toggleFavoriteLocal(id);
+  const library = useLibraryStore.getState();
+  // Jogo juntado é favorito se qualquer loja for: desfavoritar (ou favoritar) vale para todas
+  const card = library.gamesById.get(id);
+  const target = !(card?.isFavorite ?? false);
+  const ids = card ? editionIds(card).filter((editionId) => (library.rawGames.find((g) => g.id === editionId)?.isFavorite ?? false) !== target) : [id];
+  for (const editionId of ids) library.toggleFavoriteLocal(editionId);
   try {
-    await window.electronAPI?.toggleFavorite(id);
+    for (const editionId of ids) await window.electronAPI?.toggleFavorite(editionId);
   } catch (err) {
     console.error('Error toggling favorite:', err);
   }
@@ -54,8 +92,8 @@ export async function scanLibraries(): Promise<void> {
   }
 }
 
-export function openGameFolder(game: Pick<Game, 'id'>): void {
-  window.electronAPI?.openGameFolder(game.id).catch(warn);
+export function openGameFolder(game: Pick<Game, 'id' | 'editions'>): void {
+  window.electronAPI?.openGameFolder(editionToOpen(game)).catch(warn);
 }
 
 export function skipSuggestion(game: Pick<Game, 'id'>): void {
@@ -67,8 +105,12 @@ export function skipSuggestion(game: Pick<Game, 'id'>): void {
 
 export async function hideGame(game: Game): Promise<void> {
   try {
-    const updated = await window.electronAPI?.updateGame(game.id, { isHidden: true });
-    if (updated) useLibraryStore.getState().upsertGameLocal(updated);
+    // Jogo juntado some por inteiro: ocultar só uma loja faria a outra aparecer sozinha
+    const ids = editionIds(game);
+    const api = window.electronAPI;
+    if (!api) return;
+    const updated = await Promise.all(ids.map((id) => api.updateGame(id, { isHidden: true })));
+    useLibraryStore.getState().upsertGamesLocal(updated);
     const ui = useUiStore.getState();
     if (ui.selectedGameId === game.id && ui.view === 'game') ui.goHome();
     useUiStore.getState().showNotice({
@@ -78,9 +120,8 @@ export async function hideGame(game: Game): Promise<void> {
         label: 'Desfazer',
         run: () => {
           useUiStore.getState().dismissNotice();
-          window.electronAPI
-            ?.updateGame(game.id, { isHidden: false })
-            .then((restored) => useLibraryStore.getState().upsertGameLocal(restored))
+          Promise.all(ids.map((id) => api.updateGame(id, { isHidden: false })))
+            .then((restored) => useLibraryStore.getState().upsertGamesLocal(restored))
             .catch(warn);
         }
       }
@@ -102,8 +143,7 @@ export function askDeleteEntry(game: Game): void {
         window.electronAPI
           ?.deleteGame(game.id)
           .then(() => {
-            const library = useLibraryStore.getState();
-            library.setGames(library.games.filter((g) => g.id !== game.id));
+            useLibraryStore.getState().removeGameLocal(game.id);
             void useCategoriesStore.getState().load().catch(() => undefined);
             useUiStore.getState().goHome();
           })

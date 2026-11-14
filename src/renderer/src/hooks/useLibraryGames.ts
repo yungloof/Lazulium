@@ -39,7 +39,10 @@ export const categoryIdOf = (filter: LibraryFilter): string | null => (filter.st
 // Texto estável com as plataformas presentes: favoritar um jogo não recria a lista de filtros
 const platformsKey = (games: Game[]): string => {
   const found = new Set<string>();
-  for (const game of games) found.add(game.platform);
+  for (const game of games) {
+    found.add(game.platform);
+    for (const edition of game.editions ?? []) found.add(edition.platform);
+  }
   return [...found].sort().join(',');
 };
 
@@ -86,7 +89,7 @@ export function filterGames(games: Game[], filter: LibraryFilter, query: string,
       if (categories.some((c) => isGameInCategory(game, c))) return false;
     } else if (filter === 'favorites') {
       if (!game.isFavorite) return false;
-    } else if (filter !== 'all' && game.platform !== filter) return false;
+    } else if (filter !== 'all' && game.platform !== filter && !game.editions?.some((e) => e.platform === filter)) return false;
     if (q) {
       return (
         game.title.toLowerCase().includes(q) ||

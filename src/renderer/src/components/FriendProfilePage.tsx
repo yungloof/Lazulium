@@ -24,7 +24,7 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
   const [error, setError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const games = useLibraryStore((s) => s.games);
+  const games = useLibraryStore((s) => s.rawGames); // Cada loja: o GTA V da Epic do amigo também conta como "Você tem"
   const mine = useMemo(() => new Map(games.map((g) => [gameKey(g.platform, g.platformGameId, g.title), g])), [games]);
 
   // Vitrine: a página do perfil que o amigo decorou, por um link de 30 minutos do servidor

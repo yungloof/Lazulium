@@ -78,7 +78,8 @@ export function normalizeCategoryRule(raw: unknown): CategoryRule | undefined {
 export function matchesCategoryRule(game: Game, rule: CategoryRule): boolean {
   if (rule.favoritesOnly && !game.isFavorite) return false;
   if (rule.installedOnly && game.isInstalled === false) return false;
-  if (rule.platforms?.length && !rule.platforms.includes(game.platform)) return false;
+  // Jogo juntado (Steam e Epic, por exemplo) conta em qualquer uma das lojas dele
+  if (rule.platforms?.length && !rule.platforms.includes(game.platform) && !game.editions?.some((e) => rule.platforms!.includes(e.platform))) return false;
 
   if (rule.statuses?.length) {
     const matchesStatus = rule.statuses.some((status) => (status === 'unplayed' ? (game.totalPlaytimeSeconds ?? 0) < 60 : game.log?.status === status));
@@ -104,7 +105,8 @@ export function matchesCategoryRule(game: Game, rule: CategoryRule): boolean {
 }
 
 export function isGameInCategory(game: Game, category: GameCategory): boolean {
-  return category.rule ? matchesCategoryRule(game, category.rule) : category.gameIds.includes(game.id);
+  if (category.rule) return matchesCategoryRule(game, category.rule);
+  return category.gameIds.includes(game.id) || !!game.editions?.some((e) => category.gameIds.includes(e.id));
 }
 
 export function formatCategoryRuleSummary(

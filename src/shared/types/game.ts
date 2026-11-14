@@ -104,6 +104,18 @@ export interface Game {
 
   // Status de Execução em Tempo Real (runtime)
   isRunning?: boolean;
+
+  // Só na tela (montado por foldEditions, nunca gravado): o mesmo jogo em outras lojas, a principal primeiro
+  editions?: GameEdition[];
+}
+
+// Uma loja de um jogo que existe em mais de uma (Steam e Epic, por exemplo)
+export interface GameEdition {
+  id: string;                       // Id do registro daquela loja
+  platform: GamePlatform;
+  isInstalled: boolean;
+  playtimeSeconds: number;
+  lastPlayedAt?: string;
 }
 
 // Quanto tempo o jogo leva. IGDB: médias enviadas pelos jogadores. Reserva: estimativa pelas horas de quem recomenda na Steam.
