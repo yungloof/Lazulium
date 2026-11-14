@@ -130,3 +130,28 @@ CREATE TABLE IF NOT EXISTS calls (
 );
 CREATE INDEX IF NOT EXISTS calls_to ON calls (to_id, created_at);
 CREATE INDEX IF NOT EXISTS calls_from ON calls (from_id, created_at);
+
+-- Biblioteca resumida: um registro por jogo com alguma atividade (horas, Diário ou conquista), para a página do
+-- jogo mostrar os amigos que jogaram. title_key junta lojas diferentes; steam_key acha pelo AppID quando o nome muda.
+-- ach_ids: { id da conquista: segundos Unix de quando desbloqueou (0 = sem data) }. Só com a vitrine ligada.
+CREATE TABLE IF NOT EXISTS library_games (
+  user_id       TEXT NOT NULL,
+  title_key     TEXT NOT NULL,
+  steam_key     TEXT,
+  title         TEXT NOT NULL,
+  cover_url     TEXT,
+  seconds       INTEGER,
+  last_played   TEXT,
+  status        TEXT,
+  rating        REAL,
+  review        TEXT,
+  review_at     TEXT,
+  ach_source    TEXT,
+  ach_unlocked  INTEGER,
+  ach_total     INTEGER,
+  ach_ids       TEXT,
+  updated_at    TEXT NOT NULL,
+  PRIMARY KEY (user_id, title_key)
+);
+CREATE INDEX IF NOT EXISTS library_games_title ON library_games (title_key);
+CREATE INDEX IF NOT EXISTS library_games_steam ON library_games (steam_key);

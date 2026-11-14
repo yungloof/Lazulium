@@ -63,7 +63,9 @@ settings     (user_id PK, share_playtime, share_achievements, share_reviews, sha
 | GET | `/v1/friends` | Lista, com quem está jogando agora |
 | GET | `/v1/feed?before=` | Feed dos amigos, paginado |
 | GET | `/v1/users/:id` | Perfil de um amigo (vitrine, horas por loja, reviews) |
-| GET | `/v1/compare/:id` | Jogos em comum, horas e conquistas lado a lado |
+| POST | `/v1/me/library` | Biblioteca resumida: o app manda só os jogos que mudaram (`reset` no envio completo) |
+| GET | `/v1/games/friends?key=` | Amigos que têm o jogo (pelo nome `t:` ou pelo AppID `steam:`), com o que cada um deixa ver |
+| GET | `/v1/users/:id/games` | Biblioteca resumida do amigo, para a aba Comparar (o app cruza com a sua) |
 
 Limite de pedidos por usuário no Worker (`RATE_LIMITER`), como no `/v1/prices`.
 

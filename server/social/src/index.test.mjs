@@ -712,3 +712,83 @@ test('chamar pra call: só amigos, chega uma vez, resposta volta para quem chamo
   await s.call('DELETE', '/v1/me', { token: b.token });
   assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM calls').get().n, 0);
 });
+
+test('biblioteca resumida: amigos no jogo, por AppID ou nome, com as chaves de privacidade', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  const c = await login(s, '76561198000000003');
+  await befriend(s, a, b);
+
+  const portal = {
+    titleKey: 't:portal2',
+    steamKey: 'steam:620',
+    title: 'Portal 2',
+    coverUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/620/library_600x900.jpg',
+    playtimeSeconds: 36_000,
+    lastPlayedAt: '2026-11-10T20:00:00.000Z',
+    status: 'completed',
+    rating: 4.5,
+    review: 'Melhor co-op que existe.',
+    reviewAt: '2026-11-11T10:00:00.000Z',
+    achievements: { source: 'steam', unlocked: 2, total: 51, ids: { ACH_WAKE_UP: 1762000000, ACH_LASER: 0 } }
+  };
+  const lixo = { titleKey: 'nada disso', title: 'x' };
+  const sent = await s.call('POST', '/v1/me/library', { token: b.token, body: { reset: true, games: [portal, lixo, { titleKey: 't:hades', title: 'Hades', playtimeSeconds: 600 }] } });
+  assert.equal(sent.status, 200);
+  assert.equal(sent.body.accepted, 2);
+
+  // Pelo AppID (minha cópia é da Steam) ou pelo nome (minha cópia é de outra loja)
+  for (const query of ['key=steam:620', 'key=t:portal2', 'key=t:outronome&key=steam:620']) {
+    const res = await s.call('GET', `/v1/games/friends?${query}`, { token: a.token });
+    assert.equal(res.status, 200, query);
+    assert.equal(res.body.friends.length, 1, query);
+  }
+  const [friend] = (await s.call('GET', '/v1/games/friends?key=t:portal2', { token: a.token })).body.friends;
+  assert.equal(friend.user.id, b.user.id);
+  assert.equal(friend.playtimeSeconds, 36_000);
+  assert.equal(friend.rating, 4.5);
+  assert.equal(friend.status, 'completed');
+  assert.equal(friend.review, 'Melhor co-op que existe.');
+  assert.deepEqual(friend.achievements, { source: 'steam', unlocked: 2, total: 51, ids: { ACH_WAKE_UP: 1762000000, ACH_LASER: 0 } });
+  assert.equal(friend.playingNow, false);
+
+  // Jogando agora este jogo
+  await s.call('PUT', '/v1/me/now-playing', { token: b.token, body: { gameKey: 'steam:620', gameTitle: 'Portal 2' } });
+  assert.equal((await s.call('GET', '/v1/games/friends?key=t:portal2', { token: a.token })).body.friends[0].playingNow, true);
+
+  // Quem não é amigo não vê; chave inválida é recusada
+  assert.equal((await s.call('GET', '/v1/games/friends?key=t:portal2', { token: c.token })).body.friends.length, 0);
+  assert.equal((await s.call('GET', '/v1/games/friends?key=portal', { token: a.token })).status, 400);
+  assert.equal((await s.call('GET', `/v1/users/${b.user.id}/games`, { token: c.token })).status, 404);
+
+  // Comparar: a biblioteca inteira, sem resenha nem lista de conquistas
+  const library = (await s.call('GET', `/v1/users/${b.user.id}/games`, { token: a.token })).body.games;
+  assert.deepEqual(library.map((g) => g.title), ['Portal 2', 'Hades']);
+  assert.equal(library[0].review, undefined);
+  assert.equal(library[0].achievements.ids, undefined);
+  assert.equal(library[0].steamKey, 'steam:620');
+
+  // Chaves desligadas escondem horas, notas e conquistas
+  await s.call('PATCH', '/v1/me', { token: b.token, body: { settings: { sharePlaytime: false, shareReviews: false, shareAchievements: false } } });
+  const quiet = (await s.call('GET', '/v1/games/friends?key=t:portal2', { token: a.token })).body.friends[0];
+  for (const field of ['playtimeSeconds', 'lastPlayedAt', 'rating', 'status', 'review', 'achievements']) assert.equal(quiet[field], undefined, field);
+
+  // Remover um jogo
+  await s.call('POST', '/v1/me/library', { token: b.token, body: { removed: ['t:hades'] } });
+  assert.equal((await s.call('GET', '/v1/games/friends?key=t:hades', { token: a.token })).body.friends.length, 0);
+
+  // Vitrine desligada: some do servidor e novos envios são ignorados
+  await s.call('PATCH', '/v1/me', { token: b.token, body: { settings: { shareProfile: false } } });
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM library_games WHERE user_id = ?').get(b.user.id).n, 0);
+  assert.equal((await s.call('POST', '/v1/me/library', { token: b.token, body: { games: [portal] } })).body.shared, false);
+  assert.equal((await s.call('GET', '/v1/games/friends?key=t:portal2', { token: a.token })).body.friends.length, 0);
+
+  // Apagar a conta leva junto
+  await s.call('PATCH', '/v1/me', { token: b.token, body: { settings: { shareProfile: true } } });
+  await s.call('POST', '/v1/me/library', { token: b.token, body: { games: [portal] } });
+  await s.call('DELETE', '/v1/me', { token: b.token });
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM library_games').get().n, 0);
+});

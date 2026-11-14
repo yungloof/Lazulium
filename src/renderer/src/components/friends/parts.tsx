@@ -4,8 +4,8 @@ import { SocialActivity, SocialNowPlaying, SocialUser } from '@shared/types/soci
 import { formatLastPlayed } from '../../utils/format';
 import { ACTIVITY_ICON, describeActivity } from '../profile/ActivityTimeline';
 
-export const Avatar: React.FC<{ user: Pick<SocialUser, 'avatarUrl' | 'name'>; size?: 'sm' | 'md' | 'lg' }> = ({ user, size = 'md' }) => {
-  const box = size === 'lg' ? 'w-16 h-16 rounded-2xl' : size === 'sm' ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl';
+export const Avatar: React.FC<{ user: Pick<SocialUser, 'avatarUrl' | 'name'>; size?: 'xs' | 'sm' | 'md' | 'lg' }> = ({ user, size = 'md' }) => {
+  const box = size === 'lg' ? 'w-16 h-16 rounded-2xl' : size === 'sm' ? 'w-8 h-8 rounded-lg' : size === 'xs' ? 'w-5 h-5 rounded-md' : 'w-10 h-10 rounded-xl';
   return user.avatarUrl ? (
     <img src={user.avatarUrl} alt="" className={`${box} object-cover flex-shrink-0 bg-slate-800`} referrerPolicy="no-referrer" />
   ) : (

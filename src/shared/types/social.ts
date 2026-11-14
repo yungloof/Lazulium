@@ -1,4 +1,5 @@
 import { ActivityKind } from './activity';
+import { GameLogStatus } from './game';
 
 // Conta Lazulium (2.0): amigos, "jogando agora" e feed. Servidor em server/social.
 
@@ -119,6 +120,55 @@ export interface SocialFriendProfile {
   nowPlaying: SocialNowPlaying | null;
   summary: SocialSummary | null;
   activities: SocialActivity[];
+}
+
+// Página do jogo: um amigo que jogou, com o que ele deixa ver (cada campo some com a chave de privacidade dele)
+export interface FriendGameAchievements {
+  source: 'steam' | 'retroachievements';
+  unlocked: number;
+  total: number;
+  ids?: Record<string, number>;     // Conquistas dele: id -> segundos Unix de quando (0 = sem data)
+}
+
+export interface GameFriend {
+  user: SocialUser;
+  playingNow: boolean;
+  title: string;
+  coverUrl?: string | null;
+  playtimeSeconds?: number;
+  lastPlayedAt?: string;
+  status?: GameLogStatus;
+  rating?: number;
+  review?: string;
+  reviewAt?: string;
+  achievements?: FriendGameAchievements;
+}
+
+// Aba Comparar: a biblioteca resumida de um amigo (sem resenha nem lista de conquistas)
+export interface FriendLibraryGame {
+  titleKey: string;
+  steamKey?: string;
+  title: string;
+  coverUrl: string | null;
+  playtimeSeconds?: number;
+  lastPlayedAt?: string;
+  status?: GameLogStatus;
+  rating?: number;
+  achievements?: FriendGameAchievements;
+}
+
+// Aba Comparar: jogos que vocês dois têm, com os números de cada um lado a lado
+export interface FriendCompareGame {
+  gameId: string;                   // O seu card (abre a página do jogo)
+  title: string;
+  mine: { playtimeSeconds: number; status?: GameLogStatus; rating?: number; achievements?: FriendGameAchievements };
+  theirs: FriendLibraryGame;
+}
+
+export interface FriendComparison {
+  common: FriendCompareGame[];
+  friendGames: number;              // Quantos jogos com atividade o amigo mostra
+  hidden?: boolean;                 // O amigo escondeu a vitrine
 }
 
 export interface SocialInvite {

@@ -239,6 +239,8 @@ const electronAPI: ElectronAPI = {
   socialCallFriend: (friendId: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_CALL_FRIEND, friendId),
   socialAnswerCall: (callId, answer) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_CALL_ANSWER, callId, answer),
   socialGetPendingCalls: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_CALL_PENDING),
+  socialGetGameFriends: (gameIds: string[]) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GAME_FRIENDS, gameIds),
+  socialCompareGames: (friendId: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_FRIEND_GAMES, friendId),
   socialTestCall: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_CALL_TEST),
   onCallEvent: (callback: (event: CallEvent) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, event: CallEvent) => callback(event);

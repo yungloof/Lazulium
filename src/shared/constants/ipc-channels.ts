@@ -168,6 +168,8 @@ export const IPC_CHANNELS = {
   SOCIAL_CALL_PENDING: 'social:call-pending',
   SOCIAL_CALL_TEST: 'social:call-test',
   SOCIAL_CALL_EVENT: 'social:call-event',
+  SOCIAL_GAME_FRIENDS: 'social:game-friends',
+  SOCIAL_FRIEND_GAMES: 'social:friend-games',
 
   // Atalhos da Steam (Adicionar jogo não-Steam)
   STEAM_ADD_SHORTCUT: 'steam:add-shortcut',

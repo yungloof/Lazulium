@@ -10,6 +10,8 @@ import { JournalImportApplyResult, JournalImportItem, JournalImportOptions, Jour
 import {
   CallAnswer,
   CallEvent,
+  FriendComparison,
+  GameFriend,
   IncomingCall,
   PresenceState,
   PresenceStatus,
@@ -309,6 +311,10 @@ export interface ElectronAPI {
   socialGetPendingCalls: () => Promise<IncomingCall[]>;
   socialTestCall: () => Promise<void>;
   onCallEvent: (callback: (event: CallEvent) => void) => () => void;
+  // Página do jogo: amigos que jogaram (ids de todas as lojas do card); null = sem conta Lazulium
+  socialGetGameFriends: (gameIds: string[]) => Promise<GameFriend[] | null>;
+  // Aba Comparar: jogos em comum com o amigo
+  socialCompareGames: (friendId: string) => Promise<FriendComparison>;
 
   // Integração de atalhos da Steam (adicionar jogos que não são da Steam à Steam)
   addSteamShortcut: (gameId: string) => Promise<{ ok: boolean; appId?: number; error?: string }>;

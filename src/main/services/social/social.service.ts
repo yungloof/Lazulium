@@ -12,6 +12,9 @@ import { ActivityEvent } from '@shared/types/activity';
 import { Game } from '@shared/types/game';
 import {
   SocialActivity,
+  FriendComparison,
+  FriendLibraryGame,
+  GameFriend,
   SocialFeedItem,
   SocialFriend,
   SocialFriendProfile,
@@ -24,6 +27,8 @@ import {
 import { db } from '../../database/db';
 import { HttpError, describeError, httpRequest, statusError } from '../metadata/http';
 import { getRecentActivity } from '../profile/activity.service';
+import { parseEditionPrefs } from '@shared/utils/editions';
+import { LibraryRow, buildLibraryRows, compareWithFriend, libraryKeysOf } from './library-rows';
 import { ArtworkServerUnavailable, fetchIgdbArtwork } from '../metadata/igdb-artwork.service';
 import { notify } from '../../app-shell';
 
@@ -39,7 +44,8 @@ export const SOCIAL_SETTING_KEYS = {
   lastPushAt: 'socialLastPushAt',
   lastSyncAt: 'socialLastSyncAt',
   showcaseHash: 'socialShowcaseHash',
-  media: 'socialMedia'                // { avatar: { hash, url }, ... } das imagens já enviadas
+  media: 'socialMedia',               // { avatar: { hash, url }, ... } das imagens já enviadas
+  librarySent: 'socialLibrarySent'    // { at, rows: { titleKey: hash } } da biblioteca resumida já enviada
 } as const;
 // Fora do token: o renderer pode ler e mudar
 export const SOCIAL_NOTIFY_SETTING = 'socialNotifyPlaying';
@@ -48,6 +54,12 @@ const LOGIN_TIMEOUT_MS = 5 * 60_000;
 const REQUEST_TIMEOUT_MS = 15_000;
 const SYNC_INTERVAL_MS = 10 * 60_000;
 const SYNC_DEBOUNCE_MS = 20_000;
+// Biblioteca resumida: lotes que cabem no servidor e um envio completo por semana
+const LIBRARY_BATCH_GAMES = 100;
+const LIBRARY_BATCH_BYTES = 500_000;
+const LIBRARY_BATCH_REMOVED = 500;
+const LIBRARY_FULL_RESEND_MS = 7 * 24 * 60 * 60_000;
+const GAME_FRIENDS_CACHE_MS = 60_000;
 const NOW_PLAYING_KEEPALIVE_MS = 5 * 60_000;
 const PUSH_OVERLAP_MS = 2 * 24 * 60 * 60 * 1000;  // "Jogou" é agrupado por dia e cresce: reenvia os últimos dias
 const FIRST_PUSH_DAYS = 60;
@@ -127,6 +139,7 @@ class SocialService {
   private friendListener: (text: string) => void = () => {};
   private coverMisses = new Set<string>();
   private friendCovers = new Map<string, string | null>();
+  private gameFriendsCache = new Map<string, { at: number; friends: GameFriend[] }>();
   private friendsPlaying: Map<string, string> | undefined;
   private friendsListeners: ((friends: SocialFriend[]) => void)[] = [];
   private sendNowPlaying: (() => void) | undefined;
@@ -306,9 +319,82 @@ class SocialService {
     if (changes.settings) body.settings = changes.settings;
     const result = await this.api<CachedProfile>('PATCH', '/v1/me', body);
     this.saveProfile({ user: result.user, settings: result.settings });
+    // Vitrine desligada: o servidor apagou a biblioteca resumida; ao ligar de novo, vai tudo outra vez
+    if (!result.settings.shareProfile) db.setSetting(SOCIAL_SETTING_KEYS.librarySent, '');
     this.publish();
     if (changes.settings) this.scheduleSync();
     return this.getStatus();
+  }
+
+  // ---------- Biblioteca resumida (página do jogo com os amigos) ----------
+
+  // Manda só o que mudou desde o último envio, em lotes que cabem no servidor. Uma vez por semana manda tudo
+  // de novo (reset), para consertar qualquer diferença (vitrine desligada e ligada em outro PC, por exemplo).
+  private async pushLibrary(settings: SocialSettings): Promise<void> {
+    const rows = buildLibraryRows(db.getGames(), parseEditionPrefs(db.getSettings()), (id) => db.getGameAchievements(id), settings, publicCoverOf);
+    let sent: { at?: number; rows?: Record<string, string> } = {};
+    try {
+      sent = JSON.parse(db.getSettings()[SOCIAL_SETTING_KEYS.librarySent] || '{}');
+    } catch {}
+    const reset = !sent.rows || !sent.at || Date.now() - sent.at > LIBRARY_FULL_RESEND_MS;
+    const previous = reset ? {} : sent.rows ?? {};
+    const next: Record<string, string> = {};
+    const changed: LibraryRow[] = [];
+    for (const row of rows) {
+      const hash = createHash('sha1').update(JSON.stringify(row)).digest('base64').slice(0, 16);
+      next[row.titleKey] = hash;
+      if (previous[row.titleKey] !== hash) changed.push(row);
+    }
+    const removed = Object.keys(previous).filter((key) => !(key in next));
+    if (!reset && changed.length === 0 && removed.length === 0) return;
+
+    // Lotes por quantidade e por tamanho (a lista de conquistas pesa)
+    const batches: LibraryRow[][] = [[]];
+    let size = 0;
+    for (const row of changed) {
+      const rowSize = JSON.stringify(row).length;
+      const batch = batches[batches.length - 1];
+      if (batch.length >= LIBRARY_BATCH_GAMES || (batch.length > 0 && size + rowSize > LIBRARY_BATCH_BYTES)) {
+        batches.push([row]);
+        size = rowSize;
+      } else {
+        batch.push(row);
+        size += rowSize;
+      }
+    }
+    for (let i = 0; i < Math.max(batches.length, Math.ceil(removed.length / LIBRARY_BATCH_REMOVED)); i++) {
+      await this.api('POST', '/v1/me/library', {
+        reset: reset && i === 0,
+        games: batches[i] ?? [],
+        removed: removed.slice(i * LIBRARY_BATCH_REMOVED, (i + 1) * LIBRARY_BATCH_REMOVED)
+      });
+    }
+    db.setSetting(SOCIAL_SETTING_KEYS.librarySent, JSON.stringify({ at: reset ? Date.now() : sent.at, rows: next }));
+  }
+
+  // Amigos que jogaram este jogo (o card pode juntar várias lojas). Guarda por 1 min: a página do jogo e a lista
+  // de conquistas pedem a mesma coisa
+  async getGameFriends(gameIds: string[]): Promise<GameFriend[] | null> {
+    if (!this.token() || !this.cached()) return null;
+    const games = gameIds.map((id) => db.getGameById(id)).filter((g): g is Game => !!g);
+    const keys = libraryKeysOf(games);
+    if (keys.length === 0) return [];
+    const cacheKey = keys.join('|');
+    const cached = this.gameFriendsCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < GAME_FRIENDS_CACHE_MS) return cached.friends;
+    const query = keys.map((key) => `key=${encodeURIComponent(key)}`).join('&');
+    const { friends } = await this.api<{ friends: GameFriend[] }>('GET', `/v1/games/friends?${query}`);
+    this.gameFriendsCache.set(cacheKey, { at: Date.now(), friends });
+    if (this.gameFriendsCache.size > 50) this.gameFriendsCache.delete(this.gameFriendsCache.keys().next().value!);
+    return friends;
+  }
+
+  async compareGames(friendId: string): Promise<FriendComparison> {
+    if (!/^[0-9a-f-]{36}$/.test(friendId)) throw new Error('Amigo inválido.');
+    const { games, hidden } = await this.api<{ games: FriendLibraryGame[]; hidden?: boolean }>('GET', `/v1/users/${friendId}/games`);
+    if (hidden) return { common: [], friendGames: 0, hidden: true };
+    const common = compareWithFriend(db.getGames(), parseEditionPrefs(db.getSettings()), (id) => db.getGameAchievements(id), games);
+    return { common, friendGames: games.length };
   }
 
   // ---------- Amigos e feed ----------
@@ -539,6 +625,9 @@ class SocialService {
         db.setSetting(SOCIAL_SETTING_KEYS.lastPushAt, startedAt);
       }
       if (settings.shareProfile) await this.pushShowcase(settings);
+      // Servidor antigo ou falha passageira não estragam o resto do envio: tenta de novo na próxima
+      if (settings.shareProfile) await this.pushLibrary(settings).catch((err) => console.warn('[Social] Biblioteca resumida:', (err as Error).message));
+      else db.setSetting(SOCIAL_SETTING_KEYS.librarySent, '');
       await this.resolvePublicCovers(this.topGames().map((g) => g.id));
       await this.api('PUT', '/v1/me/summary', this.buildSummary(settings));
       db.setSetting(SOCIAL_SETTING_KEYS.lastSyncAt, new Date().toISOString());

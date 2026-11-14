@@ -29,6 +29,11 @@ export function registerSocialHandlers(): void {
   handle(IPC_CHANNELS.SOCIAL_FEED, (_event, before?: string) => socialService.getFeed(typeof before === 'string' ? before : undefined));
   handle(IPC_CHANNELS.SOCIAL_FRIEND_SHOWCASE, (_event, friendId: string) => socialService.getFriendShowcaseUrl(String(friendId ?? '')));
   handle(IPC_CHANNELS.SOCIAL_FRIEND_PROFILE, (_event, friendId: string) => socialService.getFriendProfile(String(friendId ?? '')));
+  handle(IPC_CHANNELS.SOCIAL_GAME_FRIENDS, (_event, gameIds: unknown) => {
+    const ids = Array.isArray(gameIds) ? gameIds.filter((id): id is string => typeof id === 'string' && id.length <= 300).slice(0, 8) : [];
+    return socialService.getGameFriends(ids);
+  });
+  handle(IPC_CHANNELS.SOCIAL_FRIEND_GAMES, (_event, friendId: unknown) => socialService.compareGames(String(friendId ?? '')));
 
   handle(IPC_CHANNELS.SOCIAL_PRESENCE_GET, () => presenceService.getState());
   handle(IPC_CHANNELS.SOCIAL_PRESENCE_SET, (_event, status: unknown, durationMs: unknown) => {

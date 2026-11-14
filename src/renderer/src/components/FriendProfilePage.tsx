@@ -9,6 +9,7 @@ import { friendPresence } from '@shared/utils/presence';
 import { ActivityCard, Cover } from './friends/parts';
 import { PresenceAvatar, PresenceLine } from './friends/presence';
 import { CallButton } from './friends/CallButton';
+import { FriendCompare } from './friends/FriendCompare';
 import { StatStrip } from './journal/PageLayout';
 import { Button, Notice, Skeleton, focusRing } from './ui';
 
@@ -214,6 +215,8 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
                   </ul>
                 </section>
               )}
+
+              <FriendCompare friendId={friendId} friendName={profile.user.name} />
 
               <section>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Atividade</h3>

@@ -34,6 +34,8 @@ import { PLATFORM_FULL } from '../utils/platform';
 import { launchGame, openGameFolder, setEditionsSplit, setPreferredEdition, toggleFavorite } from '../utils/gameActions';
 import { editionKey, launchEdition } from '@shared/utils/editions';
 import { Skeleton, buttonClass, chipClass, focusRing, iconButtonSolidClass } from './ui';
+import { GameFriendsList, friendsSummary } from './friends/GameFriends';
+import { useGameFriends } from '../hooks/useGameFriends';
 
 interface GamePageProps {
   game: Game;
@@ -186,6 +188,7 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
   const screenshotsVersion = useUiStore((s) => s.screenshotsVersion);
   const achievementsVersion = useUiStore((s) => s.achievementsVersion);
   const isRunning = useLibraryStore((s) => s.launchStatuses[game.id]?.state === 'running');
+  const friends = useGameFriends(game);
 
   useEffect(() => setHeroFailed(false), [game.media?.heroUrl]);
   useEffect(() => setLogoFailed(false), [game.media?.logoUrl]);
@@ -575,6 +578,12 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
               <p className="text-xs leading-relaxed text-slate-400">{achievements?.warning ?? 'Nenhuma conquista encontrada ainda. Abra para buscar ou criar as suas.'}</p>
             )}
           </Card>
+
+          {friends && friends.length > 0 && (
+            <Card title="Amigos" icon={Users} iconClass="text-emerald-400" action={<span className="text-[11px] text-slate-400 tabular-nums">{friendsSummary(friends)}</span>}>
+              <GameFriendsList friends={friends} mine={achievements} />
+            </Card>
+          )}
 
           <Card title="Informações" icon={Info} iconClass="text-slate-400">
             <dl className="space-y-2.5 text-xs">

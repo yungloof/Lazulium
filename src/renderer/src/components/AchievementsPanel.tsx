@@ -2,7 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Game } from '@shared/types/game';
 import { Achievement, GameAchievements, achievementSourceLabel } from '@shared/types/achievements';
 import { Trophy, X, RefreshCw, Search, CheckCircle2, Lock, AlertTriangle, Settings, Info, Plus, Check, Trash2, Undo2, FilterX } from 'lucide-react';
+import { SocialUser } from '@shared/types/social';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
+import { useGameFriends } from '../hooks/useGameFriends';
+import { Avatar } from './friends/parts';
 import { Button, EmptyState, Modal, Skeleton, compactInputClass, focusRing, infoBoxClass, pillTabClass, warnBoxClass } from './ui';
 
 interface AchievementsPanelProps {
@@ -11,13 +14,32 @@ interface AchievementsPanelProps {
   onOpenSettings?: () => void;
 }
 
-type FilterType = 'all' | 'unlocked' | 'locked';
+type FilterType = 'all' | 'unlocked' | 'locked' | 'friends';
 
 const FILTERS: { id: FilterType; label: string }[] = [
   { id: 'all', label: 'Todas' },
   { id: 'unlocked', label: 'Desbloqueadas' },
-  { id: 'locked', label: 'Bloqueadas' }
+  { id: 'locked', label: 'Bloqueadas' },
+  { id: 'friends', label: 'Amigos têm, você não' }
 ];
+
+// Quem dos amigos desbloqueou cada conquista (só quando a lista dele é a mesma: Steam com Steam, RA com RA)
+type FriendUnlock = { user: SocialUser; at: number };
+
+const unlockText = (u: FriendUnlock) => (u.at ? `${u.user.name} (${new Date(u.at * 1000).toLocaleDateString('pt-BR')})` : u.user.name);
+
+const FriendUnlocks: React.FC<{ unlocks: FriendUnlock[] }> = ({ unlocks }) => (
+  <span className="flex items-center gap-1.5 text-emerald-300/90" title={`Também têm: ${unlocks.map(unlockText).join(', ')}`}>
+    <span className="flex -space-x-1.5">
+      {unlocks.slice(0, 3).map((u) => (
+        <span key={u.user.id} className="rounded-md ring-2 ring-slate-900">
+          <Avatar user={u.user} size="xs" />
+        </span>
+      ))}
+    </span>
+    {unlocks.length === 1 ? `${unlocks[0].user.name} tem` : `${unlocks.length} amigos têm`}
+  </span>
+);
 
 function formatDate(isoString?: string): string {
   if (!isoString) return '';
@@ -25,7 +47,13 @@ function formatDate(isoString?: string): string {
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-const AchievementRow: React.FC<{ item: Achievement; busy: boolean; onMark: (unlocked: boolean) => void; onRemove: () => void }> = ({ item, busy, onMark, onRemove }) => {
+const AchievementRow: React.FC<{ item: Achievement; busy: boolean; friends?: FriendUnlock[]; onMark: (unlocked: boolean) => void; onRemove: () => void }> = ({
+  item,
+  busy,
+  friends,
+  onMark,
+  onRemove
+}) => {
   const [iconFailed, setIconFailed] = useState(false);
   const icon = item.unlocked ? item.iconUrl : item.iconLockedUrl || item.iconUrl;
   return (
@@ -61,6 +89,7 @@ const AchievementRow: React.FC<{ item: Achievement; busy: boolean; onMark: (unlo
         <p className="text-xs text-slate-400 line-clamp-2 mt-0.5 leading-snug">{item.description || (item.custom ? 'Sem descrição.' : 'Conquista secreta.')}</p>
 
         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
+          {friends && friends.length > 0 && <FriendUnlocks unlocks={friends} />}
           {item.globalPercent !== undefined && <span>{String(item.globalPercent).replace('.', ',')}% dos jogadores têm</span>}
           {item.custom && <span>Criada por você</span>}
           {item.manual && !item.custom && <span>Marcada à mão</span>}
@@ -91,6 +120,7 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ game, onCl
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const gameFriends = useGameFriends(game);
 
   const load = useCallback(
     async (force: boolean = false) => {
@@ -147,18 +177,42 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ game, onCl
 
   const items = useMemo(() => data?.items ?? [], [data]);
 
+  // Amigos com a mesma lista; para cada conquista, quem tem (mais antigo primeiro)
+  const comparable = useMemo(
+    () => (gameFriends ?? []).filter((f) => f.achievements?.ids && data && f.achievements.source === data.source),
+    [gameFriends, data]
+  );
+  const unlockedBy = useMemo(() => {
+    const map = new Map<string, FriendUnlock[]>();
+    for (const friend of comparable) {
+      for (const [id, at] of Object.entries(friend.achievements!.ids!)) {
+        const list = map.get(id) ?? [];
+        list.push({ user: friend.user, at });
+        map.set(id, list);
+      }
+    }
+    for (const list of map.values()) list.sort((a, b) => (a.at || Infinity) - (b.at || Infinity));
+    return map;
+  }, [comparable]);
+
   const filteredItems = useMemo(() => {
     const query = search.trim().toLowerCase();
     return items.filter((item) => {
       if (filter === 'unlocked' && !item.unlocked) return false;
       if (filter === 'locked' && item.unlocked) return false;
+      if (filter === 'friends' && (item.unlocked || !unlockedBy.has(item.id))) return false;
       return !query || item.name.toLowerCase().includes(query) || item.description.toLowerCase().includes(query);
     });
-  }, [items, filter, search]);
+  }, [items, filter, search, unlockedBy]);
 
   const total = data?.total ?? items.length;
   const unlocked = data?.unlocked ?? items.filter((i) => i.unlocked).length;
-  const counts: Record<FilterType, number> = { all: total, unlocked, locked: Math.max(0, total - unlocked) };
+  const counts: Record<FilterType, number> = {
+    all: total,
+    unlocked,
+    locked: Math.max(0, total - unlocked),
+    friends: items.filter((i) => !i.unlocked && unlockedBy.has(i.id)).length
+  };
   const percentage = total > 0 ? Math.round((unlocked / total) * 100) : 0;
   const editable = !!data && data.source !== 'steam';
   // Lista achada pelo nome pode ser de outro jogo: dá para trocar pelos marcos, e voltar
@@ -204,6 +258,25 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ game, onCl
             <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
               <div className="h-full bg-amber-400 transition-[width] duration-500 rounded-full" style={{ width: `${percentage}%` }} />
             </div>
+            {comparable.length > 0 && (
+              <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2" aria-label="Conquistas dos amigos">
+                {comparable.map((friend) => {
+                  const theirs = friend.achievements!;
+                  return (
+                    <li key={friend.user.id} className="flex items-center gap-2 text-xs text-slate-300">
+                      <Avatar user={friend.user} size="xs" />
+                      <span className="truncate max-w-[10rem]">{friend.user.name}</span>
+                      <span className="w-16 h-1 rounded-full bg-slate-800 overflow-hidden" aria-hidden>
+                        <span className="block h-full bg-emerald-400 rounded-full" style={{ width: `${Math.round((theirs.unlocked / theirs.total) * 100)}%` }} />
+                      </span>
+                      <span className="tabular-nums text-slate-400">
+                        {theirs.unlocked}/{theirs.total}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
 
           {(data?.warning || error) && (
@@ -241,7 +314,7 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ game, onCl
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
             <div className="flex items-center gap-1.5" role="group" aria-label="Filtrar conquistas">
-              {FILTERS.map((f) => (
+              {FILTERS.filter((f) => f.id !== 'friends' || comparable.length > 0).map((f) => (
                 <button key={f.id} onClick={() => setFilter(f.id)} aria-pressed={filter === f.id} className={pillTabClass(filter === f.id)}>
                   {f.label} <span className="opacity-70 tabular-nums">{counts[f.id]}</span>
                 </button>
@@ -341,6 +414,7 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ game, onCl
               key={item.id}
               item={item}
               busy={busy}
+              friends={unlockedBy.get(item.id)}
               onMark={(value) => change(async () => window.electronAPI?.setManualAchievement(game.id, item.id, value))}
               onRemove={() => change(async () => window.electronAPI?.removeCustomAchievement(game.id, item.id))}
             />

@@ -44,6 +44,18 @@ const CALL_RING_MS = 2 * 60_000;               // Entregue depois disso, chega c
 const CALL_TTL_MS = DAY_MS;
 export const CALL_ANSWERS = ['yes', 'no', 'busy'];
 const UUID = /^[0-9a-f-]{36}$/;
+// Biblioteca resumida (página do jogo com os amigos)
+const MAX_LIBRARY_GAMES_PER_POST = 100;
+const MAX_LIBRARY_REMOVED_PER_POST = 500;
+const MAX_LIBRARY_GAMES = 5_000;
+const MAX_LIBRARY_BYTES = 800_000;
+const MAX_LIBRARY_REVIEW = 6_000;            // Igual à vitrine
+const MAX_ACHIEVEMENT_IDS = 1_000;
+const MAX_GAME_KEYS = 8;
+export const LIBRARY_STATUSES = ['backlog', 'playing', 'endless', 'paused', 'finished', 'completed', 'dropped'];
+const ACHIEVEMENT_SOURCES = ['steam', 'retroachievements'];
+const TITLE_KEY = /^t:[a-z0-9]{1,120}$/;
+const STEAM_KEY = /^steam:\d{1,10}$/;
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // Sem 0/O e 1/I, para ditar por voz
 
 export const ACTIVITY_KINDS = ['played', 'started', 'finished', 'completed', 'dropped', 'rated', 'reviewed', 'achievements', 'perfect'];
@@ -289,6 +301,8 @@ async function handleMe(request, env, auth) {
       for (const key of Object.keys(DEFAULT_SETTINGS)) if (typeof body.settings[key] === 'boolean') settings[key] = body.settings[key];
       updates.push(env.DB.prepare('UPDATE users SET settings = ? WHERE id = ?').bind(JSON.stringify(settings), user.id));
       if (!settings.shareNowPlaying) updates.push(env.DB.prepare('DELETE FROM now_playing WHERE user_id = ?').bind(user.id));
+      // Vitrine desligada: a biblioteca resumida sai do servidor (o app manda tudo de novo se ligar)
+      if (!settings.shareProfile) updates.push(env.DB.prepare('DELETE FROM library_games WHERE user_id = ?').bind(user.id));
     }
     if (updates.length) await env.DB.batch(updates);
     const fresh = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(user.id).first();
@@ -308,6 +322,7 @@ async function handleMe(request, env, auth) {
         'DELETE FROM media WHERE user_id = ?',
         'DELETE FROM view_links WHERE owner_id = ?',
         'DELETE FROM presence WHERE user_id = ?',
+        'DELETE FROM library_games WHERE user_id = ?',
         'DELETE FROM calls WHERE from_id = ?1 OR to_id = ?1',
         'DELETE FROM users WHERE id = ?'
       ]
@@ -569,6 +584,189 @@ async function handleUser(env, auth, userId) {
     summary,
     activities: results.map(activityJson)
   });
+}
+
+// ---------- Biblioteca resumida e amigos de um jogo ----------
+
+const isoOrNull = (value) => (typeof value === 'string' && !Number.isNaN(Date.parse(value)) && Date.parse(value) <= Date.now() + DAY_MS ? new Date(value).toISOString() : null);
+const intOrNull = (value, max) => (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= max ? value : null);
+
+export function toLibraryRow(game) {
+  if (!game || typeof game !== 'object') return null;
+  const titleKey = typeof game.titleKey === 'string' && TITLE_KEY.test(game.titleKey) ? game.titleKey : null;
+  const title = cleanText(game.title, MAX_TITLE);
+  if (!titleKey || !title) return null;
+  let achievements = null;
+  const a = game.achievements;
+  if (a && typeof a === 'object' && ACHIEVEMENT_SOURCES.includes(a.source)) {
+    const total = intOrNull(a.total, 100_000);
+    const unlocked = total ? intOrNull(a.unlocked, total) : null;
+    if (total && unlocked !== null) {
+      const ids = {};
+      if (a.ids && typeof a.ids === 'object' && !Array.isArray(a.ids)) {
+        for (const [id, at] of Object.entries(a.ids).slice(0, MAX_ACHIEVEMENT_IDS)) {
+          if (id.length > 100 || /\p{C}/u.test(id)) continue;
+          ids[id] = intOrNull(at, 4_000_000_000) ?? 0;
+        }
+      }
+      achievements = { source: a.source, total, unlocked, ids };
+    }
+  }
+  const rating = typeof game.rating === 'number' && game.rating >= 0.5 && game.rating <= 5 ? Math.round(game.rating * 2) / 2 : null;
+  return {
+    titleKey,
+    steamKey: typeof game.steamKey === 'string' && STEAM_KEY.test(game.steamKey) ? game.steamKey : null,
+    title,
+    cover: typeof game.coverUrl === 'string' && COVER_URL.test(game.coverUrl) ? game.coverUrl : null,
+    seconds: intOrNull(game.playtimeSeconds, 1_000_000_000),
+    lastPlayed: isoOrNull(game.lastPlayedAt),
+    status: LIBRARY_STATUSES.includes(game.status) ? game.status : null,
+    rating,
+    review: cleanText(game.review, MAX_LIBRARY_REVIEW) || null,
+    reviewAt: isoOrNull(game.reviewAt),
+    achievements
+  };
+}
+
+// O app manda só o que mudou, em lotes; reset = primeiro lote de um envio completo
+async function handleLibrary(request, env, auth) {
+  if (request.method !== 'POST') throw new HttpError(405, 'method_not_allowed');
+  const body = await readJson(request, MAX_LIBRARY_BYTES);
+  const games = Array.isArray(body?.games) ? body.games : [];
+  const removed = Array.isArray(body?.removed) ? body.removed : [];
+  if (games.length > MAX_LIBRARY_GAMES_PER_POST || removed.length > MAX_LIBRARY_REMOVED_PER_POST) throw new HttpError(413, 'too_large');
+  if (!parseSettings(auth.user.settings).shareProfile) return json({ ok: true, shared: false });
+  const now = nowIso();
+  const userId = auth.user.id;
+  const statements = [];
+  if (body.reset === true) statements.push(env.DB.prepare('DELETE FROM library_games WHERE user_id = ?').bind(userId));
+  for (const key of removed) {
+    if (typeof key === 'string' && TITLE_KEY.test(key)) statements.push(env.DB.prepare('DELETE FROM library_games WHERE user_id = ? AND title_key = ?').bind(userId, key));
+  }
+  let accepted = 0;
+  for (const raw of games) {
+    const row = toLibraryRow(raw);
+    if (!row) continue;
+    accepted++;
+    const a = row.achievements;
+    statements.push(
+      env.DB.prepare(
+        `INSERT INTO library_games (user_id, title_key, steam_key, title, cover_url, seconds, last_played, status, rating, review, review_at, ach_source, ach_unlocked, ach_total, ach_ids, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+         ON CONFLICT (user_id, title_key) DO UPDATE SET steam_key = ?3, title = ?4, cover_url = ?5, seconds = ?6, last_played = ?7, status = ?8, rating = ?9,
+           review = ?10, review_at = ?11, ach_source = ?12, ach_unlocked = ?13, ach_total = ?14, ach_ids = ?15, updated_at = ?16`
+      ).bind(
+        userId,
+        row.titleKey,
+        row.steamKey,
+        row.title,
+        row.cover,
+        row.seconds,
+        row.lastPlayed,
+        row.status,
+        row.rating,
+        row.review,
+        row.reviewAt,
+        a?.source ?? null,
+        a?.unlocked ?? null,
+        a?.total ?? null,
+        a ? JSON.stringify(a.ids) : null,
+        now
+      )
+    );
+  }
+  // Teto por pessoa: sobra quem tem menos horas
+  statements.push(
+    env.DB.prepare(
+      'DELETE FROM library_games WHERE user_id = ?1 AND title_key IN (SELECT title_key FROM library_games WHERE user_id = ?1 ORDER BY COALESCE(seconds, 0) DESC, updated_at DESC LIMIT -1 OFFSET ?2)'
+    ).bind(userId, MAX_LIBRARY_GAMES)
+  );
+  await env.DB.batch(statements);
+  return json({ ok: true, accepted });
+}
+
+// O que um amigo deixa ver de um jogo, pelas chaves de privacidade dele
+function libraryView(row, settings, { withDetails }) {
+  const view = { titleKey: row.title_key, title: row.title, coverUrl: row.cover_url ?? null };
+  if (settings.sharePlaytime) {
+    view.playtimeSeconds = row.seconds ?? 0;
+    if (row.last_played) view.lastPlayedAt = row.last_played;
+  }
+  if (settings.shareReviews) {
+    if (row.status) view.status = row.status;
+    if (row.rating) view.rating = row.rating;
+    if (withDetails && row.review) {
+      view.review = row.review;
+      if (row.review_at) view.reviewAt = row.review_at;
+    }
+  }
+  if (settings.shareAchievements && row.ach_source && row.ach_total) {
+    view.achievements = { source: row.ach_source, unlocked: row.ach_unlocked ?? 0, total: row.ach_total };
+    if (withDetails) {
+      try {
+        view.achievements.ids = JSON.parse(row.ach_ids || '{}');
+      } catch {
+        view.achievements.ids = {};
+      }
+    }
+  }
+  return view;
+}
+
+// GET /v1/games/friends?key=t:...&key=steam:...: amigos que têm o jogo, com o que cada um deixa ver
+async function handleGameFriends(url, env, auth) {
+  const keys = [...new Set(url.searchParams.getAll('key'))].slice(0, MAX_GAME_KEYS);
+  const titleKeys = keys.filter((k) => TITLE_KEY.test(k));
+  const steamKeys = keys.filter((k) => STEAM_KEY.test(k));
+  if (titleKeys.length + steamKeys.length === 0) throw new HttpError(400, 'invalid_game');
+  const ids = await friendIds(env, auth.user.id);
+  if (ids.length === 0) return json({ friends: [] });
+  const marks = (list) => list.map(() => '?').join(',');
+  const match = [titleKeys.length ? `title_key IN (${marks(titleKeys)})` : '', steamKeys.length ? `steam_key IN (${marks(steamKeys)})` : ''].filter(Boolean).join(' OR ');
+  const { results: rows } = await env.DB.prepare(`SELECT * FROM library_games WHERE user_id IN (${marks(ids)}) AND (${match})`)
+    .bind(...ids, ...titleKeys, ...steamKeys)
+    .all();
+  if (rows.length === 0) return json({ friends: [] });
+  // Mesmo jogo em duas linhas (nome diferente, mesmo AppID): fica a com mais horas
+  const best = new Map();
+  for (const row of rows) {
+    const current = best.get(row.user_id);
+    if (!current || (row.seconds ?? 0) > (current.seconds ?? 0)) best.set(row.user_id, row);
+  }
+  const owners = [...best.keys()];
+  const { results: users } = await env.DB.prepare(
+    `SELECT u.*, n.game_key AS np_game_key, n.game_title AS np_game_title, n.cover_url AS np_cover_url, n.since AS np_since, n.updated_at AS np_updated_at
+            , p.status AS p_status, p.until AS p_until, p.since AS p_since
+     FROM users u LEFT JOIN now_playing n ON n.user_id = u.id LEFT JOIN presence p ON p.user_id = u.id WHERE u.id IN (${marks(owners)})`
+  )
+    .bind(...owners)
+    .all();
+  const friends = [];
+  for (const user of users) {
+    const settings = parseSettings(user.settings);
+    if (!settings.shareProfile) continue;
+    const row = best.get(user.id);
+    const presence = presenceView(user);
+    const playingNow = !!presence.nowPlaying && (keys.includes(presence.nowPlaying.gameKey) || presence.nowPlaying.gameKey === row.title_key || presence.nowPlaying.gameKey === row.steam_key);
+    friends.push({
+      user: { ...publicUser(user), lastSeenAt: presence.lastSeenAt, presence: presence.presence },
+      playingNow,
+      ...libraryView(row, settings, { withDetails: true })
+    });
+  }
+  friends.sort((x, y) => Number(y.playingNow) - Number(x.playingNow) || (y.playtimeSeconds ?? 0) - (x.playtimeSeconds ?? 0));
+  return json({ friends });
+}
+
+// GET /v1/users/:id/games: a biblioteca resumida de um amigo, para comparar (sem resenha nem lista de conquistas)
+async function handleUserGames(env, auth, userId) {
+  if (userId !== auth.user.id && !(await areFriends(env, auth.user.id, userId))) throw new HttpError(404, 'not_found');
+  const owner = await env.DB.prepare('SELECT settings FROM users WHERE id = ?').bind(userId).first();
+  if (!owner) throw new HttpError(404, 'not_found');
+  const settings = parseSettings(owner.settings);
+  if (!settings.shareProfile) return json({ games: [], hidden: true });
+  const { results } = await env.DB.prepare('SELECT * FROM library_games WHERE user_id = ? ORDER BY COALESCE(seconds, 0) DESC').bind(userId).all();
+  return json({ games: results.map((row) => ({ ...libraryView(row, settings, { withDetails: false }), steamKey: row.steam_key ?? undefined })) });
 }
 
 // ---------- Status e chamadas ----------
@@ -895,6 +1093,8 @@ async function route(request, env) {
   if (path === '/v1/me/summary') return handleSummary(request, env, auth);
   if (path === '/v1/me/showcase') return handleShowcase(request, env, auth);
   if (path === '/v1/me/presence') return handlePresence(request, env, auth);
+  if (path === '/v1/me/library') return handleLibrary(request, env, auth);
+  if (path === '/v1/games/friends' && request.method === 'GET') return handleGameFriends(url, env, auth);
   if (path === '/v1/calls' && request.method === 'POST') return handleCallCreate(request, env, auth);
   if (path === '/v1/calls' && request.method === 'GET') return handleCalls(env, auth);
   const callAnswer = path.match(/^\/v1\/calls\/([0-9a-f-]{36})\/answer$/);
@@ -913,6 +1113,8 @@ async function route(request, env) {
   if (userMatch && request.method === 'GET') return handleUser(env, auth, userMatch[1]);
   const viewLink = path.match(/^\/v1\/users\/([0-9a-f-]{36})\/view$/);
   if (viewLink && request.method === 'POST') return handleViewLink(env, auth, viewLink[1], url.origin);
+  const userGames = path.match(/^\/v1\/users\/([0-9a-f-]{36})\/games$/);
+  if (userGames && request.method === 'GET') return handleUserGames(env, auth, userGames[1]);
   return json({ error: 'not_found' }, 404);
 }
 
