@@ -4,6 +4,21 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.9.0 — 14 de novembro de 2026
+
+### Novidades
+
+- **Tier list.** Em *Listas*, **Nova tier list** cria uma tier list como no TierMaker, com as fileiras S, A, B, C e D. Os jogos que você adiciona entram em *Sem tier*. Arraste cada capa para uma fileira ou, no controle, escolha a capa e depois a fileira na barra que aparece. Clique no rótulo de uma fileira para mudar o nome e a cor, subir, descer ou apagar; também dá para criar fileiras novas. Como as outras listas, ela pode ir para o seu perfil.
+- **Amigos On-line.** Na lista de amigos e no perfil de cada um, quem está com o Lazulium aberto agora aparece como **On-line**, e não mais como "visto agora há pouco".
+- **Tags no perfil.** O sistema da tag *Beta tester* ganhou outras tags, com cor própria. A primeira é a **MALDITO**, em vermelho, para o Syrea, que achou todos os problemas possíveis nos jogos da Epic.
+
+### Correções
+
+- **Ordem das resenhas.** As resenhas do perfil (no app, na página dos amigos e na publicada na web) seguem a data que aparece em cada uma, da mais nova para a mais antiga. Antes a ordem mudava sempre que o Escanear ou as horas mexiam no jogo.
+- **Capas dos cartões de lista.** Em *Listas* e no perfil, as capas ficam todas do mesmo tamanho e não saem mais para fora do cartão, em qualquer largura de janela.
+
+---
+
 ## 2.8.3 — 14 de novembro de 2026
 
 ### Novidades
