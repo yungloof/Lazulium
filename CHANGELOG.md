@@ -4,6 +4,15 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.10.0 — 14 de novembro de 2026
+
+### Novidades
+
+- **Mesmo jogo em lojas diferentes vira uma capa só.** Ideia do Syrea: quem tem o GTA V na Steam e na Epic (ou qualquer jogo em duas lojas) vê uma capa só, com o selo das duas lojas e as horas somadas. Na página do jogo, o cartão **Lojas** mostra as horas de cada loja e deixa escolher por onde o jogo abre; sem escolha, ele abre pela loja instalada que você jogou por último. Se o Lazulium juntar dois jogos que não são o mesmo, **Separar** volta a mostrar uma capa por loja (e *Juntar de novo*, no cartão Informações, desfaz). Favoritar e ocultar valem para todas as lojas do jogo, e o filtro de cada loja continua mostrando ele.
+- **Listas no perfil dos amigos.** As suas listas e tier lists agora aparecem na página que os amigos veem e na publicada na web: as destacadas na visão geral e todas na aba **Listas**.
+
+---
+
 ## 2.9.0 — 14 de novembro de 2026
 
 ### Novidades
