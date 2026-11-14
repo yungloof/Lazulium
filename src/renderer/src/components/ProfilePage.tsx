@@ -21,6 +21,7 @@ import { ProfileAction, ProfileHero } from './profile/ProfileHero';
 import { ProfileOverview } from './profile/ProfileOverview';
 import { ProfileSidebar } from './profile/ProfileSidebar';
 import { Panel, ReviewCard, panel, panelOverArt } from './profile/parts';
+import { sortByReviewDate } from '@shared/utils/review-order';
 
 interface ProfilePageProps {
   onOpenSettings: () => void;
@@ -77,12 +78,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
   const games = useMemo(() => allGames.filter((g) => !g.isHidden), [allGames]);
   const gamesById = useMemo(() => new Map(games.map((g) => [g.id, g])), [games]);
   const reviews = useMemo(
-    () => games.filter((g) => g.log?.review?.trim()).sort((a, b) => (b.log?.finishedOn ?? b.updatedAt).localeCompare(a.log?.finishedOn ?? a.updatedAt)),
+    () => sortByReviewDate(games.filter((g) => g.log?.review?.trim())),
     [games]
   );
   // Aba Avaliações: quem tem nota ou resenha. A nota sem texto também conta; "Só com resenha" volta à lista de textos.
   const rated = useMemo(
-    () => games.filter((g) => g.log?.rating || g.log?.review?.trim()).sort((a, b) => (b.log?.finishedOn ?? b.updatedAt).localeCompare(a.log?.finishedOn ?? a.updatedAt)),
+    () => sortByReviewDate(games.filter((g) => g.log?.rating || g.log?.review?.trim())),
     [games]
   );
   const shownRatings = ratingsFilter === 'written' ? reviews : rated;

@@ -23,6 +23,7 @@ import { readSteamProfileStats, SteamAppStats } from '../scanners/steam-scanner.
 import { steamProfileService } from './steam-profile.service';
 import { isBetaTester } from '@shared/constants/beta-testers';
 import { describeError, logBackgroundFailure, sleep } from '../metadata/http';
+import { reviewDateOf, sortByReviewDate } from '@shared/utils/review-order';
 
 const MAX_ACHIEVEMENT_CHOICES = 300;
 const MAX_RATINGS = 300;                // Jogos avaliados na página do perfil
@@ -450,13 +451,11 @@ class ProfileService {
   // para a página (e a vitrine no servidor) não ficarem enormes.
   private exportableRatings(): ProfileReview[] {
     let textBudget = MAX_RATINGS_TEXT_TOTAL;
-    return db
-      .getGames()
-      .filter((g) => !g.isHidden && (g.log?.rating || g.log?.review?.trim()))
-      .map((g) => ({ game: g, date: g.log?.finishedOn ?? g.updatedAt.slice(0, 10) }))
-      .sort((a, b) => b.date.localeCompare(a.date))
+    // Mesma ordem e mesma data da aba Avaliações do app
+    return sortByReviewDate(db.getGames().filter((g) => !g.isHidden && (g.log?.rating || g.log?.review?.trim())))
       .slice(0, MAX_RATINGS)
-      .map(({ game, date }) => {
+      .map((game) => {
+        const date = reviewDateOf(game);
         const full = game.log?.review?.trim();
         const review = full ? full.slice(0, Math.min(MAX_REVIEW_TEXT, textBudget)) || undefined : undefined;
         if (review) textBudget -= review.length;

@@ -7,6 +7,7 @@ import { Stars, StatusDot } from '../GameLogFields';
 import { GameCover, coverFrame } from '../journal/CoverCard';
 import { formatDay, formatHours, percent, shortDate } from '../journal/format';
 import { PLATFORM_FULL } from '../../utils/platform';
+import { reviewDateOf } from '@shared/utils/review-order';
 
 // Com fundo escolhido (data-backdrop na raiz do perfil), o painel deixa de ser caixa: vira um véu preto sem borda nem sombra,
 // a arte passa por trás e a página parece uma coisa só. Escuro o bastante para ler sobre imagem ou vídeo claro.
@@ -67,7 +68,7 @@ const REVIEW_COLLAPSED_CHARS = 360; // Acima disso a resenha começa recolhida, 
 // Resenha no formato de publicação: capa à esquerda; nome e data; nota, horas, status e plataforma; e o texto que abre e fecha
 export const ReviewCard: React.FC<{ game: Game; onOpen: () => void }> = ({ game, onOpen }) => {
   const [expanded, setExpanded] = useState(false);
-  const date = game.log?.finishedOn ?? game.lastPlayedAt?.slice(0, 10);
+  const date = reviewDateOf(game);
   const review = game.log?.review?.trim();
   const long = !!review && (review.length > REVIEW_COLLAPSED_CHARS || review.split('\n').length > 5);
   return (

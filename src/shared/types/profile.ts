@@ -23,7 +23,7 @@ export interface ProfileReview {
   rating?: number;                  // 0,5 a 5
   status?: GameLogStatus;
   playtimeSeconds: number;
-  date?: string;                    // AAAA-MM-DD: quando terminou ou, sem isso, a última atualização
+  date?: string;                    // AAAA-MM-DD: quando terminou ou, sem isso, o último dia jogado (a lista vem nessa ordem)
   review?: string;
 }
 
