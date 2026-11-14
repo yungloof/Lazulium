@@ -7,7 +7,7 @@ import { EmulatorConfig, Game, GameLog, GamePlatform } from '@shared/types/game'
 import { BackupEvent, GameSaveConfig } from '@shared/types/cloudsync';
 import { AccountService } from '@shared/types/accounts';
 import { ProfileCustom, ProfileMediaKind, ProfileWebLink } from '@shared/types/profile';
-import { SocialStatus } from '@shared/types/social';
+import { CallEvent, PresenceState, SocialStatus } from '@shared/types/social';
 import { CategoryRule } from '@shared/types/categories';
 
 const electronAPI: ElectronAPI = {
@@ -229,6 +229,22 @@ const electronAPI: ElectronAPI = {
   socialGetFeed: (before?: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_FEED, before),
   socialGetFriendProfile: (friendId: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_FRIEND_PROFILE, friendId),
   socialGetFriendShowcaseUrl: (friendId: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_FRIEND_SHOWCASE, friendId),
+  socialGetPresence: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_PRESENCE_GET),
+  socialSetPresence: (status, durationMs) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_PRESENCE_SET, status, durationMs),
+  onPresenceChanged: (callback: (state: PresenceState) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, state: PresenceState) => callback(state);
+    ipcRenderer.on(IPC_CHANNELS.SOCIAL_PRESENCE_CHANGED, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SOCIAL_PRESENCE_CHANGED, subscription);
+  },
+  socialCallFriend: (friendId: string) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_CALL_FRIEND, friendId),
+  socialAnswerCall: (callId, answer) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_CALL_ANSWER, callId, answer),
+  socialGetPendingCalls: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_CALL_PENDING),
+  socialTestCall: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_CALL_TEST),
+  onCallEvent: (callback: (event: CallEvent) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, event: CallEvent) => callback(event);
+    ipcRenderer.on(IPC_CHANNELS.SOCIAL_CALL_EVENT, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SOCIAL_CALL_EVENT, subscription);
+  },
   onUpdateStatus: (callback: (status: UpdateStatus) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, status: UpdateStatus) => callback(status);
     ipcRenderer.on(IPC_CHANNELS.UPDATER_STATUS, subscription);

@@ -5,8 +5,10 @@ import { useLibraryStore } from '../stores/useLibraryStore';
 import { useUiStore } from '../stores/useUiStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { formatPlaytimeShort } from '../utils/format';
-import { isFriendOnline } from '@shared/types/social';
-import { ActivityCard, Avatar, Cover, NowPlayingLine, OnlineLine } from './friends/parts';
+import { friendPresence } from '@shared/utils/presence';
+import { ActivityCard, Cover } from './friends/parts';
+import { PresenceAvatar, PresenceLine } from './friends/presence';
+import { CallButton } from './friends/CallButton';
 import { StatStrip } from './journal/PageLayout';
 import { Button, Notice, Skeleton, focusRing } from './ui';
 
@@ -37,12 +39,20 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
       ?.socialGetFriendProfile(friendId)
       .then((p) => alive && setProfile(p))
       .catch((err) => alive && setError(ipcErrorMessage(err)));
+    // Status e jogo do amigo mudam sozinhos: relê de tempos em tempos
+    const refresh = setInterval(() => {
+      window.electronAPI
+        ?.socialGetFriendProfile(friendId)
+        .then((p) => alive && setProfile(p))
+        .catch(() => undefined);
+    }, 45_000);
     window.electronAPI
       ?.socialGetFriendShowcaseUrl(friendId)
       .then((s) => alive && setShowcase(s))
       .catch(() => alive && setShowcase({ url: null }));
     return () => {
       alive = false;
+      clearInterval(refresh);
     };
   }, [friendId]);
 
@@ -69,6 +79,7 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
   const totals = profile?.summary?.totals;
   const inCommon = profile?.summary?.topGames.filter((g) => mine.has(g.gameKey)).length ?? 0;
   const showCompare = tab === 'compare' || (!!showcase && !showingFrame);
+  const presence = profile ? friendPresence(profile.user) : 'offline';
 
   return (
     <div className="min-h-full flex flex-col animate-fade-in">
@@ -79,19 +90,13 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
           </Button>
           {profile && (
             <div className="flex items-center gap-3 min-w-0">
-              <Avatar user={profile.user} size="sm" />
+              <PresenceAvatar user={profile.user} status={presence} size="sm" />
               <div className="min-w-0">
                 <h1 className="text-base leading-tight text-white truncate">{profile.user.name}</h1>
-                {profile.nowPlaying ? (
+                {presence !== 'offline' && (
                   <p className="text-xs">
-                    <NowPlayingLine nowPlaying={profile.nowPlaying} />
+                    <PresenceLine status={presence} nowPlaying={profile.nowPlaying} />
                   </p>
-                ) : (
-                  isFriendOnline(profile.user.lastSeenAt) && (
-                    <p className="text-xs">
-                      <OnlineLine />
-                    </p>
-                  )
                 )}
               </div>
             </div>
@@ -226,6 +231,7 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
           )}
         </div>
       )}
+      {profile && <CallButton friendId={friendId} friendName={profile.user.name} presence={presence} />}
     </div>
   );
 };

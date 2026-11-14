@@ -1,6 +1,6 @@
 # Política de privacidade do Lazulium
 
-*Última atualização: 13 de novembro de 2026 · vale para o Lazulium 2.6.0 e posteriores*
+*Última atualização: 14 de novembro de 2026 · vale para o Lazulium 2.6.0 e posteriores*
 
 O Lazulium é um app para Windows que junta seus jogos de PC numa biblioteca só. Quem faz e responde por esta política é Lazuli Fool, de forma independente. Contato: **yungloof06@gmail.com**.
 
@@ -86,6 +86,8 @@ A conta é opcional e serve para você ver o que seus amigos jogam e eles verem 
 - as suas escolhas do que mostrar (as chaves em *Configurações → Contas*);
 - os eventos que vão para o feed: jogou (o jogo e quanto tempo no dia), começou, zerou, 100%, largou, conquistas do dia, nota e resenha. Cada evento leva o nome do jogo, a data e, quando existe, o endereço público da capa (Steam, IGDB ou SteamGridDB). Ficam os 2.000 mais recentes;
 - o jogo aberto agora ("jogando agora"), que some sozinho 15 minutos depois do último sinal do app;
+- o seu status (Disponível, Ausente, Não perturbar ou Invisível), até quando ele vale e se foi o app que pôs Ausente sozinho (PC parado ou tela bloqueada). Com Invisível, seus amigos veem você off-line e o "jogando agora" não é enviado;
+- os avisos que você e seus amigos mandam um para o outro pelo app: quem mandou, para quem, quando e a resposta. São apagados depois de 1 dia;
 - um resumo do seu perfil: número de jogos, horas, zerados, conquistas e os 12 mais jogados;
 - a vitrine do perfil (o mesmo conteúdo da página que o *Perfil → Publicar na web* gera: nome, bio, jogos e conquistas em destaque, mais jogados, suas listas e tier lists (nome, descrição e os jogos com nome e capa), nível e insígnias da Steam e, com a chave *Notas e resenhas* ligada, os jogos que você avaliou com nota, status, horas e o texto da resenha) e, se você escolheu no Lazulium, o avatar, o fundo e a arte em destaque. Avatar, arte e imagens normais vão reduzidos; GIFs de até ~1,1 MB ficam no banco do servidor; e GIF maior ou vídeo de fundo (WEBM ou MP4) de até 50 MB ficam em disco na VPS (`147-15-123-238.sslip.io`), apagados ao trocar o fundo ou apagar a conta (acima de 50 MB fica só no seu PC). Seus amigos abrem a vitrine por um link que vale 30 minutos. Dá para esconder em *Vitrine do perfil*;
 - a lista de amigos e os códigos de convite (valem 7 dias);

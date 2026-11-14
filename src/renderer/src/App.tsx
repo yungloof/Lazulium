@@ -3,6 +3,7 @@ import { AppHeader } from './components/shell/AppHeader';
 import { MainView } from './components/shell/MainView';
 import { AppModals } from './components/shell/AppModals';
 import { NoticeStack } from './components/shell/NoticeStack';
+import { IncomingCalls } from './components/shell/IncomingCalls';
 import { prefetchAll } from './components/shell/lazy';
 import { GamepadGuide } from './components/GamepadGuide';
 import { useAppEvents } from './hooks/useAppEvents';
@@ -30,6 +31,7 @@ export const App: React.FC = () => {
       {/* Guia de controles (só com controle conectado) */}
       <GamepadGuide />
       <NoticeStack />
+      <IncomingCalls />
       <AppModals />
     </div>
   );

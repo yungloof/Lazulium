@@ -73,7 +73,10 @@ const SERVER_ERRORS: Record<string, string> = {
   invalid_name: 'O nome precisa ter pelo menos 2 letras.',
   rate_limited: 'Muitos pedidos seguidos. Espere um minuto e tente de novo.',
   not_found: 'Não encontrado. Talvez vocês não sejam mais amigos.',
-  not_configured: 'O servidor da conta Lazulium ainda não está no ar.'
+  not_configured: 'O servidor da conta Lazulium ainda não está no ar.',
+  call_cooldown: 'Você acabou de chamar. Espere uns segundos para chamar de novo.',
+  call_limit: 'Chamadas demais em pouco tempo. Espere alguns minutos.',
+  invalid_status: 'Status inválido.'
 };
 
 const CALLBACK_PAGE = `<!doctype html><meta charset="utf-8"><title>Lazulium</title>
@@ -124,7 +127,23 @@ class SocialService {
   private friendListener: (text: string) => void = () => {};
   private coverMisses = new Set<string>();
   private friendCovers = new Map<string, string | null>();
-  private friendsPlaying: Map<string, string> | undefined;   // amigo -> jogo; undefined = ainda não leu (não avisa na primeira leitura)
+  private friendsPlaying: Map<string, string> | undefined;
+  private friendsListeners: ((friends: SocialFriend[]) => void)[] = [];
+  private sendNowPlaying: (() => void) | undefined;
+
+  // Toda leitura da lista de amigos (status e chamadas usam para saber quem está on-line)
+  onFriends(listener: (friends: SocialFriend[]) => void): void {
+    this.friendsListeners.push(listener);
+  }
+
+  isConnected(): boolean {
+    return !!this.token() && !!this.cached();
+  }
+
+  // Saiu do Invisível com jogo aberto: mostra o jogo de novo na hora
+  refreshNowPlaying(): void {
+    this.sendNowPlaying?.();
+  }   // amigo -> jogo; undefined = ainda não leu (não avisa na primeira leitura)
 
   setFriendPlayingListener(listener: (text: string) => void): void {
     this.friendListener = listener;
@@ -182,7 +201,7 @@ class SocialService {
     this.publish();
   }
 
-  private async api<T>(method: string, path: string, body?: unknown, auth = true): Promise<T> {
+  async api<T>(method: string, path: string, body?: unknown, auth = true): Promise<T> {
     const token = this.token();
     if (auth && !token) throw new Error('Entre na conta Lazulium primeiro.');
     const headers: Record<string, string> = { Accept: 'application/json' };
@@ -309,6 +328,7 @@ class SocialService {
 
   async getFriends(): Promise<SocialFriend[]> {
     const friends = (await this.api<{ friends: SocialFriend[] }>('GET', '/v1/friends')).friends;
+    for (const listener of this.friendsListeners) listener(friends);
     const playing = friends.flatMap((f) => (f.nowPlaying ? [f.nowPlaying] : []));
     await this.fillFriendCovers(playing.map((p) => ({ ...p, title: p.gameTitle })), playing);
     return friends;
@@ -767,6 +787,7 @@ class SocialService {
     if (!running) {
       if (this.playing?.gameId === gameId) {
         this.playing = undefined;
+        this.sendNowPlaying = undefined;
         void this.api('DELETE', '/v1/me/now-playing').catch(() => undefined);
       }
       this.scheduleSync();
@@ -780,6 +801,7 @@ class SocialService {
       void this.api('PUT', '/v1/me/now-playing', { gameKey, gameTitle: game.title, coverUrl: publicCoverOf(db.getGameById(gameId) ?? game), since: this.playing?.since }).catch((err) =>
         console.warn('[Social] Jogando agora:', (err as Error).message)
       );
+    this.sendNowPlaying = send;
     void this.resolvePublicCovers([gameId]).finally(send);
     this.keepAlive = setInterval(send, NOW_PLAYING_KEEPALIVE_MS);
     this.keepAlive.unref();

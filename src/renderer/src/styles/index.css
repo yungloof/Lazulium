@@ -49,6 +49,7 @@
   --animate-rise-in: lz-rise-in 220ms var(--ease-out-soft);
   --animate-toast-in: lz-toast-in 220ms var(--ease-out-soft);
   --animate-shimmer: lz-shimmer 1.4s ease-in-out infinite;
+  --animate-wiggle: lz-wiggle 0.55s ease-in-out infinite; /* Telefone tocando (chamar pra call) */
 }
 
 @keyframes lz-fade-in {
@@ -75,6 +76,19 @@
   from {
     opacity: 0;
     transform: translateY(10px);
+  }
+}
+
+@keyframes lz-wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-14deg);
+  }
+  75% {
+    transform: rotate(14deg);
   }
 }
 

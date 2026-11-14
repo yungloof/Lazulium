@@ -105,3 +105,28 @@ CREATE TABLE IF NOT EXISTS view_links (
   owner_id    TEXT NOT NULL,
   expires_at  TEXT NOT NULL
 );
+
+-- Status escolhido no app (como no Discord). invisible: os amigos veem a pessoa off-line, sem "jogando agora".
+-- until: a escolha com prazo volta sozinha para online. auto = 1: Ausente posto pelo app (PC parado).
+CREATE TABLE IF NOT EXISTS presence (
+  user_id     TEXT PRIMARY KEY,
+  status      TEXT NOT NULL,
+  until       TEXT,
+  auto        INTEGER NOT NULL DEFAULT 0,
+  since       TEXT NOT NULL,              -- Desde quando está neste status (Invisível: vira o "visto por último")
+  updated_at  TEXT NOT NULL
+);
+
+-- "Chamar pra call": o amigo recebe na próxima consulta; some depois de um dia
+CREATE TABLE IF NOT EXISTS calls (
+  id            TEXT PRIMARY KEY,
+  from_id       TEXT NOT NULL,
+  to_id         TEXT NOT NULL,
+  created_at    TEXT NOT NULL,
+  delivered_at  TEXT,
+  answer        TEXT,                     -- yes | no | busy
+  answered_at   TEXT,
+  answer_seen   INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS calls_to ON calls (to_id, created_at);
+CREATE INDEX IF NOT EXISTS calls_from ON calls (from_id, created_at);

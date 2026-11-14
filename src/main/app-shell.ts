@@ -2,6 +2,8 @@ import { app, BrowserWindow, Menu, Notification, nativeImage, Tray } from 'elect
 import { join } from 'path';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { TrayAction } from '@shared/types/ipc';
+import { PresenceStatus } from '@shared/types/social';
+import { PRESENCE_LABEL, PRESENCE_STATUSES } from '@shared/utils/presence';
 import { db } from './database/db';
 import { attachRendererLogging } from './logger';
 import { openInBrowser } from './security';
@@ -171,19 +173,48 @@ function sendTrayAction(action: TrayAction): void {
   else pendingTrayActions.push(action);
 }
 
-export function createTray(): void {
-  if (tray || SILENT_MODE) return;
-  tray = new Tray(nativeImage.createFromPath(resourcePath('tray.ico')));
-  tray.setToolTip('Lazulium');
+// Status da conta Lazulium no menu da bandeja (como no Discord); sem conta, o item não aparece
+let trayPresence: { current: PresenceStatus; pick: (status: PresenceStatus) => void } | null = null;
+
+export function setTrayPresence(presence: { current: PresenceStatus; pick: (status: PresenceStatus) => void } | null): void {
+  const changed = presence?.current !== trayPresence?.current || !presence !== !trayPresence;
+  trayPresence = presence;
+  if (changed) buildTrayMenu();
+}
+
+function buildTrayMenu(): void {
+  if (!tray) return;
+  const presence = trayPresence;
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: 'Abrir Lazulium', click: () => showMainWindow() },
       { type: 'separator' },
+      ...(presence
+        ? [
+            {
+              label: `Status: ${PRESENCE_LABEL[presence.current]}`,
+              submenu: PRESENCE_STATUSES.map((status) => ({
+                label: PRESENCE_LABEL[status],
+                type: 'radio' as const,
+                checked: status === presence.current,
+                click: () => presence.pick(status)
+              }))
+            },
+            { type: 'separator' as const }
+          ]
+        : []),
       { label: 'Escanear Biblioteca', click: () => sendTrayAction('scan') },
       { type: 'separator' },
       { label: 'Sair', click: () => app.quit() }
     ])
   );
+}
+
+export function createTray(): void {
+  if (tray || SILENT_MODE) return;
+  tray = new Tray(nativeImage.createFromPath(resourcePath('tray.ico')));
+  tray.setToolTip('Lazulium');
+  buildTrayMenu();
   tray.on('click', () => showMainWindow());
 }
 
@@ -193,8 +224,14 @@ export function destroyTray(): void {
 }
 
 // Notificação nativa só quando o usuário não está olhando para o app
+// Não perturbar: nenhuma notificação na área de trabalho
+let doNotDisturb = false;
+export function setDoNotDisturb(on: boolean): void {
+  doNotDisturb = on;
+}
+
 export function notify(title: string, body: string): void {
-  if (SILENT_MODE || !Notification.isSupported()) return;
+  if (SILENT_MODE || doNotDisturb || !Notification.isSupported()) return;
   if (mainWindow?.isVisible() && mainWindow.isFocused()) return;
   const notification = new Notification({ title, body, icon: resourcePath('icon.png') });
   notification.on('click', () => showMainWindow());

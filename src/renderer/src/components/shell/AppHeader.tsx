@@ -6,6 +6,7 @@ import { useLibraryStore } from '../../stores/useLibraryStore';
 import { scanLibraries } from '../../utils/gameActions';
 import { focusRing } from '../ui';
 import { UpdateIndicator } from './UpdateIndicator';
+import { StatusMenu } from './StatusMenu';
 
 const TABS: { label: string; view: AppView }[] = [
   { label: 'Biblioteca', view: 'home' },
@@ -56,6 +57,7 @@ export const AppHeader: React.FC = () => {
       </nav>
       <div className="titlebar-no-drag flex items-center gap-1 flex-shrink-0">
         <UpdateIndicator />
+        <StatusMenu />
         <button
           onClick={() => useUiStore.getState().setQuickSearchOpen(true)}
           title="Buscar jogo (Ctrl+K)"

@@ -9,6 +9,8 @@ import { achievementsService } from '../services/achievements/achievements.servi
 import { backupService } from '../services/cloudsync/backup.service';
 import { screenshotCaptureService } from '../services/metadata/screenshot-capture.service';
 import { socialService } from '../services/social/social.service';
+import { presenceService } from '../services/social/presence.service';
+import { callsService } from '../services/social/calls.service';
 import { epicAccountService } from '../services/accounts/epic-account.service';
 import { WindowGetter } from './helpers';
 
@@ -40,6 +42,8 @@ export function registerRendererEvents(getMainWindow: WindowGetter): void {
 
   socialService.setStatusListener((status) => sendToRenderer(IPC_CHANNELS.SOCIAL_STATUS_CHANGED, status));
   socialService.setFriendPlayingListener((text) => sendToRenderer(IPC_CHANNELS.SOCIAL_FRIEND_PLAYING, text));
+  presenceService.setListener((state) => sendToRenderer(IPC_CHANNELS.SOCIAL_PRESENCE_CHANGED, state));
+  callsService.setListener((event) => sendToRenderer(IPC_CHANNELS.SOCIAL_CALL_EVENT, event));
 
   backupService.setBackupListener((event) => {
     sendToRenderer(IPC_CHANNELS.CLOUDSYNC_BACKUP_EVENT, event);

@@ -16,6 +16,8 @@ import { profileService } from './services/profile/profile.service';
 import { scanLibrariesWithChanges } from './services/scanners';
 import { updaterService } from './services/updater/updater.service';
 import { socialService, socialServerUrl } from './services/social/social.service';
+import { presenceService } from './services/social/presence.service';
+import { callsService } from './services/social/calls.service';
 import { epicAccountService } from './services/accounts/epic-account.service';
 import {
   HIDDEN_LAUNCH_ARG,
@@ -148,6 +150,8 @@ if (!app.requestSingleInstanceLock()) {
     setSessionEndHandler(shutdown);
     updaterService.init();
     socialService.init();
+    presenceService.init();
+    callsService.init();
     epicAccountService.init();
 
     const hadGames = db.getGames().length > 0;

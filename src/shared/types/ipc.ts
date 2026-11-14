@@ -7,7 +7,20 @@ import { AccountService, AccountsStatus, SteamLocalAccount } from './accounts';
 import { GameScreenshots, Screenshot, ScreenshotTaken } from './screenshots';
 import { ActivityEvent } from './activity';
 import { JournalImportApplyResult, JournalImportItem, JournalImportOptions, JournalImportPreviewItem } from './journal-import';
-import { SocialFeedItem, SocialFriend, SocialFriendProfile, SocialInvite, SocialSettings, SocialStatus, SocialUser } from './social';
+import {
+  CallAnswer,
+  CallEvent,
+  IncomingCall,
+  PresenceState,
+  PresenceStatus,
+  SocialFeedItem,
+  SocialFriend,
+  SocialFriendProfile,
+  SocialInvite,
+  SocialSettings,
+  SocialStatus,
+  SocialUser
+} from './social';
 import { AchievementsSyncResult, PlayerProfile, YearReview, ProfileCustom, ProfileMediaKind, ProfileWebLink, ProfileWebStatus } from './profile';
 import {
   BackupEvent,
@@ -286,6 +299,16 @@ export interface ElectronAPI {
   socialGetFeed: (before?: string) => Promise<SocialFeedItem[]>;
   socialGetFriendProfile: (friendId: string) => Promise<SocialFriendProfile>;
   socialGetFriendShowcaseUrl: (friendId: string) => Promise<{ url: string | null; reason?: 'hidden' | 'not_sent' }>;
+  // Status (como no Discord): durationMs null = até mudar
+  socialGetPresence: () => Promise<PresenceState>;
+  socialSetPresence: (status: PresenceStatus, durationMs: number | null) => Promise<PresenceState>;
+  onPresenceChanged: (callback: (state: PresenceState) => void) => () => void;
+  // Chamar pra call
+  socialCallFriend: (friendId: string) => Promise<{ id: string; createdAt: string }>;
+  socialAnswerCall: (callId: string, answer: CallAnswer) => Promise<void>;
+  socialGetPendingCalls: () => Promise<IncomingCall[]>;
+  socialTestCall: () => Promise<void>;
+  onCallEvent: (callback: (event: CallEvent) => void) => () => void;
 
   // Integração de atalhos da Steam (adicionar jogos que não são da Steam à Steam)
   addSteamShortcut: (gameId: string) => Promise<{ ok: boolean; appId?: number; error?: string }>;

@@ -34,6 +34,16 @@ const PURGE_TICKET_TTL_MS = 60 * 1000;
 const PURGE_TIMEOUT_MS = 8_000;
 const MAX_PURGE_RETRIES = 20;
 const VIEW_LINK_TTL_MS = 30 * 60 * 1000;
+// Status (como no Discord) e "chamar pra call"
+export const PRESENCE_STATUSES = ['online', 'away', 'dnd', 'invisible'];
+const MAX_PRESENCE_MS = 30 * DAY_MS;
+const CALL_PAIR_COOLDOWN_MS = 30_000;          // Uma chamada por amigo a cada 30 s
+const CALL_WINDOW_MS = 10 * 60_000;
+const MAX_CALLS_PER_WINDOW = 12;               // Por pessoa, para qualquer amigo
+const CALL_RING_MS = 2 * 60_000;               // Entregue depois disso, chega como chamada perdida
+const CALL_TTL_MS = DAY_MS;
+export const CALL_ANSWERS = ['yes', 'no', 'busy'];
+const UUID = /^[0-9a-f-]{36}$/;
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // Sem 0/O e 1/I, para ditar por voz
 
 export const ACTIVITY_KINDS = ['played', 'started', 'finished', 'completed', 'dropped', 'rated', 'reviewed', 'achievements', 'perfect'];
@@ -297,6 +307,8 @@ async function handleMe(request, env, auth) {
         'DELETE FROM showcases WHERE user_id = ?',
         'DELETE FROM media WHERE user_id = ?',
         'DELETE FROM view_links WHERE owner_id = ?',
+        'DELETE FROM presence WHERE user_id = ?',
+        'DELETE FROM calls WHERE from_id = ?1 OR to_id = ?1',
         'DELETE FROM users WHERE id = ?'
       ]
         .map((sql) => env.DB.prepare(sql).bind(user.id))
@@ -373,6 +385,8 @@ async function handleNowPlaying(request, env, auth) {
   }
   if (request.method !== 'PUT') throw new HttpError(405, 'method_not_allowed');
   if (!parseSettings(auth.user.settings).shareNowPlaying) return json({ ok: true, shared: false });
+  const presence = await env.DB.prepare('SELECT status AS p_status, until AS p_until FROM presence WHERE user_id = ?').bind(auth.user.id).first();
+  if (effectiveStatus(presence) === 'invisible') return json({ ok: true, shared: false });
   const body = await readJson(request, 5_000);
   const gameKey = typeof body?.gameKey === 'string' && GAME_KEY.test(body.gameKey) ? body.gameKey : null;
   const title = cleanText(body?.gameTitle, MAX_TITLE);
@@ -472,12 +486,13 @@ async function handleFriends(request, env, auth, friendId) {
   const placeholders = ids.map(() => '?').join(',');
   const { results } = await env.DB.prepare(
     `SELECT u.*, n.game_key AS np_game_key, n.game_title AS np_game_title, n.cover_url AS np_cover_url, n.since AS np_since, n.updated_at AS np_updated_at
-     FROM users u LEFT JOIN now_playing n ON n.user_id = u.id WHERE u.id IN (${placeholders})`
+            , p.status AS p_status, p.until AS p_until, p.since AS p_since
+     FROM users u LEFT JOIN now_playing n ON n.user_id = u.id LEFT JOIN presence p ON p.user_id = u.id WHERE u.id IN (${placeholders})`
   )
     .bind(...ids)
     .all();
   const friends = results
-    .map((row) => ({ ...publicUser(row), lastSeenAt: row.last_seen_at, nowPlaying: nowPlayingOf(row, parseSettings(row.settings)) }))
+    .map((row) => ({ ...publicUser(row), ...presenceView(row) }))
     .sort((x, y) => Number(!!y.nowPlaying) - Number(!!x.nowPlaying) || y.lastSeenAt.localeCompare(x.lastSeenAt));
   return json({ friends });
 }
@@ -526,7 +541,8 @@ async function handleUser(env, auth, userId) {
   if (userId !== auth.user.id && !(await areFriends(env, auth.user.id, userId))) throw new HttpError(404, 'not_found');
   const row = await env.DB.prepare(
     `SELECT u.*, n.game_key AS np_game_key, n.game_title AS np_game_title, n.cover_url AS np_cover_url, n.since AS np_since, n.updated_at AS np_updated_at
-     FROM users u LEFT JOIN now_playing n ON n.user_id = u.id WHERE u.id = ?`
+            , p.status AS p_status, p.until AS p_until, p.since AS p_since
+     FROM users u LEFT JOIN now_playing n ON n.user_id = u.id LEFT JOIN presence p ON p.user_id = u.id WHERE u.id = ?`
   )
     .bind(userId)
     .first();
@@ -546,12 +562,114 @@ async function handleUser(env, auth, userId) {
     summary = { ...summary, totals: { ...summary.totals, playtimeSeconds: 0 }, topGames: summary.topGames.map((g) => ({ ...g, playtimeSeconds: 0 })) };
   }
   if (summary && !settings.shareReviews) summary = { ...summary, topGames: summary.topGames.map((g) => ({ ...g, rating: null })) };
+  const view = presenceView(row);
   return json({
-    user: { ...publicUser(row), lastSeenAt: row.last_seen_at },
-    nowPlaying: nowPlayingOf(row, settings),
+    user: { ...publicUser(row), lastSeenAt: view.lastSeenAt, presence: view.presence },
+    nowPlaying: view.nowPlaying,
     summary,
     activities: results.map(activityJson)
   });
+}
+
+// ---------- Status e chamadas ----------
+
+// O que vale agora: escolha com prazo vencido volta para online
+export function effectiveStatus(row, now = Date.now()) {
+  if (!row?.p_status || !PRESENCE_STATUSES.includes(row.p_status)) return 'online';
+  if (row.p_until && Date.parse(row.p_until) <= now) return 'online';
+  return row.p_status;
+}
+
+// O que os amigos veem. Invisível = off-line desde que ficou invisível, sem "jogando agora"
+function presenceView(row) {
+  const status = effectiveStatus(row);
+  if (status === 'invisible') {
+    const hiddenAt = row.p_since && row.p_since < row.last_seen_at ? row.p_since : row.last_seen_at;
+    return { lastSeenAt: hiddenAt, presence: 'offline', nowPlaying: null };
+  }
+  return { lastSeenAt: row.last_seen_at, presence: status, nowPlaying: nowPlayingOf(row, parseSettings(row.settings)) };
+}
+
+async function handlePresence(request, env, auth) {
+  if (request.method !== 'PUT') throw new HttpError(405, 'method_not_allowed');
+  const body = await readJson(request, 1_000);
+  const status = PRESENCE_STATUSES.includes(body?.status) ? body.status : null;
+  if (!status) throw new HttpError(400, 'invalid_status');
+  const untilMs = typeof body.until === 'string' ? Date.parse(body.until) : NaN;
+  const until = status !== 'online' && untilMs > Date.now() && untilMs <= Date.now() + MAX_PRESENCE_MS ? new Date(untilMs).toISOString() : null;
+  const auto = status === 'away' && body.auto === true ? 1 : 0;
+  const now = nowIso();
+  const updates = [
+    env.DB.prepare(
+      `INSERT INTO presence (user_id, status, until, auto, since, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT (user_id) DO UPDATE SET since = CASE WHEN presence.status = excluded.status THEN presence.since ELSE excluded.since END,
+         status = excluded.status, until = excluded.until, auto = excluded.auto, updated_at = excluded.updated_at`
+    ).bind(auth.user.id, status, until, auto, now, now)
+  ];
+  // Invisível não mostra o jogo, nem o que já estava lá
+  if (status === 'invisible') updates.push(env.DB.prepare('DELETE FROM now_playing WHERE user_id = ?').bind(auth.user.id));
+  await env.DB.batch(updates);
+  return json({ presence: { status, until, auto: !!auto } });
+}
+
+async function handleCallCreate(request, env, auth) {
+  const body = await readJson(request, 1_000);
+  const to = typeof body?.to === 'string' && UUID.test(body.to) ? body.to : null;
+  if (!to || to === auth.user.id) throw new HttpError(400, 'invalid_friend');
+  if (!(await areFriends(env, auth.user.id, to))) throw new HttpError(404, 'not_found');
+  const now = Date.now();
+  const { results: recent } = await env.DB.prepare('SELECT to_id, created_at FROM calls WHERE from_id = ? AND created_at > ?')
+    .bind(auth.user.id, new Date(now - CALL_WINDOW_MS).toISOString())
+    .all();
+  const last = Math.max(0, ...recent.filter((r) => r.to_id === to).map((r) => Date.parse(r.created_at)));
+  if (now - last < CALL_PAIR_COOLDOWN_MS) {
+    return json({ error: 'call_cooldown', retryAfterSeconds: Math.ceil((CALL_PAIR_COOLDOWN_MS - (now - last)) / 1000) }, 429);
+  }
+  if (recent.length >= MAX_CALLS_PER_WINDOW) return json({ error: 'call_limit' }, 429);
+  const call = { id: crypto.randomUUID(), to, createdAt: new Date(now).toISOString() };
+  await env.DB.prepare('INSERT INTO calls (id, from_id, to_id, created_at) VALUES (?, ?, ?, ?)').bind(call.id, auth.user.id, to, call.createdAt).run();
+  return json({ call });
+}
+
+// Uma consulta traz as chamadas novas para mim e as respostas das minhas; cada uma chega uma vez só
+async function handleCalls(env, auth) {
+  const now = Date.now();
+  const since = new Date(now - CALL_TTL_MS).toISOString();
+  const [incoming, answers] = await Promise.all([
+    env.DB.prepare(
+      `SELECT c.id AS call_id, c.created_at AS call_at, u.* FROM calls c JOIN users u ON u.id = c.from_id
+       WHERE c.to_id = ? AND c.delivered_at IS NULL AND c.created_at > ? ORDER BY c.created_at`
+    )
+      .bind(auth.user.id, since)
+      .all(),
+    env.DB.prepare(
+      `SELECT c.id AS call_id, c.answer, c.answered_at, u.* FROM calls c JOIN users u ON u.id = c.to_id
+       WHERE c.from_id = ? AND c.answer IS NOT NULL AND c.answer_seen = 0 AND c.created_at > ?`
+    )
+      .bind(auth.user.id, since)
+      .all()
+  ]);
+  const stamp = nowIso();
+  const marks = [
+    ...incoming.results.map((r) => env.DB.prepare('UPDATE calls SET delivered_at = ? WHERE id = ?').bind(stamp, r.call_id)),
+    ...answers.results.map((r) => env.DB.prepare('UPDATE calls SET answer_seen = 1 WHERE id = ?').bind(r.call_id))
+  ];
+  if (marks.length) await env.DB.batch(marks);
+  return json({
+    incoming: incoming.results.map((r) => ({ id: r.call_id, from: publicUser(r), createdAt: r.call_at, missed: now - Date.parse(r.call_at) > CALL_RING_MS })),
+    answers: answers.results.map((r) => ({ id: r.call_id, user: publicUser(r), answer: r.answer, answeredAt: r.answered_at }))
+  });
+}
+
+async function handleCallAnswer(request, env, auth, callId) {
+  const body = await readJson(request, 500);
+  const answer = CALL_ANSWERS.includes(body?.answer) ? body.answer : null;
+  if (!answer) throw new HttpError(400, 'invalid_answer');
+  const call = await env.DB.prepare('SELECT to_id, answer FROM calls WHERE id = ?').bind(callId).first();
+  if (!call || call.to_id !== auth.user.id) throw new HttpError(404, 'not_found');
+  if (call.answer) return json({ ok: true, answer: call.answer });
+  await env.DB.prepare('UPDATE calls SET answer = ?, answered_at = ? WHERE id = ?').bind(answer, nowIso(), callId).run();
+  return json({ ok: true, answer });
 }
 
 // ---------- Vitrine do perfil ----------
@@ -776,6 +894,11 @@ async function route(request, env) {
   if (path === '/v1/me/now-playing') return handleNowPlaying(request, env, auth);
   if (path === '/v1/me/summary') return handleSummary(request, env, auth);
   if (path === '/v1/me/showcase') return handleShowcase(request, env, auth);
+  if (path === '/v1/me/presence') return handlePresence(request, env, auth);
+  if (path === '/v1/calls' && request.method === 'POST') return handleCallCreate(request, env, auth);
+  if (path === '/v1/calls' && request.method === 'GET') return handleCalls(env, auth);
+  const callAnswer = path.match(/^\/v1\/calls\/([0-9a-f-]{36})\/answer$/);
+  if (callAnswer && request.method === 'POST') return handleCallAnswer(request, env, auth, callAnswer[1]);
   const mediaTicket = path.match(/^\/v1\/me\/media\/([a-z]+)\/upload$/);
   if (mediaTicket) return handleUploadTicket(request, env, auth, mediaTicket[1]);
   const mediaPut = path.match(/^\/v1\/me\/media\/([a-z]+)$/);
@@ -806,5 +929,6 @@ export default {
   // De hora em hora (gatilho no wrangler.toml; no server.mjs, um setInterval)
   async scheduled(_event, env) {
     await retryPurges(env);
+    await env.DB.prepare('DELETE FROM calls WHERE created_at < ?').bind(new Date(Date.now() - CALL_TTL_MS).toISOString()).run();
   }
 };

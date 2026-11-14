@@ -1,6 +1,9 @@
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
-import { SocialSettings } from '@shared/types/social';
+import { CallAnswer, SocialSettings } from '@shared/types/social';
+import { PRESENCE_STATUSES } from '@shared/utils/presence';
 import { socialService } from '../services/social/social.service';
+import { presenceService } from '../services/social/presence.service';
+import { callsService } from '../services/social/calls.service';
 import { handle } from './helpers';
 
 // Conta Lazulium: o renderer só pede; token e envio ficam no main
@@ -26,4 +29,18 @@ export function registerSocialHandlers(): void {
   handle(IPC_CHANNELS.SOCIAL_FEED, (_event, before?: string) => socialService.getFeed(typeof before === 'string' ? before : undefined));
   handle(IPC_CHANNELS.SOCIAL_FRIEND_SHOWCASE, (_event, friendId: string) => socialService.getFriendShowcaseUrl(String(friendId ?? '')));
   handle(IPC_CHANNELS.SOCIAL_FRIEND_PROFILE, (_event, friendId: string) => socialService.getFriendProfile(String(friendId ?? '')));
+
+  handle(IPC_CHANNELS.SOCIAL_PRESENCE_GET, () => presenceService.getState());
+  handle(IPC_CHANNELS.SOCIAL_PRESENCE_SET, (_event, status: unknown, durationMs: unknown) => {
+    if (!PRESENCE_STATUSES.includes(status as never)) throw new Error('Status inválido.');
+    const ms = typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs > 0 ? Math.min(durationMs, 30 * 24 * 60 * 60_000) : null;
+    return presenceService.set(status as (typeof PRESENCE_STATUSES)[number], ms);
+  });
+  handle(IPC_CHANNELS.SOCIAL_CALL_FRIEND, (_event, friendId: string) => callsService.callFriend(String(friendId ?? '')));
+  handle(IPC_CHANNELS.SOCIAL_CALL_ANSWER, (_event, callId: string, answer: unknown) => {
+    if (answer !== 'yes' && answer !== 'no' && answer !== 'busy') throw new Error('Resposta inválida.');
+    return callsService.answer(String(callId ?? ''), answer as CallAnswer);
+  });
+  handle(IPC_CHANNELS.SOCIAL_CALL_PENDING, () => callsService.getPending());
+  handle(IPC_CHANNELS.SOCIAL_CALL_TEST, () => callsService.test());
 }

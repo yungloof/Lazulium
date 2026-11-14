@@ -9,6 +9,7 @@ import { AccountsController, useAccounts } from '../hooks/useAccounts';
 import { Button, Notice, inputClass } from './ui';
 import { SettingsSkeleton } from './settings/controls';
 import { SocialAccountCard } from './settings/SocialAccountCard';
+import { CallSettingsCard } from './settings/CallSettingsCard';
 
 interface RowProps {
   icon: React.ReactNode;
@@ -170,6 +171,7 @@ export const AccountsSettings: React.FC = () => {
   return (
     <div className="space-y-5">
       <SocialAccountCard fallbackName={status.steam.personaName} />
+      <CallSettingsCard />
 
       <Group title="Seu progresso" description="Conquistas e horas que ficam nesses sites.">
         <AccountRow

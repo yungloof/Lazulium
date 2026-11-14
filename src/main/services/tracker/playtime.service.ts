@@ -157,6 +157,11 @@ class PlaytimeService {
     this.listener = listener;
   }
 
+  // Algum jogo aberto agora (status Ausente automático e chamadas de amigos levam isso em conta)
+  isAnyRunning(): boolean {
+    return [...this.active.values()].some((entry) => entry.state === 'running');
+  }
+
   getState(gameId: string): GameLaunchState {
     return this.active.get(gameId)?.state ?? 'stopped';
   }

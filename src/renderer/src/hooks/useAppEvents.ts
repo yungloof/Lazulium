@@ -7,6 +7,8 @@ import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { scanLibraries } from '../utils/gameActions';
 import { isNewerVersion } from '@shared/utils/version';
 import { parseEditionPrefs } from '@shared/utils/editions';
+import { CALL_ANSWER_TEXT } from '@shared/utils/presence';
+import { useSocialLiveStore } from '../stores/useSocialLiveStore';
 
 const GAME_UPDATE_BATCH_MS = 120;
 const ASK_STATUS_AFTER_SECONDS = 10 * 60;
@@ -189,6 +191,39 @@ export function useAppEvents(): void {
         action: { label: 'Ver amigos', run: () => useUiStore.getState().setView('friends') }
       });
     });
+  }, []);
+
+  // Conta Lazulium ao vivo: seu status, chamadas recebidas e respostas de quem você chamou
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (!api) return;
+    const live = useSocialLiveStore.getState();
+    const loadLive = (connected: boolean) => {
+      live.setConnected(connected);
+      if (!connected) return;
+      api.socialGetPendingCalls().then((calls) => useSocialLiveStore.getState().setIncoming(calls)).catch(() => undefined);
+    };
+    api.getSocialStatus().then((status) => loadLive(status.connected)).catch(() => undefined);
+    api.socialGetPresence().then((state) => useSocialLiveStore.getState().setPresence(state)).catch(() => undefined);
+    const offStatus = api.onSocialStatus((status) => {
+      if (status.connected !== useSocialLiveStore.getState().connected) loadLive(status.connected);
+    });
+    const offPresence = api.onPresenceChanged((state) => useSocialLiveStore.getState().setPresence(state));
+    const offCalls = api.onCallEvent((event) => {
+      const store = useSocialLiveStore.getState();
+      if (event.kind === 'incoming') store.addIncoming(event.call);
+      else if (event.kind === 'answered') store.removeIncoming(event.callId);
+      else {
+        const { notice } = event;
+        store.markAnswered(notice.user.id, notice.id, notice.answer);
+        useUiStore.getState().showNotice({ text: `${notice.user.name}: ${CALL_ANSWER_TEXT[notice.answer]}`, tone: notice.answer === 'yes' ? 'ok' : 'warn' });
+      }
+    });
+    return () => {
+      offStatus();
+      offPresence();
+      offCalls();
+    };
   }, []);
 
   // Notificação de atualização baixada e pronta para instalar

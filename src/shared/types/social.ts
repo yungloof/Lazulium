@@ -13,7 +13,54 @@ export interface SocialUser {
   name: string;
   avatarUrl: string | null;
   lastSeenAt?: string;
+  presence?: FriendPresence;        // Servidor antigo não manda: vale o lastSeenAt
 }
+
+// Status escolhido (como no Discord). Invisível: os amigos te veem off-line, sem o jogo que está aberto
+export type PresenceStatus = 'online' | 'away' | 'dnd' | 'invisible';
+// O que se vê de um amigo
+export type FriendPresence = 'online' | 'away' | 'dnd' | 'offline';
+
+export interface PresenceState {
+  chosen: PresenceStatus;           // O que a pessoa escolheu
+  until?: string;                   // Volta para Disponível nesse horário (ISO)
+  effective: PresenceStatus;        // O que vale agora (Ausente automático com o PC parado)
+  auto: boolean;                    // effective veio do Ausente automático
+}
+
+// ---------- Chamar pra call (no Discord) ----------
+// Não é ligação: é o aviso de que a pessoa está te chamando pra call no Discord, alto o bastante para quem está longe do PC.
+
+export type CallAnswer = 'yes' | 'no' | 'busy';
+// Como uma chamada chega: tela doida com música, só notificação ou recusada sozinha (o amigo vê "ocupado")
+export type CallAlertMode = 'chaos' | 'notify' | 'off';
+
+export interface CallSettings {
+  alert: CallAlertMode;
+  volume: number;                   // 0 a 100
+  whilePlaying: boolean;            // Tela doida mesmo com jogo aberto (por cima de jogo em tela cheia pode minimizar o jogo)
+  openDiscord: boolean;             // "Tô indo!" abre o Discord
+}
+
+export interface IncomingCall {
+  id: string;
+  from: SocialUser;
+  createdAt: string;
+  missed: boolean;                  // Chegou tarde (app estava fechado): vira aviso, sem tela doida
+}
+
+export interface CallAnswerNotice {
+  id: string;
+  user: SocialUser;
+  answer: CallAnswer;
+  answeredAt: string;
+}
+
+// main -> renderer
+export type CallEvent =
+  | { kind: 'incoming'; call: IncomingCall; how: 'chaos' | 'notify' | 'quiet' }
+  | { kind: 'answered'; callId: string; answer: CallAnswer }   // Respondida (na tela doida ou no app)
+  | { kind: 'answer'; notice: CallAnswerNotice };               // Resposta de quem você chamou
 
 // O que a pessoa escolhe mostrar aos amigos (tudo vale só para amigos)
 export interface SocialSettings {

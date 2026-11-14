@@ -633,3 +633,82 @@ test('arquivo grande: VPS fora do ar não impede apagar a conta; o pedido é rep
   assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM stored_media').get().n, 0);
   assert.equal(s.files().length, 0);
 });
+
+test('status: amigos veem ausente e não perturbar; invisível aparece off-line e sem jogo', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  await befriend(s, a, b);
+  const friendOfA = async () => (await s.call('GET', '/v1/friends', { token: a.token })).body.friends[0];
+  assert.equal((await friendOfA()).presence, 'online');
+
+  await s.call('PUT', '/v1/me/presence', { token: b.token, body: { status: 'dnd' } });
+  assert.equal((await friendOfA()).presence, 'dnd');
+  assert.equal((await s.call('GET', `/v1/users/${b.user.id}`, { token: a.token })).body.user.presence, 'dnd');
+
+  await s.call('PUT', '/v1/me/now-playing', { token: b.token, body: { gameKey: 'steam:620', gameTitle: 'Portal 2' } });
+  await s.call('PUT', '/v1/me/presence', { token: b.token, body: { status: 'invisible' } });
+  const hidden = await friendOfA();
+  assert.equal(hidden.presence, 'offline');
+  assert.equal(hidden.nowPlaying, null);
+  // Nem o perfil entrega
+  const profile = (await s.call('GET', `/v1/users/${b.user.id}`, { token: a.token })).body;
+  assert.equal(profile.user.presence, 'offline');
+  assert.equal(profile.nowPlaying, null);
+
+  // Prazo vencido volta para online
+  await s.call('PUT', '/v1/me/presence', { token: b.token, body: { status: 'away', until: new Date(Date.now() + 60_000).toISOString() } });
+  assert.equal((await friendOfA()).presence, 'away');
+  s.env.DB.raw.prepare('UPDATE presence SET until = ? WHERE user_id = ?').run(new Date(Date.now() - 1000).toISOString(), b.user.id);
+  assert.equal((await friendOfA()).presence, 'online');
+
+  assert.equal((await s.call('PUT', '/v1/me/presence', { token: b.token, body: { status: 'ocupadíssimo' } })).status, 400);
+});
+
+test('chamar pra call: só amigos, chega uma vez, resposta volta para quem chamou', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  const c = await login(s, '76561198000000003');
+  await befriend(s, a, b);
+
+  assert.equal((await s.call('POST', '/v1/calls', { token: a.token, body: { to: c.user.id } })).status, 404);
+  assert.equal((await s.call('POST', '/v1/calls', { token: a.token, body: { to: a.user.id } })).status, 400);
+
+  const sent = await s.call('POST', '/v1/calls', { token: a.token, body: { to: b.user.id } });
+  assert.equal(sent.status, 200);
+  // Segunda chamada seguida para o mesmo amigo espera
+  const again = await s.call('POST', '/v1/calls', { token: a.token, body: { to: b.user.id } });
+  assert.equal(again.status, 429);
+  assert.equal(again.body.error, 'call_cooldown');
+  assert.ok(again.body.retryAfterSeconds > 0);
+
+  const inbox = (await s.call('GET', '/v1/calls', { token: b.token })).body;
+  assert.equal(inbox.incoming.length, 1);
+  assert.equal(inbox.incoming[0].from.id, a.user.id);
+  assert.equal(inbox.incoming[0].missed, false);
+  assert.equal((await s.call('GET', '/v1/calls', { token: b.token })).body.incoming.length, 0);
+
+  // Só quem recebeu responde; a primeira resposta vale
+  const callId = sent.body.call.id;
+  assert.equal((await s.call('POST', `/v1/calls/${callId}/answer`, { token: c.token, body: { answer: 'yes' } })).status, 404);
+  assert.equal((await s.call('POST', `/v1/calls/${callId}/answer`, { token: b.token, body: { answer: 'talvez' } })).status, 400);
+  await s.call('POST', `/v1/calls/${callId}/answer`, { token: b.token, body: { answer: 'yes' } });
+  assert.equal((await s.call('POST', `/v1/calls/${callId}/answer`, { token: b.token, body: { answer: 'no' } })).body.answer, 'yes');
+
+  const answers = (await s.call('GET', '/v1/calls', { token: a.token })).body.answers;
+  assert.deepEqual(answers.map((x) => [x.user.id, x.answer]), [[b.user.id, 'yes']]);
+  assert.equal((await s.call('GET', '/v1/calls', { token: a.token })).body.answers.length, 0);
+
+  // Chamada antiga chega como perdida
+  s.env.DB.raw.prepare('UPDATE calls SET created_at = ?, delivered_at = NULL WHERE id = ?').run(new Date(Date.now() - 5 * 60_000).toISOString(), callId);
+  assert.equal((await s.call('GET', '/v1/calls', { token: b.token })).body.incoming[0].missed, true);
+
+  // Apagar a conta leva as chamadas
+  await s.call('DELETE', '/v1/me', { token: b.token });
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM calls').get().n, 0);
+});
