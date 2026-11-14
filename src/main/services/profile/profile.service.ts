@@ -24,6 +24,7 @@ import { steamProfileService } from './steam-profile.service';
 import { isBetaTester, profileTagsFor } from '@shared/constants/profile-tags';
 import { describeError, logBackgroundFailure, sleep } from '../metadata/http';
 import { reviewDateOf, sortByReviewDate } from '@shared/utils/review-order';
+import { exportableLists } from './profile-lists';
 
 const MAX_ACHIEVEMENT_CHOICES = 300;
 const MAX_RATINGS = 300;                // Jogos avaliados na página do perfil
@@ -488,7 +489,8 @@ class ProfileService {
       avatarUrl: publicUrl(profile.avatarUrl) ?? steam?.avatarUrl,
       steam: undefined,
       background: undefined,
-      custom: { bio: custom.bio },
+      // A ordem das seções vai junto, para a página seguir o perfil do app (seções que a página não tem são ignoradas)
+      custom: { bio: custom.bio, ...(custom.sections ? { sections: custom.sections } : {}) },
       web: {
         bio: custom.bio || steam?.summary,
         background: mode === 'steam' ? steam?.background : mode === 'game' && gameBackground ? { imageUrl: gameBackground } : undefined,
@@ -498,6 +500,7 @@ class ProfileService {
         badges: steam?.badges
       },
       ratings: this.exportableRatings(),
+      lists: exportableLists(db.getGameLists(), new Map(db.getGames().map((g) => [g.id, g]))),
       achievementChoices: [],
       activityByDay: {},
       steamAchievementsHidden: undefined,

@@ -27,6 +27,22 @@ export interface ProfileReview {
   review?: string;
 }
 
+export interface ProfileListGame {
+  title: string;
+  coverUrl?: string;                // Só endereço público
+}
+
+// Lista na página do perfil. Numa tier list, games são os "Sem tier" e cada fileira leva os seus.
+export interface ProfileList {
+  id: string;
+  title: string;
+  description?: string;
+  ranked: boolean;
+  featured: boolean;
+  games: ProfileListGame[];
+  tiers?: { label: string; color: string; games: ProfileListGame[] }[];
+}
+
 export interface ProfileAchievement {
   gameId: string;
   gameTitle: string;
@@ -164,6 +180,7 @@ export interface PlayerProfile {
   background?: { imageUrl?: string; videoUrl?: string };
   web?: ProfileWebExtras;           // Só na exportação
   ratings?: ProfileReview[];        // Só na exportação: jogos com nota ou resenha (aba Avaliações da página)
+  lists?: ProfileList[];            // Só na exportação: listas e tier lists (seção e aba Listas da página)
   featuredGames: ProfileGame[];
   featuredAchievements: ProfileUnlockedAchievement[];
   achievementChoices: ProfileUnlockedAchievement[]; // Mais raras primeiro, para o editor
