@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, ListOrdered, Plus, Sparkles, Star, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, LayoutList, ListOrdered, Plus, Sparkles, Star, Trash2, X } from 'lucide-react';
 import { Game } from '@shared/types/game';
 import { GameList } from '@shared/types/lists';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { useListsStore } from '../stores/useListsStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { GamePickerModal } from './GamePickerModal';
+import { TierListDetail } from './TierListDetail';
 import { Button, EmptyState, Notice, focusRing, iconButtonClass } from './ui';
 import { CoverCard, GameCover } from './journal/CoverCard';
 import { CreateListModal, LIST_IDEAS } from './journal/CreateListModal';
@@ -22,7 +23,8 @@ const COLLAGE_SIZE = 5;
 
 // Capas sobrepostas: a cara da lista, em qualquer tela
 export const ListCard: React.FC<{ list: GameList; games: Map<string, Game>; onOpen: () => void }> = ({ list, games, onOpen }) => {
-  const covers = list.gameIds.filter((id) => games.has(id)).slice(0, COLLAGE_SIZE);
+  const ordered = list.tiers ? [...list.tiers.flatMap((t) => t.gameIds), ...list.gameIds] : list.gameIds;
+  const covers = [...new Set(ordered)].filter((id) => games.has(id)).slice(0, COLLAGE_SIZE);
   return (
     <button
       type="button"
@@ -52,7 +54,7 @@ export const ListCard: React.FC<{ list: GameList; games: Map<string, Game>; onOp
       </span>
       <span className="block mt-0.5 text-xs text-slate-400">
         {plural(list.gameIds.length, 'jogo', 'jogos')}
-        {list.ranked ? ' · ranqueada' : ''}
+        {list.tiers ? ' · tier list' : list.ranked ? ' · ranqueada' : ''}
       </span>
       {list.description && <span className="block mt-1.5 text-xs leading-relaxed text-slate-300 line-clamp-2">{list.description}</span>}
     </button>
@@ -263,6 +265,11 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [creating, setCreating] = useState<string | null>(null);
+  const [creatingKind, setCreatingKind] = useState<'list' | 'tier'>('list');
+  const startCreating = (title: string, kind: 'list' | 'tier' = 'list') => {
+    setCreatingKind(kind);
+    setCreating(title);
+  };
   const [justCreated, setJustCreated] = useState<string | null>(null);
   const games = useMemo(() => new Map(allGames.filter((g) => !g.isHidden).map((g) => [g.id, g])), [allGames]);
   const opened = lists.find((l) => l.id === openListId);
@@ -272,6 +279,22 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
       .catch((err) => setError(ipcErrorMessage(err)))
       .finally(() => setLoaded(true));
   }, [load]);
+
+  if (opened?.tiers) {
+    return (
+      <TierListDetail
+        key={opened.id}
+        list={opened}
+        games={games}
+        startPicking={justCreated === opened.id}
+        onBack={() => {
+          setJustCreated(null);
+          onOpenList(undefined);
+        }}
+        onOpenGame={onOpenGame}
+      />
+    );
+  }
 
   if (opened) {
     return (
@@ -289,15 +312,28 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
     );
   }
 
+  const newTierButton = (
+    <Button size="md" icon={<LayoutList className="w-3.5 h-3.5" />} onClick={() => startCreating('', 'tier')}>
+      Nova tier list
+    </Button>
+  );
   const newListButton = (
-    <Button variant="primary" size="md" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreating('')}>
+    <Button variant="primary" size="md" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => startCreating('')}>
       Nova lista
     </Button>
   );
 
   return (
     <div className={pageClass}>
-      <PageHeader title="Listas" subtitle="Melhores do ano, fila das férias, o que indicar. As preferidas podem ir para o perfil." actions={lists.length > 0 ? newListButton : undefined} />
+      <PageHeader title="Listas" subtitle="Melhores do ano, fila das férias, tier lists. As preferidas podem ir para o perfil." actions={
+          lists.length > 0 ? (
+            <span className="flex flex-wrap gap-2">
+              {newTierButton}
+              {newListButton}
+            </span>
+          ) : undefined
+        }
+      />
 
       <Notice>{error}</Notice>
 
@@ -309,13 +345,16 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
           className={emptyBox}
           actions={
             <div className="flex flex-col items-center gap-4">
-              {newListButton}
+              <span className="flex flex-wrap justify-center gap-2">
+                {newListButton}
+                {newTierButton}
+              </span>
               <span className="flex flex-wrap justify-center gap-2">
             {LIST_IDEAS.slice(0, 4).map((idea) => (
               <button
                 key={idea}
                 type="button"
-                onClick={() => setCreating(idea)}
+                onClick={() => startCreating(idea)}
                 className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-slate-700 text-[13px] text-slate-300 hover:text-white hover:border-indigo-400 hover:bg-indigo-500/10 transition-colors ${focusRing}`}
               >
                 <Sparkles className="w-3.5 h-3.5 text-indigo-300" /> {idea}
@@ -332,7 +371,7 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
           ))}
           <button
             type="button"
-            onClick={() => setCreating('')}
+            onClick={() => startCreating('')}
             className={`min-h-[230px] flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700 text-sm text-slate-400 hover:text-white hover:border-indigo-400 hover:bg-indigo-500/5 transition-colors ${focusRing}`}
           >
             <Plus className="w-6 h-6" /> Nova lista
@@ -343,6 +382,7 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
       {creating !== null && (
         <CreateListModal
           initialTitle={creating}
+          initialKind={creatingKind}
           onClose={() => setCreating(null)}
           onCreated={(list) => {
             setJustCreated(list.id);

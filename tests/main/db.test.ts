@@ -273,4 +273,29 @@ describe('banco: jogo apagado ou que muda de id', () => {
     expect(db.getGameCategories()[0].gameIds).toEqual(['novo']);
     expect(db.isGameOrganized('novo')).toBe(true);
   });
+
+  it('na tier list o jogo com id novo continua na fileira, sem aparecer em duas', async () => {
+    useTempUserData();
+    const db = await openDb();
+    db.upsertGames([makeGame({ id: 'velho' }), makeGame({ id: 'novo' }), makeGame({ id: 'outro' })]);
+    db.saveGameList({
+      id: 't1',
+      title: 'Tier',
+      ranked: false,
+      featured: false,
+      gameIds: ['velho', 'outro', 'novo'],
+      tiers: [
+        { id: 's', label: 'S', color: '#ff7f7f', gameIds: ['velho', 'outro'] },
+        { id: 'a', label: 'A', color: '#ffbf7f', gameIds: ['novo'] }
+      ],
+      createdAt: '',
+      updatedAt: ''
+    });
+
+    db.moveGameData('velho', 'novo');
+
+    const list = db.getGameLists()[0];
+    expect(list.gameIds).toEqual(['novo', 'outro']);
+    expect(list.tiers!.map((t) => t.gameIds)).toEqual([['novo', 'outro'], []]);
+  });
 });

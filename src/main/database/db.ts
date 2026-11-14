@@ -409,8 +409,18 @@ export class DatabaseService {
       if (entry.gameId === oldId) entry.gameId = newId;
     }
     // Listas e categorias seguem o jogo, sem repetir quem já estava nelas com o id novo
+    const swapId = (ids: string[]) => [...new Set(ids.map((id) => (id === oldId ? newId : id)))];
     for (const group of [...(this.data.gameLists ?? []), ...(this.data.gameCategories ?? [])]) {
-      if (group.gameIds.includes(oldId)) group.gameIds = [...new Set(group.gameIds.map((id) => (id === oldId ? newId : id)))];
+      if (group.gameIds.includes(oldId)) group.gameIds = swapId(group.gameIds);
+    }
+    // Fileiras das tier lists: o jogo fica numa só (a primeira em que já estava)
+    for (const list of this.data.gameLists ?? []) {
+      if (!list.tiers?.some((t) => t.gameIds.includes(oldId) || t.gameIds.includes(newId))) continue;
+      const seen = new Set<string>();
+      for (const tier of list.tiers) {
+        tier.gameIds = swapId(tier.gameIds).filter((id) => !seen.has(id));
+        tier.gameIds.forEach((id) => seen.add(id));
+      }
     }
     this.data.games = this.data.games.filter((g) => g.id !== oldId);
     this.persist();
