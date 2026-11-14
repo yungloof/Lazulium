@@ -1,6 +1,6 @@
 import { existsSync } from 'fs';
 import { readdir, readFile, stat } from 'fs/promises';
-import { basename, join, normalize } from 'path';
+import { basename, dirname, join, normalize } from 'path';
 import { readRegistryValue } from './registry';
 import { readEpicManifest } from './epic-manifest';
 import { DetectedGame, PlatformScanner, PlatformScanResult } from './scanner.types';
@@ -435,8 +435,20 @@ export async function gameFromEgstoreFolder(gameDir: string): Promise<DetectedGa
   };
 }
 
+// Quem já adicionou o executável de um jogo da Epic à mão mostra onde ele está: a pasta de instalação é a de cima que tem ".egstore"
+export function egstoreAncestor(path: string, maxLevels = 8): string | undefined {
+  let dir = dirname(normalize(path));
+  for (let level = 0; level < maxLevels; level++) {
+    if (existsSync(join(dir, '.egstore'))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) return undefined;
+    dir = parent;
+  }
+  return undefined;
+}
+
 // Varre pastas de bibliotecas e discos em busca de jogos instalados (.egstore)
-async function scanLibraryRoots(knownGames: Map<string, DetectedGame>, extraFolders: string[]): Promise<DetectedGame[]> {
+async function scanLibraryRoots(knownGames: Map<string, DetectedGame>, extraFolders: string[], knownExecutables: string[]): Promise<DetectedGame[]> {
   const roots = new Map<string, SearchRoot>();
   const addRoot = (p: string | undefined, depth: number) => {
     if (!p || !existsSync(p)) return;
@@ -481,6 +493,7 @@ async function scanLibraryRoots(knownGames: Map<string, DetectedGame>, extraFold
 
   // 4. Pastas de jogos que a pessoa adicionou (Configurações > Biblioteca) e as comuns "Games"/"Jogos": dentro delas vale ir mais fundo
   for (const folder of extraFolders) addRoot(folder, FOLDER_SCAN_DEPTH);
+  for (const exe of knownExecutables) addRoot(egstoreAncestor(exe), 0);
 
   // 5. Os discos: checagem assíncrona com limite de tempo (uma unidade de rede desconectada ou um leitor de cartão vazio
   // não pode travar o app) e busca limitada em profundidade, tempo e número de pastas
@@ -512,7 +525,8 @@ async function scanLibraryRoots(knownGames: Map<string, DetectedGame>, extraFold
 }
 
 // extraFolders: pastas de jogos que a pessoa adicionou (e as comuns, como D:\Games), onde a busca por .egstore vai mais fundo
-export function createEpicScanner(extraFolders: () => string[]): PlatformScanner {
+// knownExecutables: executáveis de jogos que a pessoa já tem (adicionados à mão, por exemplo): se algum for da Epic, a pasta dele entra
+export function createEpicScanner(extraFolders: () => string[], knownExecutables: () => string[] = () => []): PlatformScanner {
   return {
     platform: 'epic',
 
@@ -600,7 +614,7 @@ export function createEpicScanner(extraFolders: () => string[]): PlatformScanner
 
       // 4. Varredura de bibliotecas conhecidas e unidades por pastas com .egstore
       try {
-        const libraryGames = await scanLibraryRoots(games, extraFolders());
+        const libraryGames = await scanLibraryRoots(games, extraFolders(), knownExecutables());
         for (const game of libraryGames) {
           if (!games.has(game.id)) games.set(game.id, game);
         }

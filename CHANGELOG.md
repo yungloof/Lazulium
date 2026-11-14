@@ -4,6 +4,15 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 2.8.2 — 14 de novembro de 2026
+
+### Correções
+
+- **Jogo da Epic adicionado à mão agora é reconhecido.** Se você tinha adicionado o executável de um jogo da Epic (como o Fortnite) pelo `+`, o Escanear usa esse executável para achar a pasta do jogo, mesmo bem no fundo, e o registro vira o jogo da Epic: as horas, o favorito, o registro do Diário e as conquistas vão junto, sem ficar duplicado. Também chegam as horas da conta da Epic.
+- **"Procurar agora" nas pastas de jogos de PC também busca a Epic.** Antes só procurava jogos soltos e respondia 0 novos mesmo com jogos da Epic na pasta.
+
+---
+
 ## 2.8.1 — 14 de novembro de 2026
 
 ### Correções

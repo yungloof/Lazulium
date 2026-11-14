@@ -235,6 +235,33 @@ describe('scan: mesmo jogo em outra instalação', () => {
     expect(db.getGameCategories()[0].gameIds).toEqual(['standalone-nova']);
   });
 
+  it('jogo adicionado à mão que é da Epic vira o jogo da Epic, com horas e registro, sem duplicar', async () => {
+    db.upsertGame(
+      makeGame({
+        id: 'custom-fortnite',
+        title: 'Fortnite (meu)',
+        platform: 'standalone',
+        executablePath: 'D:\\Jogos\\Fortnite\\FortniteGame\\Binaries\\Win64\\FortniteLauncher.exe',
+        totalPlaytimeSeconds: 5000,
+        isFavorite: true,
+        log: { status: 'endless' }
+      })
+    );
+    found('epic', detected({ id: 'epic-Fortnite', title: 'Fortnite', platform: 'epic', installPath: 'D:\\Jogos\\Fortnite', executablePath: 'D:\\Jogos\\Fortnite\\Fortnite.exe' }));
+    await scanLibraries();
+
+    expect(db.getGameById('custom-fortnite')).toBeNull();
+    expect(db.getGames().filter((g) => /fortnite/i.test(g.title))).toHaveLength(1);
+    expect(db.getGameById('epic-Fortnite')).toMatchObject({ platform: 'epic', totalPlaytimeSeconds: 5000, isFavorite: true, log: { status: 'endless' } });
+  });
+
+  it('jogo adicionado à mão em outra pasta não é confundido com um da Epic', async () => {
+    db.upsertGame(makeGame({ id: 'custom-outro', title: 'Outro', platform: 'standalone', executablePath: 'D:\\Jogos\\Outro\\Outro.exe' }));
+    found('epic', detected({ id: 'epic-Fortnite', title: 'Fortnite', platform: 'epic', installPath: 'D:\\Jogos\\Fortnite' }));
+    await scanLibraries();
+    expect(db.getGameById('custom-outro')).not.toBeNull();
+  });
+
   it('registro do Diário com o mesmo nome não é engolido por um jogo detectado', async () => {
     db.upsertGame(makeGame({ id: 'journal-1', title: 'Celeste', platform: 'standalone', manualEntry: true, totalPlaytimeSeconds: 100 }));
     found('standalone', detected({ id: 'standalone-nova', title: 'Celeste', platform: 'standalone' }));

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { findEgstoreFolders, gameFromEgstoreFolder } from '../../src/main/services/scanners/epic-scanner.service';
+import { egstoreAncestor, findEgstoreFolders, gameFromEgstoreFolder } from '../../src/main/services/scanners/epic-scanner.service';
 
 let root: string;
 beforeEach(() => {
@@ -57,6 +57,15 @@ describe('jogos da Epic fora das pastas padrão', () => {
     const game = (await gameFromEgstoreFolder(dir))!;
     expect(game).toMatchObject({ id: 'epic-Foo', title: 'SemExe' });
     expect(game.launchUri).toBe('com.epicgames.launcher://apps/n%3Ai%3AFoo?action=launch&silent=true');
+  });
+
+  it('a pasta do jogo sai do executável que a pessoa já adicionou, mesmo bem no fundo', () => {
+    const dir = gameFolder('Jogos', 'Fortnite');
+    const exe = join(dir, 'FortniteGame', 'Binaries', 'Win64', 'FortniteClient-Win64-Shipping.exe');
+    mkdirSync(join(dir, 'FortniteGame', 'Binaries', 'Win64'), { recursive: true });
+    writeFileSync(exe, '');
+    expect(egstoreAncestor(exe)).toBe(dir);
+    expect(egstoreAncestor(join(root, 'Jogos', 'Sem Epic', 'a.exe'))).toBeUndefined();
   });
 
   it('sem nenhum manifesto, usa o nome da pasta como id', async () => {

@@ -20,7 +20,10 @@ import { dirname } from 'path';
 
 const SCANNERS: PlatformScanner[] = [
   steamScanner,
-  createEpicScanner(() => [...db.getStandaloneDirectories(), ...commonGameFolders()]),
+  createEpicScanner(
+    () => [...db.getStandaloneDirectories(), ...commonGameFolders()],
+    () => db.getGames().flatMap((game) => (game.platform !== 'epic' && game.executablePath ? [game.executablePath] : []))
+  ),
   gogScanner,
   riotScanner,
   xboxScanner,
@@ -92,6 +95,12 @@ function dropCoveredFolders(detected: DetectedGame[]): DetectedGame[] {
     const folder = normalizeFolder(game.installPath);
     return !owned.some((path) => path === folder || path.startsWith(`${folder}\\`));
   });
+}
+
+// Jogo que a pessoa adicionou à mão (ou achado solto) e que fica dentro da pasta de um jogo de loja detectado agora: é o mesmo jogo
+function sitsInsideDetected(game: Game, detected: DetectedGame): boolean {
+  if (!/^(custom-|standalone-)/.test(game.id) || !game.executablePath || !detected.installPath || detected.platform === 'standalone') return false;
+  return normalizeFolder(game.executablePath).startsWith(`${normalizeFolder(detected.installPath)}\\`);
 }
 
 // Só herda o histórico quem saiu mesmo do PC e não tem dono próprio: registro do Diário, jogo adicionado à mão e
@@ -194,7 +203,10 @@ async function runScan(platforms?: GamePlatform[]): Promise<ScanWithChanges> {
     const previous = db
       .getGames()
       .find(
-        (g) => g.id !== detected.id && !detectedIds.has(g.id) && normalizeKey(g.detectedTitle ?? g.title) === key && canHandOverHistory(g, detected)
+        (g) =>
+          g.id !== detected.id &&
+          !detectedIds.has(g.id) &&
+          ((normalizeKey(g.detectedTitle ?? g.title) === key && canHandOverHistory(g, detected)) || sitsInsideDetected(g, detected))
       );
 
     if (previous && detected.isInstalled !== false) {

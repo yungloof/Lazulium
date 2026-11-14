@@ -92,7 +92,8 @@ export function registerLibraryHandlers(): void {
 
   handle(IPC_CHANNELS.LIBRARY_SCAN_PLATFORM, (_event, platform: GamePlatform) => {
     console.log(`[IPC] Escanear: ${platform}`);
-    return scanAndQueueArtwork([platform]);
+    // As pastas de jogos de PC também valem para a Epic: jogo dela em pasta própria é achado pela pasta .egstore
+    return scanAndQueueArtwork(platform === 'standalone' ? ['standalone', 'epic'] : [platform]);
   });
 
   // Pastas de jogos soltos no PC
