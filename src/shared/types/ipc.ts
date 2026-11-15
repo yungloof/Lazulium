@@ -7,6 +7,7 @@ import { AccountService, AccountsStatus, SteamLocalAccount } from './accounts';
 import { GameScreenshots, Screenshot, ScreenshotTaken } from './screenshots';
 import { ActivityEvent } from './activity';
 import { JournalImportApplyResult, JournalImportItem, JournalImportOptions, JournalImportPreviewItem } from './journal-import';
+import { SyncStatusState } from './sync';
 import {
   CallAnswer,
   CallEvent,
@@ -344,6 +345,13 @@ export interface ElectronAPI {
   socialAddGroupListGame: (listId: string, gameId: string) => Promise<GroupList>;
   socialRemoveGroupListGame: (listId: string, titleKey: string) => Promise<GroupList>;
   socialReorderGroupListGames: (listId: string, titleKeys: string[]) => Promise<GroupList>;
+  // Sincronização opcional entre PCs (Diário, favoritos, listas e categorias)
+  socialSyncLibraryGet: () => Promise<SyncStatusState>;
+  socialSyncLibrarySet: (enabled: boolean) => Promise<SyncStatusState>;
+  socialSyncLibraryNow: () => Promise<SyncStatusState>;
+  socialSyncLibraryClearCloud: () => Promise<SyncStatusState>;
+  onSocialSyncLibraryStatus: (callback: (status: SyncStatusState) => void) => () => void;
+  onLibrarySyncApplied: (callback: () => void) => () => void;
 
   // Integração de atalhos da Steam (adicionar jogos que não são da Steam à Steam)
   addSteamShortcut: (gameId: string) => Promise<{ ok: boolean; appId?: number; error?: string }>;

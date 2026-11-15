@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Game } from '@shared/types/game';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { useCategoriesStore } from '../stores/useCategoriesStore';
+import { useListsStore } from '../stores/useListsStore';
 import { useUiStore } from '../stores/useUiStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { scanLibraries } from '../utils/gameActions';
@@ -235,11 +236,19 @@ export function useAppEvents(): void {
         action: { label: 'Ver', run: () => useUiStore.getState().setView('friends') }
       });
     });
+    const offLibrarySync = api.onLibrarySyncApplied(() => {
+      void api.getGames().then((games) => {
+        if (games) useLibraryStore.getState().setGames(games);
+      }).catch(() => undefined);
+      void useCategoriesStore.getState().load().catch(() => undefined);
+      void useListsStore.getState().load().catch(() => undefined);
+    });
     return () => {
       offStatus();
       offPresence();
       offCalls();
       offNotifications();
+      offLibrarySync();
     };
   }, []);
 

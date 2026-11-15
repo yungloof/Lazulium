@@ -95,11 +95,12 @@ A conta é opcional e serve para você ver o que seus amigos jogam e eles verem 
 - as listas em grupo de que você participa: nome da lista, descrição, se tem ranking, quem criou e quais amigos participam, e os jogos colocados nela (nome, capa pública, código da Steam quando houver e quem adicionou). Só quem criou e os amigos convidados enxergam e mexem na lista; se a amizade acabar ou se você sair, você deixa de vê-la. Quando quem criou apaga a lista ou a conta, a lista e as reações dela somem; quando um participante apaga a conta, o nome dele sai da lista e os jogos ficam sem autoria;
 - quem abriu a vitrine de quem (pelo link de 30 minutos), para a vitrine saber em nome de quem curtir e comentar. Some quando o link vence;
 - a lista de amigos e os códigos de convite (valem 7 dias);
-- a sessão de login, guardada só como uma impressão (hash) do código, que vence em 180 dias.
+- a sessão de login, guardada só como uma impressão (hash) do código, que vence em 180 dias;
+- **se você ligar a sincronização entre PCs** (chave própria em *Configurações → Contas*, **desligada por padrão** neste PC): uma cópia privada dos seus registros do Diário (status, nota, datas, resenha, anotações pessoais e jogos adicionados à mão no Diário com nome, plataforma, horas registradas e capa pública), das suas listas e tier lists, das suas categorias (nome, regras e jogos pelos códigos públicos) e dos seus favoritos, junto das datas de alteração e marcas de exclusão. Essa cópia fica presa à sua conta só para sincronizar seus aparelhos: **nenhum amigo vê**. Você pode apagar a cópia sincronizada no servidor a qualquer momento sem apagar sua conta nem o que está no PC.
 
-**O que nunca vai:** e-mail, senha, nome de registro, caminhos e arquivos do seu PC, saves, capturas, anotações do Diário e a lista de desejos.
+**O que nunca vai:** e-mail, senha, nome de registro, caminhos e arquivos do seu PC, saves, capturas e a lista de desejos. Para amigos, as anotações do Diário, categorias e marcações individuais de favorito nunca são mostradas.
 
-**Quem vê.** Só as pessoas que viraram suas amigas com o seu código de convite (ou você com o delas). Não existe perfil público nem busca de pessoas. Cada chave desligada some do feed e do seu perfil para os amigos na hora, e o app para de enviar aquele tipo de evento.
+**Quem vê.** Só as pessoas que viraram suas amigas com o seu código de convite (ou você com o delas) veem o que você escolher compartilhar; a sincronização entre PCs é só sua e não aparece para ninguém. Não existe perfil público nem busca de pessoas. Cada chave desligada some do feed e do seu perfil para os amigos na hora, e o app para de enviar aquele tipo de evento.
 
 **Sair e apagar.** *Sair* encerra a sessão neste PC e mantém a conta. *Apagar conta Lazulium* (em *Configurações → Contas*) remove do servidor (e da VPS, se houver fundo guardado), na hora, tudo da lista acima, inclusive as amizades. Se a VPS estiver fora do ar na hora, o servidor tenta apagar de hora em hora até conseguir. O que está no seu PC continua.
 

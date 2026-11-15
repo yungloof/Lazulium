@@ -117,9 +117,10 @@ export function normalizeData(raw: unknown): DatabaseSchema {
   if ('activityLog' in raw) {
     data.activityLog = objects(raw.activityLog).filter((e) => isText(e.id) && isText(e.gameId) && isText(e.kind) && isText(e.at)) as unknown as StoredActivity[];
   }
-  for (const key of ['achievementExtras', 'playLengthCache', 'profileCustom'] as const) {
+  for (const key of ['achievementExtras', 'playLengthCache', 'profileCustom', 'syncTombstones', 'syncUnresolved'] as const) {
     if (key in raw && !isObject(raw[key])) delete data[key];
   }
+  if ('categoriesOrderUpdatedAt' in raw && !isText(raw.categoriesOrderUpdatedAt)) delete data.categoriesOrderUpdatedAt;
   for (const key of ['gameLists', 'wishlist', 'screenshotMoves'] as const) {
     if (key in raw && !Array.isArray(raw[key])) delete data[key];
   }

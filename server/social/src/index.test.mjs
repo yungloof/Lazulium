@@ -997,3 +997,59 @@ test('listas em grupo: só amigos entram, edição atômica, reordenação segur
   assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM group_lists').get().n, 0);
   assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM group_list_items').get().n, 0);
 });
+
+test('sincronização entre PCs: leitura privada, controle otimista (409) e limpeza ao apagar conta', async () => {
+  const steam = fakeSteam();
+  try {
+  const s = setup();
+  const a = await login(s, '76561198000000101');
+  const b = await login(s, '76561198000000102');
+  await befriend(s, a, b);
+
+  const initial = await s.call('GET', '/v1/me/sync', { token: a.token });
+  assert.equal(initial.status, 200);
+  assert.equal(initial.body.revision, 0);
+  assert.equal(initial.body.data, null);
+
+  const snap1 = {
+    schema: 'lazulium-sync/1',
+    games: [{ key: 'steam:620', steamKey: 'steam:620', titleKey: 't:portal2', title: 'Portal 2', log: { notes: 'segredo meu' } }],
+    lists: [],
+    categories: []
+  };
+  const put1 = await s.call('PUT', '/v1/me/sync', { token: a.token, body: { baseRevision: 0, data: snap1 } });
+  assert.equal(put1.status, 200);
+  assert.equal(put1.body.revision, 1);
+
+  // Outro usuário (mesmo amigo) nunca acessa o sync de A: GET /v1/me/sync retorna só o dele (vazio)
+  const bGet = await s.call('GET', '/v1/me/sync', { token: b.token });
+  assert.equal(bGet.status, 200);
+  assert.equal(bGet.body.data, null);
+
+  // Enviar com baseRevision vencida retorna 409 com a versão mais nova do servidor
+  const stale = await s.call('PUT', '/v1/me/sync', { token: a.token, body: { baseRevision: 0, data: { ...snap1, games: [] } } });
+  assert.equal(stale.status, 409);
+  assert.equal(stale.body.error, 'conflict');
+  assert.equal(stale.body.revision, 1);
+  assert.equal(stale.body.data.games[0].log.notes, 'segredo meu');
+
+  // Versão correta avança para revisão 2
+  const put2 = await s.call('PUT', '/v1/me/sync', { token: a.token, body: { baseRevision: 1, data: { ...snap1, games: [] } } });
+  assert.equal(put2.status, 200);
+  assert.equal(put2.body.revision, 2);
+
+  // Schema inválido rejeitado com 400
+  const bad = await s.call('PUT', '/v1/me/sync', { token: a.token, body: { baseRevision: 2, data: { schema: 'outro' } } });
+  assert.equal(bad.status, 400);
+
+  // DELETE /v1/me/sync apaga só a cópia da nuvem; apagar a conta também remove
+  assert.equal((await s.call('DELETE', '/v1/me/sync', { token: a.token })).status, 200);
+  assert.equal((await s.call('GET', '/v1/me/sync', { token: a.token })).body.revision, 0);
+
+  await s.call('PUT', '/v1/me/sync', { token: a.token, body: { baseRevision: 0, data: snap1 } });
+  await s.call('DELETE', '/v1/me', { token: a.token });
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM user_sync').get().n, 0);
+  } finally {
+    steam.restore();
+  }
+});

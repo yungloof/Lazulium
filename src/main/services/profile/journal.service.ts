@@ -41,11 +41,13 @@ export function markPerfectGame(data: GameAchievements): Game | null {
   if (data.total === 0 || data.unlocked < data.total) return null;
   const game = db.getGameById(data.gameId);
   if (!game || game.autoCompletedAt) return null;
+  const now = new Date().toISOString();
   const lastUnlock = data.items.map((a) => a.unlockedAt).filter((d): d is string => !!d).sort().pop();
   const updated: Game = {
     ...game,
-    autoCompletedAt: new Date().toISOString(),
-    log: { ...game.log, status: game.log?.status === 'dropped' ? 'dropped' : 'completed', finishedOn: game.log?.finishedOn ?? lastUnlock?.slice(0, 10) }
+    autoCompletedAt: now,
+    log: { ...game.log, status: game.log?.status === 'dropped' ? 'dropped' : 'completed', finishedOn: game.log?.finishedOn ?? lastUnlock?.slice(0, 10) },
+    logUpdatedAt: now
   };
   db.upsertGame(updated);
   console.log(`[Diário] ${game.title}: marcado como 100% pelas conquistas`);
@@ -55,7 +57,7 @@ export function markPerfectGame(data: GameAchievements): Game | null {
 export function setGameLog(gameId: string, log: GameLog): Game {
   const game = db.getGameById(gameId);
   if (!game) throw new Error('Jogo não encontrado.');
-  const updated: Game = { ...game, log: sanitizeLog(log) };
+  const updated: Game = { ...game, log: sanitizeLog(log), logUpdatedAt: new Date().toISOString() };
   db.upsertGame(updated);
   recordLogChange(gameId, game.log, updated.log);
   return updated;
@@ -68,10 +70,11 @@ export function renameGame(gameId: string, title: string | null): Game {
   const clean = title?.trim().slice(0, MAX_TITLE_LENGTH);
   const original = game.customTitle ? game.detectedTitle ?? game.title : game.title;
   if (title !== null && !clean) throw new Error('Digite um nome para o jogo.');
+  const now = new Date().toISOString();
   const updated: Game =
     clean && clean !== original
-      ? { ...game, title: clean, customTitle: clean, detectedTitle: original }
-      : { ...game, title: original, customTitle: undefined, detectedTitle: undefined };
+      ? { ...game, title: clean, customTitle: clean, detectedTitle: original, ...(game.manualEntry ? { logUpdatedAt: now } : {}) }
+      : { ...game, title: original, customTitle: undefined, detectedTitle: undefined, ...(game.manualEntry ? { logUpdatedAt: now } : {}) };
   db.upsertGame(updated);
   return updated;
 }
@@ -89,7 +92,8 @@ export function setManualPlaytime(gameId: string, totalSeconds: number, lastPlay
   const updated: Game = {
     ...game,
     totalPlaytimeSeconds: total,
-    playtimeAdjustmentSeconds: source === undefined ? undefined : total - source
+    playtimeAdjustmentSeconds: source === undefined ? undefined : total - source,
+    ...(game.manualEntry ? { logUpdatedAt: new Date().toISOString() } : {})
   };
   if (lastPlayedOn && DATE_PATTERN.test(lastPlayedOn) && lastPlayedOn !== game.lastPlayedAt?.slice(0, 10)) {
     updated.lastPlayedAt = new Date(`${lastPlayedOn}T12:00:00`).toISOString();
@@ -120,6 +124,7 @@ export function buildJournalGame(entry: JournalEntryInput): Game {
     isHidden: false,
     tags: [],
     totalPlaytimeSeconds: Math.round(seconds),
+    logUpdatedAt: now,
     createdAt: now,
     updatedAt: now
   };

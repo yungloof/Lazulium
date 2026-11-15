@@ -27,6 +27,7 @@ export function createCategory(name: string, gameIds?: string[], rule?: Category
   const categories = db.getGameCategories();
   if (categories.length >= MAX_CATEGORIES) throw new Error(`O limite é de ${MAX_CATEGORIES} categorias.`);
   const now = new Date().toISOString();
+  db.setCategoriesOrderUpdatedAt(now);
   if (rule !== undefined) {
     const cleanRule = normalizeCategoryRule(rule);
     if (!cleanRule) throw new Error('Escolha pelo menos uma regra para a categoria dinâmica.');
@@ -51,7 +52,7 @@ export function renameCategory(id: string, name: string): GameCategory[] {
 }
 
 export function deleteCategory(id: string): GameCategory[] {
-  return db.setGameCategories(db.getGameCategories().filter((c) => c.id !== id));
+  return db.deleteGameCategory(id);
 }
 
 // Recebe os ids na nova ordem; o que não vier fica no fim, na ordem de antes
@@ -59,6 +60,7 @@ export function reorderCategories(ids: string[]): GameCategory[] {
   const order = new Map((Array.isArray(ids) ? ids : []).map((id, index) => [id, index]));
   const categories = db.getGameCategories();
   const position = (c: GameCategory) => order.get(c.id) ?? order.size + categories.indexOf(c);
+  db.setCategoriesOrderUpdatedAt(new Date().toISOString());
   return db.setGameCategories([...categories].sort((a, b) => position(a) - position(b)));
 }
 

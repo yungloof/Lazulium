@@ -8,12 +8,14 @@ import { ProfileCustom, SteamProfileIdentity } from '@shared/types/profile';
 import { GameList } from '@shared/types/lists';
 import { GameCategory } from '@shared/types/categories';
 import { isGameInCategory } from '@shared/utils/categories';
+import { SyncTombstones, SyncUnresolved } from '@shared/types/sync';
+import { AppliedSyncState, SyncDbState, gameSyncKey } from '@shared/utils/library-sync';
 import { WishlistItem } from '@shared/types/wishlist';
 import { ScreenshotMove } from '@shared/types/screenshots';
 import { StoredActivity } from '@shared/types/activity';
 import { DEFAULT_EMULATOR_PROFILES } from '@shared/constants/emulators';
 import { SCHEMA_VERSION, createDefaultData, normalizeAchievements, normalizeData } from './normalize';
-import { ensureDailyBackup, listDailyBackups, readTextWithRetry, writeAtomic } from './storage';
+import { createSyncBackup, ensureDailyBackup, listDailyBackups, readTextWithRetry, writeAtomic } from './storage';
 
 // Mudanças em rajada (scan, sincronização de conquistas) viram uma gravação só
 const WRITE_DELAY_MS = 250;
@@ -77,6 +79,9 @@ export interface DatabaseSchema {
   playLengthCache?: Record<string, CachedPlayLength>;
   gameLists?: GameList[];
   gameCategories?: GameCategory[];  // Na ordem em que aparecem na lista lateral
+  categoriesOrderUpdatedAt?: string;
+  syncTombstones?: SyncTombstones;  // Marcas de exclusão com data para a sincronização entre PCs
+  syncUnresolved?: SyncUnresolved;  // Referências de jogos só presentes em outro PC, preservadas sem virar fantasma
   wishlist?: WishlistItem[];
   screenshotMoves?: ScreenshotMove[];
   profileWeb?: { repoUrl: string; lastPublishedAt?: string };
@@ -331,6 +336,9 @@ export class DatabaseService {
     } else {
       this.data.games.push(game);
     }
+    if (game.manualEntry && this.data.syncTombstones?.manualGames) {
+      delete this.data.syncTombstones.manualGames[gameSyncKey(game)];
+    }
     this.persist();
     return index >= 0 ? this.data.games[index] : game;
   }
@@ -428,23 +436,28 @@ export class DatabaseService {
   }
 
   deleteGame(id: string): boolean {
-    const initialLen = this.data.games.length;
+    const target = this.data.games.find((g) => g.id === id);
+    if (!target) return false;
     this.data.games = this.data.games.filter((g) => g.id !== id);
-    const deleted = this.data.games.length < initialLen;
-    if (deleted) {
-      for (const category of this.data.gameCategories ?? []) {
-        if (category.gameIds.includes(id)) category.gameIds = category.gameIds.filter((gameId) => gameId !== id);
-      }
-      this.persist();
+    if (target.manualEntry) {
+      this.data.syncTombstones ??= {};
+      this.data.syncTombstones.manualGames ??= {};
+      this.data.syncTombstones.manualGames[gameSyncKey(target)] = new Date().toISOString();
     }
-    return deleted;
+    for (const category of this.data.gameCategories ?? []) {
+      if (category.gameIds.includes(id)) category.gameIds = category.gameIds.filter((gameId) => gameId !== id);
+    }
+    this.persist();
+    return true;
   }
 
   toggleFavorite(id: string): boolean {
     const game = this.data.games.find((g) => g.id === id);
     if (!game) return false;
+    const now = new Date().toISOString();
     game.isFavorite = !game.isFavorite;
-    game.updatedAt = new Date().toISOString();
+    game.favoriteUpdatedAt = now;
+    game.updatedAt = now;
     this.persist();
     return game.isFavorite;
   }
@@ -586,11 +599,17 @@ export class DatabaseService {
   saveGameList(list: GameList): void {
     const others = this.getGameLists().filter((l) => l.id !== list.id);
     this.data.gameLists = [list, ...others];
+    if (this.data.syncTombstones?.lists) delete this.data.syncTombstones.lists[list.id];
     this.persist();
   }
 
   deleteGameList(id: string): void {
+    const existed = this.getGameLists().some((l) => l.id === id);
+    if (!existed) return;
     this.data.gameLists = this.getGameLists().filter((l) => l.id !== id);
+    this.data.syncTombstones ??= {};
+    this.data.syncTombstones.lists ??= {};
+    this.data.syncTombstones.lists[id] = new Date().toISOString();
     this.persist();
   }
 
@@ -603,6 +622,51 @@ export class DatabaseService {
     this.data.gameCategories = categories;
     this.persist();
     return categories;
+  }
+
+  deleteGameCategory(id: string): GameCategory[] {
+    const next = this.getGameCategories().filter((c) => c.id !== id);
+    if (next.length < this.getGameCategories().length) {
+      this.data.syncTombstones ??= {};
+      this.data.syncTombstones.categories ??= {};
+      this.data.syncTombstones.categories[id] = new Date().toISOString();
+    }
+    this.data.gameCategories = next;
+    this.persist();
+    return next;
+  }
+
+  setCategoriesOrderUpdatedAt(iso: string): void {
+    this.data.categoriesOrderUpdatedAt = iso;
+    this.persist();
+  }
+
+  getSyncState(): SyncDbState {
+    return {
+      games: this.data.games,
+      gameLists: this.getGameLists(),
+      gameCategories: this.getGameCategories(),
+      categoriesOrderUpdatedAt: this.data.categoriesOrderUpdatedAt,
+      syncTombstones: this.data.syncTombstones,
+      syncUnresolved: this.data.syncUnresolved
+    };
+  }
+
+  applySyncState(applied: AppliedSyncState): void {
+    // Backup obrigatório antes de gravar qualquer mescla vinda de outro PC
+    this.flush();
+    if (this.dataFilePath) {
+      this.backupDay = ensureDailyBackup(this.dataFilePath, this.backupDay);
+      createSyncBackup(this.dataFilePath);
+    }
+    this.data.games = applied.games;
+    this.data.gameLists = applied.gameLists;
+    this.data.gameCategories = applied.gameCategories;
+    this.data.categoriesOrderUpdatedAt = applied.categoriesOrderUpdatedAt;
+    this.data.syncTombstones = applied.syncTombstones;
+    this.data.syncUnresolved = applied.syncUnresolved;
+    this.dirty = true;
+    this.flush();
   }
 
   // Está em alguma lista ou categoria: o jogador arrumou este jogo à mão

@@ -299,3 +299,58 @@ describe('banco: jogo apagado ou que muda de id', () => {
     expect(list.tiers!.map((t) => t.gameIds)).toEqual([['novo', 'outro'], []]);
   });
 });
+
+describe('banco: sincronização, favoritos e lápides', () => {
+  it('favoritar carimba data própria; apagar jogo manual, lista e categoria cria lápides que somem ao recriar', async () => {
+    useTempUserData();
+    const db = await openDb();
+    db.upsertGame(makeGame({ id: 'manual-1', title: 'Chrono Trigger', manualEntry: true }));
+    expect(db.toggleFavorite('manual-1')).toBe(true);
+    const fav = db.getGameById('manual-1');
+    expect(fav?.isFavorite).toBe(true);
+    expect(fav?.favoriteUpdatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+
+    expect(db.deleteGame('manual-1')).toBe(true);
+    expect(db.getSyncState().syncTombstones?.manualGames?.['t:chronotrigger']).toBeDefined();
+
+    db.upsertGame(makeGame({ id: 'manual-2', title: 'Chrono Trigger', manualEntry: true }));
+    expect(db.getSyncState().syncTombstones?.manualGames?.['t:chronotrigger']).toBeUndefined();
+
+    db.saveGameList({ id: 'l1', title: 'RPGs', ranked: false, featured: false, gameIds: [], createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' });
+    db.deleteGameList('l1');
+    expect(db.getGameLists()).toEqual([]);
+    expect(db.getSyncState().syncTombstones?.lists?.l1).toBeDefined();
+    db.saveGameList({ id: 'l1', title: 'RPGs', ranked: false, featured: false, gameIds: [], createdAt: '2026-01-02T00:00:00Z', updatedAt: '2026-01-02T00:00:00Z' });
+    expect(db.getSyncState().syncTombstones?.lists?.l1).toBeUndefined();
+
+    db.setGameCategories([{ id: 'c1', name: 'JRPG', gameIds: [], createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }]);
+    db.deleteGameCategory('c1');
+    expect(db.getGameCategories()).toEqual([]);
+    expect(db.getSyncState().syncTombstones?.categories?.c1).toBeDefined();
+  });
+
+  it('aplicar sincronização salva cópia de segurança em backups/sync antes de gravar o banco', async () => {
+    const dir = useTempUserData();
+    const db = await openDb();
+    db.upsertGame(makeGame({ id: 'steam-10', title: 'Celeste' }));
+    db.flush();
+
+    const state = db.getSyncState();
+    db.applySyncState({
+      ...state,
+      games: [makeGame({ id: 'steam-10', title: 'Celeste', isFavorite: true, favoriteUpdatedAt: '2026-05-01T12:00:00Z' })],
+      syncTombstones: {},
+      syncUnresolved: {}
+    });
+
+    const syncBackupsDir = join(storageDir(dir), 'backups', 'sync');
+    expect(existsSync(syncBackupsDir)).toBe(true);
+    const files = readdirSync(syncBackupsDir);
+    expect(files.length).toBeGreaterThanOrEqual(1);
+    const beforeMerge = readJson(join(syncBackupsDir, files[0]));
+    expect(beforeMerge.games[0].isFavorite).toBe(false);
+
+    const reopened = await openDb();
+    expect(reopened.getGameById('steam-10')?.isFavorite).toBe(true);
+  });
+});

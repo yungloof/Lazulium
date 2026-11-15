@@ -100,7 +100,7 @@ export function applyJournalImport(items: JournalImportItem[], options: JournalI
     if (preview.action === 'unchanged') {
       unchanged += 1;
     } else if (preview.action === 'update' && game) {
-      changed.push({ ...game, log: sanitizeLog(nextLog), updatedAt: now });
+      changed.push({ ...game, log: sanitizeLog(nextLog), updatedAt: now, logUpdatedAt: now });
       updated += 1;
     } else if (preview.action === 'create') {
       changed.push(

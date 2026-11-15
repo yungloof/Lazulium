@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LogIn, LogOut, Pencil, Trash2, UserRound, Users } from 'lucide-react';
+import { LogIn, LogOut, Pencil, RefreshCw, Trash2, UserRound, Users } from 'lucide-react';
 import { SocialSettings } from '@shared/types/social';
 import { useSocial } from '../../hooks/useSocial';
 import { useUiStore } from '../../stores/useUiStore';
@@ -23,6 +23,7 @@ export const SocialAccountCard: React.FC<{ fallbackName?: string }> = ({ fallbac
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmClearSync, setConfirmClearSync] = useState(false);
   const [notifyPlaying, setNotifyPlaying] = useState(true);
   const [notifyReactions, setNotifyReactions] = useState(true);
 
@@ -165,6 +166,62 @@ export const SocialAccountCard: React.FC<{ fallbackName?: string }> = ({ fallbac
           checked={notifyReactions}
           onChange={toggleNotifyReactions}
         />
+      </div>
+
+      <div className="border-t border-indigo-400/10">
+        <ToggleRow
+          label="Sincronizar entre PCs"
+          hint="Guarda uma cópia privada do seu Diário (incluindo anotações), favoritos, listas e categorias na sua conta para juntar tudo ao abrir em outro PC. Só você acessa; seus amigos nunca veem."
+          checked={Boolean(social.librarySync?.enabled)}
+          disabled={social.busy !== null || social.syncBusy !== null}
+          onChange={(checked) => void social.setSyncLibrary(checked)}
+        />
+        {(social.librarySync?.enabled || social.librarySync?.lastSyncAt || (social.librarySync?.revision ?? 0) > 0 || social.librarySync?.lastError || social.syncError) && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-800/70 px-4 py-2.5">
+            {(social.syncError || social.librarySync?.lastError) && (
+              <Notice className="w-full">Não foi possível sincronizar entre PCs: {social.syncError || social.librarySync?.lastError}</Notice>
+            )}
+            <p className="text-xs text-slate-400 mr-auto">
+              {social.librarySync?.syncing
+                ? 'Sincronizando entre PCs...'
+                : social.librarySync?.lastSyncAt
+                  ? `Última sincronização: ${new Date(social.librarySync.lastSyncAt).toLocaleString('pt-BR')}`
+                  : social.librarySync?.enabled
+                    ? 'Ativada neste PC.'
+                    : 'Pausada neste PC (há uma cópia salva na sua conta).'}
+            </p>
+            {social.librarySync?.enabled && (
+              <Button
+                variant="ghost"
+                icon={<RefreshCw className="w-3.5 h-3.5" />}
+                loading={social.syncBusy === 'now' || Boolean(social.librarySync?.syncing)}
+                onClick={() => void social.syncLibraryNow()}
+              >
+                Sincronizar agora
+              </Button>
+            )}
+            {((social.librarySync?.revision ?? 0) > 0 || social.librarySync?.lastSyncAt) &&
+              (confirmClearSync ? (
+                <>
+                  <Button variant="ghost" onClick={() => setConfirmClearSync(false)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="danger"
+                    icon={<Trash2 className="w-3.5 h-3.5" />}
+                    loading={social.syncBusy === 'clear'}
+                    onClick={() => void social.clearLibraryCloud().then(() => setConfirmClearSync(false))}
+                  >
+                    Apagar cópia
+                  </Button>
+                </>
+              ) : (
+                <Button variant="ghost" onClick={() => setConfirmClearSync(true)}>
+                  Apagar cópia na nuvem
+                </Button>
+              ))}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-indigo-400/10 px-4 py-3">

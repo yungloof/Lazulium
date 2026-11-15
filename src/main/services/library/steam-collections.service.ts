@@ -149,10 +149,11 @@ export async function importSteamCollections(): Promise<{ result: SteamCollectio
     if (col.isHidden) continue;
 
     if (col.isFavorite) {
+      const now = new Date().toISOString();
       for (const gameId of matchedIds) {
         const game = db.getGameById(gameId);
         if (game && !game.isFavorite) {
-          updatedGames.push({ ...game, isFavorite: true, updatedAt: new Date().toISOString() });
+          updatedGames.push({ ...game, isFavorite: true, updatedAt: now, favoriteUpdatedAt: now });
           favoritesAdded++;
         }
       }
@@ -201,6 +202,7 @@ export async function importSteamCollections(): Promise<{ result: SteamCollectio
   }
 
   if (updatedGames.length > 0) db.upsertGames(updatedGames);
+  if (created > 0) db.setCategoriesOrderUpdatedAt(new Date().toISOString());
   const savedCategories = db.setGameCategories(nextCategories);
 
   return {

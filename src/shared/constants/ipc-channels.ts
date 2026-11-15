@@ -188,6 +188,12 @@ export const IPC_CHANNELS = {
   SOCIAL_GROUP_LIST_ADD_GAME: 'social:group-list-add-game',
   SOCIAL_GROUP_LIST_REMOVE_GAME: 'social:group-list-remove-game',
   SOCIAL_GROUP_LIST_REORDER: 'social:group-list-reorder',
+  SOCIAL_SYNC_LIBRARY_GET: 'social:sync-library-get',
+  SOCIAL_SYNC_LIBRARY_SET: 'social:sync-library-set',
+  SOCIAL_SYNC_LIBRARY_NOW: 'social:sync-library-now',
+  SOCIAL_SYNC_LIBRARY_CLEAR: 'social:sync-library-clear',
+  SOCIAL_SYNC_LIBRARY_STATUS_CHANGED: 'social:sync-library-status-changed',
+  SOCIAL_SYNC_LIBRARY_APPLIED: 'social:sync-library-applied',
 
   // Atalhos da Steam (Adicionar jogo não-Steam)
   STEAM_ADD_SHORTCUT: 'steam:add-shortcut',

@@ -8,6 +8,7 @@ import { BackupEvent, GameSaveConfig } from '@shared/types/cloudsync';
 import { AccountService } from '@shared/types/accounts';
 import { ProfileCustom, ProfileMediaKind, ProfileWebLink } from '@shared/types/profile';
 import { CallEvent, PresenceState, SocialNotificationsEvent, SocialStatus } from '@shared/types/social';
+import { SyncStatusState } from '@shared/types/sync';
 import { CategoryRule } from '@shared/types/categories';
 
 const electronAPI: ElectronAPI = {
@@ -263,6 +264,20 @@ const electronAPI: ElectronAPI = {
   socialAddGroupListGame: (listId, gameId) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GROUP_LIST_ADD_GAME, listId, gameId),
   socialRemoveGroupListGame: (listId, titleKey) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GROUP_LIST_REMOVE_GAME, listId, titleKey),
   socialReorderGroupListGames: (listId, titleKeys) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GROUP_LIST_REORDER, listId, titleKeys),
+  socialSyncLibraryGet: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_SYNC_LIBRARY_GET),
+  socialSyncLibrarySet: (enabled) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_SYNC_LIBRARY_SET, enabled),
+  socialSyncLibraryNow: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_SYNC_LIBRARY_NOW),
+  socialSyncLibraryClearCloud: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_SYNC_LIBRARY_CLEAR),
+  onSocialSyncLibraryStatus: (callback: (status: SyncStatusState) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, status: SyncStatusState) => callback(status);
+    ipcRenderer.on(IPC_CHANNELS.SOCIAL_SYNC_LIBRARY_STATUS_CHANGED, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SOCIAL_SYNC_LIBRARY_STATUS_CHANGED, subscription);
+  },
+  onLibrarySyncApplied: (callback: () => void) => {
+    const subscription = () => callback();
+    ipcRenderer.on(IPC_CHANNELS.SOCIAL_SYNC_LIBRARY_APPLIED, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SOCIAL_SYNC_LIBRARY_APPLIED, subscription);
+  },
   socialTestCall: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_CALL_TEST),
   onCallEvent: (callback: (event: CallEvent) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, event: CallEvent) => callback(event);

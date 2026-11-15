@@ -3,6 +3,7 @@ import { CallAnswer, CreateGroupListInput, ReactionTarget, SocialSettings, Updat
 import { PRESENCE_STATUSES } from '@shared/utils/presence';
 import { cleanReactionTarget } from '@shared/utils/reactions';
 import { socialService } from '../services/social/social.service';
+import { librarySyncService } from '../services/social/sync.service';
 import { presenceService } from '../services/social/presence.service';
 import { callsService } from '../services/social/calls.service';
 import { reactionsService } from '../services/social/reactions.service';
@@ -125,4 +126,10 @@ export function registerSocialHandlers(): void {
     const clean = Array.isArray(titleKeys) ? titleKeys.filter((k): k is string => typeof k === 'string' && TITLE_KEY.test(k)).slice(0, 200) : [];
     return groupListsService.reorder(uuid(listId), clean);
   });
+
+  // Sincronização opcional entre PCs (Diário, favoritos, listas e categorias)
+  handle(IPC_CHANNELS.SOCIAL_SYNC_LIBRARY_GET, () => librarySyncService.getStatus());
+  handle(IPC_CHANNELS.SOCIAL_SYNC_LIBRARY_SET, (_event, enabled: unknown) => librarySyncService.setEnabled(enabled === true));
+  handle(IPC_CHANNELS.SOCIAL_SYNC_LIBRARY_NOW, () => librarySyncService.syncNow());
+  handle(IPC_CHANNELS.SOCIAL_SYNC_LIBRARY_CLEAR, () => librarySyncService.clearCloudCopy());
 }

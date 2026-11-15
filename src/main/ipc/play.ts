@@ -7,6 +7,7 @@ import { playtimeService } from '../services/tracker/playtime.service';
 import { buildLaunchScript } from '../services/tracker/launcher.service';
 import { playLengthService } from '../services/metadata/play-length.service';
 import { setManualPlaytime } from '../services/profile/journal.service';
+import { librarySyncService } from '../services/social/sync.service';
 import { handle, requireGame, safeFileName, saveTextAs } from './helpers';
 
 const isDirectory = (path: string): boolean => {
@@ -44,9 +45,11 @@ export function registerPlayHandlers(): void {
 
   handle(IPC_CHANNELS.GAME_GET_PLAYTIME_SESSIONS, (_event, gameId: string) => db.getPlaytimeSessions(gameId));
 
-  handle(IPC_CHANNELS.GAME_SET_PLAYTIME, (_event, gameId: string, totalSeconds: number, lastPlayedOn?: string) =>
-    setManualPlaytime(gameId, totalSeconds, lastPlayedOn)
-  );
+  handle(IPC_CHANNELS.GAME_SET_PLAYTIME, (_event, gameId: string, totalSeconds: number, lastPlayedOn?: string) => {
+    const updated = setManualPlaytime(gameId, totalSeconds, lastPlayedOn);
+    librarySyncService.scheduleSync();
+    return updated;
+  });
 
   handle(IPC_CHANNELS.GAME_EXPORT_BAT, (event, gameId: string) => {
     const game = requireGame(gameId);

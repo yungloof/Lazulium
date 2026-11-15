@@ -76,6 +76,7 @@ settings     (user_id PK, share_playtime, share_achievements, share_reviews, sha
 | GET/PATCH/DELETE | `/v1/group-lists/:id` | Ver detalhes, editar (dono) ou apagar (dono) uma lista em grupo |
 | POST/DELETE | `/v1/group-lists/:id/members` (`/:userId`) | Convidar/remover amigo (dono) ou sair da lista (`:userId` = você) |
 | POST/DELETE/PUT | `/v1/group-lists/:id/games` (`/:titleKey`) / `order` | Adicionar, remover ou reordenar jogos na lista em grupo |
+| GET/PUT/DELETE | `/v1/me/sync` | Sincronização privada entre PCs (Diário, listas, categorias e favoritos), com versão (`revision`) e conflito `409` |
 
 Limite de pedidos por usuário no Worker (`RATE_LIMITER`), como no `/v1/prices`.
 

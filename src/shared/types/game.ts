@@ -101,6 +101,8 @@ export interface Game {
   lastPlayedAt?: string;            // ISO timestamp
   createdAt: string;                // ISO timestamp
   updatedAt: string;                // ISO timestamp
+  logUpdatedAt?: string;            // ISO timestamp só quando o Diário ou registro manual muda (não sobe ao jogar)
+  favoriteUpdatedAt?: string;       // ISO timestamp só quando `isFavorite` muda
 
   // Status de Execução em Tempo Real (runtime)
   isRunning?: boolean;

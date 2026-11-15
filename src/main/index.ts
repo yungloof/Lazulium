@@ -16,6 +16,7 @@ import { profileService } from './services/profile/profile.service';
 import { scanLibrariesWithChanges } from './services/scanners';
 import { updaterService } from './services/updater/updater.service';
 import { socialService, socialServerUrl } from './services/social/social.service';
+import { librarySyncService } from './services/social/sync.service';
 import { presenceService } from './services/social/presence.service';
 import { callsService } from './services/social/calls.service';
 import { reactionsService } from './services/social/reactions.service';
@@ -151,6 +152,7 @@ if (!app.requestSingleInstanceLock()) {
     setSessionEndHandler(shutdown);
     updaterService.init();
     socialService.init();
+    librarySyncService.init();
     presenceService.init();
     callsService.init();
     reactionsService.init();

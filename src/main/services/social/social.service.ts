@@ -175,6 +175,16 @@ class SocialService {
     this.friendListener = listener;
   }
 
+  private librarySyncHooks?: {
+    schedule: () => void;
+    sync: () => Promise<void>;
+    clearLocal: () => void;
+  };
+
+  setLibrarySyncHooks(hooks: { schedule: () => void; sync: () => Promise<void>; clearLocal: () => void }): void {
+    this.librarySyncHooks = hooks;
+  }
+
   setStatusListener(listener: (status: SocialStatus) => void): void {
     this.listener = listener;
   }
@@ -225,9 +235,10 @@ class SocialService {
     this.gifRefused = false;
     this.storeUnavailable = false;
     this.publish();
+    this.librarySyncHooks?.clearLocal();
   }
 
-  async api<T>(method: string, path: string, body?: unknown, auth = true): Promise<T> {
+  async apiRaw<T>(method: string, path: string, body?: unknown, auth = true): Promise<{ ok: boolean; status: number; data: (T & { error?: string }) | null }> {
     const token = this.token();
     if (auth && !token) throw new Error('Entre na conta Lazulium primeiro.');
     const headers: Record<string, string> = { Accept: 'application/json' };
@@ -252,9 +263,14 @@ class SocialService {
       this.clearLocal();
       throw new Error('Sua sessão da conta Lazulium terminou. Entre de novo.');
     }
-    if (!res.ok || !data) {
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  async api<T>(method: string, path: string, body?: unknown, auth = true): Promise<T> {
+    const { ok, status, data } = await this.apiRaw<T>(method, path, body, auth);
+    if (!ok || !data) {
       const code = data?.error ?? '';
-      throw new HttpError(SERVER_ERRORS[code] ?? `O servidor do Lazulium não respondeu como esperado (erro ${res.status}).`, 'status', res.status);
+      throw new HttpError(SERVER_ERRORS[code] ?? `O servidor do Lazulium não respondeu como esperado (erro ${status}).`, 'status', status);
     }
     return data;
   }
@@ -557,6 +573,7 @@ class SocialService {
   // Mudou algo (sessão terminou, Diário salvo): manda logo, mas agrupando mudanças seguidas
   scheduleSync(): void {
     if (!this.token()) return;
+    this.librarySyncHooks?.schedule();
     clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(() => void this.sync(), SYNC_DEBOUNCE_MS);
     this.debounceTimer.unref();
@@ -643,6 +660,7 @@ class SocialService {
         if (events.length) await this.api('POST', '/v1/me/activities', { events });
         db.setSetting(SOCIAL_SETTING_KEYS.lastPushAt, startedAt);
       }
+      await this.librarySyncHooks?.sync().catch((err) => console.warn('[Social] Sincronização entre PCs:', (err as Error).message));
       if (settings.shareProfile) await this.pushShowcase(settings);
       // Servidor antigo ou falha passageira não estragam o resto do envio: tenta de novo na próxima
       if (settings.shareProfile) await this.pushLibrary(settings).catch((err) => console.warn('[Social] Biblioteca resumida:', (err as Error).message));

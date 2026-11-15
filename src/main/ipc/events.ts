@@ -9,6 +9,7 @@ import { achievementsService } from '../services/achievements/achievements.servi
 import { backupService } from '../services/cloudsync/backup.service';
 import { screenshotCaptureService } from '../services/metadata/screenshot-capture.service';
 import { socialService } from '../services/social/social.service';
+import { librarySyncService } from '../services/social/sync.service';
 import { presenceService } from '../services/social/presence.service';
 import { callsService } from '../services/social/calls.service';
 import { reactionsService } from '../services/social/reactions.service';
@@ -42,6 +43,8 @@ export function registerRendererEvents(getMainWindow: WindowGetter): void {
   });
 
   socialService.setStatusListener((status) => sendToRenderer(IPC_CHANNELS.SOCIAL_STATUS_CHANGED, status));
+  librarySyncService.setStatusListener((status) => sendToRenderer(IPC_CHANNELS.SOCIAL_SYNC_LIBRARY_STATUS_CHANGED, status));
+  librarySyncService.setAppliedListener(() => sendToRenderer(IPC_CHANNELS.SOCIAL_SYNC_LIBRARY_APPLIED, undefined));
   socialService.setFriendPlayingListener((text) => sendToRenderer(IPC_CHANNELS.SOCIAL_FRIEND_PLAYING, text));
   presenceService.setListener((state) => sendToRenderer(IPC_CHANNELS.SOCIAL_PRESENCE_CHANGED, state));
   callsService.setListener((event) => sendToRenderer(IPC_CHANNELS.SOCIAL_CALL_EVENT, event));

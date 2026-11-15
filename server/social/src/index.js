@@ -22,6 +22,7 @@ const MAX_SUMMARY_BYTES = 20_000;
 const MAX_REVIEW_TEXT = 2_000;
 const MAX_TITLE = 200;
 const MAX_SHOWCASE_BYTES = 900_000; // O perfil leva também as avaliações (nota e resenha), por isso mais que os 400 mil de antes
+const MAX_SYNC_BYTES = 4_000_000; // Sincronização privada entre PCs (Diário, listas, categorias e favoritos)
 const MAX_MEDIA_BASE64 = 1_500_000;       // ~1,1 MB de imagem: o app reduz antes de enviar
 const MEDIA_KINDS = ['avatar', 'background', 'artwork'];
 const MEDIA_MIME = /^image\/(jpeg|png|webp|gif)$/;   // GIF vai como está, para chegar animado
@@ -345,6 +346,7 @@ async function handleMe(request, env, auth) {
         'DELETE FROM group_list_items WHERE list_id IN (SELECT id FROM group_lists WHERE owner_id = ?1)',
         'DELETE FROM group_list_members WHERE user_id = ?1 OR list_id IN (SELECT id FROM group_lists WHERE owner_id = ?1)',
         'DELETE FROM group_lists WHERE owner_id = ?1',
+        'DELETE FROM user_sync WHERE user_id = ?',
         'UPDATE group_list_items SET added_by = NULL WHERE added_by = ?1',
         'DELETE FROM users WHERE id = ?'
       ]
@@ -1104,6 +1106,96 @@ async function handleShowcase(request, env, auth) {
   return json({ ok: true });
 }
 
+// ---------- Sincronização privada entre PCs ----------
+
+function parseSyncData(rawText) {
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    return null;
+  }
+}
+
+async function handleSync(request, env, auth) {
+  if (request.method === 'GET') {
+    const row = await env.DB.prepare('SELECT revision, data, updated_at FROM user_sync WHERE user_id = ?').bind(auth.user.id).first();
+    if (!row) return json({ revision: 0, updatedAt: null, data: null });
+    return json({ revision: Number(row.revision) || 1, updatedAt: row.updated_at, data: parseSyncData(row.data) });
+  }
+
+  if (request.method === 'DELETE') {
+    await env.DB.prepare('DELETE FROM user_sync WHERE user_id = ?').bind(auth.user.id).run();
+    return json({ ok: true });
+  }
+
+  if (request.method !== 'PUT') throw new HttpError(405, 'method_not_allowed');
+  if (Number(request.headers.get('Content-Length') ?? 0) > MAX_SYNC_BYTES * 4) throw new HttpError(413, 'too_large');
+  const text = await request.text();
+  if (text.length > MAX_SYNC_BYTES) throw new HttpError(413, 'too_large');
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    throw new HttpError(400, 'invalid_json');
+  }
+  const data = body && typeof body === 'object' ? body.data : null;
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    Array.isArray(data) ||
+    data.schema !== 'lazulium-sync/1' ||
+    !Array.isArray(data.games) ||
+    !Array.isArray(data.lists) ||
+    !Array.isArray(data.categories)
+  ) {
+    throw new HttpError(400, 'invalid_sync');
+  }
+  const baseRevision = body.baseRevision;
+  if (baseRevision !== undefined && baseRevision !== null && (!Number.isInteger(baseRevision) || baseRevision < 0)) {
+    throw new HttpError(400, 'invalid_revision');
+  }
+
+  const serialized = JSON.stringify(data);
+  if (serialized.length > MAX_SYNC_BYTES) throw new HttpError(413, 'too_large');
+
+  const now = nowIso();
+  const existing = await env.DB.prepare('SELECT revision, data, updated_at FROM user_sync WHERE user_id = ?').bind(auth.user.id).first();
+
+  if (existing) {
+    const curRev = Number(existing.revision) || 1;
+    if (typeof baseRevision === 'number' && baseRevision !== curRev) {
+      return json({ error: 'conflict', revision: curRev, updatedAt: existing.updated_at, data: parseSyncData(existing.data) }, 409);
+    }
+    const nextRev = curRev + 1;
+    const res = await env.DB.prepare('UPDATE user_sync SET revision = ?, data = ?, updated_at = ? WHERE user_id = ? AND revision = ?')
+      .bind(nextRev, serialized, now, auth.user.id, curRev)
+      .run();
+    if (!res.meta?.changes) {
+      const latest = await env.DB.prepare('SELECT revision, data, updated_at FROM user_sync WHERE user_id = ?').bind(auth.user.id).first();
+      return json(
+        { error: 'conflict', revision: Number(latest?.revision) || 0, updatedAt: latest?.updated_at ?? null, data: latest ? parseSyncData(latest.data) : null },
+        409
+      );
+    }
+    return json({ revision: nextRev, updatedAt: now });
+  }
+
+  if (typeof baseRevision === 'number' && baseRevision > 0) {
+    return json({ error: 'conflict', revision: 0, updatedAt: null, data: null }, 409);
+  }
+  const ins = await env.DB.prepare('INSERT OR IGNORE INTO user_sync (user_id, revision, data, updated_at) VALUES (?, 1, ?, ?)')
+    .bind(auth.user.id, serialized, now)
+    .run();
+  if (!ins.meta?.changes) {
+    const latest = await env.DB.prepare('SELECT revision, data, updated_at FROM user_sync WHERE user_id = ?').bind(auth.user.id).first();
+    return json(
+      { error: 'conflict', revision: Number(latest?.revision) || 0, updatedAt: latest?.updated_at ?? null, data: latest ? parseSyncData(latest.data) : null },
+      409
+    );
+  }
+  return json({ revision: 1, updatedAt: now });
+}
+
 async function handleMediaUpload(request, env, auth, kind, origin) {
   if (!MEDIA_KINDS.includes(kind)) throw new HttpError(404, 'not_found');
   if (request.method === 'DELETE') {
@@ -1624,6 +1716,7 @@ async function route(request, env) {
   if (path === '/v1/me/now-playing') return handleNowPlaying(request, env, auth);
   if (path === '/v1/me/summary') return handleSummary(request, env, auth);
   if (path === '/v1/me/showcase') return handleShowcase(request, env, auth);
+  if (path === '/v1/me/sync') return handleSync(request, env, auth);
   if (path === '/v1/me/presence') return handlePresence(request, env, auth);
   if (path === '/v1/me/library') return handleLibrary(request, env, auth);
   if (path === '/v1/me/notifications' && request.method === 'GET') return handleNotifications(url, env, auth);

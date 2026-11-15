@@ -85,3 +85,23 @@ export function ensureDailyBackup(dataFile: string, lastDay?: string): string | 
     return lastDay;
   }
 }
+
+const SYNC_BACKUPS_DIR = 'sync';
+const MAX_SYNC_BACKUPS = 5;
+
+// Cópia imediata antes de aplicar uma mescla da sincronização entre PCs, separada dos backups diários
+export function createSyncBackup(dataFile: string): boolean {
+  if (!dataFile || !existsSync(dataFile)) return false;
+  const dir = join(backupsDirOf(dataFile), SYNC_BACKUPS_DIR);
+  try {
+    mkdirSync(dir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    copyFileSync(dataFile, join(dir, `lazulium_db-${stamp}.json`));
+    const files = readdirSync(dir).filter((f) => f.endsWith('.json')).sort().reverse();
+    for (const old of files.slice(MAX_SYNC_BACKUPS)) unlinkSync(join(dir, old));
+    return true;
+  } catch (err) {
+    console.warn('[Database] Falha na cópia pré-sincronização:', err);
+    return false;
+  }
+}

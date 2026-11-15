@@ -222,3 +222,11 @@ CREATE TABLE IF NOT EXISTS group_list_items (
   PRIMARY KEY (list_id, title_key)
 );
 CREATE INDEX IF NOT EXISTS idx_group_list_items_order ON group_list_items(list_id, position, added_at);
+
+-- Sincronização privada entre PCs do próprio jogador (ninguém além do dono lê)
+CREATE TABLE IF NOT EXISTS user_sync (
+  user_id     TEXT PRIMARY KEY,
+  revision    INTEGER NOT NULL DEFAULT 1,
+  data        TEXT NOT NULL,
+  updated_at  TEXT NOT NULL
+);

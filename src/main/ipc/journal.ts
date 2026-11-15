@@ -7,6 +7,7 @@ import { gameMetadataService } from '../services/metadata/game-metadata.service'
 import { playLengthService } from '../services/metadata/play-length.service';
 import { searchGameCatalog } from '../services/metadata/game-search.service';
 import { socialService } from '../services/social/social.service';
+import { librarySyncService } from '../services/social/sync.service';
 import { addJournalEntry, journalToCsv, journalToJson, renameGame, setGameLog } from '../services/profile/journal.service';
 import { applyJournalImport, previewJournalImport } from '../services/profile/journal-import.service';
 import { handle, saveTextAs } from './helpers';
@@ -46,6 +47,7 @@ export function registerJournalHandlers(): void {
 
   handle(IPC_CHANNELS.GAME_RENAME, (_event, gameId: string, title: string | null) => {
     const game = renameGame(gameId, title);
+    librarySyncService.scheduleSync();
     playLengthService.forget(game.id);
     const cleared = gameMetadataService.forget(game.id);
     gameMetadataService.enqueueMissing([game.id]);

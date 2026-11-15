@@ -14,6 +14,7 @@ import { removeGameMedia } from '../services/metadata/media-cache.service';
 import { saveGameList } from '../services/profile/lists.service';
 import { createCategory, deleteCategory, renameCategory, reorderCategories, setCategoryGames, updateCategoryRule } from '../services/library/categories.service';
 import { importSteamCollections } from '../services/library/steam-collections.service';
+import { librarySyncService } from '../services/social/sync.service';
 import { sendToRenderer } from './events';
 import { addGameToSteam, removeGameFromSteam } from '../services/steam/steam-shortcut-writer.service';
 import { cleanPath, handle } from './helpers';
@@ -80,11 +81,18 @@ export function registerLibraryHandlers(): void {
 
   handle(IPC_CHANNELS.LIBRARY_DELETE_GAME, async (_event, id: string) => {
     const deleted = db.deleteGame(id);
-    if (deleted) await removeGameMedia(id).catch((err) => console.warn('[IPC] Artes do jogo removido ficaram no disco:', (err as Error).message));
+    if (deleted) {
+      librarySyncService.scheduleSync();
+      await removeGameMedia(id).catch((err) => console.warn('[IPC] Artes do jogo removido ficaram no disco:', (err as Error).message));
+    }
     return deleted;
   });
 
-  handle(IPC_CHANNELS.LIBRARY_TOGGLE_FAVORITE, (_event, id: string) => db.toggleFavorite(id));
+  handle(IPC_CHANNELS.LIBRARY_TOGGLE_FAVORITE, (_event, id: string) => {
+    const isFavorite = db.toggleFavorite(id);
+    librarySyncService.scheduleSync();
+    return isFavorite;
+  });
 
   handle(IPC_CHANNELS.LIBRARY_SCAN_ALL, async () => {
     console.log('[IPC] Escanear: todas as plataformas');
@@ -106,22 +114,28 @@ export function registerLibraryHandlers(): void {
     db.saveStandaloneDirectories((Array.isArray(directories) ? directories : []).map((d) => cleanPath(String(d)) ?? ''))
   );
 
+  const syncAfter = <T,>(value: T): T => {
+    librarySyncService.scheduleSync();
+    return value;
+  };
+
   // Listas de jogos
   handle(IPC_CHANNELS.LISTS_GET, () => db.getGameLists());
-  handle(IPC_CHANNELS.LISTS_SAVE, (_event, input: GameListInput) => saveGameList(input));
-  handle(IPC_CHANNELS.LISTS_DELETE, (_event, id: string) => db.deleteGameList(id));
+  handle(IPC_CHANNELS.LISTS_SAVE, (_event, input: GameListInput) => syncAfter(saveGameList(input)));
+  handle(IPC_CHANNELS.LISTS_DELETE, (_event, id: string) => syncAfter(db.deleteGameList(id)));
 
   // Categorias da biblioteca
   handle(IPC_CHANNELS.CATEGORIES_GET, () => db.getGameCategories());
-  handle(IPC_CHANNELS.CATEGORIES_CREATE, (_event, name: string, gameIds?: string[], rule?: CategoryRule) => createCategory(name, gameIds, rule));
-  handle(IPC_CHANNELS.CATEGORIES_RENAME, (_event, id: string, name: string) => renameCategory(id, name));
-  handle(IPC_CHANNELS.CATEGORIES_UPDATE_RULE, (_event, id: string, rule: CategoryRule) => updateCategoryRule(id, rule));
-  handle(IPC_CHANNELS.CATEGORIES_DELETE, (_event, id: string) => deleteCategory(id));
-  handle(IPC_CHANNELS.CATEGORIES_REORDER, (_event, ids: string[]) => reorderCategories(ids));
-  handle(IPC_CHANNELS.CATEGORIES_SET_GAMES, (_event, id: string, gameIds: string[], member: boolean) => setCategoryGames(id, gameIds, member));
+  handle(IPC_CHANNELS.CATEGORIES_CREATE, (_event, name: string, gameIds?: string[], rule?: CategoryRule) => syncAfter(createCategory(name, gameIds, rule)));
+  handle(IPC_CHANNELS.CATEGORIES_RENAME, (_event, id: string, name: string) => syncAfter(renameCategory(id, name)));
+  handle(IPC_CHANNELS.CATEGORIES_UPDATE_RULE, (_event, id: string, rule: CategoryRule) => syncAfter(updateCategoryRule(id, rule)));
+  handle(IPC_CHANNELS.CATEGORIES_DELETE, (_event, id: string) => syncAfter(deleteCategory(id)));
+  handle(IPC_CHANNELS.CATEGORIES_REORDER, (_event, ids: string[]) => syncAfter(reorderCategories(ids)));
+  handle(IPC_CHANNELS.CATEGORIES_SET_GAMES, (_event, id: string, gameIds: string[], member: boolean) => syncAfter(setCategoryGames(id, gameIds, member)));
   handle(IPC_CHANNELS.CATEGORIES_IMPORT_STEAM, async () => {
     const { result, updatedGames } = await importSteamCollections();
     for (const game of updatedGames) sendToRenderer(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
+    librarySyncService.scheduleSync();
     return result;
   });
 
