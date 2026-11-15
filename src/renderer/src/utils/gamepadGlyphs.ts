@@ -20,6 +20,7 @@ export interface ShoulderButtonBinding {
   keyLabel: string;
 }
 
+const XBOX_PATTERN = /xbox|microsoft|xinput|045e/i;
 const PS_PATTERN = /dualsense|dualshock|playstation|sony|054c|ps[345]|wireless controller/i;
 const SWITCH_PATTERN = /nintendo|switch|pro controller|joy-con|joycon|057e|snes|nes controller/i;
 
@@ -30,6 +31,7 @@ export function detectGamepadFamily(id?: string | null): GamepadFamily {
   const raw = id?.trim() ?? '';
   if (!raw) return 'xbox';
   if (SWITCH_PATTERN.test(raw)) return 'switch';
+  if (XBOX_PATTERN.test(raw)) return 'xbox';
   if (PS_PATTERN.test(raw)) return 'playstation';
   return 'xbox';
 }

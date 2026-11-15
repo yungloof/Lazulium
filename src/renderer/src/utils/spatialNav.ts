@@ -1,3 +1,5 @@
+import { isEditableTextElement } from './onScreenKeyboard';
+
 // Navegação espacial do controle e das setas: anda pelo que está na tela, em qualquer página ou janela aberta
 export type NavDirection = 'up' | 'down' | 'left' | 'right';
 
@@ -138,11 +140,15 @@ export function moveFocus(direction: NavDirection): boolean {
 }
 
 // Botão A / Enter: age sobre o item focado. Sem foco, só mostra onde está: nada dispara às cegas
-export function activateFocused(): void {
+export function activateFocused(onEditField?: (el: HTMLInputElement | HTMLTextAreaElement) => void): void {
   setNavActive(true);
   const current = currentElement(topOverlay() ?? document.body);
   if (!current) {
     focusStart();
+    return;
+  }
+  if (isEditableTextElement(current)) {
+    onEditField?.(current);
     return;
   }
   if (current instanceof HTMLTextAreaElement) return;

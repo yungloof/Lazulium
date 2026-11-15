@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, Loader2, NotebookPen } from 'lucide-react';
+import { Check, Keyboard, Loader2, NotebookPen } from 'lucide-react';
 import { Game, GameLog } from '@shared/types/game';
+import { useGamepadStore } from '../stores/useGamepadStore';
+import { useKeyboardStore } from '../stores/useKeyboardStore';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { DateField, StarRating, StatusPicker } from './GameLogFields';
@@ -15,6 +17,9 @@ type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 // "Meu registro": fica guardado mesmo se o jogo for desinstalado. Os textos salvam sozinhos enquanto você escreve.
 export const GameLogCard: React.FC<{ game: Game }> = ({ game }) => {
   const upsertGameLocal = useLibraryStore((s) => s.upsertGameLocal);
+  const hasGamepad = useGamepadStore((s) => !!s.gamepad?.connected);
+  const reviewRef = useRef<HTMLTextAreaElement>(null);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
   const [review, setReview] = useState(game.log?.review ?? '');
   const [notes, setNotes] = useState(game.log?.notes ?? '');
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -110,8 +115,22 @@ export const GameLogCard: React.FC<{ game: Game }> = ({ game }) => {
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-4">
           <div>
             <label className="block">
-              <span className={labelClass}>Minha resenha</span>
+              <span className={`${labelClass} flex items-center justify-between gap-2`}>
+                <span>Minha resenha</span>
+                {hasGamepad && (
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => reviewRef.current && useKeyboardStore.getState().openFor(reviewRef.current, 'Minha resenha')}
+                    className="inline-flex items-center gap-1 whitespace-nowrap flex-shrink-0 text-[11px] font-normal normal-case tracking-normal text-indigo-300 hover:text-indigo-200"
+                  >
+                    <Keyboard className="w-3 h-3" /> Teclado
+                  </button>
+                )}
+              </span>
               <textarea
+                ref={reviewRef}
+                aria-label="Minha resenha"
                 value={review}
                 onChange={(e) => {
                   setReview(e.target.value);
@@ -129,8 +148,22 @@ export const GameLogCard: React.FC<{ game: Game }> = ({ game }) => {
             )}
           </div>
           <label className="block">
-            <span className={labelClass}>Anotações de progresso</span>
+            <span className={`${labelClass} flex items-center justify-between gap-2`}>
+              <span>Anotações de progresso</span>
+              {hasGamepad && (
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => notesRef.current && useKeyboardStore.getState().openFor(notesRef.current, 'Anotações de progresso')}
+                  className="inline-flex items-center gap-1 whitespace-nowrap flex-shrink-0 text-[11px] font-normal normal-case tracking-normal text-indigo-300 hover:text-indigo-200"
+                >
+                  <Keyboard className="w-3 h-3" /> Teclado
+                </button>
+              )}
+            </span>
             <textarea
+              ref={notesRef}
+              aria-label="Anotações de progresso"
               value={notes}
               onChange={(e) => {
                 setNotes(e.target.value);

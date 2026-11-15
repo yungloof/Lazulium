@@ -7,6 +7,7 @@ import { detectGamepadFamily, getGamepadBindings } from '../../src/renderer/src/
 describe('gamepad family detection & glyphs', () => {
   it('identifica Xbox, PlayStation e Nintendo Switch pelo gamepad.id', () => {
     expect(detectGamepadFamily('Xbox 360 Controller (XInput STANDARD GAMEPAD)')).toBe('xbox');
+    expect(detectGamepadFamily('Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)')).toBe('xbox');
     expect(detectGamepadFamily('DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)')).toBe('playstation');
     expect(detectGamepadFamily('Sony Interactive Entertainment Wireless Controller')).toBe('playstation');
     expect(detectGamepadFamily('Nintendo Switch Pro Controller (Vendor: 057e Product: 2009)')).toBe('switch');

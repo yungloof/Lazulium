@@ -13,6 +13,7 @@ interface UseGamepadOptions {
   onSearch?: () => void;
   onContextMenu?: () => void;
   onMenu?: () => void;
+  onEditField?: (el: HTMLInputElement | HTMLTextAreaElement) => void;
 }
 
 const AXIS_THRESHOLD = 0.5;
@@ -61,7 +62,7 @@ export function useGamepad(options: UseGamepadOptions) {
 
     // Botões de ação valem uma vez por aperto: segurar o A ao abrir um jogo não pode iniciar o jogo
     const actions: [number, () => void][] = [
-      [0, () => { navAudio.playSelect(); activateFocused(); }],
+      [0, () => { navAudio.playSelect(); activateFocused((el) => handlers.current.onEditField?.(el)); }],
       [1, () => { navAudio.playBack(); handlers.current.onBack?.(); }],
       [2, () => { navAudio.playFavorite(); handlers.current.onToggleFavorite?.(); }],
       [3, () => { navAudio.playSelect(); handlers.current.onSearch?.(); }],

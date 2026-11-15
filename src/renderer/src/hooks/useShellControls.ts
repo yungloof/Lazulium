@@ -3,6 +3,8 @@ import { useGamepad } from './useGamepad';
 import { useVisibleFilters } from './useLibraryGames';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { SECTION_ORDER, selectAnyOverlay, useUiStore } from '../stores/useUiStore';
+import { useKeyboardStore } from '../stores/useKeyboardStore';
+import { isEditableTextElement } from '../utils/onScreenKeyboard';
 import { closeTopOverlay, focusedGameId, focusStart, isFocusTarget, isNavActive, topOverlay } from '../utils/spatialNav';
 import { openContextMenuForElement, toggleFavorite } from '../utils/gameActions';
 
@@ -16,6 +18,7 @@ export function useShellControls(): void {
   const filters = useVisibleFilters();
   const view = useUiStore((s) => s.view);
   const anyOverlay = useUiStore(selectAnyOverlay);
+  const keyboardOpen = useKeyboardStore((s) => !!s.target);
   const activeFilter = useLibraryStore((s) => s.activeFilter);
 
   const stepFilter = (step: number) => {
@@ -37,7 +40,15 @@ export function useShellControls(): void {
 
   // O direcional anda pelo que está na tela e o A age sobre o item focado (useGamepad)
   useGamepad({
+    onEditField: (el) => {
+      useKeyboardStore.getState().openFor(el);
+    },
     onBack: () => {
+      const kb = useKeyboardStore.getState();
+      if (kb.target) {
+        kb.close();
+        return;
+      }
       const ui = useUiStore.getState();
       const library = useLibraryStore.getState();
       if (ui.contextMenu) ui.setContextMenu(null);
@@ -47,22 +58,60 @@ export function useShellControls(): void {
       else if (library.searchQuery) library.setSearchQuery('');
     },
     onToggleFavorite: () => {
+      const kb = useKeyboardStore.getState();
+      if (kb.target) {
+        kb.dispatchKey({ type: 'backspace' });
+        return;
+      }
       if (topOverlay()) return;
       const ui = useUiStore.getState();
       const target = focusedGameId() ?? (ui.view === 'game' ? ui.selectedGameId : null);
       if (target && useLibraryStore.getState().games.some((g) => g.id === target)) void toggleFavorite(target);
     },
-    onNextFilter: () => stepFilter(1),
-    onPrevFilter: () => stepFilter(-1),
+    onNextFilter: () => {
+      const kb = useKeyboardStore.getState();
+      if (kb.target) {
+        kb.toggleLayer();
+        return;
+      }
+      stepFilter(1);
+    },
+    onPrevFilter: () => {
+      const kb = useKeyboardStore.getState();
+      if (kb.target) {
+        kb.toggleShift();
+        return;
+      }
+      stepFilter(-1);
+    },
     onNextSection: () => stepSection(1),
     onPrevSection: () => stepSection(-1),
     onSearch: () => {
-      if (topOverlay()) return;
+      const kb = useKeyboardStore.getState();
+      if (kb.target) {
+        kb.dispatchKey({ type: 'space' });
+        return;
+      }
+      if (topOverlay()) {
+        const active = document.activeElement;
+        if (isEditableTextElement(active)) kb.openFor(active);
+        return;
+      }
       const input = document.querySelector<HTMLInputElement>('[data-library-search]');
-      input?.focus();
-      input?.select();
+      if (input) {
+        input.focus();
+        input.select();
+        kb.openFor(input);
+      } else {
+        useUiStore.getState().setQuickSearchOpen(true);
+        requestAnimationFrame(() => {
+          const qs = document.querySelector<HTMLInputElement>('[aria-label="Nome do jogo"]');
+          if (qs) kb.openFor(qs);
+        });
+      }
     },
     onContextMenu: () => {
+      if (useKeyboardStore.getState().target) return;
       const ui = useUiStore.getState();
       if (ui.contextMenu) {
         ui.setContextMenu(null);
@@ -76,6 +125,11 @@ export function useShellControls(): void {
       }
     },
     onMenu: () => {
+      const kb = useKeyboardStore.getState();
+      if (kb.target) {
+        kb.close();
+        return;
+      }
       const ui = useUiStore.getState();
       const settingsOpen = ui.modal?.kind === 'settings';
       if (topOverlay() && !settingsOpen) return;
@@ -96,7 +150,7 @@ export function useShellControls(): void {
       focusStart(view === 'home' ? useUiStore.getState().selectedGameId ?? undefined : undefined);
     });
     return () => cancelAnimationFrame(frame);
-  }, [view, anyOverlay, activeFilter]);
+  }, [view, anyOverlay, activeFilter, keyboardOpen]);
 
   // Ctrl+K: busca rápida de qualquer lugar
   useEffect(() => {
