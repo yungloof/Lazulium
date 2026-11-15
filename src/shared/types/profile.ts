@@ -27,6 +27,20 @@ export interface ProfileReview {
   review?: string;
 }
 
+// Jogo registrado no Diário, como a página do perfil mostra na aba Diário (sem anotações pessoais)
+export interface ProfileJournalEntry {
+  id: string;
+  title: string;
+  coverUrl?: string;
+  platform: string;                 // Id da plataforma ou o nome digitado à mão (console)
+  status?: GameLogStatus;
+  rating?: number;                  // 0,5 a 5
+  startedOn?: string;               // AAAA-MM-DD
+  finishedOn?: string;              // AAAA-MM-DD
+  date?: string;                    // AAAA-MM-DD usada na linha do tempo (término, início ou último dia jogado)
+  playtimeSeconds: number;
+}
+
 export interface ProfileListGame {
   title: string;
   coverUrl?: string;                // Só endereço público
@@ -180,6 +194,7 @@ export interface PlayerProfile {
   background?: { imageUrl?: string; videoUrl?: string };
   web?: ProfileWebExtras;           // Só na exportação
   ratings?: ProfileReview[];        // Só na exportação: jogos com nota ou resenha (aba Avaliações da página)
+  journal?: ProfileJournalEntry[];  // Só na exportação: jogos registrados no Diário, sem anotações pessoais
   lists?: ProfileList[];            // Só na exportação: listas e tier lists (seção e aba Listas da página)
   featuredGames: ProfileGame[];
   featuredAchievements: ProfileUnlockedAchievement[];

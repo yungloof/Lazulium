@@ -24,6 +24,8 @@ import { steamProfileService } from './steam-profile.service';
 import { isBetaTester, profileTagsFor } from '@shared/constants/profile-tags';
 import { describeError, logBackgroundFailure, sleep } from '../metadata/http';
 import { reviewDateOf, sortByReviewDate } from '@shared/utils/review-order';
+import { parseEditionPrefs } from '@shared/utils/editions';
+import { exportableJournal } from './profile-journal';
 import { exportableLists } from './profile-lists';
 
 const MAX_ACHIEVEMENT_CHOICES = 300;
@@ -500,6 +502,7 @@ class ProfileService {
         badges: steam?.badges
       },
       ratings: this.exportableRatings(),
+      journal: exportableJournal(db.getGames(), parseEditionPrefs(db.getSettings())),
       lists: exportableLists(db.getGameLists(), new Map(db.getGames().map((g) => [g.id, g]))),
       achievementChoices: [],
       activityByDay: {},

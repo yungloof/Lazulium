@@ -304,5 +304,59 @@
       "date": "2026-01-05",
       "review": "Parei no meio, mas pretendo voltar."
     }
+  ],
+  "journal": [
+    {
+      "id": "steam-413150",
+      "title": "Stardew Valley",
+      "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/413150/library_600x900.jpg",
+      "platform": "steam",
+      "status": "playing",
+      "startedOn": "2026-10-20",
+      "date": "2026-10-20",
+      "playtimeSeconds": 309960
+    },
+    {
+      "id": "steam-1145360",
+      "title": "Hades",
+      "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/library_600x900.jpg",
+      "platform": "steam",
+      "status": "completed",
+      "rating": 5,
+      "startedOn": "2026-09-10",
+      "finishedOn": "2026-10-12",
+      "date": "2026-10-12",
+      "playtimeSeconds": 40464
+    },
+    {
+      "id": "steam-367520",
+      "title": "Hollow Knight",
+      "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/367520/library_600x900.jpg",
+      "platform": "steam",
+      "status": "finished",
+      "rating": 4.5,
+      "finishedOn": "2026-08-02",
+      "date": "2026-08-02",
+      "playtimeSeconds": 93600
+    },
+    {
+      "id": "log-1",
+      "title": "Celeste",
+      "platform": "Switch",
+      "status": "finished",
+      "rating": 4,
+      "finishedOn": "2026-03-20",
+      "date": "2026-03-20",
+      "playtimeSeconds": 36000
+    },
+    {
+      "id": "steam-264710",
+      "title": "Subnautica",
+      "coverUrl": "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/264710/library_600x900.jpg",
+      "platform": "steam",
+      "status": "paused",
+      "date": "2026-01-05",
+      "playtimeSeconds": 7200
+    }
   ]
 }

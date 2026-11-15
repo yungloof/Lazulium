@@ -126,6 +126,14 @@
     .post .body.clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
     .post .more { margin-top: 4px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
     .post .more:hover { text-decoration: underline; }
+    .post .c.blank { display: flex; align-items: center; justify-content: center; padding: 8px; color: var(--muted); font-size: 11px; text-align: center; }
+    .journal-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .journal-stats > div { padding: 12px 16px; border-right: 1px solid var(--line); }
+    .journal-stats > div:last-child { border-right: 0; }
+    .journal-stats b { display: block; font-size: 20px; font-weight: 400; color: #fff; }
+    .journal-stats span { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+    .journal-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+    .journal-filters .tab { display: inline-flex; align-items: center; padding: 6px 12px; font-size: 13px; }
     .empty { padding: 18px; color: var(--muted); }
     /* Listas: cartões com capas sobrepostas (em proporção da largura, nunca vazam) e a lista aberta */
     .list-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -194,6 +202,9 @@
       .rare-grid { grid-template-columns: minmax(0, 1fr); }
       .post { grid-template-columns: 72px minmax(0, 1fr); }
       .post .c { width: 72px; }
+      .journal-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .journal-stats > div:nth-child(even) { border-right: 0; }
+      .journal-stats > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
     }
   </style>
 </head>
@@ -320,15 +331,21 @@
       return box;
     }
 
-    function post(r) {
-      const text = typeof r.review === 'string' ? r.review.trim() : '';
+    function reviewBlock(review) {
+      const text = typeof review === 'string' ? review.trim() : '';
+      if (!text) return [null, null];
       const long = text.length > 360 || text.split('\n').length > 5;
-      const body = text ? el('p', { class: 'body' + (long ? ' clamp' : '') }, text) : null;
+      const body = el('p', { class: 'body' + (long ? ' clamp' : '') }, text);
       const more = long ? el('button', { type: 'button', class: 'more' }, 'Ler mais') : null;
       if (more) more.addEventListener('click', () => { const closed = body.classList.toggle('clamp'); more.textContent = closed ? 'Ler mais' : 'Ler menos'; });
+      return [body, more];
+    }
+
+    function post(r) {
+      const [body, more] = reviewBlock(r.review);
       const status = STATUS_LABEL[r.status];
       return el('article', { class: 'post' },
-        image(r.coverUrl, r.title, 'c') || el('div', { class: 'c' }),
+        image(r.coverUrl, r.title, 'c') || el('div', { class: 'c blank', title: r.title }, r.title),
         el('div', { style: 'min-width:0' },
           el('div', { class: 'head' }, el('b', { title: r.title }, r.title), r.date ? el('span', null, '· ' + longDate(r.date)) : null),
           el('div', { class: 'meta' },
@@ -530,8 +547,8 @@
       }
     }
 
-    // Aba atual da página: a visão geral ou os jogos avaliados
-    const view = { tab: 'overview', onlyReviews: false, listId: null };
+    // Aba atual da página: visão geral, avaliações, diário ou listas
+    const view = { tab: 'overview', onlyReviews: false, journalStatus: 'all', listId: null };
 
     const COLLAGE_SIZE = 5;
     const COLLAGE_STEP = (100 - 34) / (COLLAGE_SIZE - 1);
@@ -607,24 +624,126 @@
         : el('p', { class: 'panel empty' }, 'Nenhuma resenha escrita ainda.')];
     }
 
+    const JOURNAL_STATUS_ORDER = ['playing', 'finished', 'completed', 'backlog', 'paused', 'endless', 'dropped'];
+    const monthKey = (entry) => (typeof entry.date === 'string' && /^\d{4}-\d{2}/.test(entry.date) ? entry.date.slice(0, 7) : 'sem-data');
+    const monthLabel = (ym) => {
+      if (ym === 'sem-data') return 'Sem data';
+      const date = new Date(ym + '-15T12:00:00');
+      if (isNaN(date)) return 'Sem data';
+      const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      return label.charAt(0).toUpperCase() + label.slice(1);
+    };
+    const journalDatesText = (entry) => {
+      const start = entry.startedOn ? longDate(entry.startedOn) : '';
+      const end = entry.finishedOn ? longDate(entry.finishedOn) : '';
+      if (start && end && entry.startedOn !== entry.finishedOn) return 'Início: ' + start + ' · Término: ' + end;
+      if (end) return 'Finalizado em ' + end;
+      if (start) return 'Iniciado em ' + start;
+      return entry.date ? longDate(entry.date) : '';
+    };
+
+    function journalEntryRow(entry, reviewText) {
+      const [body, more] = reviewBlock(reviewText);
+      const status = STATUS_LABEL[entry.status];
+      const datesText = journalDatesText(entry);
+      const canReact = entry.rating > 0 || Boolean(reviewText);
+      return el('article', { class: 'post' },
+        image(entry.coverUrl, entry.title, 'c') || el('div', { class: 'c blank', title: entry.title }, entry.title),
+        el('div', { style: 'min-width:0' },
+          el('div', { class: 'head' }, el('b', { title: entry.title }, entry.title), datesText ? el('span', null, '· ' + datesText) : null),
+          el('div', { class: 'meta' },
+            status ? el('span', null, el('i', { class: 'dot', style: 'background:' + STATUS_COLOR[entry.status] }), status) : null,
+            entry.rating > 0 ? stars(entry.rating) : null,
+            entry.playtimeSeconds > 0 ? el('span', null, hours(entry.playtimeSeconds)) : null,
+            el('span', null, 'em ' + (PLATFORM_LABEL[entry.platform] || entry.platform))),
+          body, more, canReact ? reactBar(reviewTarget(entry)) : null));
+    }
+
+    function renderJournal(profile) {
+      const all = Array.isArray(profile.journal) ? profile.journal : [];
+      const counts = new Map();
+      for (const e of all) if (e.status) counts.set(e.status, (counts.get(e.status) || 0) + 1);
+      if (view.journalStatus !== 'all' && !counts.get(view.journalStatus)) view.journalStatus = 'all';
+      const shown = view.journalStatus === 'all' ? all : all.filter((e) => e.status === view.journalStatus);
+
+      const statBox = (label, value) => el('div', null, el('b', null, String(value)), el('span', null, label));
+      const finishedCount = (counts.get('finished') || 0) + (counts.get('completed') || 0);
+      const stats = el('div', { class: 'panel journal-stats' },
+        statBox('Registrados', all.length),
+        statBox('Zerados', finishedCount),
+        statBox('Jogando', counts.get('playing') || 0),
+        statBox('Quero jogar', counts.get('backlog') || 0));
+
+      const statusChip = (id, label, count, dotColor) => {
+        const node = el('button', { type: 'button', class: 'tab', 'aria-selected': String(view.journalStatus === id) },
+          dotColor ? el('i', { class: 'dot', style: 'background:' + dotColor }) : null,
+          label,
+          el('small', null, String(count)));
+        node.addEventListener('click', () => { view.journalStatus = id; renderContent(profile, profile.web || {}); });
+        return node;
+      };
+      const filters = el('div', { class: 'journal-filters' },
+        statusChip('all', 'Todos', all.length),
+        ...JOURNAL_STATUS_ORDER.filter((s) => counts.get(s) > 0).map((s) => statusChip(s, STATUS_LABEL[s], counts.get(s), STATUS_COLOR[s])));
+
+      const reviewById = new Map();
+      const reviewByTitle = new Map();
+      for (const r of profile.ratings || []) {
+        const text = typeof r.review === 'string' ? r.review.trim() : '';
+        if (!text) continue;
+        if (r.id) reviewById.set(r.id, text);
+        const tk = titleKey(r.title);
+        if (tk && !reviewByTitle.has(tk)) reviewByTitle.set(tk, text);
+      }
+
+      if (!shown.length) return [stats, filters, el('p', { class: 'panel empty' }, 'Nenhum jogo nesse filtro.')];
+
+      const byMonth = new Map();
+      for (const entry of shown) {
+        const key = monthKey(entry);
+        const bucket = byMonth.get(key);
+        if (bucket) bucket.push(entry);
+        else byMonth.set(key, [entry]);
+      }
+      const sections = [...byMonth.entries()].map(([key, items]) =>
+        section(monthLabel(key), items.length === 1 ? '1 jogo' : items.length + ' jogos',
+          el('div', { class: 'panel posts' }, items.map((e) =>
+            journalEntryRow(e, reviewById.get(e.id) || reviewByTitle.get(titleKey(e.title)) || '')))));
+      return [stats, filters, ...sections];
+    }
+
     function renderContent(profile, web) {
       const content = document.getElementById('content');
       content.replaceChildren();
       const ratingsCount = (profile.ratings || []).length;
+      const journalCount = Array.isArray(profile.journal) ? profile.journal.length : 0;
       const listsCount = Array.isArray(profile.lists) ? profile.lists.length : 0;
-      if (ratingsCount || listsCount) {
+      if (ratingsCount || journalCount || listsCount) {
+        const activeTab =
+          (view.tab === 'ratings' && ratingsCount) ||
+          (view.tab === 'journal' && journalCount) ||
+          (view.tab === 'lists' && listsCount)
+            ? view.tab
+            : 'overview';
         const tab = (id, label, count) => {
-          const node = el('button', { type: 'button', class: 'tab', role: 'tab', 'aria-selected': String(view.tab === id) }, label, count ? el('small', null, String(count)) : null);
+          const node = el('button', { type: 'button', class: 'tab', role: 'tab', 'aria-selected': String(activeTab === id) }, label, count ? el('small', null, String(count)) : null);
           node.addEventListener('click', () => { view.tab = id; view.listId = null; renderContent(profile, web); });
           return node;
         };
         content.append(el('nav', { class: 'tabs', role: 'tablist', 'aria-label': 'Partes do perfil' },
-          tab('overview', 'Visão geral'), ratingsCount ? tab('ratings', 'Avaliações', ratingsCount) : null, listsCount ? tab('lists', 'Listas', listsCount) : null));
-        if (view.tab === 'ratings' && ratingsCount) {
+          tab('overview', 'Visão geral'),
+          ratingsCount ? tab('ratings', 'Avaliações', ratingsCount) : null,
+          journalCount ? tab('journal', 'Diário', journalCount) : null,
+          listsCount ? tab('lists', 'Listas', listsCount) : null));
+        if (activeTab === 'ratings') {
           content.append(...renderRatings(profile));
           return;
         }
-        if (view.tab === 'lists' && listsCount) {
+        if (activeTab === 'journal') {
+          content.append(...renderJournal(profile));
+          return;
+        }
+        if (activeTab === 'lists') {
           content.append(...renderLists(profile).filter(Boolean));
           return;
         }

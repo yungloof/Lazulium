@@ -6,6 +6,7 @@ import { Readable } from 'stream';
 import { app, nativeImage, shell } from 'electron';
 import { PlayerProfile, ProfileGame } from '@shared/types/profile';
 import { profileService } from '../profile/profile.service';
+import { maskShowcaseJournal } from '../profile/profile-journal';
 import { createServer, Server } from 'http';
 import { AddressInfo } from 'net';
 import { ActivityEvent } from '@shared/types/activity';
@@ -851,6 +852,10 @@ class SocialService {
           return { ...r, coverUrl: (game && publicCoverOf(game)) || undefined, playtimeSeconds: settings.sharePlaytime ? r.playtimeSeconds : 0 };
         })
       : [];
+    showcase.journal = maskShowcaseJournal(showcase.journal, settings, (id) => {
+      const game = db.getGameById(id);
+      return (game && publicCoverOf(game)) || undefined;
+    });
     if (!settings.sharePlaytime) {
       showcase.totals = { ...showcase.totals, playtimeSeconds: 0 };
       showcase.recentPlaytimeSeconds = 0;
