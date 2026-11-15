@@ -4,6 +4,22 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 3.0.0 — 14 de novembro de 2026
+
+A aba Amigos ficou muito mais interativa, agora dá para montar listas junto com a turma, a vitrine do seu perfil ganhou o seu Diário e você pode sincronizar suas anotações, listas e favoritos entre PCs.
+
+### Novidades
+
+- **Status, como no Discord.** Escolha entre **Disponível**, **Ausente**, **Não perturbar** (pausa os avisos na área de trabalho) e **Invisível**, com opção de prazo (15 minutos, 1 hora, 8 horas, 24 horas, 3 dias ou até você mudar). Se você deixar o PC parado sem nenhum jogo aberto, seu status muda para **Ausente** sozinho.
+- **Amigos na página do jogo.** Veja quais amigos já jogaram aquele jogo direto na página dele, com horas jogadas, status do Diário, nota e resenha — sempre respeitando o que cada pessoa escolheu deixar visível.
+- **Conquistas lado a lado.** Na página do jogo, a barra de conquistas de cada amigo compara o progresso dele com o seu quando a lista de conquistas é a mesma. No perfil do amigo, a nova aba **Comparar** coloca os jogos que vocês dois têm lado a lado com horas, conquistas e notas.
+- **Curtir e comentar.** Curta e comente as resenhas e listas dos seus amigos (no app e na vitrine do perfil) e receba avisos na aba *Amigos* quando alguém curtir, comentar no que é seu ou responder onde você comentou. Dá para ligar ou desligar esses avisos em *Configurações → Contas*.
+- **Listas em grupo.** Em *Listas → Nova lista*, ative **Lista em grupo** para convidar amigos da sua conta Lazulium e montar uma lista juntos: quem participa pode adicionar, remover e reordenar jogos na mesma lista.
+- **Sincronização entre PCs.** Em *Configurações → Contas*, a nova chave **Sincronizar entre PCs** (desligada por padrão) guarda uma cópia privada do seu Diário — incluindo suas anotações pessoais —, favoritos, listas e categorias na sua conta para juntar tudo ao abrir o Lazulium em outro computador. Só você acessa essa cópia: seus amigos nunca veem, edições feitas nos dois PCs se juntam pelo item mais novo sem perder nada e você pode apagar a cópia da nuvem quando quiser.
+- **Diário na vitrine do perfil.** A página do perfil (vista pelos amigos no app ou publicada na web) agora traz a aba **Diário**, reunindo jogos registrados, status, datas, notas e resenhas públicas — sem nunca expor suas anotações pessoais.
+
+---
+
 ## 2.10.0 — 14 de novembro de 2026
 
 ### Novidades

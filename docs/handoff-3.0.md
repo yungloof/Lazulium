@@ -64,7 +64,7 @@ Mexeu em `library-sync.ts`: acrescente o caso em `tests/shared/library-sync.test
 
 ### 3.2 Electron 46
 
-Em 14/11/2026 o 46 ainda é alpha (`npm view electron dist-tags`: latest 45.3.2, alpha 46.0.0-alpha.10). **Esperar a versão estável.** O `safeStorage` assíncrono já foi feito. Quando sair: subir `electron` no `package.json`, ler as quebras da versão, `npm run typecheck`, `npm test`, build de teste e passada em modo silencioso.
+Decidido em 14/11/2026: **a 3.0 sai no Electron 45**, e o **Electron 46 fica para uma 3.0.x** quando sair a versão estável (`npm view electron dist-tags`: latest 45.3.2, alpha 46.0.0-alpha.10). O `safeStorage` assíncrono já foi feito. Quando sair o estável do 46: subir `electron` no `package.json`, ler as quebras da versão, `npm run typecheck`, `npm test`, build de teste e passada em modo silencioso.
 
 ### 3.3 Lançamento da 3.0
 
