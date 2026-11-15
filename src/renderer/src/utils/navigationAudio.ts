@@ -1,10 +1,38 @@
-// Sintetizador de efeitos sonoros sutis de navegação via Web Audio API (sem dependência de arquivos externos)
+export const NAV_AUDIO_SETTING_KEYS = {
+  enabled: 'navigationSoundEnabled',
+  volume: 'navigationSoundVolume'
+} as const;
+
+export interface NavAudioSettings {
+  enabled: boolean;
+  volume: number; // 0..100
+}
+
+export function parseNavAudioSettings(settings?: Record<string, string>): NavAudioSettings {
+  const rawEnabled = settings?.[NAV_AUDIO_SETTING_KEYS.enabled];
+  const enabled = rawEnabled === undefined || rawEnabled === '' ? true : rawEnabled === 'true';
+  const rawVolume = Number(settings?.[NAV_AUDIO_SETTING_KEYS.volume]);
+  const volume = Number.isFinite(rawVolume) ? Math.max(0, Math.min(100, Math.round(rawVolume))) : 100;
+  return { enabled, volume };
+}
+
+interface ToneStep {
+  type?: OscillatorType;
+  fromFreq: number;
+  toFreq?: number;
+  duration: number;
+  gain: number;
+  delay?: number;
+}
+
+// Sintetizador de efeitos sonoros sutis de navegação e cerimônias via Web Audio API (sem arquivos externos)
 class NavigationAudio {
   private ctx: AudioContext | null = null;
   private enabled: boolean = true;
+  private volume: number = 1;
 
-  private getContext(): AudioContext | null {
-    if (!this.enabled) return null;
+  protected getContext(): AudioContext | null {
+    if (!this.enabled || this.volume <= 0) return null;
     if (!this.ctx && typeof window !== 'undefined') {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
@@ -25,147 +53,94 @@ class NavigationAudio {
     return this.enabled;
   }
 
-  /**
-   * Clique suave ao mover o foco entre jogos ou abas
-   */
-  public playMove() {
+  public setVolume(percent: number) {
+    if (!Number.isFinite(percent)) return;
+    this.volume = Math.max(0, Math.min(100, Math.round(percent))) / 100;
+  }
+
+  public getVolume(): number {
+    return Math.round(this.volume * 100);
+  }
+
+  protected playSteps(steps: ToneStep[]) {
     const ctx = this.getContext();
     if (!ctx) return;
 
+    const baseTime = ctx.currentTime;
     try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+      for (const step of steps) {
+        const start = baseTime + (step.delay ?? 0);
+        const end = start + step.duration;
+        const startGain = Math.max(0.0002, step.gain * this.volume);
+        const endGain = Math.min(0.001, startGain * 0.05);
 
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(420, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(260, ctx.currentTime + 0.035);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
 
-      gain.gain.setValueAtTime(0.04, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.035);
+        osc.type = step.type ?? 'sine';
+        osc.frequency.setValueAtTime(step.fromFreq, start);
+        if (step.toFreq && step.toFreq !== step.fromFreq) {
+          osc.frequency.exponentialRampToValueAtTime(step.toFreq, end);
+        }
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(startGain, start);
+        gain.gain.exponentialRampToValueAtTime(endGain, end);
 
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.035);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(start);
+        osc.stop(end);
+      }
     } catch {
       // AudioContext não liberado pelo navegador ainda
     }
   }
 
   /**
+   * Clique suave ao mover o foco entre jogos ou abas
+   */
+  public playMove() {
+    this.playSteps([{ type: 'sine', fromFreq: 420, toFreq: 260, duration: 0.035, gain: 0.04 }]);
+  }
+
+  /**
    * Som de confirmação ao selecionar ou abrir detalhes
    */
   public playSelect() {
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(520, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.07);
-
-      gain.gain.setValueAtTime(0.06, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.07);
-    } catch {
-      // ignora
-    }
+    this.playSteps([{ type: 'triangle', fromFreq: 520, toFreq: 880, duration: 0.07, gain: 0.06 }]);
   }
 
   /**
    * Som sutil ao voltar ou fechar modal
    */
   public playBack() {
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(480, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.05);
-
-      gain.gain.setValueAtTime(0.05, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.05);
-    } catch {
-      // ignora
-    }
+    this.playSteps([{ type: 'sine', fromFreq: 480, toFreq: 300, duration: 0.05, gain: 0.05 }]);
   }
 
   /**
    * Som de estrelinha / favorito
    */
   public playFavorite() {
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    try {
-      const now = ctx.currentTime;
-      [780, 1170].forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now + i * 0.03);
-
-        gain.gain.setValueAtTime(0.05, now + i * 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.03 + 0.08);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(now + i * 0.03);
-        osc.stop(now + i * 0.03 + 0.08);
-      });
-    } catch {
-      // ignora
-    }
+    this.playSteps([
+      { type: 'sine', fromFreq: 780, duration: 0.08, gain: 0.05, delay: 0 },
+      { type: 'sine', fromFreq: 1170, duration: 0.08, gain: 0.05, delay: 0.03 }
+    ]);
   }
 
   /**
    * Som ao alternar abas de filtro (LB / RB)
    */
   public playTab() {
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(380, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(460, ctx.currentTime + 0.03);
-
-      gain.gain.setValueAtTime(0.04, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.03);
-    } catch {
-      // ignora
-    }
+    this.playSteps([{ type: 'sine', fromFreq: 380, toFreq: 460, duration: 0.03, gain: 0.04 }]);
   }
 }
 
 export const navAudio = new NavigationAudio();
+
+export function applyNavAudioSettings(settings?: Record<string, string>): NavAudioSettings {
+  const parsed = parseNavAudioSettings(settings);
+  navAudio.setEnabled(parsed.enabled);
+  navAudio.setVolume(parsed.volume);
+  return parsed;
+}

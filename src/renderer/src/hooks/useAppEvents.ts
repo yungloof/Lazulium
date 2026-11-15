@@ -5,6 +5,7 @@ import { useCategoriesStore } from '../stores/useCategoriesStore';
 import { useListsStore } from '../stores/useListsStore';
 import { useUiStore } from '../stores/useUiStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
+import { applyNavAudioSettings } from '../utils/navigationAudio';
 import { scanLibraries } from '../utils/gameActions';
 import { isNewerVersion } from '@shared/utils/version';
 import { parseEditionPrefs } from '@shared/utils/editions';
@@ -31,6 +32,7 @@ export function useAppEvents(): void {
         // As escolhas de lojas juntadas vêm antes dos jogos: a grade já abre com cada jogo uma vez
         const [loaded, settings] = await Promise.all([window.electronAPI?.getGames(), window.electronAPI?.getSettings().catch(() => undefined)]);
         library.setEditionPrefs(parseEditionPrefs(settings));
+        applyNavAudioSettings(settings);
         if (loaded && loaded.length > 0) {
           library.setGames(loaded);
           library.setIsLoaded(true);

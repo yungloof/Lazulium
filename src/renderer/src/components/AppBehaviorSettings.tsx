@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { Volume2 } from 'lucide-react';
+import { NAV_AUDIO_SETTING_KEYS, navAudio, parseNavAudioSettings } from '../utils/navigationAudio';
 import { Select } from './Select';
-import { Notice } from './ui';
+import { Notice, focusRing } from './ui';
 import { SettingRow, SettingsGroup, ToggleRow } from './settings/controls';
 
 const HOTKEYS = [
@@ -44,6 +46,8 @@ export const AppBehaviorSettings: React.FC = () => {
   const [idleThreshold, setIdleThreshold] = useState('15');
   const [hotkey, setHotkey] = useState('Control+F12');
   const [hotkeyBusy, setHotkeyBusy] = useState(false);
+  const [navSoundEnabled, setNavSoundEnabled] = useState(true);
+  const [navSoundVolume, setNavSoundVolume] = useState(100);
 
   useEffect(() => {
     window.electronAPI?.getScreenshotHotkey().then(setHotkey).catch(() => undefined);
@@ -54,6 +58,9 @@ export const AppBehaviorSettings: React.FC = () => {
         setDiscountIdle(readBool(settings.discountIdleTime, true));
         setTrackExternal(readBool(settings.trackExternalGames, true));
         setIdleThreshold(settings.idleThresholdMinutes || '15');
+        const audio = parseNavAudioSettings(settings);
+        setNavSoundEnabled(audio.enabled);
+        setNavSoundVolume(audio.volume);
       })
       .catch(() => undefined);
   }, []);
@@ -128,6 +135,50 @@ export const AppBehaviorSettings: React.FC = () => {
           <div className="px-4 py-2.5">
             <Notice>Outro programa está usando essa tecla: escolha outra.</Notice>
           </div>
+        )}
+      </SettingsGroup>
+
+      <SettingsGroup title="Som de navegação">
+        <ToggleRow
+          label="Sons ao navegar"
+          hint="Cliques curtos ao andar pelos jogos, abrir telas e favoritar."
+          checked={navSoundEnabled}
+          onChange={(checked) => {
+            setNavSoundEnabled(checked);
+            navAudio.setEnabled(checked);
+            void window.electronAPI?.setSetting(NAV_AUDIO_SETTING_KEYS.enabled, String(checked));
+            if (checked) navAudio.playSelect();
+          }}
+        />
+        {navSoundEnabled && (
+          <SettingRow
+            label="Volume dos sons"
+            hint={navSoundVolume === 0 ? 'Sem som, mesmo com a chave ligada.' : 'Altura dos sons de navegação e conquistas.'}
+          >
+            <Volume2 className="w-4 h-4 text-slate-400" aria-hidden="true" />
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={navSoundVolume}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setNavSoundVolume(next);
+                navAudio.setVolume(next);
+                void window.electronAPI?.setSetting(NAV_AUDIO_SETTING_KEYS.volume, String(next));
+              }}
+              onPointerUp={() => navAudio.playMove()}
+              onKeyUp={(e) => {
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                  navAudio.playMove();
+                }
+              }}
+              aria-label="Volume dos sons de navegação"
+              className={`w-36 accent-indigo-400 rounded ${focusRing}`}
+            />
+            <span className="w-9 text-right text-xs tabular-nums text-slate-300">{navSoundVolume}%</span>
+          </SettingRow>
         )}
       </SettingsGroup>
     </div>

@@ -75,3 +75,4 @@ Nenhuma destas tarefas faz pedido novo ao servidor. Sempre com o foco visível d
 ## 4. Novidades para o CHANGELOG (o Antigravity anota aqui)
 
 <!-- Uma linha por novidade, na voz de quem joga. Ex.: "- Conquistas novas ganham uma comemoração (dá para desligar em Comportamento)." -->
+- **Som de navegação:** dá para ligar, desligar e ajustar o volume dos cliques de navegação em *Configurações → Comportamento*.

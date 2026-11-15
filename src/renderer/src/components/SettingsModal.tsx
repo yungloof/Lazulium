@@ -35,7 +35,7 @@ const SECTIONS: Section[] = [
   { id: 'appearance', label: 'Aparência', icon: Palette, description: 'Cores, fontes e cantos.', render: () => <AppearanceSettings /> },
   { id: 'library', label: 'Biblioteca e emuladores', icon: Library, description: 'De onde vêm os seus jogos e o que fica escondido.', render: () => <LibrarySettings /> },
   { id: 'backup', label: 'Backup de saves', icon: HardDriveDownload, description: 'Cópias dos seus saves neste PC e, com o Google Drive conectado, na nuvem.', render: () => <BackupOverviewSettings /> },
-  { id: 'behavior', label: 'Comportamento', icon: MonitorCog, description: 'Janela, contagem de horas e capturas de tela.', render: () => <AppBehaviorSettings /> },
+  { id: 'behavior', label: 'Comportamento', icon: MonitorCog, description: 'Janela, contagem de horas, capturas de tela e sons.', render: () => <AppBehaviorSettings /> },
   {
     id: 'advanced',
     label: 'Avançado',
