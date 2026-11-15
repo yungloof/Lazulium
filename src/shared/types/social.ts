@@ -82,6 +82,16 @@ export interface SocialNowPlaying {
 
 export interface SocialFriend extends SocialUser {
   nowPlaying: SocialNowPlaying | null;
+  muted?: SocialMute | null;        // "Dar um tempo": só você vê. Servidor antigo não manda
+}
+
+// Silenciado até `until` (null = até desfazer)
+export interface SocialMute {
+  until: string | null;
+}
+
+export interface SocialBlockedUser extends SocialUser {
+  blockedAt: string;
 }
 
 export interface SocialActivity {
@@ -117,6 +127,7 @@ export interface SocialSummary {
 
 export interface SocialFriendProfile {
   user: SocialUser;
+  muted?: SocialMute | null;
   nowPlaying: SocialNowPlaying | null;
   summary: SocialSummary | null;
   activities: SocialActivity[];

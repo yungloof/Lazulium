@@ -38,6 +38,13 @@ export function registerSocialHandlers(): void {
   handle(IPC_CHANNELS.SOCIAL_ACCEPT_INVITE, (_event, code: string) => socialService.acceptInvite(String(code ?? '')));
   handle(IPC_CHANNELS.SOCIAL_FRIENDS, () => socialService.getFriends());
   handle(IPC_CHANNELS.SOCIAL_REMOVE_FRIEND, (_event, friendId: string) => socialService.removeFriend(String(friendId ?? '')));
+  handle(IPC_CHANNELS.SOCIAL_MUTE_FRIEND, (_event, friendId: unknown, until: unknown) =>
+    socialService.muteFriend(String(friendId ?? ''), typeof until === 'string' ? until : null)
+  );
+  handle(IPC_CHANNELS.SOCIAL_UNMUTE_FRIEND, (_event, friendId: unknown) => socialService.unmuteFriend(String(friendId ?? '')));
+  handle(IPC_CHANNELS.SOCIAL_BLOCK_USER, (_event, userId: unknown) => socialService.blockUser(String(userId ?? '')));
+  handle(IPC_CHANNELS.SOCIAL_UNBLOCK_USER, (_event, userId: unknown) => socialService.unblockUser(String(userId ?? '')));
+  handle(IPC_CHANNELS.SOCIAL_BLOCKED, () => socialService.getBlocked());
   handle(IPC_CHANNELS.SOCIAL_FEED, (_event, before?: string) => socialService.getFeed(typeof before === 'string' ? before : undefined));
   handle(IPC_CHANNELS.SOCIAL_FRIEND_SHOWCASE, (_event, friendId: string) => socialService.getFriendShowcaseUrl(String(friendId ?? '')));
   handle(IPC_CHANNELS.SOCIAL_FRIEND_PROFILE, (_event, friendId: string) => socialService.getFriendProfile(String(friendId ?? '')));

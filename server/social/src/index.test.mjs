@@ -1232,3 +1232,121 @@ test('vitrine: imagens só de endereços conhecidos', async (t) => {
   assert.match(csp, /img-src 'self' data: https:\/\/\*\.steamstatic\.com /);
   assert.ok(!/img-src https:;/.test(csp), 'img-src não aceita qualquer https');
 });
+
+test('dar um tempo: silenciar some com feed, avisos e chamados só para quem silenciou, e volta no prazo', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  const c = await login(s, '76561198000000003');
+  await befriend(s, a, b);
+  await befriend(s, a, c);
+  await s.call('POST', '/v1/me/activities', { token: b.token, body: { events: [event()] } });
+  await s.call('POST', '/v1/me/activities', { token: c.token, body: { events: [event({ id: 'c1' })] } });
+
+  // Só amigo; prazo no futuro e até um ano; sem prazo vale até desfazer
+  assert.equal((await s.call('PUT', `/v1/friends/${b.user.id}/mute`, { token: c.token, body: { until: null } })).status, 404);
+  assert.equal((await s.call('PUT', `/v1/friends/${b.user.id}/mute`, { token: a.token, body: { until: '2020-01-01T00:00:00Z' } })).status, 400);
+  assert.equal((await s.call('PUT', `/v1/friends/${b.user.id}/mute`, { token: a.token, body: { until: '2099-01-01T00:00:00Z' } })).status, 400);
+  const until = new Date(Date.now() + 7 * 24 * 3600_000).toISOString();
+  const muted = await s.call('PUT', `/v1/friends/${b.user.id}/mute`, { token: a.token, body: { until } });
+  assert.deepEqual(muted.body, { muted: { until } });
+
+  // A vê que silenciou; B não fica sabendo
+  const friendsA = (await s.call('GET', '/v1/friends', { token: a.token })).body.friends;
+  assert.deepEqual(friendsA.find((f) => f.id === b.user.id).muted, { until });
+  assert.equal(friendsA.find((f) => f.id === c.user.id).muted, null);
+  assert.equal((await s.call('GET', '/v1/friends', { token: b.token })).body.friends[0].muted, null);
+  assert.deepEqual((await s.call('GET', `/v1/users/${b.user.id}`, { token: a.token })).body.muted, { until });
+
+  // Feed de A sem B
+  assert.deepEqual((await s.call('GET', '/v1/feed', { token: a.token })).body.items.map((i) => i.user.id), [c.user.id]);
+
+  // Curtida de B não vira aviso para A; a de C vira
+  const review = { owner: a.user.id, kind: 'review', target: 't:hades' };
+  await s.call('POST', '/v1/social/like', { token: b.token, body: review });
+  await s.call('POST', '/v1/social/like', { token: c.token, body: review });
+  assert.deepEqual((await s.call('GET', '/v1/me/notifications', { token: a.token })).body.items.map((n) => n.user.id), [c.user.id]);
+
+  // Chamado de B: aceito pelo servidor (B não descobre), mas não chega para A, nem depois
+  assert.equal((await s.call('POST', '/v1/calls', { token: b.token, body: { to: a.user.id } })).status, 200);
+  await s.call('POST', '/v1/calls', { token: c.token, body: { to: a.user.id } });
+  assert.deepEqual((await s.call('GET', '/v1/calls', { token: a.token })).body.incoming.map((x) => x.from.id), [c.user.id]);
+
+  // Prazo vencido: tudo volta sozinho, e o chamado de quando estava silenciado não aparece atrasado
+  s.env.DB.raw.prepare('UPDATE friend_mutes SET until = ?').run(new Date(Date.now() - 1000).toISOString());
+  assert.equal((await s.call('GET', '/v1/friends', { token: a.token })).body.friends.find((f) => f.id === b.user.id).muted, null);
+  assert.equal((await s.call('GET', '/v1/feed', { token: a.token })).body.items.length, 2);
+  assert.equal((await s.call('GET', '/v1/calls', { token: a.token })).body.incoming.length, 0);
+  await worker.scheduled({}, s.env);
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM friend_mutes').get().n, 0);
+
+  // Sem prazo, e desfazer
+  await s.call('PUT', `/v1/friends/${b.user.id}/mute`, { token: a.token, body: { until: null } });
+  assert.deepEqual((await s.call('GET', '/v1/friends', { token: a.token })).body.friends.find((f) => f.id === b.user.id).muted, { until: null });
+  assert.deepEqual((await s.call('DELETE', `/v1/friends/${b.user.id}/mute`, { token: a.token })).body, { muted: null });
+  assert.equal((await s.call('GET', '/v1/feed', { token: a.token })).body.items.length, 2);
+
+  // Apagar a conta leva o silêncio
+  await s.call('PUT', `/v1/friends/${b.user.id}/mute`, { token: a.token, body: { until: null } });
+  await s.call('DELETE', '/v1/me', { token: b.token });
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM friend_mutes').get().n, 0);
+});
+
+test('bloquear: desfaz a amizade, limpa o que a pessoa deixou e nenhum convite vale até desbloquear', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  s.env.PROFILE_PAGE = PAGE;
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  const c = await login(s, '76561198000000003');
+  await befriend(s, a, b);
+  await befriend(s, a, c);
+  const review = { owner: a.user.id, kind: 'review', target: 't:hades' };
+  await s.call('POST', '/v1/social/like', { token: b.token, body: review });
+  await s.call('POST', '/v1/social/comments', { token: b.token, body: { ...review, text: 'chato' } });
+  await s.call('POST', '/v1/social/comments', { token: c.token, body: { ...review, text: 'legal' } });
+  await s.call('POST', '/v1/calls', { token: b.token, body: { to: a.user.id } });
+  await s.call('PUT', '/v1/me/showcase', { token: a.token, body: SHOWCASE });
+  const link = (await s.call('POST', `/v1/users/${a.user.id}/view`, { token: b.token })).body.url;
+  await s.call('PUT', `/v1/friends/${b.user.id}/mute`, { token: a.token, body: { until: null } });
+
+  assert.equal((await s.call('POST', `/v1/friends/${a.user.id}/block`, { token: a.token })).status, 400);
+  assert.equal((await s.call('POST', '/v1/friends/00000000-0000-4000-8000-000000000000/block', { token: a.token })).status, 404);
+  assert.equal((await s.call('POST', `/v1/friends/${b.user.id}/block`, { token: a.token })).status, 200);
+
+  // Amizade acabou nos dois lados; curtida, comentário, chamado, link da vitrine e silêncio sumiram
+  assert.deepEqual((await s.call('GET', '/v1/friends', { token: a.token })).body.friends.map((f) => f.id), [c.user.id]);
+  assert.equal((await s.call('GET', '/v1/friends', { token: b.token })).body.friends.length, 0);
+  const thread = (await s.call('GET', `/v1/social/thread?owner=${a.user.id}&kind=review&target=t:hades`, { token: c.token })).body;
+  assert.equal(thread.likes, 0);
+  assert.deepEqual(thread.comments.map((x) => x.text), ['legal']);
+  assert.equal((await s.call('GET', '/v1/calls', { token: a.token })).body.incoming.length, 0);
+  const viaLink = await worker.fetch(new Request(`${link}/like`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(review) }), s.env);
+  assert.equal(viaLink.status, 401);
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM friend_mutes').get().n, 0);
+  assert.equal((await s.call('POST', '/v1/calls', { token: b.token, body: { to: a.user.id } })).status, 404);
+
+  // Convite em qualquer sentido não vale; quem bloqueou fica sabendo por quê
+  const fromA = (await s.call('POST', '/v1/friends/invite', { token: a.token })).body.code;
+  const tryB = await s.call('POST', '/v1/friends/accept', { token: b.token, body: { code: fromA } });
+  assert.deepEqual([tryB.status, tryB.body.error], [404, 'invite_not_found']);
+  const fromB = (await s.call('POST', '/v1/friends/invite', { token: b.token })).body.code;
+  const tryA = await s.call('POST', '/v1/friends/accept', { token: a.token, body: { code: fromB } });
+  assert.deepEqual([tryA.status, tryA.body.error], [409, 'you_blocked']);
+
+  // Lista de bloqueados só de quem bloqueou; desbloquear deixa virar amigo de novo
+  const blocked = (await s.call('GET', '/v1/friends/blocked', { token: a.token })).body.blocked;
+  assert.deepEqual(blocked.map((u) => u.id), [b.user.id]);
+  assert.ok(blocked[0].name && blocked[0].blockedAt);
+  assert.equal((await s.call('GET', '/v1/friends/blocked', { token: b.token })).body.blocked.length, 0);
+  await s.call('DELETE', `/v1/friends/blocked/${b.user.id}`, { token: a.token });
+  assert.equal((await s.call('POST', '/v1/friends/accept', { token: a.token, body: { code: fromB } })).status, 200);
+
+  // Apagar a conta leva o bloqueio
+  await s.call('POST', `/v1/friends/${b.user.id}/block`, { token: a.token });
+  await s.call('DELETE', '/v1/me', { token: a.token });
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM blocks').get().n, 0);
+});

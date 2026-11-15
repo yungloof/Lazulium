@@ -68,7 +68,7 @@ Nenhuma destas tarefas faz pedido novo ao servidor. Sempre com o foco visível d
   - imagens da vitrine só de domínios conhecidos.
 - **C5. A tela da call não toma o foco** e não aceita por Enter sem querer. Continua fora do CHANGELOG (regra 2.4). ✅ Com jogo aberto aparece sem foco; "tô indo" só segurando 0,8 s (mouse, Enter ou A), e nada responde no primeiro 1,2 s.
 - **C6. Backup do D1 cifrado** (script pronto; a chave e o token ficam com a Lazuli). ✅ `npm run backup` em `server/social` (pelo login do wrangler, senha só com a Lazuli, guarda as 8 mais novas); `npm run restore` confere, abre num SQLite ou devolve ao D1. Como usar: `server/social/README.md`.
-- **C7. "Dar um tempo" com amigo** (silenciar com prazo, ou bloquear). Precisa de IPC novo: só depois que o G2 e o G4 estiverem commitados.
+- **C7. "Dar um tempo" com amigo** (silenciar com prazo, ou bloquear). Precisa de IPC novo: só depois que o G2 e o G4 estiverem commitados. ✅ Botão *Dar um tempo* no perfil do amigo (silenciar 1 dia, 1 semana, 1 mês ou até desfazer; bloquear; desfazer amizade) e caixa *Bloqueados* em Amigos. **Antes de soltar a versão:** aplicar o `schema.sql` no D1 e publicar o Worker (tabelas `friend_mutes` e `blocks`).
 
 ---
 
@@ -81,4 +81,5 @@ Nenhuma destas tarefas faz pedido novo ao servidor. Sempre com o foco visível d
 - **Neste dia:** na tela inicial da biblioteca, o Lazulium passa a mostrar lembranças do mesmo dia em anos anteriores (quando você zerou um jogo, fez 100% ou jogou pela primeira vez), com captura de tela e trecho da sua resenha quando houver — tudo só com os dados do seu PC, e some quando não há nada para mostrar.
 - **Teclado na tela para controle:** ao apertar Buscar ou confirmar em um campo de texto ou resenha com o controle, um teclado com acentos em português abre na parte de baixo da mesma janela para digitar sem precisar levantar do sofá.
 - **Retrospectiva em etapas:** a retrospectiva do ano no Perfil agora abre como uma história passo a passo, navegável pelo controle (`LB`/`RB` ou equivalente), e termina com um cartão resumido desenhado no próprio PC para você salvar como imagem sem enviar nada para fora.
+- **Dar um tempo:** no perfil de um amigo, silencie a pessoa por 1 dia, 1 semana, 1 mês ou até desfazer (o que ela faz some do seu feed e os avisos dela param, sem ela saber), bloqueie ou desfaça a amizade. Quem você bloqueou fica em *Amigos → Bloqueados*.
 - **Visual do Lazulium unificado:** o botão JOGAR agora usa o azul vivo do tema do app, deixando para trás o antigo verde herdado.

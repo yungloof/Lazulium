@@ -23,7 +23,9 @@ import {
   SocialSettings,
   SocialStatus,
   SocialSummary,
-  SocialUser
+  SocialUser,
+  SocialBlockedUser,
+  SocialMute
 } from '@shared/types/social';
 import { db } from '../../database/db';
 import { HttpError, describeError, httpRequest, statusError } from '../metadata/http';
@@ -85,6 +87,8 @@ const SERVER_ERRORS: Record<string, string> = {
   invalid_code: 'Esse login expirou. Tente entrar de novo.',
   invite_not_found: 'Código não encontrado ou vencido. Peça um novo.',
   own_invite: 'Esse código é seu. Mande para outra pessoa.',
+  you_blocked: 'Você bloqueou essa pessoa. Desbloqueie em Amigos, em Bloqueados, para aceitar o convite.',
+  invalid_until: 'Esse prazo não vale. Escolha outro.',
   invalid_name: 'O nome precisa ter pelo menos 2 letras.',
   rate_limited: 'Muitos pedidos seguidos. Espere um minuto e tente de novo.',
   not_found: 'Não encontrado. Talvez vocês não sejam mais amigos.',
@@ -442,6 +446,40 @@ class SocialService {
     await this.api('DELETE', `/v1/friends/${friendId}`);
   }
 
+  // ---------- Dar um tempo ----------
+
+  async muteFriend(friendId: string, until: string | null): Promise<SocialMute> {
+    if (!/^[0-9a-f-]{36}$/.test(friendId)) throw new Error('Amigo inválido.');
+    if (until !== null && Number.isNaN(Date.parse(until))) throw new Error('Esse prazo não vale. Escolha outro.');
+    const { muted } = await this.api<{ muted: SocialMute }>('PUT', `/v1/friends/${friendId}/mute`, { until });
+    await this.refreshFriends();
+    return muted;
+  }
+
+  async unmuteFriend(friendId: string): Promise<void> {
+    if (!/^[0-9a-f-]{36}$/.test(friendId)) throw new Error('Amigo inválido.');
+    await this.api('DELETE', `/v1/friends/${friendId}/mute`);
+    await this.refreshFriends();
+  }
+
+  async blockUser(userId: string): Promise<void> {
+    if (!/^[0-9a-f-]{36}$/.test(userId)) throw new Error('Pessoa inválida.');
+    await this.api('POST', `/v1/friends/${userId}/block`);
+    await this.refreshFriends();
+  }
+
+  async unblockUser(userId: string): Promise<void> {
+    if (!/^[0-9a-f-]{36}$/.test(userId)) throw new Error('Pessoa inválida.');
+    await this.api('DELETE', `/v1/friends/blocked/${userId}`);
+  }
+
+  getBlocked = async (): Promise<SocialBlockedUser[]> => (await this.api<{ blocked: SocialBlockedUser[] }>('GET', '/v1/friends/blocked')).blocked;
+
+  // A lista nova vai para a tela e para o aviso de "começou a jogar" logo, sem esperar a próxima consulta
+  private async refreshFriends(): Promise<void> {
+    await this.receiveFriends((await this.api<{ friends: SocialFriend[] }>('GET', '/v1/friends')).friends).catch(() => undefined);
+  }
+
   async getFriends(): Promise<SocialFriend[]> {
     const friends = (await this.api<{ friends: SocialFriend[] }>('GET', '/v1/friends')).friends;
     await this.publishFriends(friends);
@@ -535,7 +573,7 @@ class SocialService {
     const current = new Map(friends.filter((f) => f.nowPlaying).map((f) => [f.id, f.nowPlaying!.gameKey]));
     if (this.friendsPlaying) {
       for (const friend of friends) {
-        if (!friend.nowPlaying || this.friendsPlaying.get(friend.id) === friend.nowPlaying.gameKey) continue;
+        if (!friend.nowPlaying || friend.muted || this.friendsPlaying.get(friend.id) === friend.nowPlaying.gameKey) continue;
         const text = `${friend.name} começou a jogar ${friend.nowPlaying.gameTitle}`;
         notify('Lazulium', text);
         this.friendListener(text);

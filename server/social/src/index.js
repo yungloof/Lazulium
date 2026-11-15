@@ -66,6 +66,7 @@ const COMMENT_WINDOW_MS = 10 * 60_000;
 const MAX_COMMENTS_PER_THREAD = 200;
 const MAX_SUMMARY_TARGETS = 100;
 const MAX_NOTIFICATIONS = 50;
+const MAX_MUTE_MS = 366 * 24 * 60 * 60 * 1000;   // Prazo mais longo de "Dar um tempo"; sem prazo = até desfazer
 // Listas em grupo
 const MAX_GROUP_LISTS_OWNED = 50;
 const MAX_GROUP_LIST_MEMBERS = 30;
@@ -298,6 +299,26 @@ async function areFriends(env, a, b) {
   return !!(await env.DB.prepare('SELECT 1 FROM friendships WHERE user_a = ? AND user_b = ?').bind(x, y).first());
 }
 
+// Silenciados agora (com prazo vencido não conta) e bloqueados: o que deles não chega para userId
+async function mutesOf(env, userId) {
+  const { results } = await env.DB.prepare('SELECT friend_id, until FROM friend_mutes WHERE user_id = ? AND (until IS NULL OR until > ?)')
+    .bind(userId, nowIso())
+    .all();
+  return new Map(results.map((r) => [r.friend_id, { until: r.until ?? null }]));
+}
+
+async function hiddenFrom(env, userId) {
+  const [mutes, { results }] = await Promise.all([
+    mutesOf(env, userId),
+    env.DB.prepare('SELECT blocked_id FROM blocks WHERE user_id = ?').bind(userId).all()
+  ]);
+  return new Set([...mutes.keys(), ...results.map((r) => r.blocked_id)]);
+}
+
+async function isBlocked(env, a, b) {
+  return !!(await env.DB.prepare('SELECT 1 FROM blocks WHERE (user_id = ?1 AND blocked_id = ?2) OR (user_id = ?2 AND blocked_id = ?1)').bind(a, b).first());
+}
+
 async function friendIds(env, userId) {
   const { results } = await env.DB.prepare('SELECT user_b AS id FROM friendships WHERE user_a = ? UNION SELECT user_a AS id FROM friendships WHERE user_b = ?')
     .bind(userId, userId)
@@ -356,6 +377,8 @@ async function handleMe(request, env, auth) {
         'DELETE FROM group_lists WHERE owner_id = ?1',
         'DELETE FROM user_sync WHERE user_id = ?',
         'UPDATE group_list_items SET added_by = NULL WHERE added_by = ?1',
+        'DELETE FROM friend_mutes WHERE user_id = ?1 OR friend_id = ?1',
+        'DELETE FROM blocks WHERE user_id = ?1 OR blocked_id = ?1',
         'DELETE FROM users WHERE id = ?'
       ]
         .map((sql) => env.DB.prepare(sql).bind(user.id))
@@ -509,6 +532,11 @@ async function handleAccept(request, env, auth) {
   const invite = await env.DB.prepare('SELECT user_id, expires_at FROM invites WHERE code = ?').bind(code).first();
   if (!invite || invite.expires_at < nowIso()) throw new HttpError(404, 'invite_not_found');
   if (invite.user_id === auth.user.id) throw new HttpError(400, 'own_invite');
+  // Quem bloqueou fica sabendo por que não deu; quem foi bloqueado vê só "convite não encontrado"
+  if (await env.DB.prepare('SELECT 1 FROM blocks WHERE user_id = ? AND blocked_id = ?').bind(auth.user.id, invite.user_id).first()) {
+    throw new HttpError(409, 'you_blocked');
+  }
+  if (await isBlocked(env, auth.user.id, invite.user_id)) throw new HttpError(404, 'invite_not_found');
   const [a, b] = invite.user_id < auth.user.id ? [invite.user_id, auth.user.id] : [auth.user.id, invite.user_id];
   // O convite vale para uma pessoa: some ao ser usado (código que vazou não vira amizade com estranhos)
   await env.DB.batch([
@@ -546,10 +574,73 @@ async function handleFriends(request, env, auth, friendId) {
   )
     .bind(...ids)
     .all();
+  const mutes = await mutesOf(env, auth.user.id);
   const friends = results
-    .map((row) => ({ ...publicUser(row), ...presenceView(row) }))
+    .map((row) => ({ ...publicUser(row), ...presenceView(row), muted: mutes.get(row.id) ?? null }))
     .sort((x, y) => Number(!!y.nowPlaying) - Number(!!x.nowPlaying) || y.lastSeenAt.localeCompare(x.lastSeenAt));
   return json({ friends });
+}
+
+// ---------- Dar um tempo: silenciar com prazo e bloquear ----------
+
+async function handleMute(request, env, auth, friendId) {
+  if (request.method === 'DELETE') {
+    await env.DB.prepare('DELETE FROM friend_mutes WHERE user_id = ? AND friend_id = ?').bind(auth.user.id, friendId).run();
+    return json({ muted: null });
+  }
+  if (request.method !== 'PUT') throw new HttpError(405, 'method_not_allowed');
+  if (friendId === auth.user.id || !(await areFriends(env, auth.user.id, friendId))) throw new HttpError(404, 'not_found');
+  const body = await readJson(request, 500);
+  let until = null;
+  if (body?.until !== null && body?.until !== undefined) {
+    const ms = typeof body.until === 'string' ? Date.parse(body.until) : NaN;
+    if (!(ms > Date.now() && ms <= Date.now() + MAX_MUTE_MS)) throw new HttpError(400, 'invalid_until');
+    until = new Date(ms).toISOString();
+  }
+  await env.DB.prepare(
+    `INSERT INTO friend_mutes (user_id, friend_id, until, created_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT (user_id, friend_id) DO UPDATE SET until = excluded.until, created_at = excluded.created_at`
+  )
+    .bind(auth.user.id, friendId, until, nowIso())
+    .run();
+  return json({ muted: { until } });
+}
+
+// Bloquear: acaba a amizade, tira as listas em grupo de um com o outro, as curtidas e comentários da pessoa no
+// que é meu, os chamados pendentes e o link da minha vitrine que estiver com ela. Ela não recebe aviso.
+async function handleBlock(env, auth, otherId) {
+  const me = auth.user.id;
+  if (otherId === me) throw new HttpError(400, 'invalid_friend');
+  if (!(await env.DB.prepare('SELECT 1 FROM users WHERE id = ?').bind(otherId).first())) throw new HttpError(404, 'not_found');
+  const [a, b] = otherId < me ? [otherId, me] : [me, otherId];
+  const q = (sql, ...args) => env.DB.prepare(sql).bind(...args);
+  await env.DB.batch([
+    q('DELETE FROM friendships WHERE user_a = ? AND user_b = ?', a, b),
+    q('DELETE FROM group_list_members WHERE user_id = ?1 AND list_id IN (SELECT id FROM group_lists WHERE owner_id = ?2)', otherId, me),
+    q('DELETE FROM group_list_members WHERE user_id = ?1 AND list_id IN (SELECT id FROM group_lists WHERE owner_id = ?2)', me, otherId),
+    q('DELETE FROM reactions WHERE owner_id = ? AND user_id = ?', me, otherId),
+    q('DELETE FROM comments WHERE owner_id = ? AND user_id = ?', me, otherId),
+    q('DELETE FROM calls WHERE (from_id = ?1 AND to_id = ?2) OR (from_id = ?2 AND to_id = ?1)', me, otherId),
+    q('DELETE FROM view_links WHERE owner_id = ?1 AND token IN (SELECT token FROM view_viewers WHERE viewer_id = ?2)', me, otherId),
+    q('DELETE FROM view_viewers WHERE viewer_id = ? AND token NOT IN (SELECT token FROM view_links)', otherId),
+    q('DELETE FROM friend_mutes WHERE (user_id = ?1 AND friend_id = ?2) OR (user_id = ?2 AND friend_id = ?1)', me, otherId),
+    q('INSERT OR IGNORE INTO blocks (user_id, blocked_id, created_at) VALUES (?, ?, ?)', me, otherId, nowIso())
+  ]);
+  return json({ ok: true });
+}
+
+async function handleBlockedList(env, auth) {
+  const { results } = await env.DB.prepare(
+    'SELECT u.*, b.created_at AS blocked_at FROM blocks b JOIN users u ON u.id = b.blocked_id WHERE b.user_id = ? ORDER BY b.created_at DESC'
+  )
+    .bind(auth.user.id)
+    .all();
+  return json({ blocked: results.map((row) => ({ ...publicUser(row), blockedAt: row.blocked_at })) });
+}
+
+async function handleUnblock(env, auth, otherId) {
+  await env.DB.prepare('DELETE FROM blocks WHERE user_id = ? AND blocked_id = ?').bind(auth.user.id, otherId).run();
+  return json({ ok: true });
 }
 
 const activityJson = (row) => ({
@@ -572,7 +663,8 @@ async function handleFeed(url, env, auth) {
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 30, 1), MAX_FEED);
   const before = url.searchParams.get('before');
   const beforeIso = before && !Number.isNaN(Date.parse(before)) ? new Date(before).toISOString() : '9999-12-31T00:00:00.000Z';
-  const ids = await friendIds(env, auth.user.id);
+  const muted = await mutesOf(env, auth.user.id);
+  const ids = (await friendIds(env, auth.user.id)).filter((id) => !muted.has(id));
   if (ids.length === 0) return json({ items: [] });
   const { results: friends } = await env.DB.prepare(`SELECT * FROM users WHERE id IN (${ids.map(() => '?').join(',')})`).bind(...ids).all();
 
@@ -620,6 +712,7 @@ async function handleUser(env, auth, userId) {
   const view = presenceView(row);
   return json({
     user: { ...publicUser(row), lastSeenAt: view.lastSeenAt, presence: view.presence },
+    muted: userId === auth.user.id ? null : ((await mutesOf(env, auth.user.id)).get(userId) ?? null),
     nowPlaying: view.nowPlaying,
     summary,
     activities: results.map(activityJson)
@@ -998,22 +1091,26 @@ async function handleNotifications(url, env, auth) {
   const since = sinceRaw && !Number.isNaN(Date.parse(sinceRaw)) ? new Date(sinceRaw).toISOString() : new Date(Date.now() - 14 * DAY_MS).toISOString();
   const me = auth.user.id;
   const userCols = 'u.id AS u_id, u.custom_name, u.steam_name, u.steam_avatar';
+  // De quem eu silenciei (enquanto vale) ou bloqueei, nada chega
+  const hidden = (col) =>
+    `${col} NOT IN (SELECT friend_id FROM friend_mutes WHERE user_id = ?1 AND (until IS NULL OR until > ?4)) AND ${col} NOT IN (SELECT blocked_id FROM blocks WHERE user_id = ?1)`;
+  const args = [me, since, MAX_NOTIFICATIONS, nowIso()];
   const [likes, comments, replies] = await Promise.all([
     env.DB.prepare(
       `SELECT r.kind, r.target, r.target_title, r.created_at, r.owner_id, ${userCols} FROM reactions r JOIN users u ON u.id = r.user_id
-       WHERE r.owner_id = ? AND r.user_id != ? AND r.created_at > ? ORDER BY r.created_at DESC LIMIT ?`
-    ).bind(me, me, since, MAX_NOTIFICATIONS).all(),
+       WHERE r.owner_id = ?1 AND r.user_id != ?1 AND r.created_at > ?2 AND ${hidden('r.user_id')} ORDER BY r.created_at DESC LIMIT ?3`
+    ).bind(...args).all(),
     env.DB.prepare(
       `SELECT c.id, c.kind, c.target, c.target_title, c.text, c.created_at, c.owner_id, ${userCols} FROM comments c JOIN users u ON u.id = c.user_id
-       WHERE c.owner_id = ? AND c.user_id != ? AND c.created_at > ? ORDER BY c.created_at DESC LIMIT ?`
-    ).bind(me, me, since, MAX_NOTIFICATIONS).all(),
+       WHERE c.owner_id = ?1 AND c.user_id != ?1 AND c.created_at > ?2 AND ${hidden('c.user_id')} ORDER BY c.created_at DESC LIMIT ?3`
+    ).bind(...args).all(),
     env.DB.prepare(
       `SELECT c.id, c.kind, c.target, c.target_title, c.text, c.created_at, c.owner_id, ${userCols}, o.custom_name AS o_custom, o.steam_name AS o_steam
        FROM comments c JOIN users u ON u.id = c.user_id JOIN users o ON o.id = c.owner_id
-       WHERE c.owner_id != ?1 AND c.user_id != ?1 AND c.created_at > ?2
+       WHERE c.owner_id != ?1 AND c.user_id != ?1 AND c.created_at > ?2 AND ${hidden('c.user_id')}
          AND EXISTS (SELECT 1 FROM comments m WHERE m.owner_id = c.owner_id AND m.kind = c.kind AND m.target = c.target AND m.user_id = ?1 AND m.created_at < c.created_at)
        ORDER BY c.created_at DESC LIMIT ?3`
-    ).bind(me, since, MAX_NOTIFICATIONS).all()
+    ).bind(...args).all()
   ]);
   const who = (row) => ({ id: row.u_id, name: row.custom_name || row.steam_name || 'Jogador', avatarUrl: row.steam_avatar || null });
   const base = (row) => ({ kind: row.kind, target: row.target, owner: row.owner_id, title: row.target_title ?? null, user: who(row), at: row.created_at });
@@ -1128,13 +1225,17 @@ async function handleCalls(env, auth) {
       .all()
   ]);
   const stamp = nowIso();
+  // Chamado de quem eu silenciei: conta como entregue, mas não aparece (para quem chamou, fica sem resposta)
+  const hidden = incoming.results.length ? await hiddenFrom(env, auth.user.id) : new Set();
   const marks = [
     ...incoming.results.map((r) => env.DB.prepare('UPDATE calls SET delivered_at = ? WHERE id = ?').bind(stamp, r.call_id)),
     ...answers.results.map((r) => env.DB.prepare('UPDATE calls SET answer_seen = 1 WHERE id = ?').bind(r.call_id))
   ];
   if (marks.length) await env.DB.batch(marks);
   return json({
-    incoming: incoming.results.map((r) => ({ id: r.call_id, from: publicUser(r), createdAt: r.call_at, missed: now - Date.parse(r.call_at) > CALL_RING_MS })),
+    incoming: incoming.results
+      .filter((r) => !hidden.has(r.id))
+      .map((r) => ({ id: r.call_id, from: publicUser(r), createdAt: r.call_at, missed: now - Date.parse(r.call_at) > CALL_RING_MS })),
     answers: answers.results.map((r) => ({ id: r.call_id, user: publicUser(r), answer: r.answer, answeredAt: r.answered_at }))
   });
 }
@@ -1822,6 +1923,12 @@ async function route(request, env) {
   if (path === '/v1/friends/invite') return handleInvite(request, env, auth);
   if (path === '/v1/friends/accept') return handleAccept(request, env, auth);
   if (path === '/v1/friends') return handleFriends(request, env, auth);
+  if (path === '/v1/friends/blocked' && request.method === 'GET') return handleBlockedList(env, auth);
+  const unblock = path.match(/^\/v1\/friends\/blocked\/([0-9a-f-]{36})$/);
+  if (unblock && request.method === 'DELETE') return handleUnblock(env, auth, unblock[1]);
+  const friendAction = path.match(/^\/v1\/friends\/([0-9a-f-]{36})\/(mute|block)$/);
+  if (friendAction?.[2] === 'mute') return handleMute(request, env, auth, friendAction[1]);
+  if (friendAction?.[2] === 'block' && request.method === 'POST') return handleBlock(env, auth, friendAction[1]);
   const friendMatch = path.match(/^\/v1\/friends\/([0-9a-f-]{36})$/);
   if (friendMatch) return handleFriends(request, env, auth, friendMatch[1]);
   if (path === '/v1/feed' && request.method === 'GET') return handleFeed(url, env, auth);
@@ -1857,5 +1964,6 @@ export default {
   async scheduled(_event, env) {
     await retryPurges(env);
     await env.DB.prepare('DELETE FROM calls WHERE created_at < ?').bind(new Date(Date.now() - CALL_TTL_MS).toISOString()).run();
+    await env.DB.prepare('DELETE FROM friend_mutes WHERE until IS NOT NULL AND until < ?').bind(nowIso()).run();
   }
 };

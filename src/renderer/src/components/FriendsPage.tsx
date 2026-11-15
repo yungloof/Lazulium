@@ -9,6 +9,7 @@ import { ActivityCard } from './friends/parts';
 import { NotificationsBox } from './friends/Notifications';
 import { forgetReactions } from '../stores/useReactionsStore';
 import { PresenceAvatar, PresenceLine } from './friends/presence';
+import { BlockedBox, MutedBadge } from './friends/TakeABreak';
 import { PageHeader, emptyBox, pageClass } from './journal/PageLayout';
 import { Button, EmptyState, Notice, SectionHeader, Skeleton, focusRing, inputClass } from './ui';
 
@@ -138,7 +139,10 @@ const FriendRow: React.FC<{ friend: SocialFriend }> = ({ friend }) => {
       <button type="button" onClick={() => openFriend(friend.id)} className={`w-full flex items-center gap-3 rounded-lg px-2.5 py-2 text-left hover:bg-slate-800/50 ${focusRing}`}>
         <PresenceAvatar user={friend} status={presence} />
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-slate-100 truncate">{friend.name}</span>
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">
+            <span className="truncate">{friend.name}</span>
+            {friend.muted && <MutedBadge muted={friend.muted} className="flex-shrink-0" />}
+          </span>
           <PresenceLine status={presence} nowPlaying={friend.nowPlaying} lastSeen={friend.lastSeenAt ? formatSeen(friend.lastSeenAt) : 'há tempo'} />
         </span>
       </button>
@@ -293,6 +297,7 @@ export const FriendsPage: React.FC = () => {
             )}
           </section>
           <InviteBox onFriendAdded={() => void load()} />
+          <BlockedBox />
         </aside>
       </div>
     </div>

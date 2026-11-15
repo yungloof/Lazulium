@@ -89,6 +89,10 @@ A Steam é simulada; o banco é SQLite em memória com o mesmo `schema.sql`.
 | POST | `/v1/friends/accept` | Vira amigo de quem gerou o código |
 | GET | `/v1/friends` | Amigos, com quem está jogando agora |
 | DELETE | `/v1/friends/:id` | Desfaz a amizade |
+| PUT / DELETE | `/v1/friends/:id/mute` | Silencia o amigo até `until` (`null` = até desfazer, no máximo 1 ano) ou tira o silêncio; só quem silenciou sabe |
+| POST | `/v1/friends/:id/block` | Bloqueia: desfaz a amizade e limpa o que a pessoa deixou no que é seu; convite entre os dois não vale (`you_blocked` para quem bloqueou, `invite_not_found` para quem foi bloqueado) |
+| GET | `/v1/friends/blocked` | Quem você bloqueou |
+| DELETE | `/v1/friends/blocked/:id` | Desbloqueia (não refaz a amizade) |
 | GET | `/v1/feed?before=&limit=` | Feed dos amigos, do mais novo para o mais antigo |
 | GET | `/v1/users/:id` | Perfil de um amigo (só amigos) |
 | PUT / DELETE | `/v1/me/showcase` | Vitrine (o JSON do perfil web) |

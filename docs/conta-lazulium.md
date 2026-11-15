@@ -60,7 +60,10 @@ settings     (user_id PK, share_playtime, share_achievements, share_reviews, sha
 | POST | `/v1/me/activities` | O app manda eventos novos (em lotes, idempotente pelo `id`) |
 | PUT | `/v1/me/now-playing` | "Jogando agora" (o tracker manda ao abrir e a cada 5 min) |
 | POST | `/v1/friends/code` / `/v1/friends/accept` | Convite por código ou link |
-| GET | `/v1/friends` | Lista, com quem está jogando agora |
+| GET | `/v1/friends` | Lista, com quem está jogando agora e `muted` (quem eu silenciei, só eu vejo) |
+| PUT / DELETE | `/v1/friends/:id/mute` | "Dar um tempo": silencia até `until` (ou `null`, até desfazer; no máximo 1 ano) ou tira o silêncio. Some do meu feed, dos avisos, dos chamados e do "começou a jogar" |
+| POST | `/v1/friends/:id/block` | Bloqueia: desfaz a amizade, tira curtidas e comentários da pessoa no que é meu, chamados pendentes e o link da minha vitrine com ela; convites entre os dois param de valer |
+| GET / DELETE | `/v1/friends/blocked` / `/v1/friends/blocked/:id` | Quem eu bloqueei / desbloquear (não refaz a amizade) |
 | GET | `/v1/feed?before=` | Feed dos amigos, paginado |
 | GET | `/v1/users/:id` | Perfil de um amigo (vitrine, horas por loja, reviews) |
 | POST | `/v1/me/library` | Biblioteca resumida: o app manda só os jogos que mudaram (`reset` no envio completo) |

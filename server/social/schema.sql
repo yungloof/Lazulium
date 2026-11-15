@@ -223,6 +223,25 @@ CREATE TABLE IF NOT EXISTS group_list_items (
 );
 CREATE INDEX IF NOT EXISTS idx_group_list_items_order ON group_list_items(list_id, position, added_at);
 
+-- "Dar um tempo" com um amigo: só quem silenciou sabe. until NULL = até desfazer.
+-- Enquanto vale, o que o amigo faz some do feed de quem silenciou, e os avisos e chamados dele não chegam.
+CREATE TABLE IF NOT EXISTS friend_mutes (
+  user_id     TEXT NOT NULL,
+  friend_id   TEXT NOT NULL,
+  until       TEXT,
+  created_at  TEXT NOT NULL,
+  PRIMARY KEY (user_id, friend_id)
+);
+
+-- Bloqueio: a amizade acaba e nenhum convite entre os dois vale até quem bloqueou desfazer
+CREATE TABLE IF NOT EXISTS blocks (
+  user_id     TEXT NOT NULL,
+  blocked_id  TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  PRIMARY KEY (user_id, blocked_id)
+);
+CREATE INDEX IF NOT EXISTS blocks_blocked ON blocks (blocked_id);
+
 -- Sincronização privada entre PCs do próprio jogador (ninguém além do dono lê)
 CREATE TABLE IF NOT EXISTS user_sync (
   user_id     TEXT PRIMARY KEY,

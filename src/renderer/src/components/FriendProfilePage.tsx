@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Star, UserMinus } from 'lucide-react';
-import { SocialFriendProfile } from '@shared/types/social';
+import { ArrowLeft, Coffee, Star } from 'lucide-react';
+import { SocialFriendProfile, SocialMute } from '@shared/types/social';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { useUiStore } from '../stores/useUiStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
@@ -10,6 +10,7 @@ import { ActivityCard, Cover } from './friends/parts';
 import { PresenceAvatar, PresenceLine } from './friends/presence';
 import { CallButton } from './friends/CallButton';
 import { FriendCompare } from './friends/FriendCompare';
+import { MutedBadge, TakeABreakModal } from './friends/TakeABreak';
 import { StatStrip } from './journal/PageLayout';
 import { Button, Notice, Skeleton, focusRing } from './ui';
 
@@ -25,8 +26,7 @@ const TOP_BAR_REM = 7; // Barra do app (3rem) + a barra do amigo (4rem): o que s
 export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) => {
   const [profile, setProfile] = useState<SocialFriendProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirmRemove, setConfirmRemove] = useState(false);
-  const [removing, setRemoving] = useState(false);
+  const [breakOpen, setBreakOpen] = useState(false);
   const games = useLibraryStore((s) => s.rawGames); // Cada loja: o GTA V da Epic do amigo também conta como "Você tem"
   const mine = useMemo(() => new Map(games.map((g) => [gameKey(g.platform, g.platformGameId, g.title), g])), [games]);
 
@@ -66,16 +66,7 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
         : 'A vitrine aparece quando essa pessoa atualizar o Lazulium para a 2.2 ou mais nova. Abaixo, o que dá para comparar.'
       : null;
 
-  const remove = async () => {
-    setRemoving(true);
-    try {
-      await window.electronAPI?.socialRemoveFriend(friendId);
-      back();
-    } catch (err) {
-      setError(ipcErrorMessage(err));
-      setRemoving(false);
-    }
-  };
+  const setMuted = (muted: SocialMute | null) => setProfile((p) => (p ? { ...p, muted } : p));
 
   const totals = profile?.summary?.totals;
   const inCommon = profile?.summary?.topGames.filter((g) => mine.has(g.gameKey)).length ?? 0;
@@ -93,7 +84,10 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
             <div className="flex items-center gap-3 min-w-0">
               <PresenceAvatar user={profile.user} status={presence} size="sm" />
               <div className="min-w-0">
-                <h1 className="text-base leading-tight text-white truncate">{profile.user.name}</h1>
+                <h1 className="flex items-center gap-1.5 text-base leading-tight text-white truncate">
+                  {profile.user.name}
+                  {profile.muted && <MutedBadge muted={profile.muted} />}
+                </h1>
                 {presence !== 'offline' && (
                   <p className="text-xs">
                     <PresenceLine status={presence} nowPlaying={profile.nowPlaying} />
@@ -124,21 +118,9 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            {confirmRemove ? (
-              <>
-                <span className="hidden md:inline text-xs text-slate-400">Vocês deixam de ver o feed um do outro.</span>
-                <Button variant="ghost" onClick={() => setConfirmRemove(false)}>
-                  Cancelar
-                </Button>
-                <Button variant="danger" loading={removing} onClick={remove}>
-                  Desfazer amizade
-                </Button>
-              </>
-            ) : (
-              <Button variant="ghost" icon={<UserMinus className="w-3.5 h-3.5" />} onClick={() => setConfirmRemove(true)} disabled={!profile}>
-                Desfazer amizade
-              </Button>
-            )}
+            <Button variant="ghost" icon={<Coffee className="w-3.5 h-3.5" />} onClick={() => setBreakOpen(true)} disabled={!profile}>
+              Dar um tempo
+            </Button>
           </div>
         </div>
       </div>
@@ -235,6 +217,9 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
         </div>
       )}
       {profile && <CallButton friendId={friendId} friendName={profile.user.name} presence={presence} />}
+      {breakOpen && profile && (
+        <TakeABreakModal friend={profile.user} muted={profile.muted ?? null} onMuted={setMuted} onGone={back} onClose={() => setBreakOpen(false)} />
+      )}
     </div>
   );
 };

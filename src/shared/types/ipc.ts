@@ -44,7 +44,9 @@ import {
   SocialInvite,
   SocialSettings,
   SocialStatus,
-  SocialUser
+  SocialUser,
+  SocialBlockedUser,
+  SocialMute
 } from './social';
 import { AchievementsSyncResult, OnThisDayMemory, PlayerProfile, YearReview, ProfileCustom, ProfileMediaKind, ProfileWebLink, ProfileWebStatus } from './profile';
 import {
@@ -324,6 +326,12 @@ export interface ElectronAPI {
   socialAcceptInvite: (code: string) => Promise<SocialUser>;
   socialGetFriends: () => Promise<SocialFriend[]>;
   socialRemoveFriend: (friendId: string) => Promise<void>;
+  // "Dar um tempo": silenciar (until = data ISO; null = até desfazer) e bloquear
+  socialMuteFriend: (friendId: string, until: string | null) => Promise<SocialMute>;
+  socialUnmuteFriend: (friendId: string) => Promise<void>;
+  socialBlockUser: (userId: string) => Promise<void>;
+  socialUnblockUser: (userId: string) => Promise<void>;
+  socialGetBlocked: () => Promise<SocialBlockedUser[]>;
   socialGetFeed: (before?: string) => Promise<SocialFeedItem[]>;
   socialGetFriendProfile: (friendId: string) => Promise<SocialFriendProfile>;
   socialGetFriendShowcaseUrl: (friendId: string) => Promise<{ url: string | null; reason?: 'hidden' | 'not_sent' }>;
