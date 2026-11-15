@@ -2,7 +2,7 @@
 
 Para quem pegar o resto da 3.0 (Antigravity, Claude ou gente). Leia inteiro antes de mexer: as regras da seção 2 não estão no código e já foram combinadas com a dona do projeto, Lazuli Fool.
 
-Situação em 14/11/2026: branch `feat/phase-5-achievements`, última versão lançada **2.10.0**, nada da 3.0 publicado no GitHub ainda. O servidor `server/social` em produção já tem tudo o que está pronto abaixo.
+Situação em 14/11/2026: branch `feat/phase-5-achievements`, última versão lançada **2.10.0**. O código da 3.0 já está na `main` do GitHub (até o commit `610ae95`), mas **ainda sem Release**: o `package.json` continua em 2.10.0. O servidor `server/social` em produção já tem tudo o que está pronto abaixo (tabelas no D1 e Worker publicados).
 
 ---
 
@@ -14,10 +14,13 @@ Situação em 14/11/2026: branch `feat/phase-5-achievements`, última versão la
 - Chamar amigo pra call: `calls.service.ts`, `call-overlay.ts`, `CallButton.tsx`. **Veja a regra 2.4.**
 - Amigos na página do jogo e conquistas lado a lado: biblioteca resumida em `services/social/library-rows.ts` e `pushLibrary` no `social.service.ts`; cartão Amigos em `components/friends/GameFriends.tsx`; aba Comparar em `FriendCompare.tsx`.
 - Curtir e comentar resenhas e listas, com avisos: `services/social/reactions.service.ts`, `components/friends/Reactions.tsx` e `Notifications.tsx`, `stores/useReactionsStore.ts`, `src/shared/utils/reactions.ts` e `notifications.ts`; na vitrine web, o bloco "Curtir e comentar" de `web/profile/index.html`.
+- Listas em grupo (o dono convida amigos e todos montam a mesma lista): `services/social/group-lists.service.ts`, `stores/useGroupListsStore.ts`, `components/friends/GroupListDetail.tsx`, na aba Listas (`ListsPage.tsx`); no servidor, as tabelas `group_lists*`. Os jogos vão pelo `titleKey`, não pelo id local.
+- Diário, listas, categorias e favoritos entre PCs (chave própria, desligada por padrão, em *Configurações → Contas*): mescla em `src/shared/utils/library-sync.ts`, envio em `services/social/sync.service.ts`, rota `/v1/me/sync` e tabela `user_sync`. Veja a seção 3.1 antes de mexer.
+- Aba Diário na vitrine web: `services/profile/profile-journal.ts` monta os dados, `web/profile/index.html` mostra.
 
 Detalhes de cada um estão em `ARCHITECTURE.md` (seção do social) e as rotas em `docs/conta-lazulium.md`.
 
-**Falta para fechar a 3.0** (seção 3): listas em grupo, Diário/listas/categorias/favoritos entre PCs, perfil completo na web, Electron 46 e o lançamento.
+**Falta para fechar a 3.0** (seção 3): um teste de sincronização com duas cópias, o Electron 46 e o lançamento.
 
 ---
 
@@ -43,40 +46,27 @@ Detalhes de cada um estão em `ARCHITECTURE.md` (seção do social) e as rotas e
 
 ## 3. O que falta
 
-### 3.1 Listas em grupo (mais de uma pessoa monta a mesma lista)
+### 3.1 Sincronização entre PCs: o que já vale e o que testar
 
-Hoje as listas são só locais (`gameLists` no banco, `lists.service.ts`) e vão para os amigos dentro da vitrine. Lista em grupo precisa morar no servidor:
+É a parte mais arriscada da 3.0: um erro apaga o Diário de alguém. Regras que o código já segue e que não podem ser quebradas:
 
-- Tabelas novas em `server/social/schema.sql` (sempre `CREATE TABLE IF NOT EXISTS`), por exemplo uma lista com dono e membros e os jogos com quem pôs.
-- **Os jogos vão pelo nome e capa pública, não pelo id local**: o id de um jogo muda de PC para PC (jogo avulso, emulador). Use o mesmo `titleKey` `t:<nome>` da biblioteca resumida (`src/shared/utils/title-key.ts`) e, para mostrar se você tem o jogo, cruze como `compareWithFriend` faz.
-- **Quem entra:** só amigos do dono, convidados por ele. O servidor confere em cada pedido, como `canSee` nas curtidas.
-- **Interface:** na aba Listas, com um selo de quem está na lista. Curtir e comentar já funciona para `kind: 'list'`; dá para reaproveitar.
-- **Docs:** privacidade (o que vai: nome da lista, jogos, quem pôs) e testes do servidor em `server/social/src/index.test.mjs` (`npm test` dentro de `server/social`).
+- **Consentimento próprio:** a chave fica desligada até a pessoa ligar neste PC, e `docs/privacidade.md` descreve o que sobe.
+- **Vale o mais novo por item, nunca "o PC inteiro ganha":** cada registro do Diário (`logUpdatedAt`), favorito (`favoriteUpdatedAt`), lista e categoria tem a sua data. Apagar vira marca de apagado com data (`syncTombstones`), para o outro PC não ressuscitar o item.
+- **Registro do Diário de antes da sincronização** (sem data) é juntado com o do outro PC, não descartado; em campo conflitante vale o que tem data.
+- **Jogos entre PCs** casam pelo id de loja, `steamKey` ou `titleKey`; o que só existe no outro PC fica guardado em `syncUnresolved` até aparecer.
+- **Backup antes de mesclar:** `db.applySyncState` faz uma cópia em `backups/sync/` (guarda 5) e, se ela falhar, desiste sem mudar nada.
+- **Tamanho:** o servidor recusa cópia acima de 1,9 MB **em bytes** (uma linha do D1 cabe 2 MB).
+- **Limite conhecido, de propósito:** a lista vale inteira (a versão mais nova). Juntar os jogos das duas versões ressuscitaria o jogo tirado num PC; fazer direito exigiria guardar a lista como estava na última sincronização. Só perde algo quem edita a mesma lista nos dois PCs ao mesmo tempo, sem internet.
 
-### 3.2 Diário, listas, categorias e favoritos entre PCs
+Mexeu em `library-sync.ts`: acrescente o caso em `tests/shared/library-sync.test.ts`.
 
-É o item mais arriscado: um erro apaga o Diário de alguém. Regras:
+**Falta antes do lançamento:** o teste com duas cópias de dados apontando para o mesmo servidor local (seção 4). Faça `copy-ud.mjs` duas vezes (pastas diferentes, as duas entram como A), ligue a sincronização numa, edite o Diário, um favorito, uma lista e uma categoria, ligue na outra e confira que tudo chegou; depois edite o mesmo jogo nas duas e veja que nada some. Duas instâncias ao mesmo tempo precisam de portas de CDP diferentes.
 
-- **Consentimento próprio:** uma chave separada, desligada até a pessoa ligar, explicando o que sobe. Atualize `docs/privacidade.md` antes de escrever o código de envio.
-- **Ninguém perde nada num conflito:** cada item (registro do Diário de um jogo, lista, categoria) leva um `updatedAt`, e vale o mais novo **por item**, nunca "o PC inteiro ganha". Apagar vira uma marca de apagado com data, não uma remoção, para o outro PC não ressuscitar o item.
-- **Casar os jogos entre PCs:** o id local (`steam-620`, `epic-...`) bate entre PCs só para jogos de loja; jogo avulso, emulador e registro manual do Diário precisam de outra chave (`steamKey` ou `titleKey`, como em `library-rows.ts`).
-- **Teste antes de tudo:** casos em `tests/` para mesclar dois bancos (mesmo item editado nos dois, apagado num e editado no outro, jogo que só existe num PC). Depois, teste com duas cópias de dados apontando para o mesmo servidor local (seção 4).
-- O banco tem backup de 14 dias e recuperação (`src/main/database/`). Rode a mescla só depois de um backup.
-
-### 3.3 Perfil completo na web
-
-A vitrine (`web/profile/index.html`, montada pelo `profile.service.ts`) já mostra visão geral, Avaliações (notas e resenhas) e Listas, e é a mesma página que os amigos abrem pelo app e a que *Perfil → Publicar na web* gera. Falta o **Diário** (o que a pessoa jogou, começou e terminou por mês, como na aba Diário do app, `JournalPage.tsx`):
-
-- uma aba Diário na página, com os dados no JSON do perfil (`src/shared/types/profile.ts`), respeitando a chave *Notas e resenhas* e o que estiver oculto;
-- limite de tamanho, como `MAX_PROFILE_LISTS` em `profile-lists.ts`, porque a vitrine vai para o servidor (`/v1/me/showcase`);
-- curtir e comentar continua valendo (o bloco `reactBar` da página);
-- teste com `scripts/social-test` (a vitrine de um amigo abre em `http://127.0.0.1:3199/v1/view/<token>`) e confira se o JSON publicado não leva nada além do que a privacidade descreve.
-
-### 3.4 Electron 46
+### 3.2 Electron 46
 
 Em 14/11/2026 o 46 ainda é alpha (`npm view electron dist-tags`: latest 45.3.2, alpha 46.0.0-alpha.10). **Esperar a versão estável.** O `safeStorage` assíncrono já foi feito. Quando sair: subir `electron` no `package.json`, ler as quebras da versão, `npm run typecheck`, `npm test`, build de teste e passada em modo silencioso.
 
-### 3.5 Lançamento da 3.0
+### 3.3 Lançamento da 3.0
 
 - `version` 3.0.0 no `package.json`, seção nova no `CHANGELOG.md` (em linguagem de jogador, **sem o botão de call**, regra 2.4) e os nomes dos instaladores no `README.md` e em `docs/guia-de-teste.md`.
 - `npm run build:win` roda os testes e o `scripts/check-package.mjs` antes do electron-builder.
