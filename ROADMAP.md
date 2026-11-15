@@ -215,14 +215,14 @@ As fases 1 a 11 e as versões de teste fecharam na 1.0. O que ficou para depois 
 
 ---
 
-## Rumo à 3.0: sua biblioteca te acompanha
-A 3.0 fecha quando o que a pessoa arruma (Diário, categorias, listas) passa a valer em qualquer PC. Ordem: fundação, metadados, social, sincronização.
+## Versão 3.0.0: sua biblioteca te acompanha (14/11/2026)
+O que a pessoa arruma (Diário, categorias, listas, favoritos) passa a valer em qualquer PC. Ordem seguida: fundação, metadados, social, sincronização. Lançada com a Release `v3.0.0`; o que ficou aberto abaixo vai para uma 3.0.x ou para [Depois da 1.0](#depois-da-10).
 
 **Fundação**
 - [x] Cache de conquistas em arquivo próprio (`lazulium_achievements.json`): o banco principal caiu de 5,2 MB para 0,3 MB num banco real e deixou de ser regravado a cada conquista.
 - [x] `safeStorage` assíncrono no lugar do síncrono, que sai no Electron 46.
 - [x] Testes automatizados (`npm test`, vitest): banco, categorias, mescla do scanner e filtros da biblioteca. Rodam antes de todo `build:win`.
-- [ ] Subir para o Electron 46 quando sair a versão estável (em 12/11/2026 só existe alpha).
+- [ ] Subir para o Electron 46 numa 3.0.x quando sair a versão estável (em 15/11/2026 só existe alpha; a 3.0.0 saiu no Electron 45).
 
 **Biblioteca que entende os jogos**
 - [x] Gênero, ano e série pelo IGDB (`server/igdb-proxy`), guardados por jogo.
@@ -237,6 +237,7 @@ A 3.0 fecha quando o que a pessoa arruma (Diário, categorias, listas) passa a v
 - [x] Aba Diário na vitrine da web (`web/profile/index.html`): registros agrupados por mês e filtros por status, respeitando *Notas e resenhas*, *Horas jogadas*, jogos ocultos e sem anotações pessoais.
 
 **Lançamento**
+- [x] Release `v3.0.0` no GitHub (14/11/2026), com atualização automática pelo `latest.yml`.
 - [ ] Instalador assinado e GitHub Pages (itens em [Depois da 1.0](#depois-da-10)).
 
 ---

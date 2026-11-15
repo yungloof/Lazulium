@@ -1,8 +1,8 @@
 # Passagem da 3.0
 
-Para quem pegar o resto da 3.0 (Antigravity, Claude ou gente). Leia inteiro antes de mexer: as regras da seção 2 não estão no código e já foram combinadas com a dona do projeto, Lazuli Fool.
+Para quem continuar a 3.0 (Antigravity, Claude ou gente). Leia inteiro antes de mexer: as regras da seção 2 não estão no código e já foram combinadas com a dona do projeto, Lazuli Fool.
 
-Situação em 14/11/2026: branch `feat/phase-5-achievements`, última versão lançada **2.10.0**. O código da 3.0 já está na `main` do GitHub (até o commit `610ae95`), mas **ainda sem Release**: o `package.json` continua em 2.10.0. O servidor `server/social` em produção já tem tudo o que está pronto abaixo (tabelas no D1 e Worker publicados).
+Situação em 15/11/2026: branch `feat/phase-5-achievements`, igual à `main` do GitHub. A **3.0.0 foi lançada** em 14/11/2026 (Release `v3.0.0`, atualização automática pelo `latest.yml`). O servidor `server/social` em produção tem tudo o que está abaixo (tabelas no D1 e Worker publicados).
 
 ---
 
@@ -20,7 +20,7 @@ Situação em 14/11/2026: branch `feat/phase-5-achievements`, última versão la
 
 Detalhes de cada um estão em `ARCHITECTURE.md` (seção do social) e as rotas em `docs/conta-lazulium.md`.
 
-**Falta para fechar a 3.0** (seção 3): um teste de sincronização com duas cópias, o Electron 46 e o lançamento.
+**O que vem depois** (seção 3): o Electron 46 numa 3.0.x. O resto está no `ROADMAP.md`.
 
 ---
 
@@ -44,9 +44,9 @@ Detalhes de cada um estão em `ARCHITECTURE.md` (seção do social) e as rotas e
 
 ---
 
-## 3. O que falta
+## 3. Daqui para frente
 
-### 3.1 Sincronização entre PCs: o que já vale e o que testar
+### 3.1 Sincronização entre PCs: o que já vale e como testar
 
 É a parte mais arriscada da 3.0: um erro apaga o Diário de alguém. Regras que o código já segue e que não podem ser quebradas:
 
@@ -60,15 +60,17 @@ Detalhes de cada um estão em `ARCHITECTURE.md` (seção do social) e as rotas e
 
 Mexeu em `library-sync.ts`: acrescente o caso em `tests/shared/library-sync.test.ts`.
 
-**Falta antes do lançamento:** o teste com duas cópias de dados apontando para o mesmo servidor local (seção 4). Faça `copy-ud.mjs` duas vezes (pastas diferentes, as duas entram como A), ligue a sincronização numa, edite o Diário, um favorito, uma lista e uma categoria, ligue na outra e confira que tudo chegou; depois edite o mesmo jogo nas duas e veja que nada some. Duas instâncias ao mesmo tempo precisam de portas de CDP diferentes.
+**Mexeu na sincronização? Repita** o teste com duas cópias de dados apontando para o mesmo servidor local (seção 4). Faça `copy-ud.mjs` duas vezes (pastas diferentes, as duas entram como A), ligue a sincronização numa, edite o Diário, um favorito, uma lista e uma categoria, ligue na outra e confira que tudo chegou; depois edite o mesmo jogo nas duas e veja que nada some. Duas instâncias ao mesmo tempo precisam de portas de CDP diferentes.
 
 ### 3.2 Electron 46
 
-Decidido em 14/11/2026: **a 3.0 sai no Electron 45**, e o **Electron 46 fica para uma 3.0.x** quando sair a versão estável (`npm view electron dist-tags`: latest 45.3.2, alpha 46.0.0-alpha.10). O `safeStorage` assíncrono já foi feito. Quando sair o estável do 46: subir `electron` no `package.json`, ler as quebras da versão, `npm run typecheck`, `npm test`, build de teste e passada em modo silencioso.
+Decidido em 14/11/2026: **a 3.0 sai no Electron 45**, e o **Electron 46 fica para uma 3.0.x** quando sair a versão estável (`npm view electron dist-tags` em 15/11/2026: latest 45.3.2, alpha 46.0.0-alpha.10). O `safeStorage` assíncrono já foi feito. Quando sair o estável do 46: subir `electron` no `package.json`, ler as quebras da versão, `npm run typecheck`, `npm test`, build de teste e passada em modo silencioso.
 
-### 3.3 Lançamento da 3.0
+### 3.3 Lançar uma 3.0.x
 
-- `version` 3.0.0 no `package.json`, seção nova no `CHANGELOG.md` (em linguagem de jogador, **sem o botão de call**, regra 2.4) e os nomes dos instaladores no `README.md` e em `docs/guia-de-teste.md`.
+A 3.0.0 saiu em 14/11/2026. Para a próxima:
+
+- subir `version` no `package.json`, seção nova no `CHANGELOG.md` (em linguagem de jogador, **sem o botão de call**, regra 2.4) e os nomes dos instaladores no `README.md` e em `docs/guia-de-teste.md`.
 - `npm run build:win` roda os testes e o `scripts/check-package.mjs` antes do electron-builder.
 - Push, Release e qualquer deploy só com o "pode" da dona (regra 2.2).
 - O instalador assinado e o GitHub Pages dependem de passos da dona (`docs/publicar-1.0.md`).
