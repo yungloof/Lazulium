@@ -112,7 +112,7 @@ const InviteBox: React.FC<{ onFriendAdded: () => void }> = ({ onFriendAdded }) =
           Gerar meu código de convite
         </Button>
       )}
-      {invite && <p className="text-xs text-slate-400">Vale por 7 dias e serve para quantas pessoas você quiser.</p>}
+      {invite && <p className="text-xs text-slate-400">Vale por 7 dias e para uma pessoa. Para chamar mais alguém, gere outro código depois que ela entrar.</p>}
       <form onSubmit={accept} className="flex items-center gap-2">
         <input
           value={code}

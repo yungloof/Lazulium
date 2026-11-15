@@ -18,6 +18,24 @@ namespace_id = "1002"
   limit = 120
   period = 60
 
+# Por conta: pedidos que gravam (envio da biblioteca grande vai em lotes de 100 jogos, por isso a folga)
+[[ratelimits]]
+name = "USER_LIMITER"
+namespace_id = "1003"
+
+  [ratelimits.simple]
+  limit = 120
+  period = 60
+
+# Por conta: curtidas e descurtidas
+[[ratelimits]]
+name = "ACTION_LIMITER"
+namespace_id = "1004"
+
+  [ratelimits.simple]
+  limit = 30
+  period = 60
+
 # GIF maior e vídeo de fundo ficam na VPS (media-server.mjs). Só vale com o segredo, o mesmo da VPS:
 #   npx wrangler secret put MEDIA_SECRET
 # Sem o segredo, o servidor segue como antes (GIF até ~1 MB, sem vídeo).

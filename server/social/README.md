@@ -66,7 +66,7 @@ A Steam é simulada; o banco é SQLite em memória com o mesmo `schema.sql`.
 | POST | `/v1/me/activities/delete` | Remove eventos pelo `id` |
 | PUT / DELETE | `/v1/me/now-playing` | Jogando agora (some 15 min sem sinal) |
 | PUT | `/v1/me/summary` | Resumo do perfil (totais e mais jogados) |
-| POST | `/v1/friends/invite` | Código de 8 caracteres, vale 7 dias |
+| POST | `/v1/friends/invite` | Código de 8 caracteres, vale 7 dias e para uma pessoa (some ao ser usado) |
 | POST | `/v1/friends/accept` | Vira amigo de quem gerou o código |
 | GET | `/v1/friends` | Amigos, com quem está jogando agora |
 | DELETE | `/v1/friends/:id` | Desfaz a amizade |

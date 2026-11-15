@@ -17,29 +17,33 @@ const HOST = process.env.HOST || '127.0.0.1';
 const PUBLIC_ORIGIN = process.env.PUBLIC_ORIGIN || `http://${HOST}:${PORT}`;
 const DB = openD1(process.env.SOCIAL_DB || join(here, 'social.db'), join(here, 'schema.sql'));
 
-// Limite simples por IP (o Worker usa o Rate Limiting da Cloudflare)
+// Limites simples em memória (o Worker usa o Rate Limiting da Cloudflare, com os mesmos números)
 const WINDOW_MS = 60_000;
-const LIMIT = Number(process.env.RATE_LIMIT) || 120;
-const hits = new Map();
-const RATE_LIMITER = {
-  async limit({ key }) {
+function makeLimiter(limit) {
+  const hits = new Map();
+  setInterval(() => {
     const now = Date.now();
-    const entry = hits.get(key);
-    if (!entry || entry.resetAt < now) {
-      hits.set(key, { count: 1, resetAt: now + WINDOW_MS });
-      return { success: true };
+    for (const [key, entry] of hits) if (entry.resetAt < now) hits.delete(key);
+  }, WINDOW_MS).unref();
+  return {
+    async limit({ key }) {
+      const now = Date.now();
+      const entry = hits.get(key);
+      if (!entry || entry.resetAt < now) {
+        hits.set(key, { count: 1, resetAt: now + WINDOW_MS });
+        return { success: true };
+      }
+      entry.count++;
+      return { success: entry.count <= limit };
     }
-    entry.count++;
-    return { success: entry.count <= LIMIT };
-  }
-};
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of hits) if (entry.resetAt < now) hits.delete(key);
-}, WINDOW_MS).unref();
+  };
+}
+const RATE_LIMITER = makeLimiter(Number(process.env.RATE_LIMIT) || 120);   // por IP
+const USER_LIMITER = makeLimiter(120);                                     // por conta, pedidos que gravam
+const ACTION_LIMITER = makeLimiter(30);                                    // por conta, curtidas
 
 const PROFILE_PAGE = readFileSync(join(here, '..', '..', 'web', 'profile', 'index.html'), 'utf-8');
-const env = { DB, RATE_LIMITER, PROFILE_PAGE, MEDIA_STORE_URL: process.env.MEDIA_STORE_URL, MEDIA_SECRET: process.env.MEDIA_SECRET };
+const env = { DB, RATE_LIMITER, USER_LIMITER, ACTION_LIMITER, PROFILE_PAGE, MEDIA_STORE_URL: process.env.MEDIA_STORE_URL, MEDIA_SECRET: process.env.MEDIA_SECRET };
 
 // GIF e vídeo de fundo: com MEDIA_DIR, este mesmo processo guarda os arquivos (rotas /media/*);
 // sem ela, vale MEDIA_STORE_URL (outra máquina rodando o media-server.mjs), como no Worker.

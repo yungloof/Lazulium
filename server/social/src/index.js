@@ -343,6 +343,8 @@ async function handleMe(request, env, auth) {
         'DELETE FROM sessions WHERE user_id = ?',
         'DELETE FROM showcases WHERE user_id = ?',
         'DELETE FROM media WHERE user_id = ?',
+        'DELETE FROM view_links WHERE token IN (SELECT token FROM view_viewers WHERE viewer_id = ?1)',
+        'DELETE FROM view_viewers WHERE viewer_id = ?1 OR token IN (SELECT token FROM view_links WHERE owner_id = ?1)',
         'DELETE FROM view_links WHERE owner_id = ?',
         'DELETE FROM presence WHERE user_id = ?',
         'DELETE FROM library_games WHERE user_id = ?',
@@ -508,7 +510,11 @@ async function handleAccept(request, env, auth) {
   if (!invite || invite.expires_at < nowIso()) throw new HttpError(404, 'invite_not_found');
   if (invite.user_id === auth.user.id) throw new HttpError(400, 'own_invite');
   const [a, b] = invite.user_id < auth.user.id ? [invite.user_id, auth.user.id] : [auth.user.id, invite.user_id];
-  await env.DB.prepare('INSERT OR IGNORE INTO friendships (user_a, user_b, created_at) VALUES (?, ?, ?)').bind(a, b, nowIso()).run();
+  // O convite vale para uma pessoa: some ao ser usado (código que vazou não vira amizade com estranhos)
+  await env.DB.batch([
+    env.DB.prepare('INSERT OR IGNORE INTO friendships (user_a, user_b, created_at) VALUES (?, ?, ?)').bind(a, b, nowIso()),
+    env.DB.prepare('DELETE FROM invites WHERE code = ?').bind(code)
+  ]);
   const friend = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(invite.user_id).first();
   return json({ friend: publicUser(friend) });
 }
@@ -880,11 +886,46 @@ async function reactionThread(env, viewerId, t) {
   };
 }
 
-async function setLike(env, viewerId, t, like, title) {
+// A mesma regra do app (src/shared/utils/title-key.ts) e da vitrine
+const titleKeyOf = (title) =>
+  String(title || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/&/g, 'and').replace(/\([^)]*\)/g, '').replace(/[^a-z0-9]+/g, '').slice(0, 120);
+
+// Nome do jogo ou da lista no aviso: só o que o dono mandou ao servidor (biblioteca, lista em grupo ou vitrine).
+// O título que vem de quem curte ou comenta é ignorado, para ninguém forjar "curtiu sua resenha de X".
+async function storedTitle(env, t) {
+  if (t.kind === 'review') {
+    const row = await env.DB.prepare('SELECT title FROM library_games WHERE user_id = ? AND title_key = ?').bind(t.owner, t.target.slice(2)).first();
+    if (row?.title) return cleanText(row.title, MAX_TITLE) || null;
+  } else {
+    const row = await env.DB.prepare('SELECT title FROM group_lists WHERE id = ? AND owner_id = ?').bind(t.target, t.owner).first();
+    if (row?.title) return cleanText(row.title, MAX_TITLE) || null;
+  }
+  const showcase = await env.DB.prepare('SELECT data FROM showcases WHERE user_id = ?').bind(t.owner).first();
+  if (!showcase) return null;
+  let data;
+  try {
+    data = JSON.parse(showcase.data);
+  } catch {
+    return null;
+  }
+  if (t.kind === 'list') {
+    const list = (Array.isArray(data?.lists) ? data.lists : []).find((l) => l?.id === t.target);
+    return cleanText(list?.title, MAX_TITLE) || null;
+  }
+  const key = t.target.slice(2);
+  for (const field of ['ratings', 'journal', 'favorites', 'mostPlayed', 'recentlyPlayed']) {
+    const item = (Array.isArray(data?.[field]) ? data[field] : []).find((g) => typeof g?.title === 'string' && titleKeyOf(g.title) === key);
+    if (item) return cleanText(item.title, MAX_TITLE) || null;
+  }
+  return null;
+}
+
+async function setLike(env, viewerId, t, like) {
   if (!(await canSee(env, viewerId, t.owner))) throw new HttpError(404, 'not_found');
+  if (await limitedBy(env.ACTION_LIMITER, `like:${viewerId}`)) throw new HttpError(429, 'like_limit');
   if (like) {
     await env.DB.prepare('INSERT OR IGNORE INTO reactions (owner_id, kind, target, user_id, target_title, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(t.owner, t.kind, t.target, viewerId, cleanText(title, MAX_TITLE) || null, nowIso())
+      .bind(t.owner, t.kind, t.target, viewerId, await storedTitle(env, t), nowIso())
       .run();
   } else {
     await env.DB.prepare('DELETE FROM reactions WHERE owner_id = ? AND kind = ? AND target = ? AND user_id = ?').bind(t.owner, t.kind, t.target, viewerId).run();
@@ -892,7 +933,7 @@ async function setLike(env, viewerId, t, like, title) {
   return (await reactionSummary(env, viewerId, [t]))[targetKey(t)];
 }
 
-async function addComment(env, viewerId, t, text, title) {
+async function addComment(env, viewerId, t, text) {
   if (!(await canSee(env, viewerId, t.owner))) throw new HttpError(404, 'not_found');
   const clean = typeof text === 'string' ? text.replace(/\r\n?/g, '\n').replace(/[^\P{C}\n]/gu, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, MAX_COMMENT_TEXT) : '';
   if (!clean) throw new HttpError(400, 'empty_comment');
@@ -902,7 +943,7 @@ async function addComment(env, viewerId, t, text, title) {
   if ((recent?.n ?? 0) >= MAX_COMMENTS_PER_WINDOW) throw new HttpError(429, 'comment_limit');
   const id = crypto.randomUUID();
   await env.DB.prepare('INSERT INTO comments (id, owner_id, kind, target, user_id, text, target_title, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(id, t.owner, t.kind, t.target, viewerId, clean, cleanText(title, MAX_TITLE) || null, nowIso())
+    .bind(id, t.owner, t.kind, t.target, viewerId, clean, await storedTitle(env, t), nowIso())
     .run();
   return reactionThread(env, viewerId, t);
 }
@@ -940,12 +981,12 @@ async function handleReactions(request, url, env, viewerId, action, commentId, s
   if (action === 'like' && request.method === 'POST') {
     const body = await readJson(request, 2_000);
     const t = target(body);
-    return json(await setLike(env, viewerId, t, body.like !== false, body.title));
+    return json(await setLike(env, viewerId, t, body.like !== false));
   }
   if (action === 'comments' && request.method === 'POST') {
     const body = await readJson(request, 8_000);
     const t = target(body);
-    return json(await addComment(env, viewerId, t, body.text, body.title));
+    return json(await addComment(env, viewerId, t, body.text));
   }
   if (action === 'comments' && commentId && request.method === 'DELETE') return json(await deleteComment(env, viewerId, commentId, scopeOwner));
   throw new HttpError(405, 'method_not_allowed');
@@ -1354,10 +1395,16 @@ async function handleViewLink(env, auth, ownerId, origin) {
 // A mesma política da página (que também vem no <meta>), agora no cabeçalho: vale antes de qualquer HTML ser lido.
 // A página só fala com este servidor (curtidas e comentários pelo link) e não envia formulários.
 // Vídeo só da Steam e da guarda de arquivos do Lazulium (o vídeo de fundo que a pessoa escolheu).
+// Imagem só da Steam, IGDB, SteamGridDB, RetroAchievements e do próprio Lazulium: endereço de outro lugar
+// na vitrine não revela o IP de quem abre.
+export const PAGE_IMG_SRC =
+  "'self' data: https://*.steamstatic.com https://steamcdn-a.akamaihd.net https://*.steamusercontent.com https://images.igdb.com https://*.steamgriddb.com https://*.retroachievements.org";
+
 function pageCsp(env) {
   const store = mediaStore(env);
-  const media = `https://*.steamstatic.com${store ? ` ${store.origin}` : ''}`;
-  return `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src https:; media-src ${media}; connect-src 'self'; base-uri 'none'; form-action 'none'`;
+  const extra = store ? ` ${store.origin}` : '';
+  const media = `https://*.steamstatic.com${extra}`;
+  return `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src ${PAGE_IMG_SRC}${extra}; media-src ${media}; connect-src 'self'; base-uri 'none'; form-action 'none'`;
 }
 
 function pageHeaders(env) {
@@ -1709,6 +1756,14 @@ async function handleGroupListOrder(request, env, auth, listId) {
 
 // ---------- Roteamento ----------
 
+// Limite por conta, além do limite por IP: várias contas atrás do mesmo IP não se atrapalham,
+// e uma conta em vários IPs não escapa. Sem a ligação (testes, servidor antigo) não limita.
+async function limitedBy(binding, key) {
+  if (!binding) return false;
+  const { success } = await binding.limit({ key });
+  return !success;
+}
+
 async function isRateLimited(request, env, key) {
   if (!env.RATE_LIMITER) return false;
   const { success } = await env.RATE_LIMITER.limit({ key: key ?? request.headers.get('CF-Connecting-IP') ?? 'unknown' });
@@ -1730,6 +1785,7 @@ async function route(request, env) {
   if (viewSocial) {
     if (await isRateLimited(request, env, `view:${viewSocial[1]}`)) return json({ error: 'rate_limited' }, 429);
     const { viewerId, ownerId } = await viewerOf(env, viewSocial[1]);
+    if (request.method !== 'GET' && (await limitedBy(env.USER_LIMITER, `w:${viewerId}`))) return json({ error: 'rate_limited' }, 429);
     return handleReactions(request, url, env, viewerId, viewSocial[2], viewSocial[3], ownerId);
   }
   if (await isRateLimited(request, env)) return json({ error: 'rate_limited' }, 429);
@@ -1740,6 +1796,7 @@ async function route(request, env) {
     await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(auth.tokenHash).run();
     return json({ ok: true });
   }
+  if (request.method !== 'GET' && (await limitedBy(env.USER_LIMITER, `w:${auth.user.id}`))) return json({ error: 'rate_limited' }, 429);
   if (path === '/v1/me') return handleMe(request, env, auth);
   if (path === '/v1/me/activities') return handleActivities(request, env, auth);
   if (path === '/v1/me/activities/delete' && request.method === 'POST') return handleActivityDelete(request, env, auth);

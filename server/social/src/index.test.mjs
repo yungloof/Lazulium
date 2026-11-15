@@ -863,7 +863,8 @@ test('curtidas e comentários: só amigos do dono, contagens, avisos e respostas
   const mine = (await s.call('GET', '/v1/me/notifications', { token: a.token })).body.items;
   assert.equal(mine.filter((n) => n.type === 'like').length, 3);
   assert.equal(mine.filter((n) => n.type === 'comment').length, 2);
-  assert.equal(mine.find((n) => n.type === 'like' && n.kind === 'list').title, 'Top 10');
+  // O título mandado por quem curte não vale: a lista não está no servidor, então o aviso vem sem nome
+  assert.equal(mine.find((n) => n.type === 'like' && n.kind === 'list').title, null);
   const forB = (await s.call('GET', '/v1/me/notifications', { token: b.token })).body.items;
   assert.equal(forB.length, 1);
   assert.equal(forB[0].type, 'reply');
@@ -1127,4 +1128,107 @@ test('consulta única: chamadas, amigos e avisos num pedido só, e só as partes
   assert.equal((await s.call('GET', '/v1/me/poll?parts=nada', { token: b.token })).status, 400);
   assert.equal((await s.call('GET', '/v1/me/poll?parts=calls')).status, 401);
   assert.equal((await s.call('POST', '/v1/me/poll?parts=calls', { token: b.token })).status, 405);
+});
+
+const fakeLimiter = (limit) => {
+  const hits = new Map();
+  return {
+    async limit({ key }) {
+      const n = (hits.get(key) ?? 0) + 1;
+      hits.set(key, n);
+      return { success: n <= limit };
+    }
+  };
+};
+
+test('avisos: o nome do jogo ou da lista vem do que o dono mandou, nunca de quem curte', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  await befriend(s, a, b);
+  await s.call('PUT', '/v1/me/showcase', {
+    token: a.token,
+    body: { ...SHOWCASE, lists: [{ id: '0b6f7f0e-2f7a-4c55-9d7a-1f0a3c1d2e3f', title: 'Top 10 de verdade' }], ratings: [{ title: 'Hollow Knight', rating: 5 }] }
+  });
+  const forged = 'Jogo que você nunca resenhou';
+  await s.call('POST', '/v1/social/like', { token: b.token, body: { owner: a.user.id, kind: 'list', target: '0b6f7f0e-2f7a-4c55-9d7a-1f0a3c1d2e3f', title: forged } });
+  await s.call('POST', '/v1/social/comments', { token: b.token, body: { owner: a.user.id, kind: 'review', target: 't:hollowknight', title: forged, text: 'Joga!' } });
+  await s.call('POST', '/v1/social/like', { token: b.token, body: { owner: a.user.id, kind: 'review', target: 't:naoexiste', title: forged } });
+  const items = (await s.call('GET', '/v1/me/notifications', { token: a.token })).body.items;
+  const titleOf = (kind, target) => items.find((n) => n.kind === kind && n.target === target).title;
+  assert.equal(titleOf('list', '0b6f7f0e-2f7a-4c55-9d7a-1f0a3c1d2e3f'), 'Top 10 de verdade');
+  assert.equal(titleOf('review', 't:hollowknight'), 'Hollow Knight');
+  assert.equal(titleOf('review', 't:naoexiste'), null);
+  assert.ok(!JSON.stringify(items).includes(forged));
+});
+
+test('limites por conta: curtidas em sequência e pedidos que gravam', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  s.env.ACTION_LIMITER = fakeLimiter(3);
+  s.env.USER_LIMITER = fakeLimiter(5);
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  await befriend(s, a, b); // 2 pedidos que gravam (convite de A, aceite de B)
+  const review = { owner: a.user.id, kind: 'review', target: 't:hades' };
+  const statuses = [];
+  for (let i = 0; i < 4; i++) statuses.push((await s.call('POST', '/v1/social/like', { token: b.token, body: { ...review, like: i % 2 === 0 } })).status);
+  assert.deepEqual(statuses, [200, 200, 200, 429]);
+  assert.equal((await s.call('POST', '/v1/social/like', { token: b.token, body: review })).body.error, 'rate_limited'); // 6º pedido que grava de B (aceite + 4 curtidas antes)
+  // Ler continua liberado, e a outra conta não é afetada
+  assert.equal((await s.call('GET', '/v1/me/notifications', { token: b.token })).status, 200);
+  assert.equal((await s.call('PUT', '/v1/me/presence', { token: a.token, body: { status: 'away' } })).status, 200);
+});
+
+test('convite vale para uma pessoa só; o próximo pedido gera outro código', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  const c = await login(s, '76561198000000003');
+  const invite = (await s.call('POST', '/v1/friends/invite', { token: a.token })).body.code;
+  assert.equal((await s.call('POST', '/v1/friends/accept', { token: b.token, body: { code: invite } })).status, 200);
+  const reused = await s.call('POST', '/v1/friends/accept', { token: c.token, body: { code: invite } });
+  assert.equal(reused.status, 404);
+  assert.equal(reused.body.error, 'invite_not_found');
+  const next = (await s.call('POST', '/v1/friends/invite', { token: a.token })).body.code;
+  assert.notEqual(next, invite);
+  assert.equal((await s.call('POST', '/v1/friends/accept', { token: c.token, body: { code: next } })).status, 200);
+});
+
+test('apagar a conta leva os links da vitrine em que ela era quem via', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  s.env.PROFILE_PAGE = PAGE;
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  await befriend(s, a, b);
+  await s.call('PUT', '/v1/me/showcase', { token: a.token, body: SHOWCASE });
+  const link = (await s.call('POST', `/v1/users/${a.user.id}/view`, { token: b.token })).body.url;
+  assert.ok(link);
+  await s.call('DELETE', '/v1/me', { token: b.token });
+  const left = s.env.DB.raw.prepare('SELECT (SELECT COUNT(*) FROM view_links) + (SELECT COUNT(*) FROM view_viewers) AS n').get();
+  assert.equal(left.n, 0);
+  const res = await worker.fetch(new Request(`${link}/like`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner: a.user.id, kind: 'review', target: 't:hades' }) }), s.env);
+  assert.equal(res.status, 401);
+});
+
+test('vitrine: imagens só de endereços conhecidos', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  s.env.PROFILE_PAGE = PAGE;
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  await befriend(s, a, b);
+  await s.call('PUT', '/v1/me/showcase', { token: a.token, body: SHOWCASE });
+  const link = (await s.call('POST', `/v1/users/${a.user.id}/view`, { token: b.token })).body.url;
+  const csp = (await worker.fetch(new Request(link), s.env)).headers.get('Content-Security-Policy');
+  assert.match(csp, /img-src 'self' data: https:\/\/\*\.steamstatic\.com /);
+  assert.ok(!/img-src https:;/.test(csp), 'img-src não aceita qualquer https');
 });

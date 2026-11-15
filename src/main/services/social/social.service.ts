@@ -94,6 +94,7 @@ const SERVER_ERRORS: Record<string, string> = {
   invalid_status: 'Status inválido.',
   empty_comment: 'Escreva alguma coisa antes de enviar.',
   comment_limit: 'Comentários demais em pouco tempo. Espere uns minutos.',
+  like_limit: 'Curtidas demais em pouco tempo. Espere um minuto.',
   invalid_target: 'Não dá para reagir a isso.',
   invalid_title: 'Dê um nome para a lista.',
   not_friends: 'Só dá para convidar quem já é seu amigo na conta Lazulium.',
