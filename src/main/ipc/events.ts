@@ -6,6 +6,8 @@ import { steamNamesService } from '../services/scanners/steam-names.service';
 import { artworkService } from '../services/metadata/artwork.service';
 import { gameMetadataService } from '../services/metadata/game-metadata.service';
 import { achievementsService } from '../services/achievements/achievements.service';
+import { CeremonyQueue } from '../services/achievements/ceremony';
+import { setJournalCeremonyListener } from '../services/profile/journal.service';
 import { backupService } from '../services/cloudsync/backup.service';
 import { screenshotCaptureService } from '../services/metadata/screenshot-capture.service';
 import { socialService } from '../services/social/social.service';
@@ -29,6 +31,13 @@ export function sendToRenderer(channel: IpcChannel, payload: unknown): void {
 export function registerRendererEvents(getMainWindow: WindowGetter): void {
   getWindow = getMainWindow;
   const sendGame = (game: unknown) => sendToRenderer(IPC_CHANNELS.LIBRARY_GAME_UPDATED, game);
+  const ceremonies = new CeremonyQueue((event) => sendToRenderer(IPC_CHANNELS.CEREMONY_EVENT, event));
+
+  const isFullscreenBlocked = (respectFocus: boolean) => {
+    if (!playtimeService.isAnyRunning()) return false;
+    if (!respectFocus) return true;
+    return !getWindow()?.isFocused();
+  };
 
   screenshotCaptureService.setPidProvider((gameId) => playtimeService.getAlivePids(gameId));
   screenshotCaptureService.setListener((result) => sendToRenderer(IPC_CHANNELS.SCREENSHOTS_TAKEN, result));
@@ -40,6 +49,18 @@ export function registerRendererEvents(getMainWindow: WindowGetter): void {
     if (status.state === 'stopped' && (status.sessionSeconds ?? 0) > 0) backupService.onSessionEnded(status.gameId);
     // Conta Lazulium: "jogando agora" para os amigos e envio da sessão nova
     if (status.state === 'running' || status.state === 'stopped') socialService.onGameStatus(status.gameId, status.state === 'running', status.startTime);
+    if (status.state === 'stopped') {
+      if ((status.sessionSeconds ?? 0) > 0) {
+        void achievementsService
+          .syncAfterSession(status.gameId)
+          .catch(() => undefined)
+          .finally(() => {
+            if (!playtimeService.isAnyRunning()) ceremonies.flush();
+          });
+      } else if (!playtimeService.isAnyRunning()) {
+        ceremonies.flush();
+      }
+    }
   });
 
   socialService.setStatusListener((status) => sendToRenderer(IPC_CHANNELS.SOCIAL_STATUS_CHANGED, status));
@@ -66,4 +87,6 @@ export function registerRendererEvents(getMainWindow: WindowGetter): void {
   achievementsService.setGameUpdatedListener(sendGame);
   epicAccountService.setGameUpdatedListener(sendGame);
   achievementsService.setListUpdatedListener((gameId) => sendToRenderer(IPC_CHANNELS.ACHIEVEMENTS_UPDATED, gameId));
+  achievementsService.setCeremonyListener((event) => ceremonies.enqueue(event, isFullscreenBlocked(false)));
+  setJournalCeremonyListener((event) => ceremonies.enqueue(event, isFullscreenBlocked(true)));
 }

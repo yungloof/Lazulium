@@ -76,3 +76,4 @@ Nenhuma destas tarefas faz pedido novo ao servidor. Sempre com o foco visível d
 
 <!-- Uma linha por novidade, na voz de quem joga. Ex.: "- Conquistas novas ganham uma comemoração (dá para desligar em Comportamento)." -->
 - **Som de navegação:** dá para ligar, desligar e ajustar o volume dos cliques de navegação em *Configurações → Comportamento*.
+- **Cerimônias:** conquistas novas, jogos zerados e marcas de 100% agora aparecem numa comemoração com capa, brilho azul, som e vibração leve do controle (ou em modo calmo se o sistema usar movimento reduzido). Quando um jogo está em tela cheia, ela espera você fechar para aparecer; também dá para desligar em *Configurações → Comportamento*.

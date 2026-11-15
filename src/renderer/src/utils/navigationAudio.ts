@@ -134,6 +134,29 @@ class NavigationAudio {
   public playTab() {
     this.playSteps([{ type: 'sine', fromFreq: 380, toFreq: 460, duration: 0.03, gain: 0.04 }]);
   }
+
+  /**
+   * Som curto de conquista desbloqueada
+   */
+  public playAchievement() {
+    this.playSteps([
+      { type: 'triangle', fromFreq: 659.25, duration: 0.09, gain: 0.06, delay: 0 },
+      { type: 'triangle', fromFreq: 830.61, duration: 0.1, gain: 0.065, delay: 0.07 },
+      { type: 'sine', fromFreq: 987.77, duration: 0.22, gain: 0.07, delay: 0.14 }
+    ]);
+  }
+
+  /**
+   * Som de celebração para Zerado e 100%
+   */
+  public playCeremonyComplete() {
+    this.playSteps([
+      { type: 'triangle', fromFreq: 523.25, duration: 0.1, gain: 0.06, delay: 0 },
+      { type: 'triangle', fromFreq: 659.25, duration: 0.1, gain: 0.065, delay: 0.08 },
+      { type: 'triangle', fromFreq: 783.99, duration: 0.12, gain: 0.07, delay: 0.16 },
+      { type: 'sine', fromFreq: 1046.5, duration: 0.28, gain: 0.075, delay: 0.24 }
+    ]);
+  }
 }
 
 export const navAudio = new NavigationAudio();

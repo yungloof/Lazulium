@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Volume2 } from 'lucide-react';
 import { NAV_AUDIO_SETTING_KEYS, navAudio, parseNavAudioSettings } from '../utils/navigationAudio';
+import { CEREMONY_SETTING_KEYS, parseCeremonyEnabled, useCeremonyStore } from '../stores/useCeremonyStore';
 import { Select } from './Select';
 import { Notice, focusRing } from './ui';
 import { SettingRow, SettingsGroup, ToggleRow } from './settings/controls';
@@ -48,6 +49,7 @@ export const AppBehaviorSettings: React.FC = () => {
   const [hotkeyBusy, setHotkeyBusy] = useState(false);
   const [navSoundEnabled, setNavSoundEnabled] = useState(true);
   const [navSoundVolume, setNavSoundVolume] = useState(100);
+  const [ceremoniesEnabled, setCeremoniesEnabled] = useState(true);
 
   useEffect(() => {
     window.electronAPI?.getScreenshotHotkey().then(setHotkey).catch(() => undefined);
@@ -61,6 +63,7 @@ export const AppBehaviorSettings: React.FC = () => {
         const audio = parseNavAudioSettings(settings);
         setNavSoundEnabled(audio.enabled);
         setNavSoundVolume(audio.volume);
+        setCeremoniesEnabled(parseCeremonyEnabled(settings));
       })
       .catch(() => undefined);
   }, []);
@@ -180,6 +183,18 @@ export const AppBehaviorSettings: React.FC = () => {
             <span className="w-9 text-right text-xs tabular-nums text-slate-300">{navSoundVolume}%</span>
           </SettingRow>
         )}
+      </SettingsGroup>
+      <SettingsGroup title="Cerimônias">
+        <ToggleRow
+          label="Comemorar conquistas, Zerado e 100%"
+          hint="Mostra a capa do jogo com brilho azul, som e vibração do controle. Guarda para quando você fechar o jogo se estiver em tela cheia."
+          checked={ceremoniesEnabled}
+          onChange={(checked) => {
+            setCeremoniesEnabled(checked);
+            useCeremonyStore.getState().setEnabled(checked);
+            void window.electronAPI?.setSetting(CEREMONY_SETTING_KEYS.enabled, String(checked));
+          }}
+        />
       </SettingsGroup>
     </div>
   );

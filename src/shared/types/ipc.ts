@@ -8,6 +8,20 @@ import { GameScreenshots, Screenshot, ScreenshotTaken } from './screenshots';
 import { ActivityEvent } from './activity';
 import { JournalImportApplyResult, JournalImportItem, JournalImportOptions, JournalImportPreviewItem } from './journal-import';
 import { SyncStatusState } from './sync';
+
+export type CeremonyKind = 'achievement' | 'finished' | 'perfect';
+
+export interface CeremonyEvent {
+  id: string;
+  kind: CeremonyKind;
+  gameId: string;
+  gameTitle: string;
+  coverUrl?: string;
+  achievementName?: string;
+  achievementDescription?: string;
+  achievementIconUrl?: string;
+  extraCount?: number;
+}
 import {
   CallAnswer,
   CallEvent,
@@ -216,6 +230,7 @@ export interface ElectronAPI {
   removeCustomAchievement: (gameId: string, achievementId: string) => Promise<GameAchievements>;
   setAchievementList: (gameId: string, useMilestones: boolean) => Promise<GameAchievements | null>;
   onAchievementsUpdated: (callback: (gameId: string) => void) => () => void;
+  onCeremonyEvent: (callback: (event: CeremonyEvent) => void) => () => void;
   testSteamCredentials: (apiKey: string, steamId: string) => Promise<ApiKeyTestResult>;
   testRetroAchievementsCredentials: (username: string, apiKey: string) => Promise<ApiKeyTestResult>;
 

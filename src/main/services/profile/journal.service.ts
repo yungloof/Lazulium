@@ -1,8 +1,9 @@
 import { randomUUID } from 'crypto';
 import { Game, GameLog, GameLogStatus } from '@shared/types/game';
 import { GameAchievements } from '@shared/types/achievements';
-import { JournalEntryInput } from '@shared/types/ipc';
+import { CeremonyEvent, JournalEntryInput } from '@shared/types/ipc';
 import { db } from '../../database/db';
+import { ceremonyFromJournalTransition } from '../achievements/ceremony';
 import { recordLogChange } from './activity.service';
 
 const STATUS_VALUES: GameLogStatus[] = ['backlog', 'playing', 'endless', 'paused', 'finished', 'completed', 'dropped'];
@@ -54,12 +55,20 @@ export function markPerfectGame(data: GameAchievements): Game | null {
   return updated;
 }
 
+let ceremonyListener: ((event: CeremonyEvent) => void) | undefined;
+
+export function setJournalCeremonyListener(listener: (event: CeremonyEvent) => void): void {
+  ceremonyListener = listener;
+}
+
 export function setGameLog(gameId: string, log: GameLog): Game {
   const game = db.getGameById(gameId);
   if (!game) throw new Error('Jogo não encontrado.');
   const updated: Game = { ...game, log: sanitizeLog(log), logUpdatedAt: new Date().toISOString() };
   db.upsertGame(updated);
   recordLogChange(gameId, game.log, updated.log);
+  const ceremony = ceremonyFromJournalTransition(game.log?.status, updated);
+  if (ceremony) ceremonyListener?.(ceremony);
   return updated;
 }
 

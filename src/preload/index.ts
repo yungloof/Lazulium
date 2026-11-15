@@ -2,7 +2,7 @@ import { ScreenshotTaken } from '../shared/types/screenshots';
 import { GameListInput } from '../shared/types/lists';
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
-import { ElectronAPI, JournalEntryInput, FetchAssetsOptions, GameLaunchStatus, MediaAssetType, TrayAction, UpdateStatus } from '@shared/types/ipc';
+import { CeremonyEvent, ElectronAPI, JournalEntryInput, FetchAssetsOptions, GameLaunchStatus, MediaAssetType, TrayAction, UpdateStatus } from '@shared/types/ipc';
 import { EmulatorConfig, Game, GameLog, GamePlatform } from '@shared/types/game';
 import { BackupEvent, GameSaveConfig } from '@shared/types/cloudsync';
 import { AccountService } from '@shared/types/accounts';
@@ -107,6 +107,11 @@ const electronAPI: ElectronAPI = {
     const subscription = (_event: Electron.IpcRendererEvent, gameId: string) => callback(gameId);
     ipcRenderer.on(IPC_CHANNELS.ACHIEVEMENTS_UPDATED, subscription);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.ACHIEVEMENTS_UPDATED, subscription);
+  },
+  onCeremonyEvent: (callback: (event: CeremonyEvent) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, ceremony: CeremonyEvent) => callback(ceremony);
+    ipcRenderer.on(IPC_CHANNELS.CEREMONY_EVENT, subscription);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.CEREMONY_EVENT, subscription);
   },
   testSteamCredentials: (apiKey: string, steamId: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.ACHIEVEMENTS_TEST_STEAM, apiKey, steamId),

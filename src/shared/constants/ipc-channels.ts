@@ -86,6 +86,7 @@ export const IPC_CHANNELS = {
   ACHIEVEMENTS_UPDATED: 'achievements:updated',
   ACHIEVEMENTS_TEST_STEAM: 'achievements:test-steam',
   ACHIEVEMENTS_TEST_RETRO: 'achievements:test-retro',
+  CEREMONY_EVENT: 'ceremony:event',
 
   // Cloud Sync (Google Drive)
   CLOUDSYNC_STATUS: 'cloudsync:status',

@@ -6,6 +6,7 @@ import { useListsStore } from '../stores/useListsStore';
 import { useUiStore } from '../stores/useUiStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { applyNavAudioSettings } from '../utils/navigationAudio';
+import { parseCeremonyEnabled, shouldHoldCeremony, useCeremonyStore } from '../stores/useCeremonyStore';
 import { scanLibraries } from '../utils/gameActions';
 import { isNewerVersion } from '@shared/utils/version';
 import { parseEditionPrefs } from '@shared/utils/editions';
@@ -33,6 +34,7 @@ export function useAppEvents(): void {
         const [loaded, settings] = await Promise.all([window.electronAPI?.getGames(), window.electronAPI?.getSettings().catch(() => undefined)]);
         library.setEditionPrefs(parseEditionPrefs(settings));
         applyNavAudioSettings(settings);
+        useCeremonyStore.getState().setEnabled(parseCeremonyEnabled(settings));
         if (loaded && loaded.length > 0) {
           library.setGames(loaded);
           library.setIsLoaded(true);
@@ -93,6 +95,8 @@ export function useAppEvents(): void {
     const unsubscribe = window.electronAPI?.onGameStatusChanged((status) => {
       useLibraryStore.getState().applyGameStatus(status);
       if (status.state !== 'stopped') return;
+      const stillPlaying = Object.values(useLibraryStore.getState().launchStatuses).some((s) => s.state === 'running');
+      if (!stillPlaying) useCeremonyStore.getState().flushDeferred();
 
       const { showNotice, dismissNotice } = useUiStore.getState();
       const title = titleOf(status.gameId, status.game?.title);
@@ -126,6 +130,14 @@ export function useAppEvents(): void {
       }
     });
     return () => unsubscribe?.();
+  }, []);
+
+  // Cerimônias locais (conquistas, Zerado e 100%)
+  useEffect(() => {
+    return window.electronAPI?.onCeremonyEvent((event) => {
+      const hold = shouldHoldCeremony(useLibraryStore.getState().launchStatuses, document.hasFocus());
+      useCeremonyStore.getState().enqueue(event, hold);
+    });
   }, []);
 
   // Lista de conquistas que chegou depois (procura em segundo plano)

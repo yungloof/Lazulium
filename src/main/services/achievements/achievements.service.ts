@@ -1,11 +1,12 @@
 import { randomUUID } from 'crypto';
 import { db } from '../../database/db';
 import { AchievementExtras, GameAchievements } from '@shared/types/achievements';
-import { ApiKeyTestResult } from '@shared/types/ipc';
+import { ApiKeyTestResult, CeremonyEvent } from '@shared/types/ipc';
 import { hasRetroAchievements } from '@shared/constants/emulators';
 import { steamAchievementsService } from './steam-achievements.service';
 import { retroAchievementsService } from './retroachievements.service';
 import { applyExtras, buildMilestoneList } from './local-achievements.service';
+import { ceremoniesFromAchievements, diffUnlockedAchievements } from './ceremony';
 import { Game, isJournalEntry } from '@shared/types/game';
 import { markPerfectGame } from '../profile/journal.service';
 import { logBackgroundFailure } from '../metadata/http';
@@ -27,6 +28,7 @@ const sameList = (a: GameAchievements, b: GameAchievements) => JSON.stringify({ 
 export class AchievementsService {
   private onGameUpdated?: (game: Game) => void;
   private onListUpdated?: (gameId: string) => void;
+  private onCeremony?: (event: CeremonyEvent) => void;
   private resolving = new Set<string>();
 
   setGameUpdatedListener(listener: (game: Game) => void): void {
@@ -38,22 +40,40 @@ export class AchievementsService {
     this.onListUpdated = listener;
   }
 
+  // Cerimônia local: conquista desbloqueada ou jogo fechado em 100%
+  setCeremonyListener(listener: (event: CeremonyEvent) => void): void {
+    this.onCeremony = listener;
+  }
+
   // Conquistas já guardadas também contam: quem fez 100% antes desta função existir não fica de fora
   applyPerfectGames(): void {
     for (const game of db.getGames()) this.notePerfect(db.getGameAchievements(game.id));
   }
 
-  private notePerfect(data: GameAchievements | null): void {
+  private notePerfect(data: GameAchievements | null): Game | null {
     // Marcos incluem "marque como 100%": não podem, eles mesmos, marcar o jogo
-    if (!data || data.source === 'lazulium') return;
+    if (!data || data.source === 'lazulium') return null;
     const updated = markPerfectGame(data);
     if (updated) this.onGameUpdated?.(updated);
+    return updated;
+  }
+
+  private emitCeremonies(prev: GameAchievements | null, next: GameAchievements, game: Game | null, becamePerfect: boolean): void {
+    if (!this.onCeremony || !game) return;
+    const unlocked = diffUnlockedAchievements(prev, next);
+    for (const event of ceremoniesFromAchievements(game, unlocked, becamePerfect)) {
+      this.onCeremony(event);
+    }
   }
 
   private store(result: GameAchievements, cached: GameAchievements | null): GameAchievements {
     // O arquivo do banco é grande: só grava quando algo mudou de verdade
-    if (!cached || !sameList(result, cached)) db.saveGameAchievements(result);
-    this.notePerfect(result);
+    const changed = !cached || !sameList(result, cached);
+    if (changed) db.saveGameAchievements(result);
+    const perfectGame = this.notePerfect(result);
+    if (changed || perfectGame) {
+      this.emitCeremonies(cached, result, perfectGame ?? db.getGameById(result.gameId), !!perfectGame);
+    }
     return result;
   }
 
@@ -198,7 +218,8 @@ export class AchievementsService {
 
   setManual(gameId: string, achievementId: string, unlocked: boolean): GameAchievements {
     const game = this.requireEditable(gameId);
-    const item = (db.getGameAchievements(gameId) ?? this.recompute(game))?.items.find((a) => a.id === achievementId);
+    const prevCached = db.getGameAchievements(gameId);
+    const item = (prevCached ?? this.recompute(game))?.items.find((a) => a.id === achievementId);
     if (!item?.markable) throw new Error('Essa conquista não pode ser marcada à mão: ela é registrada sozinha.');
     const extras = db.getAchievementExtras(gameId);
     const marks = { ...extras.unlocked };
@@ -206,8 +227,30 @@ export class AchievementsService {
     else delete marks[achievementId];
     db.setAchievementExtras(gameId, { ...extras, unlocked: marks });
     const result = this.recompute(game)!;
-    this.notePerfect(result);
+    const perfectGame = this.notePerfect(result);
+    this.emitCeremonies(prevCached, result, perfectGame ?? db.getGameById(gameId) ?? game, !!perfectGame);
     return result;
+  }
+
+  /**
+   * Atualiza as conquistas do jogo logo após fechar uma sessão, para celebrar conquistas novas ou marcos de horas.
+   */
+  async syncAfterSession(gameId: string): Promise<void> {
+    const game = db.getGameById(gameId);
+    if (!game || game.isHidden) return;
+    const prev = db.getGameAchievements(gameId);
+    const settings = db.getSettings();
+    const canSyncSteam = game.platform === 'steam' && !!settings.steamUserId;
+    const canSyncRetro =
+      !!settings.retroAchievementsUser &&
+      !!settings.retroAchievementsApiKey &&
+      (hasRetroAchievements(game.emulatorId) || prev?.source === 'retroachievements');
+    if (canSyncSteam || canSyncRetro) {
+      await this.getAchievements(gameId, true);
+      return;
+    }
+    const next = this.recompute(game, true);
+    if (prev && next) this.emitCeremonies(prev, next, game, false);
   }
 
   addCustom(gameId: string, name: string, description: string): GameAchievements {

@@ -4,6 +4,7 @@ import { MainView } from './components/shell/MainView';
 import { AppModals } from './components/shell/AppModals';
 import { NoticeStack } from './components/shell/NoticeStack';
 import { IncomingCalls } from './components/shell/IncomingCalls';
+import { CeremonyOverlay } from './components/shell/CeremonyOverlay';
 import { prefetchAll } from './components/shell/lazy';
 import { GamepadGuide } from './components/GamepadGuide';
 import { useAppEvents } from './hooks/useAppEvents';
@@ -32,6 +33,7 @@ export const App: React.FC = () => {
       <GamepadGuide />
       <NoticeStack />
       <IncomingCalls />
+      <CeremonyOverlay />
       <AppModals />
     </div>
   );
