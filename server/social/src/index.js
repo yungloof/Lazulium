@@ -182,6 +182,10 @@ function handleStart(url) {
 
 // A própria Steam confirma que a resposta não foi forjada
 async function verifySteam(params, expectedReturnTo) {
+  // Campo repetido é recusado: get() lê a primeira cópia e a Steam conferiria a última,
+  // e daria para mostrar o SteamID de outra pessoa com a assinatura válida da própria conta
+  const keys = [...params.keys()].filter((key) => key.startsWith('openid.'));
+  if (new Set(keys).size !== keys.length) return null;
   if (params.get('openid.return_to') !== expectedReturnTo) return null;
   const steamId = params.get('openid.claimed_id')?.match(CLAIMED_ID)?.[1];
   if (!steamId || params.get('openid.identity') !== params.get('openid.claimed_id')) return null;
@@ -216,6 +220,7 @@ async function fetchSteamProfile(steamId) {
 }
 
 async function handleCallback(url, env) {
+  if (url.searchParams.getAll('port').length > 1 || url.searchParams.getAll('state').length > 1) return json({ error: 'invalid_request' }, 400);
   const port = parsePort(url.searchParams.get('port'));
   const state = url.searchParams.get('state') ?? '';
   if (!port || !STATE.test(state)) return json({ error: 'invalid_request' }, 400);
@@ -903,38 +908,46 @@ async function addComment(env, viewerId, t, text, title) {
 }
 
 // Apaga quem escreveu ou o dono da resenha/lista
-async function deleteComment(env, viewerId, id) {
+async function deleteComment(env, viewerId, id, scopeOwner = null) {
   const row = await env.DB.prepare('SELECT owner_id, kind, target, user_id FROM comments WHERE id = ?').bind(id).first();
   if (!row || (row.user_id !== viewerId && row.owner_id !== viewerId)) throw new HttpError(404, 'not_found');
+  if (scopeOwner && row.owner_id !== scopeOwner) throw new HttpError(404, 'not_found');
   await env.DB.prepare('DELETE FROM comments WHERE id = ?').bind(id).run();
   return reactionThread(env, viewerId, { owner: row.owner_id, kind: row.kind, target: row.target });
 }
 
 // POST /v1/social/summary { targets } | GET /v1/social/thread?owner&kind&target | POST /v1/social/like | POST /v1/social/comments | DELETE /v1/social/comments/:id
-async function handleReactions(request, url, env, viewerId, action, commentId) {
+// scopeOwner: pela vitrine aberta por link, só vale o que é do dono daquela vitrine
+async function handleReactions(request, url, env, viewerId, action, commentId, scopeOwner = null) {
+  const target = (raw) => {
+    const t = cleanTarget(raw);
+    if (!t) throw new HttpError(400, 'invalid_target');
+    if (scopeOwner && t.owner !== scopeOwner) throw new HttpError(404, 'not_found');
+    return t;
+  };
   if (action === 'summary' && request.method === 'POST') {
     const body = await readJson(request, 50_000);
-    const targets = (Array.isArray(body?.targets) ? body.targets : []).slice(0, MAX_SUMMARY_TARGETS).map(cleanTarget).filter(Boolean);
+    const targets = (Array.isArray(body?.targets) ? body.targets : [])
+      .slice(0, MAX_SUMMARY_TARGETS)
+      .map(cleanTarget)
+      .filter((t) => t && (!scopeOwner || t.owner === scopeOwner));
     return json({ items: await reactionSummary(env, viewerId, targets) });
   }
   if (action === 'thread' && request.method === 'GET') {
-    const t = cleanTarget({ owner: url.searchParams.get('owner'), kind: url.searchParams.get('kind'), target: url.searchParams.get('target') });
-    if (!t) throw new HttpError(400, 'invalid_target');
+    const t = target({ owner: url.searchParams.get('owner'), kind: url.searchParams.get('kind'), target: url.searchParams.get('target') });
     return json(await reactionThread(env, viewerId, t));
   }
   if (action === 'like' && request.method === 'POST') {
     const body = await readJson(request, 2_000);
-    const t = cleanTarget(body);
-    if (!t) throw new HttpError(400, 'invalid_target');
+    const t = target(body);
     return json(await setLike(env, viewerId, t, body.like !== false, body.title));
   }
   if (action === 'comments' && request.method === 'POST') {
     const body = await readJson(request, 8_000);
-    const t = cleanTarget(body);
-    if (!t) throw new HttpError(400, 'invalid_target');
+    const t = target(body);
     return json(await addComment(env, viewerId, t, body.text, body.title));
   }
-  if (action === 'comments' && commentId && request.method === 'DELETE') return json(await deleteComment(env, viewerId, commentId));
+  if (action === 'comments' && commentId && request.method === 'DELETE') return json(await deleteComment(env, viewerId, commentId, scopeOwner));
   throw new HttpError(405, 'method_not_allowed');
 }
 
@@ -1701,8 +1714,8 @@ async function route(request, env) {
   const viewSocial = path.match(/^\/v1\/view\/([A-Za-z0-9_-]{20,64})\/(summary|thread|like|comments)(?:\/([0-9a-f-]{36}))?$/);
   if (viewSocial) {
     if (await isRateLimited(request, env, `view:${viewSocial[1]}`)) return json({ error: 'rate_limited' }, 429);
-    const { viewerId } = await viewerOf(env, viewSocial[1]);
-    return handleReactions(request, url, env, viewerId, viewSocial[2], viewSocial[3]);
+    const { viewerId, ownerId } = await viewerOf(env, viewSocial[1]);
+    return handleReactions(request, url, env, viewerId, viewSocial[2], viewSocial[3], ownerId);
   }
   if (await isRateLimited(request, env)) return json({ error: 'rate_limited' }, 429);
   if (path === '/v1/auth/exchange' && request.method === 'POST') return handleExchange(request, env);

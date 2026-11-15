@@ -50,7 +50,7 @@ Nenhuma destas tarefas faz pedido novo ao servidor. Sempre com o foco visível d
 
 ## 3. Tarefas do Claude (segurança, servidor e custo zero)
 
-- **C1. 3.0.1 de segurança (urgente).**
+- **C1. Correção de segurança no servidor (urgente).** Código e testes commitados em 15/11/2026; é só do servidor, o app não muda nem precisa de versão nova. Falta o deploy.
   - Login pela Steam recusa parâmetro repetido (`verifySteam` em `server/social/src/index.js`).
   - Link da vitrine só vale na vitrine de quem o gerou.
   - Testes de abuso no mesmo commit.

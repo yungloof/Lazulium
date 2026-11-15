@@ -161,6 +161,30 @@ test('login: assinatura da Steam sem o SteamID ou de outro servidor não cria co
   assert.equal(await s.env.DB.prepare('SELECT COUNT(*) AS n FROM users').first().then((r) => r.n), 0);
 });
 
+test('login: campo repetido não entra como outra conta (SteamID da vítima antes da resposta real)', async (t) => {
+  const steam = fakeSteam(); // a Steam confirmaria a assinatura da conta de quem ataca
+  t.after(steam.restore);
+  const s = setup();
+  const victim = 'https://steamcommunity.com/openid/id/76561198000000077';
+  const prefixes = [
+    { 'openid.claimed_id': victim, 'openid.identity': victim },
+    { 'openid.return_to': `${ORIGIN}/v1/auth/steam/callback?port=${PORT}&state=${STATE}` },
+    { 'openid.signed': 'signed,op_endpoint,claimed_id,identity,return_to,response_nonce,assoc_handle' }
+  ];
+  for (const prefix of prefixes) {
+    const query = `${new URLSearchParams(prefix)}&${steamReturn('76561198000000001')}`;
+    const res = await worker.fetch(new Request(`${ORIGIN}/v1/auth/steam/callback?${query}`), s.env);
+    const back = new URL(res.headers.get('Location'));
+    assert.equal(back.searchParams.get('error'), 'not_verified');
+    assert.equal(back.searchParams.get('code'), null);
+  }
+  // port ou state repetidos também param antes de tudo
+  const dupState = `state=outro-estado-0987654321&${steamReturn('76561198000000001')}`;
+  assert.equal((await worker.fetch(new Request(`${ORIGIN}/v1/auth/steam/callback?${dupState}`), s.env)).status, 400);
+  assert.equal(steam.calls.length, 0, 'nem chega a perguntar à Steam');
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM users').get().n, 0);
+});
+
 test('login cancelado volta para o app com erro', async () => {
   const s = setup();
   const res = await worker.fetch(new Request(`${ORIGIN}/v1/auth/steam/callback?port=${PORT}&state=${STATE}&openid.mode=cancel`), s.env);
@@ -867,6 +891,21 @@ test('curtidas e comentários: só amigos do dono, contagens, avisos e respostas
   assert.equal(viaPage.status, 200);
   assert.equal((await viaPage.json()).comments[0].user.id, b.user.id);
   assert.equal((await worker.fetch(new Request(`https://social.test/v1/view/${'x'.repeat(30)}/like`, { method: 'POST', body: JSON.stringify(list) }), s.env)).status, 401);
+
+  // O link da vitrine de A só vale na vitrine de A: nada em C, mesmo C sendo amigo de B
+  await befriend(s, b, c);
+  const other = { owner: c.user.id, kind: 'review', target: 't:celeste', title: 'Celeste' };
+  const viaLink = (path, init = {}) => worker.fetch(new Request(`${link}${path}`, { headers: { 'Content-Type': 'application/json' }, ...init }), s.env);
+  assert.equal((await viaLink('/like', { method: 'POST', body: JSON.stringify(other) })).status, 404);
+  assert.equal((await viaLink('/comments', { method: 'POST', body: JSON.stringify({ ...other, text: 'oi' }) })).status, 404);
+  assert.equal((await viaLink(`/thread?owner=${c.user.id}&kind=review&target=t:celeste`)).status, 404);
+  const scoped = await (await viaLink('/summary', { method: 'POST', body: JSON.stringify({ targets: [list, other] }) })).json();
+  assert.deepEqual(Object.keys(scoped.items), [`${a.user.id}|list|${list.target}`]);
+  // Comentário de B em C: apaga pela conta, nunca pelo link da vitrine de A
+  const onC = (await s.call('POST', '/v1/social/comments', { token: b.token, body: { ...other, text: 'Que jogo' } })).body.comments[0].id;
+  assert.equal((await viaLink(`/comments/${onC}`, { method: 'DELETE' })).status, 404);
+  assert.equal((await s.call('DELETE', `/v1/social/comments/${onC}`, { token: b.token })).status, 200);
+  assert.equal(s.env.DB.raw.prepare("SELECT COUNT(*) AS n FROM reactions WHERE owner_id = ?").get(c.user.id).n, 0);
 
   // Apagar a conta leva curtidas e comentários dela
   await s.call('DELETE', '/v1/me', { token: b.token });
