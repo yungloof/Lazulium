@@ -29,20 +29,20 @@ Leia antes: `CLAUDE.md`, `docs/handoff-3.0.md` (as regras da seção 2 valem par
 
 Nenhuma destas tarefas faz pedido novo ao servidor. Sempre com o foco visível de controle (`focus-visible:ring-2 focus-visible:ring-indigo-400`) e respeitando `prefers-reduced-motion`.
 
-- **G1. Chave e volume do som de navegação.** `utils/navigationAudio.ts` já tem `setEnabled`, mas nada o chama. Faça a chave e o volume em `AppBehaviorSettings.tsx`, guardados nas configurações. É pequena e vem primeiro, porque as cerimônias dependem dela.
-- **G2. Cerimônias.** Conquista nova, "Zerado" e "100%" ganham um momento próprio, com a capa do jogo, brilho azul (cores do `@theme` de `styles/index.css`), som curto e vibração do controle (`gamepad.vibrationActuator`). Sem nada piscando forte. Precisa de chave própria em Comportamento e de modo calmo com movimento reduzido.
+- **G1. Chave e volume do som de navegação.** ✅ `utils/navigationAudio.ts` já tem `setEnabled`, mas nada o chama. Faça a chave e o volume em `AppBehaviorSettings.tsx`, guardados nas configurações. É pequena e vem primeiro, porque as cerimônias dependem dela.
+- **G2. Cerimônias.** ✅ Conquista nova, "Zerado" e "100%" ganham um momento próprio, com a capa do jogo, brilho azul (cores do `@theme` de `styles/index.css`), som curto e vibração do controle (`gamepad.vibrationActuator`). Sem nada piscando forte. Precisa de chave própria em Comportamento e de modo calmo com movimento reduzido.
   - Evento novo do main: em `services/achievements/` quando uma conquista é desbloqueada; para Zerado, quando o status do Diário muda.
   - Componente em `components/shell/`.
   - Não pode aparecer durante o jogo em tela cheia: guardar e mostrar quando o jogo fechar.
-- **G3. Controle completo, parte 1.**
+- **G3. Controle completo, parte 1.** ✅
   - Botões desenhados conforme o controle (Xbox, PlayStation, Switch pelo `gamepad.id`) em `GamepadGuide.tsx` e na faixa de botões.
   - Botão View/Select abre o menu do jogo focado (hoje o `GameContextMenu` só abre com o botão direito do mouse).
   - Analógico direito rola a página.
   - Arquivos: `hooks/useGamepad.ts`, `utils/spatialNav.ts`, `utils/gameActions.ts`.
-- **G4. "Neste dia".** Na tela inicial (`LibraryHome.tsx`), lembranças como "há 2 anos você zerou X" ou "sua primeira sessão de Y foi hoje", com captura e trecho da resenha quando houver. Some se não houver nada. Dados de `services/profile/activity.service.ts` e das sessões. Só dados locais.
-- **G5. Controle completo, parte 2: teclado na tela** dentro do layout único, para escrever resenha e busca pelo controle. **Não é Big Picture**: nada de modo tela cheia separado.
-- **G6. Retrospectiva como história.** `YearReviewModal.tsx` e `services/profile/year-review.service.ts` viram telas em sequência, navegáveis pelo controle, terminando numa imagem gerada no PC (canvas) para salvar. A imagem não sobe para servidor nenhum.
-- **G7. Limpar resíduos da Steam.** Tokens `--color-steam-*` e o verde `steam-play` em `styles/index.css`. O botão JOGAR passa a usar o azul vivo do tema. Confira o visual em captura antes de dizer que ficou bom.
+- **G4. "Neste dia".** ✅ Na tela inicial (`LibraryHome.tsx`), lembranças como "há 2 anos você zerou X" ou "sua primeira sessão de Y foi hoje", com captura e trecho da resenha quando houver. Some se não houver nada. Dados de `services/profile/activity.service.ts` e das sessões. Só dados locais.
+- **G5. Controle completo, parte 2: teclado na tela** ✅ dentro do layout único, para escrever resenha e busca pelo controle. **Não é Big Picture**: nada de modo tela cheia separado.
+- **G6. Retrospectiva como história.** ✅ `YearReviewModal.tsx` e `services/profile/year-review.service.ts` viram telas em sequência, navegáveis pelo controle, terminando numa imagem gerada no PC (canvas) para salvar. A imagem não sobe para servidor nenhum.
+- **G7. Limpar resíduos da Steam.** ✅ Tokens `--color-steam-*` e o verde `steam-play` em `styles/index.css`. O botão JOGAR passa a usar o azul vivo do tema. Confira o visual em captura antes de dizer que ficou bom.
 
 **Depois, com a Lazuli:** o Diário por sessão ("Como foi?" ao fechar o jogo). Mexe em `game.ts`, `library-sync.ts` e no tamanho da sincronização: só o texto e o humor sobem, a captura fica no PC.
 
@@ -50,13 +50,13 @@ Nenhuma destas tarefas faz pedido novo ao servidor. Sempre com o foco visível d
 
 ## 3. Tarefas do Claude (segurança, servidor e custo zero)
 
-- **C1. Correção de segurança no servidor (urgente).** Código e testes commitados em 15/11/2026; é só do servidor, o app não muda nem precisa de versão nova. Falta o deploy.
+- **C1. Correção de segurança no servidor (urgente).** ✅ Feita e publicada no Worker em 15/11/2026 (`005c390`). Só do servidor; a VPS não roda o servidor social. Sessões abertas mantidas, por decisão da Lazuli.
   - Login pela Steam recusa parâmetro repetido (`verifySteam` em `server/social/src/index.js`).
   - Link da vitrine só vale na vitrine de quem o gerou.
   - Testes de abuso no mesmo commit.
   - Depois, com o "pode": deploy no Worker **e** na VPS e encerrar as sessões abertas.
-- **C2. CI no GitHub Actions:** typecheck, `npm test` e os testes do servidor em cada push.
-- **C3. Consultas mais leves:**
+- **C2. CI no GitHub Actions:** ✅ `d737b7c`. Typecheck, `npm test`, build, `check:package` e os testes dos dois servidores em cada push na main.
+- **C3. Consultas mais leves:** ✅ `b002c4f` (rota `/v1/me/poll` ainda não publicada no Worker; publicar antes da versão do app que a usa).
   - `/v1/me/poll` único (amigos, chamadas e avisos);
   - chamadas a cada 30 s sem amigo online;
   - última atividade gravada a cada 10 min;

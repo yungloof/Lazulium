@@ -8,7 +8,7 @@ type AnyPresence = PresenceStatus | FriendPresence;
 const MOON_MASK = 'radial-gradient(circle at 18% 18%, transparent 38%, #000 40%)';
 
 // Bolinha de status como no Discord: verde, lua amarela, vermelho com traço, anel cinza
-export const PresenceDot: React.FC<{ status: AnyPresence; className?: string; ring?: string }> = ({ status, className = 'w-3 h-3', ring = 'ring-[3px] ring-steam-bg' }) => {
+export const PresenceDot: React.FC<{ status: AnyPresence; className?: string; ring?: string }> = ({ status, className = 'w-3 h-3', ring = 'ring-[3px] ring-surface-bg' }) => {
   const base = `inline-block flex-shrink-0 rounded-full ${ring} ${className}`;
   if (status === 'online') return <span className={`${base} bg-emerald-500`} aria-hidden />;
   // Lua: círculo amarelo com um recorte transparente (fica certo sobre qualquer fundo)

@@ -199,16 +199,3 @@ html[data-nav] [data-game-id]:focus [data-cover-title] {
     transition-duration: 1ms !important;
   }
 }
-
-/* Mantém fundo e anéis dos componentes de Amigos apontando para --color-surface-bg sem editar os arquivos do Claude */
-@layer utilities {
-  .bg-steam-bg\/90 {
-    background-color: color-mix(in srgb, var(--color-surface-bg) 90%, transparent);
-  }
-  .ring-steam-bg {
-    --tw-ring-color: var(--color-surface-bg);
-  }
-  .focus-visible\:ring-offset-steam-bg:focus-visible {
-    --tw-ring-offset-color: var(--color-surface-bg);
-  }
-}

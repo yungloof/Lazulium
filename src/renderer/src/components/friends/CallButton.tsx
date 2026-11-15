@@ -69,7 +69,7 @@ export const CallButton: React.FC<{ friendId: string; friendName: string; presen
         className={`pointer-events-auto group relative w-28 h-28 rounded-full flex items-center justify-center text-white transition-transform
           bg-[radial-gradient(circle_at_35%_30%,#ff6b6b,#dc2626_55%,#991b1b)] shadow-[0_10px_0_#7f1d1d,0_20px_50px_rgba(220,38,38,.55)]
           hover:scale-105 active:translate-y-2 active:shadow-[0_2px_0_#7f1d1d,0_10px_30px_rgba(220,38,38,.5)]
-          disabled:cursor-not-allowed disabled:hover:scale-100 ${offline ? 'grayscale opacity-60' : ''} ${focusRing} focus-visible:ring-offset-4 focus-visible:ring-offset-steam-bg`}
+          disabled:cursor-not-allowed disabled:hover:scale-100 ${offline ? 'grayscale opacity-60' : ''} ${focusRing} focus-visible:ring-offset-4 focus-visible:ring-offset-surface-bg`}
       >
         {ringing && <span className="absolute inset-0 rounded-full bg-red-500/60 animate-ping" aria-hidden />}
         {offline ? (

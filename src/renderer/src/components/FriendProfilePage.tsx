@@ -84,7 +84,7 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
 
   return (
     <div className="min-h-full flex flex-col animate-fade-in">
-      <div className="sticky top-0 z-20 h-16 flex-shrink-0 border-b border-slate-800/80 bg-steam-bg/90 backdrop-blur">
+      <div className="sticky top-0 z-20 h-16 flex-shrink-0 border-b border-slate-800/80 bg-surface-bg/90 backdrop-blur">
         <div className="h-full max-w-6xl mx-auto px-6 flex items-center gap-4">
           <Button variant="ghost" icon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={back} data-nav-start="">
             Amigos
