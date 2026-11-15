@@ -160,7 +160,12 @@ const Thread: React.FC<{ target: ReactionTarget; own: boolean; onChange: (thread
   );
 };
 
-export const ReactionBar: React.FC<{ target: ReactionTarget | null; className?: string; defaultOpen?: boolean }> = ({ target, className = '', defaultOpen = false }) => {
+export const ReactionBar: React.FC<{ target: ReactionTarget | null; className?: string; defaultOpen?: boolean; alwaysShow?: boolean }> = ({
+  target,
+  className = '',
+  defaultOpen = false,
+  alwaysShow = false
+}) => {
   const me = useReactionsStore((s) => s.me);
   const key = target ? reactionKey(target) : null;
   const summary = useReactionsStore((s) => (key ? s.summaries[key] : undefined));
@@ -175,8 +180,8 @@ export const ReactionBar: React.FC<{ target: ReactionTarget | null; className?: 
 
   if (!target || !summary) return null;
   const own = target.owner === me;
-  // Na sua resenha ou lista só aparece quando alguém já reagiu
-  if (own && summary.likes === 0 && summary.comments === 0 && !open) return null;
+  // Na sua resenha ou lista só aparece quando alguém já reagiu (em listas em grupo sempre mostra comentários)
+  if (!alwaysShow && own && summary.likes === 0 && summary.comments === 0 && !open) return null;
 
   const toggleLike = async () => {
     const before = summary;

@@ -92,7 +92,15 @@ const SERVER_ERRORS: Record<string, string> = {
   invalid_status: 'Status inválido.',
   empty_comment: 'Escreva alguma coisa antes de enviar.',
   comment_limit: 'Comentários demais em pouco tempo. Espere uns minutos.',
-  invalid_target: 'Não dá para reagir a isso.'
+  invalid_target: 'Não dá para reagir a isso.',
+  invalid_title: 'Dê um nome para a lista.',
+  not_friends: 'Só dá para convidar quem já é seu amigo na conta Lazulium.',
+  too_many_lists: 'Você atingiu o limite de listas em grupo.',
+  too_many_members: 'Essa lista já tem participantes demais.',
+  list_full: 'Essa lista chegou ao limite de jogos.',
+  invalid_game: 'Esse jogo não tem um nome válido para listas em grupo.',
+  cannot_remove_owner: 'Quem criou a lista não pode sair dela; se quiser, apague a lista.',
+  forbidden: 'Só quem criou a lista pode fazer essa alteração.'
 };
 
 const CALLBACK_PAGE = `<!doctype html><meta charset="utf-8"><title>Lazulium</title>
@@ -507,6 +515,12 @@ class SocialService {
       }
     }
     this.friendsPlaying = current;
+  }
+
+  async ensurePublicCover(gameId: string): Promise<string | null> {
+    await this.resolvePublicCovers([gameId]);
+    const fresh = db.getGameById(gameId);
+    return fresh ? publicCoverOf(fresh) : null;
   }
 
   // Jogo sem capa pública (capa escolhida no PC, emulador, avulso): procura a capa padrão no IGDB e guarda

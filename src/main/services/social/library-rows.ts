@@ -2,13 +2,15 @@ import { Game } from '@shared/types/game';
 import { GameAchievements } from '@shared/types/achievements';
 import { FriendCompareGame, FriendGameAchievements, FriendLibraryGame, SocialSettings } from '@shared/types/social';
 import { EditionPrefs, foldEditions } from '@shared/utils/editions';
+import { findOwnedGame, indexGamesByKey, libraryKeysOf, libraryTitleKey, steamKeyOf } from '@shared/utils/game-match';
 import { reviewDateOf } from '@shared/utils/review-order';
-import { titleKey } from '@shared/utils/title-key';
 
 // Biblioteca resumida que vai para a conta Lazulium: um registro por jogo com alguma atividade (horas, Diário ou
 // conquista), para a página do jogo dos amigos mostrar quem jogou. Jogo comprado e nunca aberto não vai.
 // O mesmo jogo em lojas diferentes vira um registro só, como na biblioteca. Sem nada que dependa do Electron,
 // para os testes montarem direto.
+
+export { libraryKeysOf, libraryTitleKey, steamKeyOf };
 
 export const MAX_ROW_REVIEW = 6_000;     // Igual à vitrine
 export const MAX_ACHIEVEMENT_IDS = 1_000;
@@ -26,28 +28,6 @@ export interface LibraryRow {
   review?: string;
   reviewAt?: string;
   achievements?: Required<FriendGameAchievements>;
-}
-
-export const libraryTitleKey = (title: string): string | null => {
-  const key = titleKey(title);
-  return key ? `t:${key}` : null;
-};
-
-export const steamKeyOf = (game: Pick<Game, 'platform' | 'platformGameId'>): string | undefined =>
-  game.platform === 'steam' && game.platformGameId && /^\d{1,10}$/.test(game.platformGameId) ? `steam:${game.platformGameId}` : undefined;
-
-// Todas as chaves com que um amigo pode ter guardado este jogo (cada loja, nome atual e o da loja)
-export function libraryKeysOf(games: Pick<Game, 'title' | 'detectedTitle' | 'platform' | 'platformGameId'>[]): string[] {
-  const keys = new Set<string>();
-  for (const game of games) {
-    const steam = steamKeyOf(game);
-    if (steam) keys.add(steam);
-    for (const title of [game.title, game.detectedTitle]) {
-      const key = title ? libraryTitleKey(title) : null;
-      if (key) keys.add(key);
-    }
-  }
-  return [...keys].slice(0, 8);
 }
 
 // Conquistas que valem entre pessoas: listas da Steam e do RetroAchievements (os marcos do Lazulium e as criadas
@@ -120,16 +100,11 @@ export function compareWithFriend(
   achievementsOf: (gameId: string) => GameAchievements | null | undefined,
   theirs: FriendLibraryGame[]
 ): FriendCompareGame[] {
-  const byId = new Map(raw.map((g) => [g.id, g]));
-  const byKey = new Map<string, { game: Game; members: Game[] }>();
-  for (const game of foldEditions(raw.filter((g) => !g.isHidden), prefs).games) {
-    const members = game.editions ? game.editions.map((e) => byId.get(e.id)).filter((g): g is Game => !!g) : [game];
-    for (const key of libraryKeysOf(members)) if (!byKey.has(key)) byKey.set(key, { game, members });
-  }
+  const byKey = indexGamesByKey(raw, prefs);
   const seen = new Set<string>();
   const common: FriendCompareGame[] = [];
   for (const friendGame of theirs) {
-    const match = byKey.get(friendGame.titleKey) ?? (friendGame.steamKey ? byKey.get(friendGame.steamKey) : undefined);
+    const match = findOwnedGame(byKey, friendGame);
     if (!match || seen.has(match.game.id)) continue;
     seen.add(match.game.id);
     const { game, members } = match;

@@ -873,3 +873,127 @@ test('curtidas e comentários: só amigos do dono, contagens, avisos e respostas
   const left = s.env.DB.raw.prepare('SELECT (SELECT COUNT(*) FROM reactions WHERE user_id = ?1) + (SELECT COUNT(*) FROM comments WHERE user_id = ?1) AS n').get(b.user.id);
   assert.equal(left.n, 0);
 });
+
+test('listas em grupo: só amigos entram, edição atômica, reordenação segura e limpeza ao desfazer amizade ou apagar conta', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  const a = await login(s, '76561198000000011');
+  const b = await login(s, '76561198000000012');
+  const c = await login(s, '76561198000000013');
+  const d = await login(s, '76561198000000014'); // não é amigo de ninguém
+  await befriend(s, a, b);
+  await befriend(s, a, c);
+
+  // Não cria com título vazio nem convidando quem não é amigo
+  assert.equal((await s.call('POST', '/v1/group-lists', { token: a.token, body: { title: '   ' } })).status, 400);
+  const badInvite = await s.call('POST', '/v1/group-lists', { token: a.token, body: { title: 'Co-op', memberIds: [b.user.id, d.user.id] } });
+  assert.equal(badInvite.status, 400);
+  assert.equal(badInvite.body.error, 'not_friends');
+
+  // A cria lista em grupo com B
+  const created = await s.call('POST', '/v1/group-lists', {
+    token: a.token,
+    body: { title: 'Para jogar juntos', description: 'Campanhas\n\n\n\nboas', ranked: true, memberIds: [b.user.id] }
+  });
+  assert.equal(created.status, 201);
+  const listId = created.body.list.id;
+  assert.equal(created.body.list.owner.id, a.user.id);
+  assert.equal(created.body.list.ranked, true);
+  assert.equal(created.body.list.description, 'Campanhas\n\nboas');
+  assert.deepEqual(created.body.list.members.map((m) => m.id), [b.user.id]);
+
+  // C e D ainda não são membros (404, não vaza existência)
+  assert.equal((await s.call('GET', `/v1/group-lists/${listId}`, { token: c.token })).status, 404);
+  assert.equal((await s.call('GET', `/v1/group-lists/${listId}`, { token: d.token })).status, 404);
+  assert.equal((await s.call('GET', '/v1/group-lists', { token: d.token })).body.lists.length, 0);
+
+  // A convida C (e tenta convidar D sem ser amigo)
+  assert.equal((await s.call('POST', `/v1/group-lists/${listId}/members`, { token: a.token, body: { userId: d.user.id } })).body.error, 'not_friends');
+  const invitedC = await s.call('POST', `/v1/group-lists/${listId}/members`, { token: a.token, body: { userId: c.user.id } });
+  assert.equal(invitedC.status, 200);
+  assert.equal(invitedC.body.list.members.length, 2);
+
+  // Participantes enxergam e adicionam jogos (título normalizado + steamKey + capa segura)
+  assert.equal((await s.call('GET', '/v1/group-lists', { token: b.token })).body.lists.length, 1);
+  const hades = {
+    title: 'Hades',
+    titleKey: 't:hades',
+    steamKey: 'steam:1145360',
+    coverUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1145360/library_600x900.jpg'
+  };
+  const celeste = {
+    title: 'Celeste',
+    titleKey: 't:celeste',
+    coverUrl: 'https://evil.example/fake.jpg' // fora das CDNs permitidas -> null
+  };
+  const portal = {
+    title: 'Portal 2',
+    titleKey: 't:portal2',
+    steamKey: 'steam:620'
+  };
+  const afterHades = await s.call('POST', `/v1/group-lists/${listId}/games`, { token: b.token, body: hades });
+  assert.equal(afterHades.status, 200);
+  assert.equal(afterHades.body.list.items[0].addedBy.id, b.user.id);
+  const afterCeleste = await s.call('POST', `/v1/group-lists/${listId}/games`, { token: c.token, body: celeste });
+  assert.equal(afterCeleste.body.list.items[1].coverUrl, null);
+  assert.equal(afterCeleste.body.list.items[1].addedBy.id, c.user.id);
+
+  // B adiciona Portal 2 enquanto C reordena só os 2 anteriores: o jogo novo de B não some
+  await s.call('POST', `/v1/group-lists/${listId}/games`, { token: b.token, body: portal });
+  const reordered = await s.call('PUT', `/v1/group-lists/${listId}/order`, {
+    token: c.token,
+    body: { titleKeys: ['t:celeste', 't:hades'] }
+  });
+  assert.deepEqual(
+    reordered.body.list.items.map((i) => i.titleKey),
+    ['t:celeste', 't:hades', 't:portal2']
+  );
+
+  // B (não dono) não edita nome/convite/expulsão/exclusão (403)
+  assert.equal((await s.call('PATCH', `/v1/group-lists/${listId}`, { token: b.token, body: { title: 'Outro' } })).status, 403);
+  assert.equal((await s.call('POST', `/v1/group-lists/${listId}/members`, { token: b.token, body: { userId: d.user.id } })).status, 403);
+  assert.equal((await s.call('DELETE', `/v1/group-lists/${listId}/members/${c.user.id}`, { token: b.token })).status, 403);
+  assert.equal((await s.call('DELETE', `/v1/group-lists/${listId}`, { token: b.token })).status, 403);
+
+  // Participante remove um jogo
+  const removedGame = await s.call('DELETE', `/v1/group-lists/${listId}/games/${encodeURIComponent('t:hades')}`, { token: b.token });
+  assert.deepEqual(removedGame.body.list.items.map((i) => i.titleKey), ['t:celeste', 't:portal2']);
+
+  // Curtidas e comentários usam kind: 'list'
+  const react = await s.call('POST', '/v1/social/comments', { token: b.token, body: { owner: a.user.id, kind: 'list', target: listId, title: 'Para jogar juntos', text: 'Bora!' } });
+  assert.equal(react.status, 200);
+  assert.equal(react.body.comments.length, 1);
+
+  // C apaga a conta -> sai da lista e addedBy dos jogos de C vira null, mas a lista de A continua intacta
+  await s.call('DELETE', '/v1/me', { token: c.user.id ? c.token : '' });
+  const afterCDelete = (await s.call('GET', `/v1/group-lists/${listId}`, { token: a.token })).body.list;
+  assert.deepEqual(afterCDelete.members.map((m) => m.id), [b.user.id]);
+  assert.equal(afterCDelete.items.find((i) => i.titleKey === 't:celeste').addedBy, null);
+
+  // Desfazer amizade tira o acesso na hora
+  await s.call('DELETE', `/v1/friends/${b.user.id}`, { token: a.token });
+  assert.equal((await s.call('GET', `/v1/group-lists/${listId}`, { token: b.token })).status, 404);
+  assert.equal((await s.call('GET', '/v1/group-lists', { token: b.token })).body.lists.length, 0);
+
+  // Dono edita, reconvida após nova amizade, membro sai por conta própria, depois dono apaga tudo
+  await befriend(s, a, b);
+  await s.call('POST', `/v1/group-lists/${listId}/members`, { token: a.token, body: { userId: b.user.id } });
+  const edited = await s.call('PATCH', `/v1/group-lists/${listId}`, { token: a.token, body: { title: 'Lista final', ranked: false } });
+  assert.equal(edited.body.list.title, 'Lista final');
+  assert.equal(edited.body.list.ranked, false);
+  const left = await s.call('DELETE', `/v1/group-lists/${listId}/members/${b.user.id}`, { token: b.token });
+  assert.equal(left.body.left, true);
+  assert.equal((await s.call('GET', `/v1/group-lists/${listId}`, { token: b.token })).status, 404);
+
+  const deleted = await s.call('DELETE', `/v1/group-lists/${listId}`, { token: a.token });
+  assert.equal(deleted.body.deleted, true);
+  assert.equal(s.env.DB.raw.prepare("SELECT COUNT(*) AS n FROM comments WHERE target = ?").get(listId).n, 0);
+
+  // Apagar a conta do dono leva as listas dele junto
+  const second = await s.call('POST', '/v1/group-lists', { token: a.token, body: { title: 'Segunda' } });
+  assert.equal(second.status, 201);
+  await s.call('DELETE', '/v1/me', { token: a.token });
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM group_lists').get().n, 0);
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM group_list_items').get().n, 0);
+});

@@ -61,7 +61,7 @@ export const CoverCard: React.FC<CoverCardProps> = ({ title, coverUrl, gameId, o
     title={title}
     data-game-id={gameId}
     data-nav-start={navStart ? '' : undefined}
-    className={`group min-w-0 text-left rounded-md ${focusRing}`}
+    className={`group w-full min-w-0 text-left rounded-md ${focusRing}`}
   >
     <span data-cover className={`${coverFrame} ${highlight ? 'border-indigo-400/70' : 'group-hover:border-slate-500'} group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:shadow-black/40`}>
       <GameCover src={coverUrl} title={title} gameId={gameId} />

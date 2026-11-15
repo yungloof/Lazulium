@@ -72,6 +72,10 @@ settings     (user_id PK, share_playtime, share_achievements, share_reviews, sha
 | POST/DELETE | `/v1/social/comments` / `/v1/social/comments/:id` | Comentar; apaga quem escreveu ou o dono |
 | GET | `/v1/me/notifications?since=` | Avisos: curtiram, comentaram ou responderam onde você comentou |
 | * | `/v1/view/:token/(summary\|thread\|like\|comments)` | O mesmo, pela vitrine aberta por link, em nome de quem pediu o link |
+| GET/POST | `/v1/group-lists` | Listas em grupo em que você participa ou cria |
+| GET/PATCH/DELETE | `/v1/group-lists/:id` | Ver detalhes, editar (dono) ou apagar (dono) uma lista em grupo |
+| POST/DELETE | `/v1/group-lists/:id/members` (`/:userId`) | Convidar/remover amigo (dono) ou sair da lista (`:userId` = você) |
+| POST/DELETE/PUT | `/v1/group-lists/:id/games` (`/:titleKey`) / `order` | Adicionar, remover ou reordenar jogos na lista em grupo |
 
 Limite de pedidos por usuário no Worker (`RATE_LIMITER`), como no `/v1/prices`.
 

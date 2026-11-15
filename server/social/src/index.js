@@ -64,6 +64,12 @@ const COMMENT_WINDOW_MS = 10 * 60_000;
 const MAX_COMMENTS_PER_THREAD = 200;
 const MAX_SUMMARY_TARGETS = 100;
 const MAX_NOTIFICATIONS = 50;
+// Listas em grupo
+const MAX_GROUP_LISTS_OWNED = 50;
+const MAX_GROUP_LIST_MEMBERS = 30;
+const MAX_GROUP_LIST_GAMES = 200;
+const MAX_LIST_TITLE = 80;
+const MAX_LIST_DESCRIPTION = 500;
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // Sem 0/O e 1/I, para ditar por voz
 
 export const ACTIVITY_KINDS = ['played', 'started', 'finished', 'completed', 'dropped', 'rated', 'reviewed', 'achievements', 'perfect'];
@@ -111,6 +117,8 @@ function inviteCode() {
 }
 
 const cleanText = (value, max) => (typeof value === 'string' ? value.replace(/\p{C}/gu, ' ').replace(/\s{2,}/g, ' ').trim().slice(0, max) : '');
+const cleanMultiline = (value, max) =>
+  typeof value === 'string' ? value.replace(/\r\n?/g, '\n').replace(/[^\P{C}\n]/gu, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, max) : '';
 
 async function readJson(request, maxBytes = 200_000) {
   // Corpo anunciado grande demais é recusado antes de ser lido
@@ -334,6 +342,10 @@ async function handleMe(request, env, auth) {
         'DELETE FROM reactions WHERE owner_id = ?1 OR user_id = ?1',
         'DELETE FROM comments WHERE owner_id = ?1 OR user_id = ?1',
         'DELETE FROM calls WHERE from_id = ?1 OR to_id = ?1',
+        'DELETE FROM group_list_items WHERE list_id IN (SELECT id FROM group_lists WHERE owner_id = ?1)',
+        'DELETE FROM group_list_members WHERE user_id = ?1 OR list_id IN (SELECT id FROM group_lists WHERE owner_id = ?1)',
+        'DELETE FROM group_lists WHERE owner_id = ?1',
+        'UPDATE group_list_items SET added_by = NULL WHERE added_by = ?1',
         'DELETE FROM users WHERE id = ?'
       ]
         .map((sql) => env.DB.prepare(sql).bind(user.id))
@@ -502,7 +514,11 @@ async function handleFriends(request, env, auth, friendId) {
   if (friendId) {
     if (request.method !== 'DELETE') throw new HttpError(405, 'method_not_allowed');
     const [a, b] = friendId < auth.user.id ? [friendId, auth.user.id] : [auth.user.id, friendId];
-    await env.DB.prepare('DELETE FROM friendships WHERE user_a = ? AND user_b = ?').bind(a, b).run();
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM friendships WHERE user_a = ? AND user_b = ?').bind(a, b),
+      env.DB.prepare('DELETE FROM group_list_members WHERE user_id = ?1 AND list_id IN (SELECT id FROM group_lists WHERE owner_id = ?2)').bind(friendId, auth.user.id),
+      env.DB.prepare('DELETE FROM group_list_members WHERE user_id = ?1 AND list_id IN (SELECT id FROM group_lists WHERE owner_id = ?2)').bind(auth.user.id, friendId)
+    ]);
     return json({ ok: true });
   }
   if (request.method !== 'GET') throw new HttpError(405, 'method_not_allowed');
@@ -1255,6 +1271,320 @@ async function handleView(env, token) {
   return new Response(page.replace('</head>', `${inline}\n</head>`), { headers: pageHeaders(env) });
 }
 
+// ---------- Listas em grupo ----------
+
+async function requireGroupListAccess(env, listId, userId, { ownerOnly = false } = {}) {
+  const list = await env.DB.prepare('SELECT * FROM group_lists WHERE id = ?').bind(listId).first();
+  if (!list) throw new HttpError(404, 'not_found');
+  if (list.owner_id !== userId) {
+    const member = await env.DB.prepare('SELECT 1 FROM group_list_members WHERE list_id = ? AND user_id = ?').bind(listId, userId).first();
+    if (!member || !(await areFriends(env, list.owner_id, userId))) throw new HttpError(404, 'not_found');
+    if (ownerOnly) throw new HttpError(403, 'forbidden');
+  }
+  return list;
+}
+
+async function buildGroupListViews(env, lists) {
+  if (lists.length === 0) return [];
+  const listIds = lists.map((l) => l.id);
+  const ownerIds = [...new Set(lists.map((l) => l.owner_id))];
+  const listPh = listIds.map(() => '?').join(',');
+  const ownerPh = ownerIds.map(() => '?').join(',');
+
+  const [ownersRes, membersRes, itemsRes, friendSets] = await Promise.all([
+    env.DB.prepare(`SELECT * FROM users WHERE id IN (${ownerPh})`).bind(...ownerIds).all(),
+    env.DB.prepare(
+      `SELECT m.list_id, m.added_at, u.* FROM group_list_members m JOIN users u ON u.id = m.user_id
+       WHERE m.list_id IN (${listPh}) ORDER BY m.added_at ASC`
+    ).bind(...listIds).all(),
+    env.DB.prepare(
+      `SELECT i.*, u.id AS u_id, u.custom_name AS u_custom_name, u.steam_name AS u_steam_name, u.steam_avatar AS u_steam_avatar
+       FROM group_list_items i LEFT JOIN users u ON u.id = i.added_by
+       WHERE i.list_id IN (${listPh}) ORDER BY i.position ASC, i.added_at ASC`
+    ).bind(...listIds).all(),
+    Promise.all(ownerIds.map(async (id) => [id, new Set(await friendIds(env, id))]))
+  ]);
+
+  const ownersById = new Map(ownersRes.results.map((u) => [u.id, publicUser(u)]));
+  const friendsByOwner = new Map(friendSets);
+  const membersByList = new Map();
+  for (const row of membersRes.results) {
+    const listMembers = membersByList.get(row.list_id) ?? [];
+    listMembers.push(row);
+    membersByList.set(row.list_id, listMembers);
+  }
+  const itemsByList = new Map();
+  for (const row of itemsRes.results) {
+    const listItems = itemsByList.get(row.list_id) ?? [];
+    listItems.push({
+      titleKey: row.title_key,
+      steamKey: row.steam_key ?? null,
+      title: row.title,
+      coverUrl: row.cover_url ?? null,
+      position: row.position,
+      addedBy: row.u_id
+        ? { id: row.u_id, name: row.u_custom_name || row.u_steam_name || 'Jogador', avatarUrl: row.u_steam_avatar || null }
+        : null,
+      addedAt: row.added_at
+    });
+    itemsByList.set(row.list_id, listItems);
+  }
+
+  return lists.map((l) => {
+    const allowedFriends = friendsByOwner.get(l.owner_id) ?? new Set();
+    const members = (membersByList.get(l.id) ?? []).filter((m) => allowedFriends.has(m.id)).map((m) => publicUser(m));
+    return {
+      id: l.id,
+      owner: ownersById.get(l.owner_id) ?? { id: l.owner_id, name: 'Jogador', avatarUrl: null },
+      title: l.title,
+      description: l.description,
+      ranked: Boolean(l.ranked),
+      members,
+      items: itemsByList.get(l.id) ?? [],
+      createdAt: l.created_at,
+      updatedAt: l.updated_at
+    };
+  });
+}
+
+async function buildGroupListView(env, list) {
+  return (await buildGroupListViews(env, [list]))[0];
+}
+
+async function handleGroupListsCollection(request, env, auth) {
+  if (request.method === 'GET') {
+    const { results } = await env.DB.prepare(
+      `SELECT l.* FROM group_lists l
+       WHERE l.owner_id = ?1 OR EXISTS (SELECT 1 FROM group_list_members m WHERE m.list_id = l.id AND m.user_id = ?1)
+       ORDER BY l.updated_at DESC`
+    )
+      .bind(auth.user.id)
+      .all();
+    const myFriends = new Set(await friendIds(env, auth.user.id));
+    const visible = results.filter((l) => l.owner_id === auth.user.id || myFriends.has(l.owner_id));
+    return json({ lists: await buildGroupListViews(env, visible) });
+  }
+  if (request.method !== 'POST') throw new HttpError(405, 'method_not_allowed');
+
+  const body = await readJson(request, 20_000);
+  const owned = await env.DB.prepare('SELECT COUNT(*) AS n FROM group_lists WHERE owner_id = ?').bind(auth.user.id).first();
+  if ((owned?.n ?? 0) >= MAX_GROUP_LISTS_OWNED) throw new HttpError(400, 'too_many_lists');
+
+  const title = cleanText(body?.title, MAX_LIST_TITLE);
+  if (!title) throw new HttpError(400, 'invalid_title');
+  const description = cleanMultiline(body?.description, MAX_LIST_DESCRIPTION);
+  const ranked = body?.ranked ? 1 : 0;
+
+  const rawMembers = body?.memberIds === undefined ? [] : Array.isArray(body.memberIds) ? body.memberIds : null;
+  if (rawMembers === null) throw new HttpError(400, 'invalid_request');
+  const memberIds = [];
+  const seenMembers = new Set();
+  for (const id of rawMembers) {
+    if (typeof id !== 'string' || !UUID.test(id)) throw new HttpError(400, 'invalid_request');
+    if (id !== auth.user.id && !seenMembers.has(id)) {
+      seenMembers.add(id);
+      memberIds.push(id);
+    }
+  }
+  if (memberIds.length > MAX_GROUP_LIST_MEMBERS) throw new HttpError(400, 'too_many_members');
+  if (memberIds.length > 0) {
+    const myFriends = new Set(await friendIds(env, auth.user.id));
+    for (const id of memberIds) {
+      if (!myFriends.has(id)) throw new HttpError(400, 'not_friends');
+    }
+  }
+
+  const id = crypto.randomUUID();
+  const now = nowIso();
+  const stmts = [
+    env.DB.prepare('INSERT INTO group_lists (id, owner_id, title, description, ranked, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(id, auth.user.id, title, description, ranked, now, now)
+  ];
+  for (const memberId of memberIds) {
+    stmts.push(env.DB.prepare('INSERT INTO group_list_members (list_id, user_id, added_at) VALUES (?, ?, ?)').bind(id, memberId, now));
+  }
+  await env.DB.batch(stmts);
+  const created = await env.DB.prepare('SELECT * FROM group_lists WHERE id = ?').bind(id).first();
+  return json({ list: await buildGroupListView(env, created) }, 201);
+}
+
+async function handleGroupListDetail(request, env, auth, listId) {
+  if (request.method === 'GET') {
+    const list = await requireGroupListAccess(env, listId, auth.user.id);
+    return json({ list: await buildGroupListView(env, list) });
+  }
+  if (request.method === 'PATCH') {
+    const list = await requireGroupListAccess(env, listId, auth.user.id, { ownerOnly: true });
+    const body = await readJson(request, 5_000);
+    if (!body || typeof body !== 'object') throw new HttpError(400, 'invalid_request');
+    let title = list.title;
+    let description = list.description;
+    let ranked = list.ranked;
+    if ('title' in body) {
+      title = cleanText(body.title, MAX_LIST_TITLE);
+      if (!title) throw new HttpError(400, 'invalid_title');
+    }
+    if ('description' in body) description = cleanMultiline(body.description, MAX_LIST_DESCRIPTION);
+    if ('ranked' in body) ranked = body.ranked ? 1 : 0;
+    const now = nowIso();
+    await env.DB.prepare('UPDATE group_lists SET title = ?, description = ?, ranked = ?, updated_at = ? WHERE id = ?')
+      .bind(title, description, ranked, now, listId)
+      .run();
+    const fresh = await env.DB.prepare('SELECT * FROM group_lists WHERE id = ?').bind(listId).first();
+    return json({ list: await buildGroupListView(env, fresh) });
+  }
+  if (request.method === 'DELETE') {
+    const list = await requireGroupListAccess(env, listId, auth.user.id, { ownerOnly: true });
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM group_list_items WHERE list_id = ?').bind(listId),
+      env.DB.prepare('DELETE FROM group_list_members WHERE list_id = ?').bind(listId),
+      env.DB.prepare("DELETE FROM reactions WHERE owner_id = ? AND kind = 'list' AND target = ?").bind(list.owner_id, listId),
+      env.DB.prepare("DELETE FROM comments WHERE owner_id = ? AND kind = 'list' AND target = ?").bind(list.owner_id, listId),
+      env.DB.prepare('DELETE FROM group_lists WHERE id = ?').bind(listId)
+    ]);
+    return json({ deleted: true, id: listId });
+  }
+  throw new HttpError(405, 'method_not_allowed');
+}
+
+async function handleGroupListMembers(request, env, auth, listId, memberUserId) {
+  if (!memberUserId && request.method === 'POST') {
+    const list = await requireGroupListAccess(env, listId, auth.user.id, { ownerOnly: true });
+    const body = await readJson(request, 5_000);
+    const rawIds = Array.isArray(body?.userIds) ? body.userIds : body?.userId ? [body.userId] : null;
+    if (!rawIds || rawIds.length === 0) throw new HttpError(400, 'invalid_request');
+    const candidateIds = [];
+    const seen = new Set();
+    for (const id of rawIds) {
+      if (typeof id !== 'string' || !UUID.test(id)) throw new HttpError(400, 'invalid_request');
+      if (id !== list.owner_id && !seen.has(id)) {
+        seen.add(id);
+        candidateIds.push(id);
+      }
+    }
+    if (candidateIds.length === 0) return json({ list: await buildGroupListView(env, list) });
+    const myFriends = new Set(await friendIds(env, list.owner_id));
+    for (const id of candidateIds) {
+      if (!myFriends.has(id)) throw new HttpError(400, 'not_friends');
+    }
+    const existingRows = await env.DB.prepare('SELECT user_id FROM group_list_members WHERE list_id = ?').bind(listId).all();
+    const existingSet = new Set(existingRows.results.map((r) => r.user_id));
+    const toAdd = candidateIds.filter((id) => !existingSet.has(id));
+    if (existingSet.size + toAdd.length > MAX_GROUP_LIST_MEMBERS) throw new HttpError(400, 'too_many_members');
+    if (toAdd.length > 0) {
+      const now = nowIso();
+      await env.DB.batch([
+        ...toAdd.map((id) => env.DB.prepare('INSERT OR IGNORE INTO group_list_members (list_id, user_id, added_at) VALUES (?, ?, ?)').bind(listId, id, now)),
+        env.DB.prepare('UPDATE group_lists SET updated_at = ? WHERE id = ?').bind(now, listId)
+      ]);
+    }
+    const fresh = await env.DB.prepare('SELECT * FROM group_lists WHERE id = ?').bind(listId).first();
+    return json({ list: await buildGroupListView(env, fresh) });
+  }
+  if (memberUserId && request.method === 'DELETE') {
+    const list = await requireGroupListAccess(env, listId, auth.user.id);
+    if (memberUserId === list.owner_id) throw new HttpError(400, 'cannot_remove_owner');
+    if (auth.user.id !== list.owner_id && memberUserId !== auth.user.id) throw new HttpError(403, 'forbidden');
+    const now = nowIso();
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM group_list_members WHERE list_id = ? AND user_id = ?').bind(listId, memberUserId),
+      env.DB.prepare('UPDATE group_lists SET updated_at = ? WHERE id = ?').bind(now, listId)
+    ]);
+    if (memberUserId === auth.user.id) return json({ left: true, id: listId, list: null });
+    const fresh = await env.DB.prepare('SELECT * FROM group_lists WHERE id = ?').bind(listId).first();
+    return json({ left: false, id: listId, list: await buildGroupListView(env, fresh) });
+  }
+  throw new HttpError(405, 'method_not_allowed');
+}
+
+async function handleGroupListGames(request, env, auth, listId, rawTitleKey) {
+  if (!rawTitleKey && request.method === 'POST') {
+    await requireGroupListAccess(env, listId, auth.user.id);
+    const body = await readJson(request, 5_000);
+    const title = cleanText(body?.title, MAX_TITLE);
+    const titleKey = typeof body?.titleKey === 'string' && TITLE_KEY.test(body.titleKey) ? body.titleKey : null;
+    if (!title || !titleKey) throw new HttpError(400, 'invalid_game');
+    const steamKey = typeof body?.steamKey === 'string' && STEAM_KEY.test(body.steamKey) ? body.steamKey : null;
+    const coverUrl = typeof body?.coverUrl === 'string' && COVER_URL.test(body.coverUrl) ? body.coverUrl : null;
+    const now = nowIso();
+
+    const existing = await env.DB.prepare('SELECT 1 FROM group_list_items WHERE list_id = ? AND title_key = ?').bind(listId, titleKey).first();
+    if (existing) {
+      await env.DB.batch([
+        env.DB.prepare(
+          'UPDATE group_list_items SET steam_key = COALESCE(steam_key, ?), cover_url = COALESCE(cover_url, ?) WHERE list_id = ? AND title_key = ?'
+        ).bind(steamKey, coverUrl, listId, titleKey),
+        env.DB.prepare('UPDATE group_lists SET updated_at = ? WHERE id = ?').bind(now, listId)
+      ]);
+    } else {
+      const stats = await env.DB.prepare('SELECT COUNT(*) AS n, COALESCE(MAX(position), -1) AS max_pos FROM group_list_items WHERE list_id = ?')
+        .bind(listId)
+        .first();
+      if ((stats?.n ?? 0) >= MAX_GROUP_LIST_GAMES) throw new HttpError(400, 'list_full');
+      await env.DB.batch([
+        env.DB.prepare(
+          'INSERT INTO group_list_items (list_id, title_key, steam_key, title, cover_url, position, added_by, added_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        ).bind(listId, titleKey, steamKey, title, coverUrl, (stats?.max_pos ?? -1) + 1, auth.user.id, now),
+        env.DB.prepare('UPDATE group_lists SET updated_at = ? WHERE id = ?').bind(now, listId)
+      ]);
+    }
+    const fresh = await env.DB.prepare('SELECT * FROM group_lists WHERE id = ?').bind(listId).first();
+    return json({ list: await buildGroupListView(env, fresh) });
+  }
+  if (rawTitleKey && request.method === 'DELETE') {
+    let titleKey;
+    try {
+      titleKey = decodeURIComponent(rawTitleKey);
+    } catch {
+      throw new HttpError(400, 'invalid_target');
+    }
+    if (!TITLE_KEY.test(titleKey)) throw new HttpError(400, 'invalid_target');
+    await requireGroupListAccess(env, listId, auth.user.id);
+    const now = nowIso();
+    await env.DB.prepare('DELETE FROM group_list_items WHERE list_id = ? AND title_key = ?').bind(listId, titleKey).run();
+    const { results } = await env.DB.prepare('SELECT title_key FROM group_list_items WHERE list_id = ? ORDER BY position ASC, added_at ASC')
+      .bind(listId)
+      .all();
+    await env.DB.batch([
+      ...results.map((r, i) => env.DB.prepare('UPDATE group_list_items SET position = ? WHERE list_id = ? AND title_key = ?').bind(i, listId, r.title_key)),
+      env.DB.prepare('UPDATE group_lists SET updated_at = ? WHERE id = ?').bind(now, listId)
+    ]);
+    const fresh = await env.DB.prepare('SELECT * FROM group_lists WHERE id = ?').bind(listId).first();
+    return json({ list: await buildGroupListView(env, fresh) });
+  }
+  throw new HttpError(405, 'method_not_allowed');
+}
+
+async function handleGroupListOrder(request, env, auth, listId) {
+  if (request.method !== 'PUT') throw new HttpError(405, 'method_not_allowed');
+  await requireGroupListAccess(env, listId, auth.user.id);
+  const body = await readJson(request, 20_000);
+  if (!Array.isArray(body?.titleKeys)) throw new HttpError(400, 'invalid_request');
+  const { results } = await env.DB.prepare('SELECT title_key FROM group_list_items WHERE list_id = ? ORDER BY position ASC, added_at ASC')
+    .bind(listId)
+    .all();
+  const existing = new Set(results.map((r) => r.title_key));
+  const ordered = [];
+  const seen = new Set();
+  for (const key of body.titleKeys) {
+    if (typeof key === 'string' && existing.has(key) && !seen.has(key)) {
+      seen.add(key);
+      ordered.push(key);
+    }
+  }
+  // Preserva no fim os jogos que outro amigo acabou de adicionar durante o arrasto
+  for (const r of results) {
+    if (!seen.has(r.title_key)) ordered.push(r.title_key);
+  }
+  const now = nowIso();
+  await env.DB.batch([
+    ...ordered.map((key, i) => env.DB.prepare('UPDATE group_list_items SET position = ? WHERE list_id = ? AND title_key = ?').bind(i, listId, key)),
+    env.DB.prepare('UPDATE group_lists SET updated_at = ? WHERE id = ?').bind(now, listId)
+  ]);
+  const fresh = await env.DB.prepare('SELECT * FROM group_lists WHERE id = ?').bind(listId).first();
+  return json({ list: await buildGroupListView(env, fresh) });
+}
+
 // ---------- Roteamento ----------
 
 async function isRateLimited(request, env, key) {
@@ -1320,6 +1650,15 @@ async function route(request, env) {
   if (viewLink && request.method === 'POST') return handleViewLink(env, auth, viewLink[1], url.origin);
   const userGames = path.match(/^\/v1\/users\/([0-9a-f-]{36})\/games$/);
   if (userGames && request.method === 'GET') return handleUserGames(env, auth, userGames[1]);
+  if (path === '/v1/group-lists') return handleGroupListsCollection(request, env, auth);
+  const groupList = path.match(/^\/v1\/group-lists\/([0-9a-f-]{36})$/);
+  if (groupList) return handleGroupListDetail(request, env, auth, groupList[1]);
+  const groupMembers = path.match(/^\/v1\/group-lists\/([0-9a-f-]{36})\/members(?:\/([0-9a-f-]{36}))?$/);
+  if (groupMembers) return handleGroupListMembers(request, env, auth, groupMembers[1], groupMembers[2]);
+  const groupGames = path.match(/^\/v1\/group-lists\/([0-9a-f-]{36})\/games(?:\/([^/]+))?$/);
+  if (groupGames) return handleGroupListGames(request, env, auth, groupGames[1], groupGames[2]);
+  const groupOrder = path.match(/^\/v1\/group-lists\/([0-9a-f-]{36})\/order$/);
+  if (groupOrder) return handleGroupListOrder(request, env, auth, groupOrder[1]);
   return json({ error: 'not_found' }, 404);
 }
 

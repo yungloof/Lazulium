@@ -240,3 +240,40 @@ export interface SocialNotificationsEvent {
   state: SocialNotifications;
   fresh: string[];
 }
+
+// ---------- Listas em grupo ----------
+
+export interface GroupListItem {
+  titleKey: string;
+  steamKey: string | null;
+  title: string;
+  coverUrl: string | null;
+  position: number;
+  addedBy: SocialUser | null;
+  addedAt: string;
+}
+
+export interface GroupList {
+  id: string;
+  owner: SocialUser;
+  title: string;
+  description: string;
+  ranked: boolean;
+  members: SocialUser[];
+  items: GroupListItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateGroupListInput {
+  title: string;
+  description?: string;
+  ranked?: boolean;
+  memberIds?: string[];
+}
+
+export interface UpdateGroupListInput {
+  title?: string;
+  description?: string;
+  ranked?: boolean;
+}

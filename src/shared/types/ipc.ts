@@ -10,7 +10,9 @@ import { JournalImportApplyResult, JournalImportItem, JournalImportOptions, Jour
 import {
   CallAnswer,
   CallEvent,
+  CreateGroupListInput,
   FriendComparison,
+  GroupList,
   ReactionSummary,
   ReactionTarget,
   ReactionThread,
@@ -23,6 +25,7 @@ import {
   SocialFeedItem,
   SocialFriend,
   SocialFriendProfile,
+  UpdateGroupListInput,
   SocialInvite,
   SocialSettings,
   SocialStatus,
@@ -330,6 +333,17 @@ export interface ElectronAPI {
   socialGetNotifications: () => Promise<SocialNotifications>;
   socialMarkNotificationsRead: () => Promise<SocialNotifications>;
   onSocialNotifications: (callback: (event: SocialNotificationsEvent) => void) => () => void;
+  // Listas em grupo
+  socialGetGroupLists: () => Promise<GroupList[]>;
+  socialGetGroupList: (listId: string) => Promise<GroupList>;
+  socialCreateGroupList: (input: CreateGroupListInput) => Promise<GroupList>;
+  socialUpdateGroupList: (listId: string, input: UpdateGroupListInput) => Promise<GroupList>;
+  socialDeleteGroupList: (listId: string) => Promise<void>;
+  socialAddGroupListMember: (listId: string, userId: string) => Promise<GroupList>;
+  socialRemoveGroupListMember: (listId: string, userId: string) => Promise<{ left: boolean; list: GroupList | null }>;
+  socialAddGroupListGame: (listId: string, gameId: string) => Promise<GroupList>;
+  socialRemoveGroupListGame: (listId: string, titleKey: string) => Promise<GroupList>;
+  socialReorderGroupListGames: (listId: string, titleKeys: string[]) => Promise<GroupList>;
 
   // Integração de atalhos da Steam (adicionar jogos que não são da Steam à Steam)
   addSteamShortcut: (gameId: string) => Promise<{ ok: boolean; appId?: number; error?: string }>;

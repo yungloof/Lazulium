@@ -189,3 +189,36 @@ CREATE TABLE IF NOT EXISTS view_viewers (
   token       TEXT PRIMARY KEY,
   viewer_id   TEXT NOT NULL
 );
+
+-- Listas em grupo: criadas por quem é dono, compartilhadas com amigos
+CREATE TABLE IF NOT EXISTS group_lists (
+  id          TEXT PRIMARY KEY,
+  owner_id    TEXT NOT NULL,
+  title       TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  ranked      INTEGER NOT NULL DEFAULT 0,
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_group_lists_owner ON group_lists(owner_id, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS group_list_members (
+  list_id     TEXT NOT NULL,
+  user_id     TEXT NOT NULL,
+  added_at    TEXT NOT NULL,
+  PRIMARY KEY (list_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_group_list_members_user ON group_list_members(user_id);
+
+CREATE TABLE IF NOT EXISTS group_list_items (
+  list_id     TEXT NOT NULL,
+  title_key   TEXT NOT NULL,
+  steam_key   TEXT,
+  title       TEXT NOT NULL,
+  cover_url   TEXT,
+  position    INTEGER NOT NULL,
+  added_by    TEXT,
+  added_at    TEXT NOT NULL,
+  PRIMARY KEY (list_id, title_key)
+);
+CREATE INDEX IF NOT EXISTS idx_group_list_items_order ON group_list_items(list_id, position, added_at);

@@ -253,6 +253,16 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.SOCIAL_NOTIFICATIONS_CHANGED, subscription);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.SOCIAL_NOTIFICATIONS_CHANGED, subscription);
   },
+  socialGetGroupLists: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GROUP_LISTS),
+  socialGetGroupList: (listId) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GROUP_LIST_GET, listId),
+  socialCreateGroupList: (input) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GROUP_LIST_CREATE, input),
+  socialUpdateGroupList: (listId, input) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GROUP_LIST_UPDATE, listId, input),
+  socialDeleteGroupList: (listId) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GROUP_LIST_DELETE, listId),
+  socialAddGroupListMember: (listId, userId) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GROUP_LIST_ADD_MEMBER, listId, userId),
+  socialRemoveGroupListMember: (listId, userId) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GROUP_LIST_REMOVE_MEMBER, listId, userId),
+  socialAddGroupListGame: (listId, gameId) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GROUP_LIST_ADD_GAME, listId, gameId),
+  socialRemoveGroupListGame: (listId, titleKey) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GROUP_LIST_REMOVE_GAME, listId, titleKey),
+  socialReorderGroupListGames: (listId, titleKeys) => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_GROUP_LIST_REORDER, listId, titleKeys),
   socialTestCall: () => ipcRenderer.invoke(IPC_CHANNELS.SOCIAL_CALL_TEST),
   onCallEvent: (callback: (event: CallEvent) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, event: CallEvent) => callback(event);

@@ -1,13 +1,21 @@
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
-import { CallAnswer, SocialSettings } from '@shared/types/social';
+import { CallAnswer, CreateGroupListInput, ReactionTarget, SocialSettings, UpdateGroupListInput } from '@shared/types/social';
 import { PRESENCE_STATUSES } from '@shared/utils/presence';
+import { cleanReactionTarget } from '@shared/utils/reactions';
 import { socialService } from '../services/social/social.service';
 import { presenceService } from '../services/social/presence.service';
 import { callsService } from '../services/social/calls.service';
 import { reactionsService } from '../services/social/reactions.service';
-import { cleanReactionTarget } from '@shared/utils/reactions';
-import { ReactionTarget } from '@shared/types/social';
+import { groupListsService } from '../services/social/group-lists.service';
 import { handle } from './helpers';
+
+const UUID = /^[0-9a-f-]{36}$/;
+const TITLE_KEY = /^t:[a-z0-9]{1,120}$/;
+
+function uuid(value: unknown, label = 'Identificador inválido.'): string {
+  if (typeof value !== 'string' || !UUID.test(value)) throw new Error(label);
+  return value;
+}
 
 // Conta Lazulium: o renderer só pede; token e envio ficam no main
 export function registerSocialHandlers(): void {
@@ -72,4 +80,49 @@ export function registerSocialHandlers(): void {
   });
   handle(IPC_CHANNELS.SOCIAL_CALL_PENDING, () => callsService.getPending());
   handle(IPC_CHANNELS.SOCIAL_CALL_TEST, () => callsService.test());
+
+  // Listas em grupo
+  handle(IPC_CHANNELS.SOCIAL_GROUP_LISTS, () => groupListsService.list());
+  handle(IPC_CHANNELS.SOCIAL_GROUP_LIST_GET, (_event, listId: unknown) => groupListsService.get(uuid(listId)));
+  handle(IPC_CHANNELS.SOCIAL_GROUP_LIST_CREATE, (_event, raw: unknown) => {
+    if (!raw || typeof raw !== 'object') throw new Error('Lista inválida.');
+    const body = raw as Record<string, unknown>;
+    const title = typeof body.title === 'string' ? body.title.trim().slice(0, 80) : '';
+    if (!title) throw new Error('Dê um nome para a lista.');
+    const input: CreateGroupListInput = {
+      title,
+      ...(typeof body.description === 'string' ? { description: body.description.slice(0, 500) } : {}),
+      ...(typeof body.ranked === 'boolean' ? { ranked: body.ranked } : {}),
+      ...(Array.isArray(body.memberIds) ? { memberIds: body.memberIds.filter((id): id is string => typeof id === 'string' && UUID.test(id)).slice(0, 30) } : {})
+    };
+    return groupListsService.create(input);
+  });
+  handle(IPC_CHANNELS.SOCIAL_GROUP_LIST_UPDATE, (_event, listId: unknown, raw: unknown) => {
+    if (!raw || typeof raw !== 'object') throw new Error('Alteração inválida.');
+    const body = raw as Record<string, unknown>;
+    const input: UpdateGroupListInput = {};
+    if (typeof body.title === 'string') {
+      const title = body.title.trim().slice(0, 80);
+      if (!title) throw new Error('Dê um nome para a lista.');
+      input.title = title;
+    }
+    if (typeof body.description === 'string') input.description = body.description.slice(0, 500);
+    if (typeof body.ranked === 'boolean') input.ranked = body.ranked;
+    return groupListsService.update(uuid(listId), input);
+  });
+  handle(IPC_CHANNELS.SOCIAL_GROUP_LIST_DELETE, (_event, listId: unknown) => groupListsService.delete(uuid(listId)));
+  handle(IPC_CHANNELS.SOCIAL_GROUP_LIST_ADD_MEMBER, (_event, listId: unknown, userId: unknown) => groupListsService.addMember(uuid(listId), uuid(userId)));
+  handle(IPC_CHANNELS.SOCIAL_GROUP_LIST_REMOVE_MEMBER, (_event, listId: unknown, userId: unknown) => groupListsService.removeMember(uuid(listId), uuid(userId)));
+  handle(IPC_CHANNELS.SOCIAL_GROUP_LIST_ADD_GAME, (_event, listId: unknown, gameId: unknown) => {
+    if (typeof gameId !== 'string' || !gameId || gameId.length > 300) throw new Error('Jogo inválido.');
+    return groupListsService.addGame(uuid(listId), gameId);
+  });
+  handle(IPC_CHANNELS.SOCIAL_GROUP_LIST_REMOVE_GAME, (_event, listId: unknown, titleKey: unknown) => {
+    if (typeof titleKey !== 'string' || !TITLE_KEY.test(titleKey)) throw new Error('Jogo inválido.');
+    return groupListsService.removeGame(uuid(listId), titleKey);
+  });
+  handle(IPC_CHANNELS.SOCIAL_GROUP_LIST_REORDER, (_event, listId: unknown, titleKeys: unknown) => {
+    const clean = Array.isArray(titleKeys) ? titleKeys.filter((k): k is string => typeof k === 'string' && TITLE_KEY.test(k)).slice(0, 200) : [];
+    return groupListsService.reorder(uuid(listId), clean);
+  });
 }

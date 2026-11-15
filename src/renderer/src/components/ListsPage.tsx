@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, LayoutList, ListOrdered, Plus, Sparkles, Star, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, LayoutList, ListOrdered, Plus, Sparkles, Star, Trash2, Users, X } from 'lucide-react';
 import { Game } from '@shared/types/game';
 import { GameList } from '@shared/types/lists';
+import { GroupList } from '@shared/types/social';
+import { resolveEditionIds } from '@shared/utils/editions';
+import { findOwnedGame, indexGamesByKey, MatchedOwnedGame } from '@shared/utils/game-match';
+import { useGroupListsStore } from '../stores/useGroupListsStore';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { useListsStore } from '../stores/useListsStore';
-import { resolveEditionIds } from '@shared/utils/editions';
+import { useReactionsStore } from '../stores/useReactionsStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { GamePickerModal } from './GamePickerModal';
 import { TierListDetail } from './TierListDetail';
@@ -13,6 +17,7 @@ import { CoverCard, GameCover } from './journal/CoverCard';
 import { CreateListModal, LIST_IDEAS } from './journal/CreateListModal';
 import { PageHeader, emptyBox, pageClass } from './journal/PageLayout';
 import { plural } from './journal/format';
+import { GroupListDetail } from './friends/GroupListDetail';
 import { MyReactionBar } from './friends/Reactions';
 
 interface ListsPageProps {
@@ -61,6 +66,52 @@ export const ListCard: React.FC<{ list: GameList; games: Map<string, Game>; onOp
         {plural(list.gameIds.length, 'jogo', 'jogos')}
         {list.tiers ? ' · tier list' : list.ranked ? ' · ranqueada' : ''}
       </span>
+      {list.description && <span className="block mt-1.5 text-xs leading-relaxed text-slate-300 line-clamp-2">{list.description}</span>}
+    </button>
+  );
+};
+
+const GroupListCard: React.FC<{ list: GroupList; me: string | null; ownedByKey: Map<string, MatchedOwnedGame>; onOpen: () => void }> = ({ list, me, ownedByKey, onOpen }) => {
+  const covers = list.items.slice(0, COLLAGE_SIZE).map((item) => {
+    const owned = findOwnedGame(ownedByKey, item);
+    return { key: item.titleKey, title: item.title, src: owned?.game.media?.coverUrl ?? item.coverUrl ?? undefined, gameId: owned?.game.id };
+  });
+  const people = [list.owner, ...list.members].map((p) => (p.id === me ? 'Você' : p.name));
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      data-group-list-id={list.id}
+      className={`group text-left p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-indigo-400/60 hover:bg-slate-900/80 transition-colors ${focusRing}`}
+    >
+      <span className="relative block w-full aspect-[100/51] mb-3.5">
+        {covers.map((item, index) => (
+          <span
+            key={item.key}
+            className="absolute top-0 h-full aspect-[2/3] overflow-hidden rounded-md bg-slate-800 shadow-[4px_0_12px_rgba(0,0,0,0.45)] transition-transform duration-200 group-hover:-translate-y-1"
+            style={{ left: `${index * COLLAGE_STEP}%`, zIndex: COLLAGE_SIZE - index, transitionDelay: `${index * 25}ms` }}
+          >
+            <GameCover src={item.src} title={item.title} gameId={item.gameId} className="object-cover" />
+          </span>
+        ))}
+        {covers.length === 0 && (
+          <span className="absolute top-0 left-0 h-full aspect-[2/3] rounded-md bg-slate-800/50 border border-dashed border-slate-700 flex items-center justify-center">
+            <Plus className="w-5 h-5 text-slate-600" />
+          </span>
+        )}
+      </span>
+      <span className="flex items-center gap-1.5 text-[15px] text-white">
+        <span className="truncate">{list.title}</span>
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-500/15 border border-indigo-400/30 text-[10px] font-medium text-indigo-200 flex-shrink-0">
+          <Users className="w-3 h-3" />
+          Grupo
+        </span>
+      </span>
+      <span className="block mt-0.5 text-xs text-slate-400">
+        {plural(list.items.length, 'jogo', 'jogos')}
+        {list.ranked ? ' · ranqueada' : ''} · {plural(people.length, 'pessoa', 'pessoas')}
+      </span>
+      <span className="block mt-0.5 text-[11px] text-slate-500 truncate">{people.join(', ')}</span>
       {list.description && <span className="block mt-1.5 text-xs leading-relaxed text-slate-300 line-clamp-2">{list.description}</span>}
     </button>
   );
@@ -265,21 +316,31 @@ const ListDetail: React.FC<{ list: GameList; games: Map<string, Game>; startPick
 };
 
 export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, onOpenGame }) => {
+  const me = useReactionsStore((s) => s.me);
+  const rawGames = useLibraryStore((s) => s.rawGames);
+  const editionPrefs = useLibraryStore((s) => s.editionPrefs);
   const allGames = useLibraryStore((s) => s.gamesById);
   const lists = useListsStore((s) => s.lists);
   const load = useListsStore((s) => s.load);
+  const groupLists = useGroupListsStore((s) => s.lists);
+  const loadGroup = useGroupListsStore((s) => s.load);
+  const clearGroup = useGroupListsStore((s) => s.clear);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [creating, setCreating] = useState<string | null>(null);
   const [creatingKind, setCreatingKind] = useState<'list' | 'tier'>('list');
-  const startCreating = (title: string, kind: 'list' | 'tier' = 'list') => {
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const startCreating = (title: string, kind: 'list' | 'tier' = 'list', group = false) => {
     setCreatingKind(kind);
+    setCreatingGroup(group);
     setCreating(title);
   };
   const [justCreated, setJustCreated] = useState<string | null>(null);
   const primaryOf = useLibraryStore((s) => s.primaryOf);
   const games = useMemo(() => new Map([...allGames].filter(([, g]) => !g.isHidden)), [allGames]);
+  const ownedByKey = useMemo(() => indexGamesByKey(rawGames, editionPrefs), [rawGames, editionPrefs]);
   const openedRaw = lists.find((l) => l.id === openListId);
+  const openedGroup = groupLists.find((l) => l.id === openListId);
   // Ids da outra loja de um jogo juntado viram o id do card: mover, tirar e ordenar funcionam igual
   const opened = useMemo(
     () =>
@@ -292,10 +353,28 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
   );
 
   useEffect(() => {
-    load()
+    const tasks: Promise<unknown>[] = [load()];
+    if (me) tasks.push(loadGroup());
+    else clearGroup();
+    Promise.all(tasks)
       .catch((err) => setError(ipcErrorMessage(err)))
       .finally(() => setLoaded(true));
-  }, [load]);
+  }, [load, loadGroup, clearGroup, me]);
+
+  if (openedGroup) {
+    return (
+      <GroupListDetail
+        key={openedGroup.id}
+        list={openedGroup}
+        startPicking={justCreated === openedGroup.id}
+        onBack={() => {
+          setJustCreated(null);
+          onOpenList(undefined);
+        }}
+        onOpenGame={onOpenGame}
+      />
+    );
+  }
 
   if (opened?.tiers) {
     return (
@@ -329,6 +408,11 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
     );
   }
 
+  const newGroupButton = me && (
+    <Button size="md" icon={<Users className="w-3.5 h-3.5" />} onClick={() => startCreating('', 'list', true)}>
+      Nova lista em grupo
+    </Button>
+  );
   const newTierButton = (
     <Button size="md" icon={<LayoutList className="w-3.5 h-3.5" />} onClick={() => startCreating('', 'tier')}>
       Nova tier list
@@ -339,12 +423,14 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
       Nova lista
     </Button>
   );
+  const totalLists = lists.length + groupLists.length;
 
   return (
     <div className={pageClass}>
       <PageHeader title="Listas" subtitle="Melhores do ano, fila das férias, tier lists. As preferidas podem ir para o perfil." actions={
-          lists.length > 0 ? (
+          totalLists > 0 ? (
             <span className="flex flex-wrap gap-2">
+              {newGroupButton}
               {newTierButton}
               {newListButton}
             </span>
@@ -354,7 +440,7 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
 
       <Notice>{error}</Notice>
 
-      {!loaded ? null : lists.length === 0 ? (
+      {!loaded ? null : totalLists === 0 ? (
         <EmptyState
           icon={ListOrdered}
           title="Crie sua primeira lista"
@@ -365,6 +451,7 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
               <span className="flex flex-wrap justify-center gap-2">
                 {newListButton}
                 {newTierButton}
+                {newGroupButton}
               </span>
               <span className="flex flex-wrap justify-center gap-2">
             {LIST_IDEAS.slice(0, 4).map((idea) => (
@@ -382,17 +469,45 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
           }
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {lists.map((list) => (
-            <ListCard key={list.id} list={list} games={games} onOpen={() => onOpenList(list.id)} />
-          ))}
-          <button
-            type="button"
-            onClick={() => startCreating('')}
-            className={`min-h-[230px] flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700 text-sm text-slate-400 hover:text-white hover:border-indigo-400 hover:bg-indigo-500/5 transition-colors ${focusRing}`}
-          >
-            <Plus className="w-6 h-6" /> Nova lista
-          </button>
+        <div className="space-y-8">
+          {groupLists.length > 0 && (
+            <section className="space-y-3" aria-label="Listas em grupo">
+              <h2 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                <Users className="w-4 h-4 text-indigo-300" />
+                Listas em grupo
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {groupLists.map((list) => (
+                  <GroupListCard key={list.id} list={list} me={me} ownedByKey={ownedByKey} onOpen={() => onOpenList(list.id)} />
+                ))}
+                {me && (
+                  <button
+                    type="button"
+                    onClick={() => startCreating('', 'list', true)}
+                    className={`min-h-[230px] flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700 text-sm text-slate-400 hover:text-white hover:border-indigo-400 hover:bg-indigo-500/5 transition-colors ${focusRing}`}
+                  >
+                    <Users className="w-6 h-6" /> Nova lista em grupo
+                  </button>
+                )}
+              </div>
+            </section>
+          )}
+
+          <section className="space-y-3" aria-label="Suas listas">
+            {groupLists.length > 0 && <h2 className="text-sm font-medium text-slate-300">Suas listas</h2>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {lists.map((list) => (
+                <ListCard key={list.id} list={list} games={games} onOpen={() => onOpenList(list.id)} />
+              ))}
+              <button
+                type="button"
+                onClick={() => startCreating('')}
+                className={`min-h-[230px] flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700 text-sm text-slate-400 hover:text-white hover:border-indigo-400 hover:bg-indigo-500/5 transition-colors ${focusRing}`}
+              >
+                <Plus className="w-6 h-6" /> Nova lista
+              </button>
+            </div>
+          </section>
         </div>
       )}
 
@@ -400,8 +515,13 @@ export const ListsPage: React.FC<ListsPageProps> = ({ openListId, onOpenList, on
         <CreateListModal
           initialTitle={creating}
           initialKind={creatingKind}
+          initialGroup={creatingGroup}
           onClose={() => setCreating(null)}
           onCreated={(list) => {
+            setJustCreated(list.id);
+            onOpenList(list.id);
+          }}
+          onCreatedGroup={(list) => {
             setJustCreated(list.id);
             onOpenList(list.id);
           }}

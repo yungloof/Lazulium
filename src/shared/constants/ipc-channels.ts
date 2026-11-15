@@ -178,6 +178,16 @@ export const IPC_CHANNELS = {
   SOCIAL_NOTIFICATIONS: 'social:notifications',
   SOCIAL_NOTIFICATIONS_READ: 'social:notifications-read',
   SOCIAL_NOTIFICATIONS_CHANGED: 'social:notifications-changed',
+  SOCIAL_GROUP_LISTS: 'social:group-lists',
+  SOCIAL_GROUP_LIST_GET: 'social:group-list-get',
+  SOCIAL_GROUP_LIST_CREATE: 'social:group-list-create',
+  SOCIAL_GROUP_LIST_UPDATE: 'social:group-list-update',
+  SOCIAL_GROUP_LIST_DELETE: 'social:group-list-delete',
+  SOCIAL_GROUP_LIST_ADD_MEMBER: 'social:group-list-add-member',
+  SOCIAL_GROUP_LIST_REMOVE_MEMBER: 'social:group-list-remove-member',
+  SOCIAL_GROUP_LIST_ADD_GAME: 'social:group-list-add-game',
+  SOCIAL_GROUP_LIST_REMOVE_GAME: 'social:group-list-remove-game',
+  SOCIAL_GROUP_LIST_REORDER: 'social:group-list-reorder',
 
   // Atalhos da Steam (Adicionar jogo não-Steam)
   STEAM_ADD_SHORTCUT: 'steam:add-shortcut',

@@ -3,6 +3,7 @@ import { Bell, Heart, MessageCircle } from 'lucide-react';
 import { SocialNotification } from '@shared/types/social';
 import { notificationId, notificationText } from '@shared/utils/notifications';
 import { titleKey } from '@shared/utils/title-key';
+import { useGroupListsStore } from '../../stores/useGroupListsStore';
 import { useLibraryStore } from '../../stores/useLibraryStore';
 import { useReactionsStore } from '../../stores/useReactionsStore';
 import { useUiStore } from '../../stores/useUiStore';
@@ -15,10 +16,21 @@ import { formatAgo } from './Reactions';
 
 const SHOWN = 6;
 
-// Leva ao lugar do aviso: seu jogo, sua lista ou o perfil do amigo (resposta na resenha/lista dele)
+// Leva ao lugar do aviso: seu jogo, sua lista, lista em grupo ou o perfil do amigo (resposta na resenha/lista dele)
 function openNotification(n: SocialNotification, me: string | null): void {
   const ui = useUiStore.getState();
-  if (n.owner !== me) return ui.openFriend(n.owner);
+  if (n.owner !== me) {
+    if (n.kind === 'list') {
+      if (useGroupListsStore.getState().lists.some((l) => l.id === n.target)) return ui.openList(n.target);
+      void useGroupListsStore
+        .getState()
+        .reloadOne(n.target)
+        .then((list) => (list ? ui.openList(n.target) : ui.openFriend(n.owner)))
+        .catch(() => ui.openFriend(n.owner));
+      return;
+    }
+    return ui.openFriend(n.owner);
+  }
   if (n.kind === 'list') return ui.openList(n.target);
   const game = useLibraryStore.getState().games.find((g) => `t:${titleKey(g.title)}` === n.target);
   if (game) ui.openGameId(game.id);
