@@ -159,7 +159,7 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
       role="menu"
       aria-label={`Opções de ${game.title}`}
       style={{ left: `${pos.left}px`, top: `${pos.top}px` }}
-      className="fixed z-50 w-60 rounded-lg bg-steam-panel/95 border border-slate-700/80 p-1.5 shadow-2xl shadow-black/60 text-xs select-none backdrop-blur-md animate-pop-in"
+      className="fixed z-50 w-60 rounded-lg bg-surface-panel/95 border border-slate-700/80 p-1.5 shadow-2xl shadow-black/60 text-xs select-none backdrop-blur-md animate-pop-in"
       onContextMenu={(e) => e.preventDefault()}
     >
       <div className="px-2.5 pt-1 pb-1.5 mb-1 text-[11px] font-semibold text-slate-400 truncate border-b border-slate-800/80">{game.title}</div>

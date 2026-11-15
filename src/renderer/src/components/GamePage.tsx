@@ -74,7 +74,7 @@ const Card: React.FC<{ title: string; icon: React.ElementType; iconClass?: strin
   action,
   children
 }) => (
-  <section className="rounded-lg bg-steam-panel/70 border border-slate-800/80">
+  <section className="rounded-lg bg-surface-panel/70 border border-slate-800/80">
     <header className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
       <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-300">
         <Icon className={`w-3.5 h-3.5 ${iconClass}`} /> {title}
@@ -295,9 +295,9 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
         ) : game.media?.coverUrl ? (
           <img src={game.media.coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-50" />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/50 via-slate-900 to-steam-bg" />
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/50 via-slate-900 to-surface-bg" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-steam-bg via-steam-bg/25 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-surface-bg via-surface-bg/25 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-transparent to-transparent" />
         <div className="absolute left-8 right-8 bottom-6 space-y-3">
           {logoUrl ? (
@@ -369,7 +369,7 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
       </div>
 
       {/* Barra de ação: fica presa no topo ao rolar */}
-      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-x-6 2xl:gap-x-8 gap-y-3 px-8 py-3.5 bg-steam-bg/85 backdrop-blur-md border-b border-slate-800/80">
+      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-x-6 2xl:gap-x-8 gap-y-3 px-8 py-3.5 bg-surface-bg/85 backdrop-blur-md border-b border-slate-800/80">
         <PlayButton game={game} onLaunch={(g) => void launchGame(g)} size="lg" />
 
         <Stat icon={CalendarClock} label="Última sessão">

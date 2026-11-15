@@ -48,7 +48,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({ profile, stats, presen
     <header className={`${panel} overflow-hidden`}>
       <div className="flex flex-wrap items-end gap-6 px-6 pt-6 pb-5">
         <div className="relative w-36 h-36 flex-shrink-0">
-          <div className="w-full h-full rounded-2xl overflow-hidden bg-slate-800 ring-4 ring-steam-bg shadow-2xl shadow-black/50">
+          <div className="w-full h-full rounded-2xl overflow-hidden bg-slate-800 ring-4 ring-surface-bg shadow-2xl shadow-black/50">
             {profile.avatarUrl ? (
               <img src={profile.avatarUrl} alt="" className="w-full h-full object-cover" />
             ) : (

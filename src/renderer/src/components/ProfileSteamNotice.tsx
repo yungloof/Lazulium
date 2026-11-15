@@ -116,7 +116,7 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
 
   const openPrivacy = () => void window.electronAPI?.openProfileWebLink('steam-privacy').catch((err) => setError(ipcErrorMessage(err)));
 
-  const box = 'p-4 rounded-xl bg-steam-bg/90 border border-indigo-400/25 shadow-xl shadow-black/30 text-sm text-slate-200';
+  const box = 'p-4 rounded-xl bg-surface-bg/90 border border-indigo-400/25 shadow-xl shadow-black/30 text-sm text-slate-200';
 
   if (isSyncingAchievements) {
     return (

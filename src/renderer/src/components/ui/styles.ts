@@ -66,7 +66,7 @@ export const compactSelectClass = `inline-flex items-center gap-1.5 px-2.5 py-1.
 export const chipClass = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-900/70 border border-slate-700/70 text-slate-300';
 
 // Superfície de painel (cartões das páginas)
-export const panelClass = 'rounded-lg bg-steam-panel/70 border border-slate-800/80';
+export const panelClass = 'rounded-lg bg-surface-panel/70 border border-slate-800/80';
 
 // Faixas de aviso dentro de janelas e painéis
 export const warnBoxClass = 'flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300';

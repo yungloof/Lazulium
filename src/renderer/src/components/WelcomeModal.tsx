@@ -52,7 +52,7 @@ const ChoiceCard: React.FC<{ selected: boolean; onSelect: () => void; icon: Reac
     <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${selected ? 'bg-indigo-500 text-white' : 'bg-slate-800 text-slate-300'}`}>{icon}</span>
     <span className="text-sm font-semibold text-white">{title}</span>
     <span className="text-xs leading-relaxed text-slate-400">{children}</span>
-    <span className={`absolute top-3 right-3 w-4 h-4 rounded-full border-2 ${selected ? 'border-indigo-400 bg-indigo-400 ring-2 ring-inset ring-steam-panel' : 'border-slate-600'}`} />
+    <span className={`absolute top-3 right-3 w-4 h-4 rounded-full border-2 ${selected ? 'border-indigo-400 bg-indigo-400 ring-2 ring-inset ring-surface-panel' : 'border-slate-600'}`} />
   </button>
 );
 
@@ -100,11 +100,11 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ games, isScanning, o
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-steam-bg/85 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-surface-bg/85 backdrop-blur-sm"
       // O B do controle "clica" no fundo (sem posição de mouse): volta um passo
       onClick={(e) => e.target === e.currentTarget && e.detail === 0 && back()}
     >
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-3xl max-h-[92vh] flex flex-col rounded-2xl overflow-hidden bg-steam-panel border border-slate-700/60 shadow-2xl shadow-black/50">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-3xl max-h-[92vh] flex flex-col rounded-2xl overflow-hidden bg-surface-panel border border-slate-700/60 shadow-2xl shadow-black/50">
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-indigo-600/25 via-indigo-600/5 to-transparent" />
         <div aria-hidden="true" className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-indigo-500/15 blur-3xl" />
 

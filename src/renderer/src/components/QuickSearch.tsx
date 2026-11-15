@@ -101,7 +101,7 @@ export const QuickSearch: React.FC<QuickSearchProps> = ({ onOpenGame = openGame,
         role="dialog"
         aria-modal="true"
         aria-label="Buscar jogo"
-        className="w-full max-w-xl rounded-lg bg-steam-panel border border-slate-700 shadow-2xl shadow-black/60 overflow-hidden animate-pop-in"
+        className="w-full max-w-xl rounded-lg bg-surface-panel border border-slate-700 shadow-2xl shadow-black/60 overflow-hidden animate-pop-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative border-b border-slate-800">
@@ -139,7 +139,7 @@ export const QuickSearch: React.FC<QuickSearchProps> = ({ onOpenGame = openGame,
                     onClick={() => act(game, true)}
                     aria-label={`Jogar ${game.title}`}
                     title="Jogar (Ctrl+Enter)"
-                    className={`mr-1.5 p-2 rounded-md text-slate-400 hover:text-emerald-950 hover:bg-emerald-500 transition-colors ${focusRing}`}
+                    className={`mr-1.5 p-2 rounded-md text-slate-400 hover:text-white hover:bg-indigo-500 transition-colors ${focusRing}`}
                   >
                     <Play className="w-3.5 h-3.5" />
                   </button>

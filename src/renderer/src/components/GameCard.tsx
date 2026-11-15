@@ -75,7 +75,7 @@ export const GameCard = memo<GameCardProps>(({ game, navStart = false, onSelect 
                 void launchGame(game);
               }}
               aria-label={`Jogar ${game.title}`}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-[11px] font-bold shadow-lg"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white text-[11px] font-bold shadow-lg shadow-indigo-950/50 transition-colors"
             >
               <Play className="w-3 h-3 fill-current" /> JOGAR
             </button>

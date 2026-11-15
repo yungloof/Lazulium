@@ -27,7 +27,7 @@ export const App: React.FC = () => {
   }, [isLoaded]);
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-steam-bg text-slate-100 overflow-hidden">
+    <div className="flex flex-col h-screen w-screen bg-surface-bg text-slate-100 overflow-hidden">
       <AppHeader />
       <MainView />
       {/* Guia de controles (só com controle conectado) */}

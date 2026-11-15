@@ -33,7 +33,7 @@ export const ProfileBackdrop: React.FC<{ imageUrl?: string; videoUrl?: string; g
 
   return (
     <div className="sticky top-0 h-0 z-0" aria-hidden="true">
-      <div className="absolute inset-x-0 top-0 h-screen overflow-hidden bg-steam-bg">
+      <div className="absolute inset-x-0 top-0 h-screen overflow-hidden bg-surface-bg">
         {hasArt ? (
           <>
             {imageUrl && (

@@ -58,7 +58,7 @@ export const GamepadGuide: React.FC = () => {
   return (
     <footer
       data-gamepad-family={family}
-      className="h-9 bg-steam-header border-t border-slate-800/80 px-4 flex items-center justify-between text-xs text-slate-300 select-none flex-shrink-0 z-30 animate-fade-in"
+      className="h-9 bg-surface-header border-t border-slate-800/80 px-4 flex items-center justify-between text-xs text-slate-300 select-none flex-shrink-0 z-30 animate-fade-in"
       aria-label="Comandos do controle"
     >
       <div className="flex items-center gap-3.5 overflow-x-auto py-1">

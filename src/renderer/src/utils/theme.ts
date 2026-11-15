@@ -109,15 +109,15 @@ export function applyTheme(theme: ThemeSettings): void {
   const base = theme.base ? hexToHsl(theme.base) : null;
   if (base) {
     const tone = Math.min(base[1], 60);
-    vars['--color-steam-bg'] = hsl(base[0], tone, 9);
-    vars['--color-steam-panel'] = hsl(base[0], tone, 12);
-    vars['--color-steam-header'] = hsl(base[0], tone, 7);
-    vars['--color-steam-sidebar'] = hsl(base[0], tone, 8);
+    vars['--color-surface-bg'] = hsl(base[0], tone, 9);
+    vars['--color-surface-panel'] = hsl(base[0], tone, 12);
+    vars['--color-surface-header'] = hsl(base[0], tone, 7);
+    vars['--color-surface-sidebar'] = hsl(base[0], tone, 8);
   }
-  if (theme.bg) vars['--color-steam-bg'] = theme.bg;
-  if (theme.panel) vars['--color-steam-panel'] = theme.panel;
-  if (theme.header) vars['--color-steam-header'] = theme.header;
-  if (theme.sidebar) vars['--color-steam-sidebar'] = theme.sidebar;
+  if (theme.bg) vars['--color-surface-bg'] = theme.bg;
+  if (theme.panel) vars['--color-surface-panel'] = theme.panel;
+  if (theme.header) vars['--color-surface-header'] = theme.header;
+  if (theme.sidebar) vars['--color-surface-sidebar'] = theme.sidebar;
 
   if (theme.textMain) {
     for (const step of [50, 100, 200]) vars[`--color-slate-${step}`] = theme.textMain;

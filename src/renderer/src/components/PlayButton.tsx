@@ -75,7 +75,7 @@ export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch, size = '
     <button
       data-nav-start
       onClick={() => onLaunch(game)}
-      className={`${base} bg-emerald-500 hover:bg-emerald-400 text-emerald-950 shadow-lg shadow-emerald-950/40 hover:shadow-emerald-500/20`}
+      className={`${base} bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white shadow-lg shadow-indigo-950/50 hover:shadow-indigo-500/25`}
     >
       <Play className="w-4 h-4 fill-current" />
       <span>JOGAR</span>

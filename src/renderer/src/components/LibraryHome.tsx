@@ -126,7 +126,7 @@ const FeaturedTile = memo<{ game: Game; span: number }>(({ game, span }) => {
                 void launchGame(game);
               }}
               aria-label={`Jogar ${game.title}`}
-              className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-xs font-bold shadow-lg shadow-black/40 transition-colors"
+              className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white text-xs font-bold shadow-lg shadow-indigo-950/50 transition-colors"
             >
               <Play className="w-3.5 h-3.5 fill-current" /> JOGAR
             </button>

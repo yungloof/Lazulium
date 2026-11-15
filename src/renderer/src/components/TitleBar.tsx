@@ -23,7 +23,7 @@ export const TitleBar: React.FC<{ children?: React.ReactNode }> = ({ children })
   const handleClose = () => window.electronAPI?.closeWindow();
 
   return (
-    <header className="titlebar-drag-region h-12 flex-shrink-0 bg-steam-header border-b border-slate-800/60 flex items-center gap-3 xl:gap-5 pl-3.5 select-none z-50">
+    <header className="titlebar-drag-region h-12 flex-shrink-0 bg-surface-header border-b border-slate-800/60 flex items-center gap-3 xl:gap-5 pl-3.5 select-none z-50">
       <div className="flex items-center gap-2.5 flex-shrink-0">
         <img src={logo} alt="" className="w-6 h-6 rounded-md" />
         <span className="font-display text-base font-semibold text-slate-100 tracking-tight">

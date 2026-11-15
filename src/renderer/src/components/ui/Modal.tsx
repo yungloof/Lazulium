@@ -106,7 +106,7 @@ export const Modal: React.FC<ModalProps> = ({
         aria-labelledby={titleId}
         tabIndex={-1}
         {...submitProps}
-        className={`w-full ${WIDTHS[size]} ${tall ? 'h-[85vh]' : 'max-h-[88vh]'} flex flex-col rounded-lg bg-steam-panel border border-slate-800 shadow-2xl shadow-black/50 outline-none animate-pop-in`}
+        className={`w-full ${WIDTHS[size]} ${tall ? 'h-[85vh]' : 'max-h-[88vh]'} flex flex-col rounded-lg bg-surface-panel border border-slate-800 shadow-2xl shadow-black/50 outline-none animate-pop-in`}
       >
         <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-800 flex-shrink-0">
           <div className="min-w-0">

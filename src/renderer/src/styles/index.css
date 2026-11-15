@@ -27,12 +27,10 @@
   --color-indigo-900: #1d3478;
   --color-indigo-950: #121f4a;
 
-  --color-steam-bg: #0e1426;
-  --color-steam-panel: #151c30;
-  --color-steam-header: #0a0f1d;
-  --color-steam-sidebar: #0c1222;
-  --color-steam-play: #5c7e10;
-  --color-steam-play-light: #a4d007;
+  --color-surface-bg: #0e1426;
+  --color-surface-panel: #151c30;
+  --color-surface-header: #0a0f1d;
+  --color-surface-sidebar: #0c1222;
 
   --font-sans: 'Inter Variable', 'Segoe UI', Arial, sans-serif;
   --font-display: 'Outfit Variable', 'Inter Variable', 'Segoe UI', sans-serif;
@@ -109,7 +107,7 @@
 
   body {
     font-family: var(--font-sans);
-    background: var(--color-steam-bg);
+    background: var(--color-surface-bg);
     color: var(--color-slate-200);
     color-scheme: dark;
     font-feature-settings: 'cv11', 'ss01';
@@ -199,5 +197,18 @@ html[data-nav] [data-game-id]:focus [data-cover-title] {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
+  }
+}
+
+/* Mantém fundo e anéis dos componentes de Amigos apontando para --color-surface-bg sem editar os arquivos do Claude */
+@layer utilities {
+  .bg-steam-bg\/90 {
+    background-color: color-mix(in srgb, var(--color-surface-bg) 90%, transparent);
+  }
+  .ring-steam-bg {
+    --tw-ring-color: var(--color-surface-bg);
+  }
+  .focus-visible\:ring-offset-steam-bg:focus-visible {
+    --tw-ring-offset-color: var(--color-surface-bg);
   }
 }

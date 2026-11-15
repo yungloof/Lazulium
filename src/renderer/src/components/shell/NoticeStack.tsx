@@ -41,7 +41,7 @@ export const NoticeStack: React.FC = () => {
       onBlur={() => setHovered(false)}
     >
       {!isOnline && (
-        <div role="status" className={`${toastClass} flex items-start gap-3 px-4 py-3 bg-steam-panel/95 border-slate-700 text-xs text-slate-300`}>
+        <div role="status" className={`${toastClass} flex items-start gap-3 px-4 py-3 bg-surface-panel/95 border-slate-700 text-xs text-slate-300`}>
           <WifiOff className="w-4 h-4 mt-px flex-shrink-0 text-amber-400" />
           <span>
             <b className="block mb-0.5 font-semibold text-slate-100">Sem conexão</b>
@@ -51,7 +51,7 @@ export const NoticeStack: React.FC = () => {
       )}
 
       {scanSummary && (
-        <div role="status" className={`${toastClass} flex items-start gap-3 px-4 py-3 bg-steam-panel/95 border-slate-700 text-xs`}>
+        <div role="status" className={`${toastClass} flex items-start gap-3 px-4 py-3 bg-surface-panel/95 border-slate-700 text-xs`}>
           <RefreshCw className="w-4 h-4 mt-px flex-shrink-0 text-indigo-400" />
           <div className="flex-1 min-w-0 space-y-1">
             <p className="text-slate-200">

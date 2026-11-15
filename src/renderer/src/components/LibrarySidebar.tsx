@@ -250,7 +250,7 @@ export const LibrarySidebar: React.FC = () => {
   return (
     <aside
       style={{ width: `clamp(${MIN_WIDTH - 12}px, 25vw, ${width}px)` }}
-      className="relative flex-shrink-0 flex flex-col bg-steam-sidebar border-r border-slate-800/80 min-h-0 select-none"
+      className="relative flex-shrink-0 flex flex-col bg-surface-sidebar border-r border-slate-800/80 min-h-0 select-none"
       aria-label="Biblioteca"
     >
       {/* Alça de redimensionamento da lista lateral (220px a 420px) */}
@@ -389,7 +389,7 @@ export const LibrarySidebar: React.FC = () => {
                     aria-expanded={!isCollapsed}
                     title={group.categoryId ? `${group.label} — botão direito para organizar as categorias` : undefined}
                     className={`sticky top-0 z-10 w-full flex items-center gap-1.5 px-3 pt-3 pb-1.5 backdrop-blur-sm text-[11px] font-bold uppercase tracking-wider text-left text-slate-400 hover:text-slate-200 transition-colors ${
-                      isDropTarget ? 'bg-transparent' : 'bg-steam-sidebar/95'
+                      isDropTarget ? 'bg-transparent' : 'bg-surface-sidebar/95'
                     } ${focusRingInset}`}
                   >
                     {isCollapsed ? <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />}

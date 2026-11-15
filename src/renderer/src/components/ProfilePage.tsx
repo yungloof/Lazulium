@@ -328,7 +328,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
                 icon={NotebookPen}
                 title={ratingsFilter === 'written' && rated.length > 0 ? 'Nenhuma resenha escrita ainda' : 'Nenhuma avaliação ainda'}
                 description="Dê uma nota ou escreva uma resenha em “Meu registro”, na página de um jogo, e ela aparece aqui."
-                className={`${emptyBox} bg-steam-bg/85 ${panelOverArt}`}
+                className={`${emptyBox} bg-surface-bg/85 ${panelOverArt}`}
               />
             ) : (
               <Panel>

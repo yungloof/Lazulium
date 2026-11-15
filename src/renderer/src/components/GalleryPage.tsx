@@ -70,7 +70,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ version, onOpenGallery
       {!groups ? (
         <div className="space-y-5" aria-busy="true">
           {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="rounded-lg border border-slate-800 bg-steam-panel/60 p-3 space-y-3">
+            <div key={i} className="rounded-lg border border-slate-800 bg-surface-panel/60 p-3 space-y-3">
               <Skeleton className="h-4 w-48" />
               <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                 {Array.from({ length: 6 }, (_, j) => (
@@ -92,7 +92,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ version, onOpenGallery
         )
       ) : (
         visible.map((group) => (
-          <section key={group.gameId} className="bg-steam-panel/70 border border-slate-800/80 rounded-lg overflow-hidden">
+          <section key={group.gameId} className="bg-surface-panel/70 border border-slate-800/80 rounded-lg overflow-hidden">
             <button
               onClick={() => onOpenGallery(group.gameId)}
               className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left border-b border-slate-800/80 hover:bg-slate-800/40 transition-colors ${focusRingInset}`}

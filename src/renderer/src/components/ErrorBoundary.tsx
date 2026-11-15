@@ -20,7 +20,7 @@ const CrashScreen: React.FC = () => {
   }, []);
 
   return (
-    <div className="h-screen w-screen flex flex-col items-center justify-center gap-3 p-6 text-center bg-steam-bg text-slate-100">
+    <div className="h-screen w-screen flex flex-col items-center justify-center gap-3 p-6 text-center bg-surface-bg text-slate-100">
       <span className="flex items-center justify-center w-14 h-14 rounded-lg bg-amber-500/10 border border-amber-500/25">
         <AlertTriangle className="w-6 h-6 text-amber-400" />
       </span>

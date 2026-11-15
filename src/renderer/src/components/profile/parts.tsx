@@ -14,7 +14,7 @@ import { reviewDateOf } from '@shared/utils/review-order';
 export const panelOverArt = 'group-data-[backdrop=true]/profile:bg-black/55 group-data-[backdrop=true]/profile:border-transparent group-data-[backdrop=true]/profile:shadow-none';
 
 // Painéis do perfil
-export const panel = `rounded-xl bg-steam-bg/85 border border-slate-700/40 shadow-xl shadow-black/20 ${panelOverArt}`;
+export const panel = `rounded-xl bg-surface-bg/85 border border-slate-700/40 shadow-xl shadow-black/20 ${panelOverArt}`;
 
 export const Panel: React.FC<{ title?: React.ReactNode; extra?: React.ReactNode; children: React.ReactNode; className?: string }> = ({ title, extra, children, className = '' }) => (
   <section className={`${panel} p-5 ${className}`}>
