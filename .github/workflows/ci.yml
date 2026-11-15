@@ -1,0 +1,58 @@
+# Testes automáticos em todo push na main e em todo pull request.
+# Só lê o repositório: não publica nada, não usa segredos e não cria Release.
+# Ações fixadas por SHA (a tag pode ser movida; o SHA não).
+name: Testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: App (tipos, testes e pacote)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      # Os testes trocam o Electron por um dublê; o binário não é baixado
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      # O mesmo que o build:win confere antes do electron-builder
+      - run: npm run build
+      - run: npm run check:package
+
+  servidores:
+    name: Servidores (social e IGDB)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: server/social
+        working-directory: server/social
+        run: npm test
+      - name: server/igdb-proxy
+        working-directory: server/igdb-proxy
+        run: npm test
