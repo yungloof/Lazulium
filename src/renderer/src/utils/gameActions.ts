@@ -159,6 +159,14 @@ export function openContextMenu(game: Pick<Game, 'id'>, e: MouseEvent): void {
   useUiStore.getState().setContextMenu({ gameId: game.id, x: e.clientX, y: e.clientY });
 }
 
+// Botão View/Select do controle: abre o menu ancorado perto do cartão focado
+export function openContextMenuForElement(gameId: string, anchor?: HTMLElement | null): void {
+  const rect = anchor?.getBoundingClientRect();
+  const x = rect ? Math.round(rect.left + Math.min(rect.width * 0.55, 160)) : Math.round(window.innerWidth / 2 - 120);
+  const y = rect ? Math.round(rect.top + Math.min(rect.height * 0.35, 80)) : Math.round(window.innerHeight / 3);
+  useUiStore.getState().setContextMenu({ gameId, x, y });
+}
+
 export async function addToSteam(game: Game): Promise<void> {
   const ui = useUiStore.getState();
   try {

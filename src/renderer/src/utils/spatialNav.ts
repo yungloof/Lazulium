@@ -61,9 +61,38 @@ function currentElement(scope: HTMLElement): HTMLElement | null {
   return active instanceof HTMLElement && active !== document.body && scope.contains(active) && isFocusTarget(active) ? active : null;
 }
 
+function isScrollableY(el: HTMLElement): boolean {
+  return el.scrollHeight > el.clientHeight + 2 && /auto|scroll/.test(getComputedStyle(el).overflowY);
+}
+
+function findScrollableContainer(scope: HTMLElement): HTMLElement | null {
+  const active = document.activeElement instanceof HTMLElement && scope.contains(document.activeElement) ? document.activeElement : null;
+  for (let el = active; el && scope.contains(el); el = el.parentElement) {
+    if (isScrollableY(el)) return el;
+  }
+  const main = !topOverlay() ? document.querySelector<HTMLElement>('main') : null;
+  if (main && isScrollableY(main)) return main;
+  for (const child of scope.querySelectorAll<HTMLElement>('*')) {
+    if (isScrollableY(child)) return child;
+  }
+  return null;
+}
+
+/**
+ * Scrolls the active modal body or main page smoothly (used by the controller's right analog stick).
+ */
+export function scrollActivePage(deltaY: number): boolean {
+  if (!deltaY) return false;
+  const scope = topOverlay() ?? document.body;
+  const target = findScrollableContainer(scope);
+  if (!target) return false;
+  target.scrollBy({ top: deltaY });
+  return true;
+}
+
 function scrollNearest(from: HTMLElement, direction: NavDirection): void {
   for (let el: HTMLElement | null = from; el; el = el.parentElement) {
-    if (el.scrollHeight > el.clientHeight && /auto|scroll/.test(getComputedStyle(el).overflowY)) {
+    if (isScrollableY(el)) {
       if (direction === 'up' || direction === 'down') el.scrollBy({ top: direction === 'down' ? SCROLL_STEP : -SCROLL_STEP });
       return;
     }

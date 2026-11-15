@@ -4,7 +4,7 @@ import { useVisibleFilters } from './useLibraryGames';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { SECTION_ORDER, selectAnyOverlay, useUiStore } from '../stores/useUiStore';
 import { closeTopOverlay, focusedGameId, focusStart, isFocusTarget, isNavActive, topOverlay } from '../utils/spatialNav';
-import { toggleFavorite } from '../utils/gameActions';
+import { openContextMenuForElement, toggleFavorite } from '../utils/gameActions';
 
 const isTextField = (el: EventTarget | null) => {
   const target = el as HTMLElement | null;
@@ -61,6 +61,19 @@ export function useShellControls(): void {
       const input = document.querySelector<HTMLInputElement>('[data-library-search]');
       input?.focus();
       input?.select();
+    },
+    onContextMenu: () => {
+      const ui = useUiStore.getState();
+      if (ui.contextMenu) {
+        ui.setContextMenu(null);
+        return;
+      }
+      if (topOverlay()) return;
+      const focusedId = focusedGameId();
+      const target = focusedId ?? (ui.view === 'game' ? ui.selectedGameId : null);
+      if (target && useLibraryStore.getState().gamesById.has(target)) {
+        openContextMenuForElement(target, focusedId ? (document.activeElement as HTMLElement | null) : null);
+      }
     },
     onMenu: () => {
       const ui = useUiStore.getState();

@@ -6,6 +6,8 @@ import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { Button, Notice, buttonClass } from './ui';
 import { useUiStore } from '../stores/useUiStore';
 import { SettingsGroup } from './settings/controls';
+import { useGamepadStore } from '../stores/useGamepadStore';
+import { detectGamepadFamily, getGamepadBindings } from '../utils/gamepadGlyphs';
 
 function formatUpdateError(raw: string): string {
   if (/404|Cannot find latest\.yml/i.test(raw)) {
@@ -17,16 +19,9 @@ function formatUpdateError(raw: string): string {
   return `Falha ao verificar atualizações: ${raw}`;
 }
 
-// Os mesmos atalhos do useGamepad e das teclas do App
-const GAMEPAD: [string, string][] = [
-  ['Direcional / analógico', 'Andar pela tela'],
-  ['A', 'Abrir, confirmar'],
-  ['B', 'Voltar, fechar janela'],
-  ['X', 'Favoritar o jogo focado'],
-  ['Y', 'Buscar na biblioteca'],
-  ['LB / RB', 'Trocar o filtro da biblioteca'],
-  ['LT / RT', 'Trocar de seção (Diário, Listas...)'],
-  ['Start', 'Configurações']
+// Atalhos padrão de controle adaptados conforme a marca conectada
+const GAMEPAD_STATIC: [string, string][] = [
+  ['Direcional / analógico esq.', 'Andar pela tela']
 ];
 
 const KEYBOARD: [string, string][] = [
@@ -37,6 +32,18 @@ const KEYBOARD: [string, string][] = [
   ['F', 'Favoritar o jogo focado'],
   ['Backspace', 'Voltar para a biblioteca']
 ];
+
+const GAMEPAD_LABELS: Record<string, string> = {
+  Selecionar: 'Abrir, confirmar',
+  Voltar: 'Voltar, fechar janela',
+  Favoritar: 'Favoritar o jogo focado',
+  Buscar: 'Buscar na biblioteca',
+  Filtros: 'Trocar o filtro da biblioteca',
+  Seções: 'Trocar de seção (Diário, Listas...)',
+  Opções: 'Menu do jogo focado',
+  Configurações: 'Configurações',
+  Rolar: 'Rolar a página'
+};
 
 const Shortcuts: React.FC<{ rows: [string, string][] }> = ({ rows }) => (
   <dl className="px-4 py-2">
@@ -50,6 +57,18 @@ const Shortcuts: React.FC<{ rows: [string, string][] }> = ({ rows }) => (
     ))}
   </dl>
 );
+
+const GamepadShortcuts: React.FC = () => {
+  const gamepad = useGamepadStore((s) => s.gamepad);
+  const family = detectGamepadFamily(gamepad?.connected ? gamepad.id : undefined);
+  const { face, extra } = getGamepadBindings(family);
+  const rows: [string, string][] = [
+    ...GAMEPAD_STATIC,
+    ...face.map((b): [string, string] => [b.keyLabel, GAMEPAD_LABELS[b.label] ?? b.label]),
+    ...extra.map((b): [string, string] => [b.keyLabel, GAMEPAD_LABELS[b.label] ?? b.label])
+  ];
+  return <Shortcuts rows={rows} />;
+};
 
 export const HelpSettings: React.FC = () => {
   const [version, setVersion] = useState('');
@@ -158,7 +177,7 @@ export const HelpSettings: React.FC = () => {
       </SettingsGroup>
 
       <SettingsGroup title="Controle" description="Xbox, PlayStation, Switch Pro e genéricos. Com um jogo aberto, o controle fica só com o jogo.">
-        <Shortcuts rows={GAMEPAD} />
+        <GamepadShortcuts />
       </SettingsGroup>
       <SettingsGroup title="Teclado">
         <Shortcuts rows={KEYBOARD} />

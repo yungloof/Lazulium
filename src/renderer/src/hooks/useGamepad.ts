@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useGamepadStore } from '../stores/useGamepadStore';
 import { navAudio } from '../utils/navigationAudio';
-import { activateFocused, moveFocus, NavDirection, setNavActive } from '../utils/spatialNav';
+import { activateFocused, moveFocus, NavDirection, scrollActivePage, setNavActive } from '../utils/spatialNav';
 
 interface UseGamepadOptions {
   onBack?: () => void;
@@ -11,12 +11,27 @@ interface UseGamepadOptions {
   onNextSection?: () => void;
   onPrevSection?: () => void;
   onSearch?: () => void;
+  onContextMenu?: () => void;
   onMenu?: () => void;
 }
 
 const AXIS_THRESHOLD = 0.5;
+const RIGHT_STICK_DEADZONE = 0.22;
+const RIGHT_STICK_SCROLL_PX_PER_SEC = 1050;
 const REPEAT_DELAY_MS = 350;
 const REPEAT_INTERVAL_MS = 130;
+
+/**
+ * Maps right analog vertical axis displacement (-1..1) and elapsed frame ms to smooth scroll pixels.
+ */
+export function computeStickScrollDelta(axisValue: number, dtMs: number): number {
+  if (!Number.isFinite(axisValue) || Math.abs(axisValue) <= RIGHT_STICK_DEADZONE) return 0;
+  const clampedDt = Math.min(Math.max(dtMs, 0), 50);
+  if (clampedDt === 0) return 0;
+  const normalized = (Math.abs(axisValue) - RIGHT_STICK_DEADZONE) / (1 - RIGHT_STICK_DEADZONE);
+  const curve = normalized * normalized;
+  return Math.sign(axisValue) * curve * RIGHT_STICK_SCROLL_PX_PER_SEC * (clampedDt / 1000);
+}
 
 // Mapeamento padrão (W3C Standard Gamepad): D-Pad 12-15, analógico esquerdo nos eixos 0 e 1
 const DIRECTIONS: { direction: NavDirection; button: number; axis: number; sign: number }[] = [
@@ -42,6 +57,7 @@ export function useGamepad(options: UseGamepadOptions) {
     let polling = false;
     const held = new Set<number>();
     const nextRepeat = new Map<NavDirection, number>();
+    let lastTime = 0;
 
     // Botões de ação valem uma vez por aperto: segurar o A ao abrir um jogo não pode iniciar o jogo
     const actions: [number, () => void][] = [
@@ -53,10 +69,13 @@ export function useGamepad(options: UseGamepadOptions) {
       [5, () => { navAudio.playTab(); handlers.current.onNextFilter?.(); }],
       [6, () => { navAudio.playTab(); handlers.current.onPrevSection?.(); }],
       [7, () => { navAudio.playTab(); handlers.current.onNextSection?.(); }],
+      [8, () => { navAudio.playSelect(); handlers.current.onContextMenu?.(); }],
       [9, () => { navAudio.playSelect(); handlers.current.onMenu?.(); }]
     ];
 
     const poll = (time: number) => {
+      const dt = lastTime > 0 ? time - lastTime : 16;
+      lastTime = time;
       const pads = Array.from(navigator.getGamepads()).filter((pad): pad is Gamepad => !!pad);
       // Com um jogo na frente, o controle é do jogo: o Lazulium não reage em segundo plano
       const focused = document.hasFocus();
@@ -67,6 +86,18 @@ export function useGamepad(options: UseGamepadOptions) {
         if (pressed && !held.has(button) && focused) action();
         if (pressed) held.add(button);
         else held.delete(button);
+      }
+
+      if (focused) {
+        const rightY = pads.reduce((strongest, pad) => {
+          const val = pad.axes[3] ?? 0;
+          return Math.abs(val) > Math.abs(strongest) ? val : strongest;
+        }, 0);
+        const scrollDelta = computeStickScrollDelta(rightY, dt);
+        if (scrollDelta !== 0) {
+          setNavActive(true);
+          scrollActivePage(scrollDelta);
+        }
       }
 
       for (const { direction, button, axis, sign } of DIRECTIONS) {
