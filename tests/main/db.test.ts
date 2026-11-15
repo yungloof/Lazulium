@@ -353,4 +353,29 @@ describe('banco: sincronização, favoritos e lápides', () => {
     const reopened = await openDb();
     expect(reopened.getGameById('steam-10')?.isFavorite).toBe(true);
   });
+
+  it('se a cópia de segurança falhar, a sincronização desiste sem mudar nada', async () => {
+    const dir = useTempUserData();
+    const db = await openDb();
+    db.upsertGame(makeGame({ id: 'steam-11', title: 'Hollow Knight' }));
+    db.flush();
+
+    // Um arquivo no lugar da pasta backups/sync faz a cópia falhar
+    mkdirSync(join(storageDir(dir), 'backups'), { recursive: true });
+    writeFileSync(join(storageDir(dir), 'backups', 'sync'), 'não é pasta', 'utf-8');
+
+    const state = db.getSyncState();
+    expect(() =>
+      db.applySyncState({
+        ...state,
+        games: [makeGame({ id: 'steam-11', title: 'Hollow Knight', isFavorite: true, favoriteUpdatedAt: '2026-05-01T12:00:00Z' })],
+        syncTombstones: {},
+        syncUnresolved: {}
+      })
+    ).toThrow(/cópia de segurança/);
+
+    expect(db.getGameById('steam-11')?.isFavorite).toBe(false);
+    const reopened = await openDb();
+    expect(reopened.getGameById('steam-11')?.isFavorite).toBe(false);
+  });
 });

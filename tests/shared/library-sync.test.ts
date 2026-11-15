@@ -426,3 +426,45 @@ describe('sincronização entre PCs (Diário, listas, categorias e favoritos)', 
     expect(second.changedRemote).toBe(false);
   });
 });
+
+describe('registro do Diário de antes da sincronização', () => {
+  const NOW = '2026-11-15T12:00:00.000Z';
+  const portal = (log: Game['log'], logUpdatedAt?: string) =>
+    makeGame({ id: 'steam-620', title: 'Portal 2', platformGameId: '620', log, ...(logUpdatedAt ? { logUpdatedAt } : {}) });
+
+  it('a resenha que só existe no PC antigo não some quando o outro PC só deu nota depois', () => {
+    const pc1 = emptyState({ games: [portal({ rating: 4 }, '2026-11-15T10:00:00.000Z')] });
+    const pc2 = emptyState({ games: [portal({ review: 'Texto que só existe no PC2', status: 'completed' })] });
+
+    // PC2 liga a sincronização depois do PC1
+    const atPc2 = mergeSyncSnapshots(buildSyncSnapshot(pc2, NOW), buildSyncSnapshot(pc1, NOW), NOW);
+    const applied2 = applySyncSnapshot(pc2, atPc2.merged, NOW);
+    expect(applied2.games[0].log).toEqual({ rating: 4, review: 'Texto que só existe no PC2', status: 'completed' });
+    // A junção ganha data nova, para o PC1 receber a resenha também
+    expect(applied2.games[0].logUpdatedAt).toBe(NOW);
+    expect(atPc2.changedRemote).toBe(true);
+
+    const atPc1 = mergeSyncSnapshots(buildSyncSnapshot(pc1, NOW), atPc2.merged, NOW);
+    const applied1 = applySyncSnapshot(pc1, atPc1.merged, NOW);
+    expect(applied1.games[0].log).toEqual(applied2.games[0].log);
+
+    // Depois disso os dois ficam iguais e param de mandar
+    const again = mergeSyncSnapshots(buildSyncSnapshot({ ...pc1, ...applied1 }, NOW), atPc2.merged, NOW);
+    expect(again.changedLocal).toBe(false);
+    expect(again.changedRemote).toBe(false);
+  });
+
+  it('no conflito de campo, vale o registro com data', () => {
+    const pc1 = emptyState({ games: [portal({ rating: 5, review: 'Nova' }, '2026-11-15T10:00:00.000Z')] });
+    const pc2 = emptyState({ games: [portal({ rating: 2, review: 'Velha', notes: 'só no PC2' })] });
+    const { merged } = mergeSyncSnapshots(buildSyncSnapshot(pc2, NOW), buildSyncSnapshot(pc1, NOW), NOW);
+    expect(applySyncSnapshot(pc2, merged, NOW).games[0].log).toEqual({ rating: 5, review: 'Nova', notes: 'só no PC2' });
+  });
+
+  it('o PC antigo sem nada a acrescentar não muda a data de quem editou', () => {
+    const pc1 = emptyState({ games: [portal({ rating: 4, review: 'Igual' }, '2026-11-15T10:00:00.000Z')] });
+    const pc2 = emptyState({ games: [portal({ review: 'Igual' })] });
+    const { merged } = mergeSyncSnapshots(buildSyncSnapshot(pc2, NOW), buildSyncSnapshot(pc1, NOW), NOW);
+    expect(merged.games[0].logUpdatedAt).toBe('2026-11-15T10:00:00.000Z');
+  });
+});

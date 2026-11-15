@@ -29,7 +29,7 @@ interface PutSyncResponse {
 }
 
 const SYNC_SERVER_ERRORS: Record<string, string> = {
-  too_large: 'Sua cópia de sincronização passou do limite de 4 MB.',
+  too_large: 'Sua cópia de sincronização passou do limite de quase 2 MB. Diminua resenhas muito longas ou listas enormes e tente de novo.',
   invalid_sync: 'Os dados de sincronização não estão no formato esperado.',
   invalid_revision: 'Versão de sincronização inválida.'
 };

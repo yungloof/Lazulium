@@ -230,7 +230,8 @@ const canonicalEntryKey = (a: SyncGameEntry, b: SyncGameEntry): string => {
   return a.key < b.key ? a.key : b.key;
 };
 
-function mergeGameEntry(a: SyncGameEntry, b: SyncGameEntry): SyncGameEntry {
+// nowIso: só na mescla entre PCs. Quando um registro sem data completa o outro, a junção ganha data nova para valer nos dois
+function mergeGameEntry(a: SyncGameEntry, b: SyncGameEntry, nowIso?: string): SyncGameEntry {
   const maxDel = maxIso(a.deletedAt, b.deletedAt);
   const maxEdit = maxIso(a.logUpdatedAt, b.logUpdatedAt, a.favoriteUpdatedAt, b.favoriteUpdatedAt);
   const key = canonicalEntryKey(a, b);
@@ -252,7 +253,15 @@ function mergeGameEntry(a: SyncGameEntry, b: SyncGameEntry): SyncGameEntry {
   let logUpdatedAt: string | undefined;
   let manualWinner = a;
   const logCmp = compareIso(a.logUpdatedAt, b.logUpdatedAt);
-  if (logCmp > 0) {
+  if (Boolean(a.logUpdatedAt) !== Boolean(b.logUpdatedAt)) {
+    // Um lado é de antes da sincronização existir (sem data): o que tem data manda, mas o que só o outro tem
+    // (uma resenha escrita só naquele PC, por exemplo) não se perde
+    const stamped = a.logUpdatedAt ? a : b;
+    const old = stamped === a ? b : a;
+    log = combineUnstampedLogs(stamped.log, old.log);
+    logUpdatedAt = logsEqual(log, stamped.log) || !nowIso ? stamped.logUpdatedAt : nowIso;
+    manualWinner = stamped;
+  } else if (logCmp > 0) {
     log = normalizeLog(a.log);
     logUpdatedAt = a.logUpdatedAt;
     manualWinner = a;
@@ -606,7 +615,7 @@ export function mergeSyncSnapshots(
   const mergedGames: SyncGameEntry[] = local.games.map((g) => ({ ...g }));
   for (const rEntry of remote.games ?? []) {
     const idx = mergedGames.findIndex((lEntry) => entryMatches(lEntry, rEntry));
-    if (idx >= 0) mergedGames[idx] = mergeGameEntry(mergedGames[idx], rEntry);
+    if (idx >= 0) mergedGames[idx] = mergeGameEntry(mergedGames[idx], rEntry, nowIso);
     else mergedGames.push(rEntry);
   }
 

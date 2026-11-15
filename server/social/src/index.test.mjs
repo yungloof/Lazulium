@@ -1042,6 +1042,13 @@ test('sincronização entre PCs: leitura privada, controle otimista (409) e limp
   const bad = await s.call('PUT', '/v1/me/sync', { token: a.token, body: { baseRevision: 2, data: { schema: 'outro' } } });
   assert.equal(bad.status, 400);
 
+  // O limite conta bytes (uma linha do D1 cabe até 2 MB): 1 milhão de "ã" são 2 MB, apesar de 1 milhão de letras
+  const accents = { ...snap1, games: [{ ...snap1.games[0], log: { notes: 'ã'.repeat(1_000_000) } }] };
+  const big = await s.call('PUT', '/v1/me/sync', { token: a.token, body: { baseRevision: 2, data: accents } });
+  assert.equal(big.status, 413);
+  assert.equal(big.body.error, 'too_large');
+  assert.equal((await s.call('GET', '/v1/me/sync', { token: a.token })).body.revision, 2);
+
   // DELETE /v1/me/sync apaga só a cópia da nuvem; apagar a conta também remove
   assert.equal((await s.call('DELETE', '/v1/me/sync', { token: a.token })).status, 200);
   assert.equal((await s.call('GET', '/v1/me/sync', { token: a.token })).body.revision, 0);

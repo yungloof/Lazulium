@@ -22,7 +22,8 @@ const MAX_SUMMARY_BYTES = 20_000;
 const MAX_REVIEW_TEXT = 2_000;
 const MAX_TITLE = 200;
 const MAX_SHOWCASE_BYTES = 900_000; // O perfil leva também as avaliações (nota e resenha), por isso mais que os 400 mil de antes
-const MAX_SYNC_BYTES = 4_000_000; // Sincronização privada entre PCs (Diário, listas, categorias e favoritos)
+// Sincronização privada entre PCs (Diário, listas, categorias e favoritos), em bytes: uma linha do D1 cabe até 2 MB
+const MAX_SYNC_BYTES = 1_900_000;
 const MAX_MEDIA_BASE64 = 1_500_000;       // ~1,1 MB de imagem: o app reduz antes de enviar
 const MEDIA_KINDS = ['avatar', 'background', 'artwork'];
 const MEDIA_MIME = /^image\/(jpeg|png|webp|gif)$/;   // GIF vai como está, para chegar animado
@@ -1156,7 +1157,8 @@ async function handleSync(request, env, auth) {
   }
 
   const serialized = JSON.stringify(data);
-  if (serialized.length > MAX_SYNC_BYTES) throw new HttpError(413, 'too_large');
+  // length conta letras; acento e emoji ocupam mais de um byte
+  if (new TextEncoder().encode(serialized).length > MAX_SYNC_BYTES) throw new HttpError(413, 'too_large');
 
   const now = nowIso();
   const existing = await env.DB.prepare('SELECT revision, data, updated_at FROM user_sync WHERE user_id = ?').bind(auth.user.id).first();

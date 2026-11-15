@@ -97,11 +97,16 @@ export function createSyncBackup(dataFile: string): boolean {
     mkdirSync(dir, { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     copyFileSync(dataFile, join(dir, `lazulium_db-${stamp}.json`));
-    const files = readdirSync(dir).filter((f) => f.endsWith('.json')).sort().reverse();
-    for (const old of files.slice(MAX_SYNC_BACKUPS)) unlinkSync(join(dir, old));
-    return true;
   } catch (err) {
     console.warn('[Database] Falha na cópia pré-sincronização:', err);
     return false;
   }
+  // A cópia nova já existe; falhar ao apagar as antigas não impede a sincronização
+  try {
+    const files = readdirSync(dir).filter((f) => f.endsWith('.json')).sort().reverse();
+    for (const old of files.slice(MAX_SYNC_BACKUPS)) unlinkSync(join(dir, old));
+  } catch (err) {
+    console.warn('[Database] Falha ao limpar cópias pré-sincronização antigas:', err);
+  }
+  return true;
 }

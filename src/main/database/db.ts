@@ -657,7 +657,10 @@ export class DatabaseService {
     this.flush();
     if (this.dataFilePath) {
       this.backupDay = ensureDailyBackup(this.dataFilePath, this.backupDay);
-      createSyncBackup(this.dataFilePath);
+      // Sem a cópia não mescla: melhor não sincronizar do que arriscar o Diário sem volta
+      if (!createSyncBackup(this.dataFilePath)) {
+        throw new Error('Não foi possível fazer a cópia de segurança antes de sincronizar; nada foi mudado neste PC.');
+      }
     }
     this.data.games = applied.games;
     this.data.gameLists = applied.gameLists;
