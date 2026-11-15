@@ -106,6 +106,18 @@ export async function saveTextAs(
   return path;
 }
 
+/** Opens a save dialog and writes raw bytes directly to the chosen local file. */
+export async function saveBufferAs(
+  event: IpcMainInvokeEvent,
+  options: SaveDialogOptions,
+  content: Buffer
+): Promise<string | null> {
+  const path = await askSavePath(event, options);
+  if (!path) return null;
+  await writeFile(path, content);
+  return path;
+}
+
 // Nome de arquivo válido no Windows a partir de um título de jogo
 export function safeFileName(name: string, fallback: string): string {
   const clean = name

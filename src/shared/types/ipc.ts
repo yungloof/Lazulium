@@ -265,6 +265,7 @@ export interface ElectronAPI {
   getRecentActivity: (limit?: number) => Promise<ActivityEvent[]>; // Linha do tempo (base do feed de amigos da 2.0)
   getOnThisDayMemories: () => Promise<OnThisDayMemory[]>;
   getYearReview: (year?: number) => Promise<YearReview>;
+  saveYearReviewImage: (dataUrl: string, year: number) => Promise<string | null>; // Salva o cartão PNG só no PC
   syncAllAchievements: () => Promise<AchievementsSyncResult>;
   saveProfileCustom: (custom: ProfileCustom) => Promise<ProfileCustom>;
   pickProfileMedia: (kind: ProfileMediaKind) => Promise<string | null>; // URL do arquivo copiado (null se cancelado)

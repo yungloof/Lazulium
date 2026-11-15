@@ -158,17 +158,27 @@ export interface YearReviewGame {
   achievements?: number;            // Conquistas desbloqueadas no ano
 }
 
+export interface YearReviewPlayedGame {
+  id: string;
+  title: string;
+  coverUrl?: string;
+  seconds: number;
+}
+
 export interface YearReview {
   year: number;
   availableYears: number[];         // Do mais novo para o mais antigo
   achievementsUnlocked: number;
+  monthlyAchievements?: number[];   // Conquistas desbloqueadas em cada mês (0 = janeiro)
   bestMonth?: { month: number; achievements: number }; // 0 = janeiro
   rarestAchievement?: { name: string; iconUrl: string; gameTitle: string; globalPercent: number };
   topGames: YearReviewGame[];       // Mais conquistas no ano
+  topPlayedGames?: YearReviewPlayedGame[]; // Mais horas registradas pelo Lazulium no ano
   finishedGames: YearReviewGame[];  // "Terminei em" dentro do ano
   gamesPlayed: number;              // Jogos cuja última sessão foi no ano
   screenshots: number;
   trackedSeconds: number;           // Só sessões abertas pelo Lazulium
+  playerName?: string;              // Nome local de exibição para assinar o cartão final
 }
 
 export type OnThisDayKind = 'completed' | 'finished' | 'first-session' | 'started' | 'reviewed' | 'rated' | 'played';

@@ -74,12 +74,22 @@ export function useShellControls(): void {
         kb.toggleLayer();
         return;
       }
+      const overlay = topOverlay();
+      if (overlay) {
+        overlay.dispatchEvent(new CustomEvent('lazulium:overlay-step', { detail: { step: 1 } }));
+        return;
+      }
       stepFilter(1);
     },
     onPrevFilter: () => {
       const kb = useKeyboardStore.getState();
       if (kb.target) {
         kb.toggleShift();
+        return;
+      }
+      const overlay = topOverlay();
+      if (overlay) {
+        overlay.dispatchEvent(new CustomEvent('lazulium:overlay-step', { detail: { step: -1 } }));
         return;
       }
       stepFilter(-1);

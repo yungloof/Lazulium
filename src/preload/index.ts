@@ -162,6 +162,7 @@ const electronAPI: ElectronAPI = {
   getRecentActivity: (limit) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_ACTIVITY, limit),
   getOnThisDayMemories: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_ON_THIS_DAY),
   getYearReview: (year?: number) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_YEAR_REVIEW, year),
+  saveYearReviewImage: (dataUrl: string, year: number) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_YEAR_REVIEW_IMAGE, dataUrl, year),
   syncAllAchievements: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SYNC_ACHIEVEMENTS),
   saveProfileCustom: (custom: ProfileCustom) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SAVE_CUSTOM, custom),
   pickProfileMedia: (kind: ProfileMediaKind) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_PICK_MEDIA, kind),

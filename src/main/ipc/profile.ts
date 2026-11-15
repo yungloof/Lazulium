@@ -6,7 +6,10 @@ import { profileWebService } from '../services/profile/profile-web.service';
 import { buildYearReview } from '../services/profile/year-review.service';
 import { getRecentActivity } from '../services/profile/activity.service';
 import { getOnThisDayMemories } from '../services/profile/on-this-day.service';
-import { askOpenPaths, handle, saveTextAs } from './helpers';
+import { askOpenPaths, handle, safeFileName, saveBufferAs, saveTextAs } from './helpers';
+
+const MAX_YEAR_REVIEW_PNG_BYTES = 15 * 1024 * 1024;
+const PNG_DATA_URL_PREFIX = 'data:image/png;base64,';
 
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
 const MEDIA_TITLES: Record<ProfileMediaKind, string> = {
@@ -37,6 +40,24 @@ export function registerProfileHandlers(): void {
   handle(IPC_CHANNELS.PROFILE_ACTIVITY, (_event, limit?: number) => getRecentActivity(typeof limit === 'number' ? limit : undefined));
   handle(IPC_CHANNELS.PROFILE_ON_THIS_DAY, () => getOnThisDayMemories());
   handle(IPC_CHANNELS.PROFILE_YEAR_REVIEW, (_event, year?: number) => buildYearReview(year));
+  handle(IPC_CHANNELS.PROFILE_YEAR_REVIEW_IMAGE, (event, dataUrl: string, year: number) => {
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith(PNG_DATA_URL_PREFIX)) {
+      throw new Error('Formato de imagem inválido.');
+    }
+    const raw = dataUrl.slice(PNG_DATA_URL_PREFIX.length);
+    const buffer = Buffer.from(raw, 'base64');
+    const isPng = buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+    if (!isPng || buffer.length > MAX_YEAR_REVIEW_PNG_BYTES) {
+      throw new Error('Imagem PNG inválida ou grande demais para salvar.');
+    }
+    const safeYear = Number.isInteger(year) && year >= 1990 && year <= 2100 ? String(year) : 'ano';
+    const fileName = `${safeFileName(`lazulium-retrospectiva-${safeYear}`, 'lazulium-retrospectiva')}.png`;
+    return saveBufferAs(
+      event,
+      { title: 'Salvar imagem da retrospectiva', defaultPath: fileName, filters: [{ name: 'Imagem PNG', extensions: ['png'] }] },
+      buffer
+    );
+  });
   handle(IPC_CHANNELS.PROFILE_SYNC_ACHIEVEMENTS, () => profileService.syncAllAchievements());
   handle(IPC_CHANNELS.PROFILE_SAVE_CUSTOM, (_event, custom: ProfileCustom) => profileService.saveCustom(custom));
 
