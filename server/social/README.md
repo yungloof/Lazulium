@@ -32,6 +32,25 @@ MEDIA_SECRET="<mesmo-segredo>" PUBLIC_ORIGIN=https://147-15-123-238.sslip.io MED
 
 Um cron horário no Worker (`triggers = ["23 * * * *"]`) repete pedidos de exclusão (`stored_media.purge = 1`) se a VPS estiver fora do ar no momento em que o usuário remover o fundo ou apagar a conta.
 
+## Cópia de segurança (cifrada)
+
+```powershell
+cd server\social
+npm run backup
+```
+
+Lê o D1 pelo login do wrangler, pede uma senha (mínimo 12 caracteres, duas vezes) e grava `lazulium-social-AAAA-MM-DD-HHMM.lzbk` em `%USERPROFILE%\Lazulium-backups` (ou `--out <pasta>` / `LAZULIUM_BACKUP_DIR`). Guarda as 8 mais novas (`--keep <n>`) e apaga as mais velhas dessa pasta (só arquivos com esse nome). O conteúdo só existe na memória até virar o arquivo cifrado (AES-256-GCM, chave tirada da senha com scrypt). **Sem a senha, a cópia não abre: ela não fica em lugar nenhum além de com você.** Para rodar sem terminal (tarefa agendada), `LAZULIUM_BACKUP_PASS`; para ler por token no lugar do wrangler, `CLOUDFLARE_API_TOKEN` (D1 leitura) e `CLOUDFLARE_ACCOUNT_ID`.
+
+Fora da cópia: `sessions`, `auth_codes`, `invites`, `view_links`, `view_viewers` (segredos ou coisas que vencem sozinhas), `media` (imagens em base64, a pessoa envia de novo), `calls`, `now_playing` e `user_sync` (a sincronização privada entre PCs: a cópia de verdade está nos PCs). Tabela nova entra sozinha; para tirar, ponha em `EXCLUDED_TABLES` (`backup/lib.mjs`) e na política de privacidade.
+
+```powershell
+npm run restore -- <arquivo.lzbk>                        # confere: data e linhas por tabela
+npm run restore -- <arquivo.lzbk> --to-sqlite novo.db    # abre num SQLite novo (olhar ou subir no server.mjs)
+npm run restore -- <arquivo.lzbk> --to-d1                # devolve ao D1 (CLOUDFLARE_API_TOKEN com D1 edição + CLOUDFLARE_ACCOUNT_ID)
+```
+
+Restaurar cria as tabelas que faltam e nunca sobrescreve linha que já existe (`INSERT OR IGNORE`), então dá para rodar de novo se cair no meio. Depois de restaurar, todo mundo entra de novo pela Steam. Contas apagadas depois da data da cópia voltam junto: restaure só se o banco se perdeu, e com a cópia mais nova. O D1 também tem o Time Travel (`npx wrangler d1 time-travel restore`), melhor para desfazer um erro recente.
+
 ## Rodar fora da Cloudflare (VPS ou teste)
 
 ```bash

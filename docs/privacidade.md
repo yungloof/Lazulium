@@ -1,6 +1,6 @@
 # Política de privacidade do Lazulium
 
-*Última atualização: 14 de novembro de 2026 · vale para o Lazulium 2.6.0 e posteriores*
+*Última atualização: 15 de novembro de 2026 · vale para o Lazulium 2.6.0 e posteriores*
 
 O Lazulium é um app para Windows que junta seus jogos de PC numa biblioteca só. Quem faz e responde por esta política é Lazuli Fool, de forma independente. Contato: **yungloof06@gmail.com**.
 
@@ -103,6 +103,8 @@ A conta é opcional e serve para você ver o que seus amigos jogam e eles verem 
 **Quem vê.** Só as pessoas que viraram suas amigas com o seu código de convite (ou você com o delas) veem o que você escolher compartilhar; a sincronização entre PCs é só sua e não aparece para ninguém. Não existe perfil público nem busca de pessoas. Cada chave desligada some do feed e do seu perfil para os amigos na hora, e o app para de enviar aquele tipo de evento.
 
 **Sair e apagar.** *Sair* encerra a sessão neste PC e mantém a conta. *Apagar conta Lazulium* (em *Configurações → Contas*) remove do servidor (e da VPS, se houver fundo guardado), na hora, tudo da lista acima, inclusive as amizades. Se a VPS estiver fora do ar na hora, o servidor tenta apagar de hora em hora até conseguir. O que está no seu PC continua.
+
+**Cópia de segurança.** Para a conta de ninguém sumir se o banco der problema, Lazuli guarda, fora do servidor, cópias do banco trancadas com uma senha que só Lazuli tem. Elas servem só para recuperar o servidor e não levam a sessão de login, os códigos de convite, os links da vitrine, as imagens enviadas, os avisos entre amigos, o "jogando agora" nem a sincronização entre PCs. Ficam só as 8 cópias mais recentes, então o que você apaga sai delas conforme as cópias novas substituem as antigas.
 
 A Cloudflare e a VPS da Oracle (`147-15-123-238.sslip.io`, usada só para guardar e servir GIFs maiores de 1 MB e vídeos de fundo) recebem o seu endereço IP na conexão HTTP, como em qualquer site; os servidores do Lazulium usam o IP só para limitar abusos e não o guardam em banco.
 

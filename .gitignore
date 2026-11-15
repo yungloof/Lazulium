@@ -19,6 +19,7 @@ build/
 *.sqlite-journal
 *.db
 *.db-journal
+*.lzbk
 data/
 cache/
 assets/cache/
