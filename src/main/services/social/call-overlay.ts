@@ -41,7 +41,7 @@ export function closeCallOverlay(callId?: string): void {
 
 export function showCallOverlay(
   call: { id: string; name: string; avatarUrl: string | null },
-  options: { volume: number; chaosSeconds: number; test?: boolean },
+  options: { volume: number; chaosSeconds: number; test?: boolean; takeFocus?: boolean },
   onAnswer: (answer: OverlayAnswer) => void
 ): void {
   // Chamada nova no meio de outra: troca pela mais nova (a anterior continua esperando no app)
@@ -51,6 +51,8 @@ export function showCallOverlay(
     if (!previous.win.isDestroyed()) previous.win.destroy();
   }
 
+  // Com jogo aberto a tela aparece por cima sem tirar o foco dele (o jogo não minimiza e o teclado continua nele)
+  const takeFocus = options.takeFocus !== false;
   const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
   const { x, y, width, height } = display.bounds;
   const win = new BrowserWindow({
@@ -113,8 +115,12 @@ export function showCallOverlay(
     if (win.isDestroyed()) return;
     // Modo silencioso (testes) só mostra quando pedido
     if (SILENT_MODE && process.env.LAZULIUM_SHOW_CALL_OVERLAY !== '1') return;
-    win.show();
-    win.focus();
+    if (takeFocus) {
+      win.show();
+      win.focus();
+    } else {
+      win.showInactive();
+    }
   });
 
   const html = callOverlayHtml({
@@ -123,7 +129,8 @@ export function showCallOverlay(
     volume: options.volume,
     chaosSeconds: options.chaosSeconds,
     lifeSeconds: LIFE_SECONDS,
-    test: !!options.test
+    test: !!options.test,
+    focus: takeFocus
   });
   void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 }

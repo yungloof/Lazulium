@@ -66,7 +66,7 @@ Nenhuma destas tarefas faz pedido novo ao servidor. Sempre com o foco visível d
   - convite de uso único;
   - apagar a conta limpa tudo;
   - imagens da vitrine só de domínios conhecidos.
-- **C5. A tela da call não toma o foco** e não aceita por Enter sem querer. Continua fora do CHANGELOG (regra 2.4).
+- **C5. A tela da call não toma o foco** e não aceita por Enter sem querer. Continua fora do CHANGELOG (regra 2.4). ✅ Com jogo aberto aparece sem foco; "tô indo" só segurando 0,8 s (mouse, Enter ou A), e nada responde no primeiro 1,2 s.
 - **C6. Backup do D1 cifrado** (script pronto; a chave e o token ficam com a Lazuli).
 - **C7. "Dar um tempo" com amigo** (silenciar com prazo, ou bloquear). Precisa de IPC novo: só depois que o G2 e o G4 estiverem commitados.
 

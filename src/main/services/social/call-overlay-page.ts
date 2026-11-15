@@ -4,6 +4,8 @@
 // Nada aqui pisca mais de 3 vezes por segundo (limite seguro para quem tem fotossensibilidade).
 // A resposta volta para o main pelo título da página (lazulium-answer:yes|no|none), sem preload nem acesso ao Node
 // (mudar o endereço de uma página data: é bloqueado pelo Chromium, por isso não dá para usar #answer).
+// "Tô indo" só vale segurando (mouse, Enter ou A) por um instante, e nada responde logo que a tela abre:
+// quem estava digitando ou clicando no jogo não aceita sem querer.
 
 export interface CallOverlayData {
   name: string;
@@ -12,7 +14,11 @@ export interface CallOverlayData {
   chaosSeconds: number;
   lifeSeconds: number;     // Depois disso fecha sozinha (a chamada continua esperando no app)
   test: boolean;
+  focus: boolean;          // false com jogo aberto: a tela aparece sem tirar o foco do jogo
 }
+
+export const CALL_HOLD_MS = 800;    // Quanto tempo segurar "Tô indo"
+export const CALL_ARM_MS = 1_200;   // Nada responde antes disso (clique ou tecla que já vinha não conta)
 
 const AVATAR_HOSTS = 'https://avatars.steamstatic.com https://avatars.akamai.steamstatic.com https://avatars.cloudflare.steamstatic.com';
 
@@ -52,7 +58,10 @@ export function callOverlayHtml(data: CallOverlayData): string {
   button { font: inherit; border: 0; border-radius: 16px; cursor: pointer; transition: transform .12s, filter .12s; }
   button:hover { transform: translateY(-2px) scale(1.03); filter: brightness(1.08); }
   button:focus-visible { outline: 4px solid #a5b4fc; outline-offset: 3px; }
-  #yes { background: #22c55e; color: #052e16; font-size: 30px; font-weight: 900; padding: 16px 38px; box-shadow: 0 8px 0 #15803d; animation: beg .9s ease-in-out infinite; }
+  #yes { position: relative; overflow: hidden; background: #22c55e; color: #052e16; font-size: 30px; font-weight: 900; padding: 16px 38px; box-shadow: 0 8px 0 #15803d; animation: beg .9s ease-in-out infinite; }
+  #yes > .fill { position: absolute; inset: 0; background: rgba(255,255,255,.55); transform: scaleX(var(--hold, 0)); transform-origin: left; pointer-events: none; }
+  #yes > .label { position: relative; }
+  #yes.holding { animation: none; transform: scale(1.04); }
   #no { background: rgba(255,255,255,.12); color: #e2e8f0; font-size: 20px; font-weight: 700; padding: 16px 26px; }
   #hint { color: rgba(226,232,240,.7); font-size: 13px; }
   #bar { width: 100%; height: 4px; border-radius: 4px; background: rgba(255,255,255,.12); overflow: hidden; }
@@ -90,15 +99,19 @@ export function callOverlayHtml(data: CallOverlayData): string {
 <div id="test" hidden>Teste: ninguém foi avisado</div>
 <div id="card" role="dialog" aria-label="Chamada">
   <div id="buttons">
-    <button id="yes" type="button">TÔ INDO! 🎧</button>
+    <button id="yes" type="button"><span class="fill"></span><span class="label">TÔ INDO! 🎧</span></button>
     <button id="no" type="button">Agora não</button>
   </div>
-  <div id="hint">Enter: tô indo · Esc fecha sem responder · no controle, A responde e B fecha</div>
+  <div id="hint">Segure o botão, o Enter ou o A do controle para dizer tô indo · Esc ou B fecha sem responder</div>
   <div id="bar"><span></span></div>
 </div>
 <script>
 (() => {
   const data = ${scriptJson(data)};
+  const HOLD_MS = ${CALL_HOLD_MS};
+  const ARM_MS = ${CALL_ARM_MS};
+  const openedAt = performance.now();
+  const armed = () => performance.now() - openedAt >= ARM_MS;
   let done = false;
   const answer = (value) => { if (done) return; done = true; stopAudio(); document.title = 'lazulium-answer:' + value; };
 
@@ -262,30 +275,64 @@ export function callOverlayHtml(data: CallOverlayData): string {
     raining = false;
     clearInterval(rainTimer);
     document.body.classList.add('calm');
-    document.getElementById('yes').focus();
+    if (data.focus) document.getElementById('yes').focus();
   }, data.chaosSeconds * 1000);
   const bar = document.querySelector('#bar > span');
   bar.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], { duration: data.lifeSeconds * 1000, easing: 'linear', fill: 'forwards' });
   setTimeout(() => answer('none'), data.lifeSeconds * 1000);
 
-  document.getElementById('yes').addEventListener('click', () => answer('yes'));
-  document.getElementById('no').addEventListener('click', () => answer('no'));
+  // ---------- Segurar para dizer "tô indo" ----------
+  const yes = document.getElementById('yes');
+  const holders = new Set();   // mouse, Enter e controle seguram juntos ou separados
+  let holdStart = 0;
+  const holdFrame = () => {
+    if (done || holders.size === 0) return;
+    const progress = Math.min(1, (performance.now() - holdStart) / HOLD_MS);
+    yes.style.setProperty('--hold', String(progress));
+    if (progress >= 1) return answer('yes');
+    requestAnimationFrame(holdFrame);
+  };
+  const press = (who) => {
+    if (done || !armed() || holders.has(who)) return;
+    if (holders.size === 0) {
+      holdStart = performance.now();
+      yes.classList.add('holding');
+      requestAnimationFrame(holdFrame);
+    }
+    holders.add(who);
+  };
+  const release = (who) => {
+    holders.delete(who);
+    if (holders.size > 0 || done) return;
+    yes.classList.remove('holding');
+    yes.style.setProperty('--hold', '0');
+  };
+  yes.addEventListener('pointerdown', (e) => { if (e.button === 0) press('pointer'); });
+  for (const type of ['pointerup', 'pointerleave', 'pointercancel']) yes.addEventListener(type, () => release('pointer'));
+  addEventListener('blur', () => { release('pointer'); release('enter'); });
+  document.getElementById('no').addEventListener('click', () => { if (armed()) answer('no'); });
   addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') answer('none');
-    else if (e.key === 'Enter' && document.activeElement?.id !== 'no') answer('yes');
+    if (e.key === 'Escape') { if (armed()) answer('none'); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();   // o Enter não "clica" no botão focado
+      if (!e.repeat && document.activeElement?.id !== 'no') press('enter');
+    }
   });
-  document.getElementById('yes').focus();
+  addEventListener('keyup', (e) => { if (e.key === 'Enter') release('enter'); });
+  if (data.focus) yes.focus();
 
-  // Controle: A responde "tô indo", B fecha sem responder (botões já apertados ao abrir não contam)
+  // Controle: segurar A diz "tô indo", B fecha sem responder (botões já apertados ao abrir não contam)
   const held = new Set();
   let firstRead = true;
   const pollPad = () => {
+    if (done) return;
     const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
     for (const pad of pads) {
       const a = pad.buttons[0]?.pressed, b = pad.buttons[1]?.pressed;
       const keyA = pad.index + ':a', keyB = pad.index + ':b';
-      if (a && !held.has(keyA) && !firstRead) return answer('yes');
-      if (b && !held.has(keyB) && !firstRead) return answer('none');
+      if (a && !held.has(keyA) && !firstRead) press(keyA);
+      if (!a && held.has(keyA)) release(keyA);
+      if (b && !held.has(keyB) && !firstRead && armed()) return answer('none');
       a ? held.add(keyA) : held.delete(keyA);
       b ? held.add(keyB) : held.delete(keyB);
     }

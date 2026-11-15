@@ -124,7 +124,7 @@ class CallsService {
     if (delivery === 'chaos') {
       showCallOverlay(
         { id: call.id, name: call.from.name, avatarUrl: call.from.avatarUrl },
-        { volume: settings.volume, chaosSeconds: CALL_CHAOS_SECONDS },
+        { volume: settings.volume, chaosSeconds: CALL_CHAOS_SECONDS, takeFocus: !playtimeService.isAnyRunning() },
         (answer: OverlayAnswer) => {
           if (answer === 'none') return;
           void this.answer(call.id, answer).catch((err) => console.warn('[Calls] Resposta não enviada:', (err as Error).message));
