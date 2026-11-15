@@ -59,7 +59,7 @@ Lazulium/
 │       └── constants/           # Enums, canais IPC, configurações padrão
 ├── tests/                       # Testes automatizados (vitest): banco, categorias, mescla do scanner, filtros; Electron trocado por um dublê
 ├── resources/                   # Logo do dono (logo.png, não alterar), ícones e imagens do instalador gerados dela
-├── scripts/                     # generate-icons.mjs (npm run icons) e check-package.mjs (conferência antes do empacotamento)
+├── scripts/                     # generate-icons.mjs (npm run icons), check-package.mjs (conferência antes do empacotamento) e social-test/ (teste com servidor local)
 ├── server/igdb-proxy/           # Cloudflare Worker: tempo para zerar, busca e capas (IGDB) e preços (GG.deals)
 ├── server/social/               # Cloudflare Worker + D1: conta Lazulium (login pela Steam, amigos, feed)
 ├── web/profile/                 # Página web estática do perfil
@@ -117,6 +117,7 @@ npm run icons
 
 ## 5. Como o Claude e o Antigravity Devem Colaborar
 
+- **Trabalho da 3.0:** leia antes o `docs/handoff-3.0.md` (o que falta, regras combinadas com a dona que não estão no código e como testar sem abrir o app).
 - Sempre consulte o `ROADMAP.md` antes de iniciar uma nova funcionalidade para manter a ordem lógica das fases.
 - Ao adicionar novas chamadas de IPC:
   1. Adicione o canal em `src/shared/constants/ipc-channels.ts`.
