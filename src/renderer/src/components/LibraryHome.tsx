@@ -4,6 +4,7 @@ import { Game } from '@shared/types/game';
 import { formatCategoryRuleSummary } from '@shared/utils/categories';
 import { LOG_STATUS } from './GameLogFields';
 import { GameCard } from './GameCard';
+import { OnThisDayShelf } from './OnThisDayShelf';
 import { Select, SelectOption } from './Select';
 import { pickSuggestion } from '../utils/suggestGame';
 import { useCategoriesStore } from '../stores/useCategoriesStore';
@@ -494,6 +495,8 @@ export const LibraryHome: React.FC = () => {
   return (
     <div className="px-8 py-7 space-y-10 animate-fade-in">
       {recent.length > 0 && <ContinueShelf recent={recent} />}
+
+      {!isFiltered && <OnThisDayShelf />}
 
       {!isFiltered && <NowPlaying games={filtered} />}
 

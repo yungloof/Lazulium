@@ -46,7 +46,7 @@ import {
   SocialStatus,
   SocialUser
 } from './social';
-import { AchievementsSyncResult, PlayerProfile, YearReview, ProfileCustom, ProfileMediaKind, ProfileWebLink, ProfileWebStatus } from './profile';
+import { AchievementsSyncResult, OnThisDayMemory, PlayerProfile, YearReview, ProfileCustom, ProfileMediaKind, ProfileWebLink, ProfileWebStatus } from './profile';
 import {
   BackupEvent,
   BackupOverview,
@@ -263,6 +263,7 @@ export interface ElectronAPI {
   // Perfil do jogador
   getPlayerProfile: () => Promise<PlayerProfile>;
   getRecentActivity: (limit?: number) => Promise<ActivityEvent[]>; // Linha do tempo (base do feed de amigos da 2.0)
+  getOnThisDayMemories: () => Promise<OnThisDayMemory[]>;
   getYearReview: (year?: number) => Promise<YearReview>;
   syncAllAchievements: () => Promise<AchievementsSyncResult>;
   saveProfileCustom: (custom: ProfileCustom) => Promise<ProfileCustom>;

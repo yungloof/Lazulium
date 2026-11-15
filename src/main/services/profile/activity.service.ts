@@ -17,6 +17,7 @@ const MERGE_WINDOW_MS = 6 * 60 * 60 * 1000;
 const MIN_PLAYED_SECONDS = 5 * 60;          // Abrir e fechar o jogo não é "jogou"
 const DEFAULT_LIMIT = 30;
 const localDayKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+export { localDayKey };
 const MAX_LIMIT = 200;
 
 // Compara o Diário antes e depois de salvar e grava o que mudou

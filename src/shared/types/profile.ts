@@ -171,6 +171,23 @@ export interface YearReview {
   trackedSeconds: number;           // Só sessões abertas pelo Lazulium
 }
 
+export type OnThisDayKind = 'completed' | 'finished' | 'first-session' | 'started' | 'reviewed' | 'rated' | 'played';
+
+export interface OnThisDayMemory {
+  id: string;
+  kind: OnThisDayKind;
+  gameId: string;
+  gameTitle: string;
+  coverUrl?: string;
+  yearsAgo: number;
+  date: string;                     // AAAA-MM-DD da lembrança original
+  rating?: number;
+  reviewExcerpt?: string;
+  screenshotUrl?: string;
+  screenshotThumbUrl?: string;
+  playtimeSeconds?: number;
+}
+
 // Tag ao lado do nome ("Beta tester", "MALDITO"), dada pelo Steam ID em shared/constants/profile-tags.ts
 export type ProfileTagId = 'beta' | 'maldito';
 
