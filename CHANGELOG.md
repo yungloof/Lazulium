@@ -4,6 +4,28 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 3.1.0 — 15 de novembro de 2026
+
+O controle ficou bem mais completo (teclado na tela e os símbolos do seu controle), conquistas e jogos zerados ganharam comemoração, a biblioteca lembra o que você jogou neste dia em outros anos e agora dá para dar um tempo com um amigo.
+
+### Novidades
+
+- **Comemorações.** Conquistas novas, jogos zerados e marcas de 100% aparecem numa comemoração com capa, brilho azul, som e vibração leve do controle (ou em modo calmo, se o Windows estiver com animações reduzidas). Com um jogo em tela cheia, ela espera você fechar o jogo para aparecer. Dá para desligar em *Configurações → Comportamento*.
+- **Neste dia.** A tela inicial da biblioteca mostra lembranças do mesmo dia em anos anteriores: quando você zerou um jogo, fez 100% ou jogou pela primeira vez, com captura de tela e um trecho da sua resenha quando houver. Tudo sai só dos dados do seu PC, e a seção some quando não há nada para lembrar.
+- **Teclado na tela para o controle.** Ao apertar Buscar ou confirmar num campo de texto ou de resenha com o controle, um teclado com acentos em português abre na parte de baixo da janela, para digitar sem levantar do sofá.
+- **O Lazulium reconhece o seu controle.** Os símbolos da barra de ajuda e da Ajuda mudam conforme o controle conectado (Xbox, PlayStation ou Switch). O botão View / Select abre o menu de opções do jogo em foco, e o analógico direito rola a página.
+- **Retrospectiva em etapas.** A retrospectiva do ano, no Perfil, abre como uma história passo a passo, que dá para passar no controle (`LB`/`RB` ou equivalente). No fim vem um cartão resumido, desenhado no seu PC, para salvar como imagem sem enviar nada para fora.
+- **Dar um tempo.** No perfil de um amigo, silencie a pessoa por 1 dia, 1 semana, 1 mês ou até você desfazer: o que ela faz some do seu feed e os avisos dela param, sem ela saber. Dali também dá para bloquear ou desfazer a amizade. Quem você bloqueou fica em *Amigos → Bloqueados*.
+- **Som de navegação.** Ligue, desligue e ajuste o volume dos cliques de navegação em *Configurações → Comportamento*.
+
+### Melhorias
+
+- **Botão JOGAR azul.** O botão JOGAR passou a usar o azul vivo do Lazulium, no lugar do verde antigo.
+- **Convite de amizade para uma pessoa.** Cada código de convite vale por 7 dias e para uma pessoa só. Para chamar mais alguém, gere outro código depois que a primeira pessoa entrar.
+- **Amigos mais leves.** O app consulta a sua conta Lazulium menos vezes e numa pergunta só, o que deixa a aba Amigos mais rápida quando a internet está lenta.
+
+---
+
 ## 3.0.0 — 14 de novembro de 2026
 
 A aba Amigos ficou muito mais interativa, agora dá para montar listas junto com a turma, a vitrine do seu perfil ganhou o seu Diário e você pode sincronizar suas anotações, listas e favoritos entre PCs.
