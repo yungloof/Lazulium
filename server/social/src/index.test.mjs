@@ -1099,3 +1099,32 @@ test('sincronização entre PCs: leitura privada, controle otimista (409) e limp
     steam.restore();
   }
 });
+
+test('consulta única: chamadas, amigos e avisos num pedido só, e só as partes pedidas', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  await befriend(s, a, b);
+  await s.call('POST', '/v1/calls', { token: a.token, body: { to: b.user.id } });
+  await s.call('POST', '/v1/social/like', { token: a.token, body: { owner: b.user.id, kind: 'review', target: 't:hades', title: 'Hades' } });
+
+  const all = await s.call('GET', '/v1/me/poll?parts=calls,friends,notifications', { token: b.token });
+  assert.equal(all.status, 200);
+  assert.equal(all.body.calls.incoming.length, 1);
+  assert.equal(all.body.calls.incoming[0].from.id, a.user.id);
+  assert.deepEqual(all.body.friends.map((f) => f.id), [a.user.id]);
+  assert.equal(all.body.notifications.length, 1);
+  assert.equal(all.body.notifications[0].type, 'like');
+
+  // A chamada chega uma vez só, como na rota antiga; parte não pedida não vem
+  const onlyCalls = await s.call('GET', '/v1/me/poll?parts=calls', { token: b.token });
+  assert.deepEqual(onlyCalls.body, { calls: { incoming: [], answers: [] } });
+  const later = new Date(Date.now() + 1000).toISOString();
+  assert.deepEqual((await s.call('GET', `/v1/me/poll?parts=notifications&since=${later}`, { token: b.token })).body, { notifications: [] });
+
+  assert.equal((await s.call('GET', '/v1/me/poll?parts=nada', { token: b.token })).status, 400);
+  assert.equal((await s.call('GET', '/v1/me/poll?parts=calls')).status, 401);
+  assert.equal((await s.call('POST', '/v1/me/poll?parts=calls', { token: b.token })).status, 405);
+});

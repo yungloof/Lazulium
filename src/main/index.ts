@@ -19,7 +19,7 @@ import { socialService, socialServerUrl } from './services/social/social.service
 import { librarySyncService } from './services/social/sync.service';
 import { presenceService } from './services/social/presence.service';
 import { callsService } from './services/social/calls.service';
-import { reactionsService } from './services/social/reactions.service';
+import { pollService } from './services/social/poll.service';
 import { epicAccountService } from './services/accounts/epic-account.service';
 import {
   HIDDEN_LAUNCH_ARG,
@@ -155,7 +155,7 @@ if (!app.requestSingleInstanceLock()) {
     librarySyncService.init();
     presenceService.init();
     callsService.init();
-    reactionsService.init();
+    pollService.init();          // Chamadas, amigos e avisos num pedido só
     epicAccountService.init();
 
     const hadGames = db.getGames().length > 0;

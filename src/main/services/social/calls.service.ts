@@ -11,21 +11,26 @@ import { OverlayAnswer, closeCallOverlay, showCallOverlay } from './call-overlay
 // "Chamar pra call": manda a chamada, busca as que chegaram e as respostas, e decide como cada uma aparece
 // (tela doida, notificação, só aviso no app ou recusa sozinha).
 // Consulta rápida só quando algum amigo está on-line: ninguém consegue chamar com o app fechado.
+// Quem pergunta ao servidor é o poll.service (um pedido só para chamadas, amigos e avisos); aqui fica o ritmo.
 
-const POLL_FAST_MS = Number(process.env.LAZULIUM_CALL_POLL_MS) || 12_000;
-// Ninguém aparece on-line: quem chama pode estar Invisível, então ainda olha a cada 30 s. Sem amigos, ninguém pode chamar.
-const POLL_SLOW_MS = 30_000;
+const POLL_FAST_MS = Number(process.env.LAZULIUM_CALL_POLL_MS) || 15_000;
+// Ninguém aparece on-line: quem chama pode estar Invisível, então ainda olha a cada minuto. Sem amigos, ninguém pode chamar.
+const POLL_SLOW_MS = 60_000;
 const POLL_NO_FRIENDS_MS = 5 * 60_000;
 const FAST_AFTER_CALL_MS = 3 * 60_000;       // Depois de chamar, espera a resposta com pressa
 const PENDING_MAX_AGE_MS = 6 * 60 * 60_000;  // Chamada sem resposta some do app depois disso
 const UUID = /^[0-9a-f-]{36}$/;
 
+export interface CallsPoll {
+  incoming?: IncomingCall[];
+  answers?: CallAnswerNotice[];
+}
+
 class CallsService {
-  private timer: NodeJS.Timeout | undefined;
   private friendsOnline = false;
   private hasFriends = true;
   private fastUntil = 0;
-  private polling = false;
+  private wake: (ms: number) => void = () => {};
   private pending = new Map<string, IncomingCall>();
   private listener: (event: CallEvent) => void = () => {};
 
@@ -33,51 +38,41 @@ class CallsService {
     this.listener = listener;
   }
 
+  // O poll.service diz como adiantar a próxima consulta de chamadas
+  setWake(wake: (ms: number) => void): void {
+    this.wake = wake;
+  }
+
   init(): void {
     socialService.onFriends((friends: SocialFriend[]) => {
       const online = friends.some((f) => friendPresence(f) !== 'offline');
-      if ((online && !this.friendsOnline) || (friends.length > 0 && !this.hasFriends)) this.schedule(1_000);
+      if ((online && !this.friendsOnline) || (friends.length > 0 && !this.hasFriends)) this.wake(1_000);
       this.friendsOnline = online;
       this.hasFriends = friends.length > 0;
     });
-    this.schedule(4_000);
   }
 
-  private schedule(ms: number): void {
-    clearTimeout(this.timer);
-    this.timer = setTimeout(() => void this.poll(), ms);
-    this.timer.unref();
-  }
-
-  private nextDelay(): number {
+  nextDelay(): number {
     if (this.friendsOnline || Date.now() < this.fastUntil) return POLL_FAST_MS;
     return this.hasFriends ? POLL_SLOW_MS : POLL_NO_FRIENDS_MS;
   }
 
-  async poll(): Promise<void> {
-    if (this.polling) return;
-    this.polling = true;
-    try {
-      if (!socialService.isConnected()) {
-        this.pending.clear();
-        return;
-      }
-      const result = await socialService.api<{ incoming: IncomingCall[]; answers: CallAnswerNotice[] }>('GET', '/v1/calls');
-      for (const call of result.incoming ?? []) this.receive(call);
-      for (const notice of result.answers ?? []) this.receiveAnswer(notice);
-    } catch {
-      // Sem internet: tenta de novo na próxima
-    } finally {
-      this.polling = false;
-      this.schedule(this.nextDelay());
-    }
+  // Resposta da consulta (a única ou a rota antiga /v1/calls)
+  apply(result: CallsPoll | undefined): void {
+    for (const call of result?.incoming ?? []) this.receive(call);
+    for (const notice of result?.answers ?? []) this.receiveAnswer(notice);
+  }
+
+  // Saiu da conta: o que esperava resposta não vale mais
+  disconnected(): void {
+    this.pending.clear();
   }
 
   async callFriend(friendId: string): Promise<{ id: string; createdAt: string }> {
     if (!UUID.test(friendId)) throw new Error('Amigo inválido.');
     const result = await socialService.api<{ call: { id: string; createdAt: string } }>('POST', '/v1/calls', { to: friendId });
     this.fastUntil = Date.now() + FAST_AFTER_CALL_MS;
-    this.schedule(POLL_FAST_MS);
+    this.wake(POLL_FAST_MS);
     return result.call;
   }
 

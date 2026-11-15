@@ -1054,6 +1054,21 @@ async function handleCallCreate(request, env, auth) {
 }
 
 // Uma consulta traz as chamadas novas para mim e as respostas das minhas; cada uma chega uma vez só
+// GET /v1/me/poll?parts=calls,friends,notifications[&since=]: o app pergunta tudo de uma vez,
+// e só as partes que venceram (corta pedidos no plano grátis). As rotas antigas continuam.
+const POLL_PARTS = ['calls', 'friends', 'notifications'];
+
+async function handlePoll(request, url, env, auth) {
+  if (request.method !== 'GET') throw new HttpError(405, 'method_not_allowed');
+  const parts = new Set((url.searchParams.get('parts') ?? '').split(',').filter((part) => POLL_PARTS.includes(part)));
+  if (parts.size === 0) throw new HttpError(400, 'invalid_request');
+  const out = {};
+  if (parts.has('calls')) out.calls = await (await handleCalls(env, auth)).json();
+  if (parts.has('friends')) out.friends = (await (await handleFriends(request, env, auth)).json()).friends;
+  if (parts.has('notifications')) out.notifications = (await (await handleNotifications(url, env, auth)).json()).items;
+  return json(out);
+}
+
 async function handleCalls(env, auth) {
   const now = Date.now();
   const since = new Date(now - CALL_TTL_MS).toISOString();
@@ -1734,6 +1749,7 @@ async function route(request, env) {
   if (path === '/v1/me/sync') return handleSync(request, env, auth);
   if (path === '/v1/me/presence') return handlePresence(request, env, auth);
   if (path === '/v1/me/library') return handleLibrary(request, env, auth);
+  if (path === '/v1/me/poll') return handlePoll(request, url, env, auth);
   if (path === '/v1/me/notifications' && request.method === 'GET') return handleNotifications(url, env, auth);
   const social = path.match(/^\/v1\/social\/(summary|thread|like|comments)(?:\/([0-9a-f-]{36}))?$/);
   if (social) return handleReactions(request, url, env, auth.user.id, social[1], social[2]);

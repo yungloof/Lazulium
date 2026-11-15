@@ -15,8 +15,6 @@ import { SOCIAL_SETTING_KEYS, socialService } from './social.service';
 // O servidor decide quem pode ver (o dono e os amigos dele); aqui só se pede e se guarda o que chegou.
 
 export const REACTIONS_NOTIFY_SETTING = 'socialNotifyReactions';
-const POLL_MS = Number(process.env.LAZULIUM_SOCIAL_POLL_MS) || 90_000;   // A variável só serve para testes
-const FIRST_POLL_MS = 15_000;
 const SUMMARY_BATCH = 100;
 const UUID = /^[0-9a-f-]{36}$/;
 
@@ -28,11 +26,6 @@ class ReactionsService {
 
   setListener(listener: (event: SocialNotificationsEvent) => void): void {
     this.listener = listener;
-  }
-
-  init(): void {
-    setTimeout(() => void this.poll(), FIRST_POLL_MS).unref();
-    setInterval(() => void this.poll(), POLL_MS).unref();
   }
 
   // ---------- Curtir e comentar ----------
@@ -104,23 +97,36 @@ class ReactionsService {
     return view;
   }
 
+  // Desde quando pedir os avisos (undefined: os últimos 14 dias); null: sem conta, não pede
+  pollSince(): string | undefined | null {
+    if (!socialService.isConnected()) return null;
+    const store = this.load();
+    return store ? store.lastAt || undefined : null;
+  }
+
+  // Avisos que chegaram pela consulta (a única ou a rota antiga /v1/me/notifications)
+  receive(items: SocialNotification[] | undefined): void {
+    const store = this.load();
+    if (!store) return;
+    const { store: next, fresh } = mergeNotifications(store, Array.isArray(items) ? items : []);
+    this.save(next);
+    if (fresh.length === 0 && next.lastAt === store.lastAt) return;
+    const wanted = db.getSettings()[REACTIONS_NOTIFY_SETTING] !== 'false';
+    const texts = wanted ? fresh.slice(0, 3).map(notificationText) : [];
+    if (texts.length > 0) notify('Lazulium', fresh.length === 1 ? texts[0] : `${texts[0]} e mais ${fresh.length - 1} ${fresh.length === 2 ? 'aviso' : 'avisos'}`);
+    this.listener({ state: this.view(next), fresh: texts });
+  }
+
+  // Rota antiga, para servidor sem a consulta única
   async poll(): Promise<void> {
-    if (this.polling || !socialService.isConnected()) return;
+    const since = this.pollSince();
+    if (this.polling || since === null) return;
     this.polling = true;
     try {
-      const store = this.load();
-      if (!store) return;
-      const query = store.lastAt ? `?since=${encodeURIComponent(store.lastAt)}` : '';
+      const query = since ? `?since=${encodeURIComponent(since)}` : '';
       const { items } = await socialService.api<{ items: SocialNotification[] }>('GET', `/v1/me/notifications${query}`);
-      const { store: next, fresh } = mergeNotifications(store, Array.isArray(items) ? items : []);
-      this.save(next);
-      if (fresh.length === 0 && next.lastAt === store.lastAt) return;
-      const wanted = db.getSettings()[REACTIONS_NOTIFY_SETTING] !== 'false';
-      const texts = wanted ? fresh.slice(0, 3).map(notificationText) : [];
-      if (texts.length > 0) notify('Lazulium', fresh.length === 1 ? texts[0] : `${texts[0]} e mais ${fresh.length - 1} ${fresh.length === 2 ? 'aviso' : 'avisos'}`);
-      this.listener({ state: this.view(next), fresh: texts });
+      this.receive(items);
     } catch (err) {
-      // Servidor antigo (sem a rota) ou sem internet: tenta na próxima
       console.warn('[Reactions] Não foi possível buscar os avisos:', err instanceof Error ? err.message : err);
     } finally {
       this.polling = false;

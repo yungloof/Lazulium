@@ -47,7 +47,8 @@ export const SOCIAL_SETTING_KEYS = {
   showcaseHash: 'socialShowcaseHash',
   media: 'socialMedia',               // { avatar: { hash, url }, ... } das imagens já enviadas
   librarySent: 'socialLibrarySent',   // { at, rows: { titleKey: hash } } da biblioteca resumida já enviada
-  notifications: 'socialNotifications' // Avisos de curtida e comentário já buscados (reactions.service)
+  notifications: 'socialNotifications', // Avisos de curtida e comentário já buscados (reactions.service)
+  summarySent: 'socialSummarySent'    // { hash, at } do último resumo enviado: só manda de novo se mudar
 } as const;
 // Fora do token: o renderer pode ler e mudar
 export const SOCIAL_NOTIFY_SETTING = 'socialNotifyPlaying';
@@ -55,6 +56,7 @@ export const SOCIAL_NOTIFY_SETTING = 'socialNotifyPlaying';
 const LOGIN_TIMEOUT_MS = 5 * 60_000;
 const REQUEST_TIMEOUT_MS = 15_000;
 const SYNC_INTERVAL_MS = 10 * 60_000;
+const SUMMARY_REFRESH_MS = 24 * 60 * 60_000;
 const SYNC_DEBOUNCE_MS = 20_000;
 // Biblioteca resumida: lotes que cabem no servidor e um envio completo por semana
 const LIBRARY_BATCH_GAMES = 100;
@@ -76,7 +78,6 @@ const MEDIA_MAX_WIDTH = { avatar: 256, background: 1920, artwork: 1280 } as cons
 type MediaKind = keyof typeof MEDIA_MAX_WIDTH;
 const MAX_FRIEND_COVER_LOOKUPS = 30;   // Capas de jogos de amigos conferidas por vez
 const MAX_COVER_LOOKUPS = 15;          // Capas padrão buscadas por sincronização (o resto vai nas próximas)
-const FRIENDS_POLL_MS = Number(process.env.LAZULIUM_SOCIAL_POLL_MS) || 90_000;   // A variável só serve para testes
 const STEAM_COVER = (appId: string) => `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`;
 const PUBLIC_COVER = /^https:\/\/(cdn\.cloudflare\.steamstatic\.com|shared\.[a-z.]*steamstatic\.com|steamcdn-a\.akamaihd\.net|images\.igdb\.com|cdn2\.steamgriddb\.com)\//i;
 
@@ -193,7 +194,6 @@ class SocialService {
     this.syncTimer = setInterval(() => void this.sync(), SYNC_INTERVAL_MS);
     this.syncTimer.unref();
     if (this.token()) setTimeout(() => void this.sync(), 20_000).unref();
-    setInterval(() => void this.watchFriends(), FRIENDS_POLL_MS).unref();
   }
 
   private token(): string | undefined {
@@ -443,10 +443,29 @@ class SocialService {
 
   async getFriends(): Promise<SocialFriend[]> {
     const friends = (await this.api<{ friends: SocialFriend[] }>('GET', '/v1/friends')).friends;
+    await this.publishFriends(friends);
+    return friends;
+  }
+
+  // Lista que chegou pela consulta de fundo (poll.service): status, chamadas e "Fulano começou a jogar"
+  async receiveFriends(friends: SocialFriend[]): Promise<void> {
+    await this.publishFriends(friends);
+    this.watchPlaying(friends);
+  }
+
+  // Rota antiga, para servidor sem a consulta única
+  async pollFriends(): Promise<void> {
+    if (!this.token()) {
+      this.friendsPlaying = undefined;
+      return;
+    }
+    await this.receiveFriends((await this.api<{ friends: SocialFriend[] }>('GET', '/v1/friends')).friends);
+  }
+
+  private async publishFriends(friends: SocialFriend[]): Promise<void> {
     for (const listener of this.friendsListeners) listener(friends);
     const playing = friends.flatMap((f) => (f.nowPlaying ? [f.nowPlaying] : []));
     await this.fillFriendCovers(playing.map((p) => ({ ...p, title: p.gameTitle })), playing);
-    return friends;
   }
 
   async getFeed(before?: string): Promise<SocialFeedItem[]> {
@@ -505,19 +524,9 @@ class SocialService {
     });
   }
 
-  // "Fulano começou a jogar X": compara quem está jogando agora com a leitura anterior
-  // A cada 90 s: consulta os amigos (o pedido também mantém você On-line para eles) e avisa quem começou a jogar
-  private async watchFriends(): Promise<void> {
-    if (!this.token()) {
-      this.friendsPlaying = undefined;
-      return;
-    }
-    let friends: SocialFriend[];
-    try {
-      friends = await this.getFriends();
-    } catch {
-      return;
-    }
+  // "Fulano começou a jogar X": compara quem está jogando agora com a leitura anterior.
+  // A lista chega a cada 90 s pela consulta de fundo, que também mantém você On-line para os amigos.
+  private watchPlaying(friends: SocialFriend[]): void {
     if (db.getSettings()[SOCIAL_NOTIFY_SETTING] === 'false') {
       this.friendsPlaying = undefined;
       return;
@@ -607,6 +616,21 @@ class SocialService {
       .slice(0, TOP_GAMES);
   }
 
+  // Resumo do perfil só quando mudou (antes ia a cada 10 min); uma vez por dia vai de qualquer jeito
+  private async pushSummary(settings: SocialSettings): Promise<void> {
+    const body = JSON.stringify(this.buildSummary(settings));
+    const hash = createHash('sha1').update(body).digest('hex');
+    let sent: { hash?: string; at?: number } = {};
+    try {
+      sent = JSON.parse(db.getSettings()[SOCIAL_SETTING_KEYS.summarySent] || '{}');
+    } catch {
+      // Valor estragado: manda de novo
+    }
+    if (sent.hash === hash && typeof sent.at === 'number' && Date.now() - sent.at < SUMMARY_REFRESH_MS) return;
+    await this.api('PUT', '/v1/me/summary', JSON.parse(body));
+    db.setSetting(SOCIAL_SETTING_KEYS.summarySent, JSON.stringify({ hash, at: Date.now() }));
+  }
+
   private buildSummary(settings: SocialSettings): SocialSummary {
     const games = db.getGames().filter((g) => !g.isHidden);
     let achievementsUnlocked = 0;
@@ -666,7 +690,7 @@ class SocialService {
       if (settings.shareProfile) await this.pushLibrary(settings).catch((err) => console.warn('[Social] Biblioteca resumida:', (err as Error).message));
       else db.setSetting(SOCIAL_SETTING_KEYS.librarySent, '');
       await this.resolvePublicCovers(this.topGames().map((g) => g.id));
-      await this.api('PUT', '/v1/me/summary', this.buildSummary(settings));
+      await this.pushSummary(settings);
       db.setSetting(SOCIAL_SETTING_KEYS.lastSyncAt, new Date().toISOString());
       this.syncError = undefined;
     } catch (err) {

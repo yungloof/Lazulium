@@ -71,6 +71,7 @@ settings     (user_id PK, share_playtime, share_achievements, share_reviews, sha
 | POST | `/v1/social/like` | Curtir (`like: false` desfaz) |
 | POST/DELETE | `/v1/social/comments` / `/v1/social/comments/:id` | Comentar; apaga quem escreveu ou o dono |
 | GET | `/v1/me/notifications?since=` | Avisos: curtiram, comentaram ou responderam onde você comentou |
+| GET | `/v1/me/poll?parts=calls,friends,notifications&since=` | Consulta de fundo do app: as mesmas respostas de `/v1/calls`, `/v1/friends` e `/v1/me/notifications`, só das partes pedidas, num pedido só |
 | * | `/v1/view/:token/(summary\|thread\|like\|comments)` | O mesmo, pela vitrine aberta por link, em nome de quem pediu o link |
 | GET/POST | `/v1/group-lists` | Listas em grupo em que você participa ou cria |
 | GET/PATCH/DELETE | `/v1/group-lists/:id` | Ver detalhes, editar (dono) ou apagar (dono) uma lista em grupo |
