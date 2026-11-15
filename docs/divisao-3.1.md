@@ -56,12 +56,12 @@ Nenhuma destas tarefas faz pedido novo ao servidor. Sempre com o foco visível d
   - Testes de abuso no mesmo commit.
   - Depois, com o "pode": deploy no Worker **e** na VPS e encerrar as sessões abertas.
 - **C2. CI no GitHub Actions:** ✅ `d737b7c`. Typecheck, `npm test`, build, `check:package` e os testes dos dois servidores em cada push na main.
-- **C3. Consultas mais leves:** ✅ `b002c4f` (rota `/v1/me/poll` ainda não publicada no Worker; publicar antes da versão do app que a usa).
+- **C3. Consultas mais leves:** ✅ `b002c4f`, publicada no Worker em 15/11/2026.
   - `/v1/me/poll` único (amigos, chamadas e avisos);
   - chamadas a cada 30 s sem amigo online;
   - última atividade gravada a cada 10 min;
   - resumo só quando mudar.
-- **C4. Convivência:**
+- **C4. Convivência:** ✅ `9000877`, publicada no Worker em 15/11/2026. O texto novo do convite na tela de Amigos só aparece na próxima versão do app.
   - limite de curtidas por conta, com avisos agrupados e título montado pelo servidor;
   - convite de uso único;
   - apagar a conta limpa tudo;
