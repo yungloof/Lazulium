@@ -68,7 +68,7 @@ Nenhuma destas tarefas faz pedido novo ao servidor. Sempre com o foco visível d
   - imagens da vitrine só de domínios conhecidos.
 - **C5. A tela da call não toma o foco** e não aceita por Enter sem querer. Continua fora do CHANGELOG (regra 2.4). ✅ Com jogo aberto aparece sem foco; "tô indo" só segurando 0,8 s (mouse, Enter ou A), e nada responde no primeiro 1,2 s.
 - **C6. Backup do D1 cifrado** (script pronto; a chave e o token ficam com a Lazuli). ✅ `npm run backup` em `server/social` (pelo login do wrangler, senha só com a Lazuli, guarda as 8 mais novas); `npm run restore` confere, abre num SQLite ou devolve ao D1. Como usar: `server/social/README.md`.
-- **C7. "Dar um tempo" com amigo** (silenciar com prazo, ou bloquear). Precisa de IPC novo: só depois que o G2 e o G4 estiverem commitados. ✅ Botão *Dar um tempo* no perfil do amigo (silenciar 1 dia, 1 semana, 1 mês ou até desfazer; bloquear; desfazer amizade) e caixa *Bloqueados* em Amigos. **Antes de soltar a versão:** aplicar o `schema.sql` no D1 e publicar o Worker (tabelas `friend_mutes` e `blocks`).
+- **C7. "Dar um tempo" com amigo** (silenciar com prazo, ou bloquear). Precisa de IPC novo: só depois que o G2 e o G4 estiverem commitados. ✅ Botão *Dar um tempo* no perfil do amigo (silenciar 1 dia, 1 semana, 1 mês ou até desfazer; bloquear; desfazer amizade) e caixa *Bloqueados* em Amigos. `c031c5e`; tabelas `friend_mutes` e `blocks` aplicadas no D1 e Worker publicado em 15/11/2026.
 
 ---
 
