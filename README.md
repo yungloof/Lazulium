@@ -31,8 +31,8 @@ Não pede senha nem chave de API (os logins são nos sites oficiais), não tem p
 
    | Arquivo | |
    |---|---|
-   | **`Lazulium-Setup-3.1.2.exe`** *(recomendado)* | Instala, cria atalhos e se atualiza sozinho. Não precisa de administrador. |
-   | `Lazulium-Portable-3.1.2.exe` | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
+   | **`Lazulium-Setup-3.2.0.exe`** *(recomendado)* | Instala, cria atalhos e se atualiza sozinho. Não precisa de administrador. |
+   | `Lazulium-Portable-3.2.0.exe` | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
 
 2. Se o navegador disser que o arquivo "não é baixado com frequência", escolha **Manter** (no Edge: **…** → **Manter** → **Mostrar mais** → **Manter mesmo assim**).
 

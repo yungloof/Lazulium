@@ -4,6 +4,25 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 3.2.0 — 20 de novembro de 2026
+
+O Lazulium agora se atualiza sozinho, do jeito do Discord: ninguém mais precisa procurar atualização nas configurações.
+
+### Novidades
+
+- **Atualização sozinha ao abrir.** Ao abrir, o Lazulium procura a versão nova antes da janela. Se tiver, aparece uma janelinha com "Baixando a versão…" e a porcentagem, ele instala e abre de novo já atualizado. Com pressa, *Abrir agora e atualizar depois* abre na hora e a atualização fica para depois. Sem internet, ele abre normal.
+- **Atualização na bandeja.** Com o Lazulium na bandeja e nenhum jogo aberto, a versão nova se instala sozinha e o app volta para a bandeja. Com jogo aberto ou com a janela na tela, ele nunca se reinicia por conta própria. Ele também procura versão nova a cada hora, e não mais a cada 4 horas.
+
+### Correções
+
+- **Jogos soltos em atalho de pasta.** O Escanear agora entra nas pastas de jogos que são atalhos de pasta do Windows (link simbólico). O Pokémon Sword do PC Recomp aparece com o nome da pasta, e não como "SwShRecomp".
+
+### Bom saber
+
+- Esta atualização ainda chega do jeito antigo (pelo aviso no app ou em *Configurações → Ajuda → Verificar atualizações*). Da próxima em diante, ela acontece sozinha. A versão portátil continua só avisando que tem versão nova.
+
+---
+
 ## 3.1.2 — 20 de novembro de 2026
 
 ### Correções
