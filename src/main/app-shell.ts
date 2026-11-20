@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Menu, Notification, nativeImage, Tray } from 'electron';
+import { existsSync, rmSync, statSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { TrayAction } from '@shared/types/ipc';
@@ -24,7 +25,7 @@ let pendingTrayActions: TrayAction[] = [];
 let trayHintShown = false;
 
 // Em produção os ícones ficam em resources/ (extraResources do electron-builder)
-function resourcePath(file: string): string {
+export function resourcePath(file: string): string {
   return app.isPackaged ? join(process.resourcesPath, file) : join(app.getAppPath(), 'resources', file);
 }
 
@@ -111,6 +112,36 @@ function createWindow(show: boolean): BrowserWindow {
 
   mainWindow = win;
   return win;
+}
+
+// Janela principal na tela (escondida na bandeja, ou destruída para liberar RAM, conta como fora)
+export function isMainWindowVisible(): boolean {
+  return !!mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible() && !mainWindow.isMinimized();
+}
+
+// Atualização instalada com o app na bandeja: a versão nova abre escondida também, como estava.
+// O instalador reabre o app sem argumentos, então o recado vai num arquivo que vale por poucos minutos.
+const HIDDEN_RELAUNCH_FILE = 'reabrir-na-bandeja';
+const HIDDEN_RELAUNCH_MAX_AGE_MS = 10 * 60_000;
+
+export function markHiddenRelaunch(): void {
+  try {
+    writeFileSync(join(app.getPath('userData'), HIDDEN_RELAUNCH_FILE), new Date().toISOString());
+  } catch (err) {
+    console.warn('[AppShell] Não deu para marcar a reabertura na bandeja:', (err as Error).message);
+  }
+}
+
+export function consumeHiddenRelaunch(): boolean {
+  const file = join(app.getPath('userData'), HIDDEN_RELAUNCH_FILE);
+  if (!existsSync(file)) return false;
+  try {
+    const fresh = Date.now() - statSync(file).mtimeMs < HIDDEN_RELAUNCH_MAX_AGE_MS;
+    rmSync(file, { force: true });
+    return fresh;
+  } catch {
+    return false;
+  }
 }
 
 export function showMainWindow(): BrowserWindow {

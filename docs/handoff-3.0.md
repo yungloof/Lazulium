@@ -100,6 +100,7 @@ LAZULIUM_SILENT=1 LAZULIUM_USER_DATA="$T/ud" LAZULIUM_SOCIAL_URL=http://127.0.0.
   npx electron out-test/main/index.js --remote-debugging-port=9361
 ```
 
+- **Atualização ao abrir:** com `LAZULIUM_FAKE_UPDATE=9.9.9` (só junto de `LAZULIUM_SILENT=1`) o app finge achar e baixar essa versão e mostra a janelinha "Baixando a versão…" sem instalar nada; no fim ele fecha, como faria o instalador. A página da janelinha é `data:`: inspecione com `CDP_URL=data node scripts/social-test/cdp.mjs ...`. O arquivo `reabrir-na-bandeja` na pasta de dados faz o app abrir escondido (é o recado da atualização feita com o app na bandeja).
 - **Inspecionar:** `node scripts/social-test/cdp.mjs 9361 meu-script.js captura.png` roda o arquivo como função `async` na janela e salva a captura. A janela de teste não recebe foco de verdade: para testar `onBlur`, dispare `focusout` à mão.
 - **Agir como o amigo:** `MSYS_NO_PATHCONV=1 node scripts/social-test/as.mjs b POST /v1/social/like '{"owner":"11111111-1111-4111-8111-111111111111", ...}'`.
 - **Vitrine de A vista por B:** `as.mjs b POST /v1/users/11111111-1111-4111-8111-111111111111/view` devolve o link; abra-o num navegador.

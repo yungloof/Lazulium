@@ -23,6 +23,7 @@ import { pollService } from './services/social/poll.service';
 import { epicAccountService } from './services/accounts/epic-account.service';
 import {
   HIDDEN_LAUNCH_ARG,
+  consumeHiddenRelaunch,
   afterLibraryServed,
   destroyTray,
   getMainWindow,
@@ -87,6 +88,9 @@ function shutdown(): void {
   db.flush();
 }
 
+// Janelinha "Procurando atualização" fechando antes da janela principal existir não encerra o app
+let openingUpdateCheck = false;
+
 // Uma instância só: abrir o atalho de novo traz a janela existente (inclusive da bandeja)
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -96,6 +100,7 @@ if (!app.requestSingleInstanceLock()) {
   setupAppIdentity();
 
   app.on('second-instance', () => {
+    if (openingUpdateCheck) return;   // Clicou de novo no atalho com a janelinha da atualização aberta
     showMainWindow();
   });
 
@@ -141,6 +146,15 @@ if (!app.requestSingleInstanceLock()) {
     });
 
     await db.init();
+
+    // Como o Discord: procura atualização antes de abrir a janela; tendo, baixa, instala e reabre.
+    // Aberto com o Windows (na bandeja) não segura nada: a atualização instala sozinha depois, sem janela.
+    const startHidden = process.argv.includes(HIDDEN_LAUNCH_ARG) || consumeHiddenRelaunch();
+    if (!startHidden) {
+      openingUpdateCheck = true;
+      if (await updaterService.updateBeforeOpening()) return;   // O instalador fecha o app e abre a versão nova
+    }
+
     migrateMediaCache();
     const repairedArtwork = artworkService.repairMissingMedia();
     registerMediaProtocol();
@@ -150,6 +164,7 @@ if (!app.requestSingleInstanceLock()) {
 
     registerIpcHandlers(getMainWindow);
     setSessionEndHandler(shutdown);
+    updaterService.setGameRunningCheck(() => playtimeService.isAnyRunning());
     updaterService.init();
     socialService.init();
     librarySyncService.init();
@@ -159,7 +174,8 @@ if (!app.requestSingleInstanceLock()) {
     epicAccountService.init();
 
     const hadGames = db.getGames().length > 0;
-    startApp(process.argv.includes(HIDDEN_LAUNCH_ARG));
+    startApp(startHidden);
+    openingUpdateCheck = false;
     void runStartupSync(hadGames, repairedArtwork);
 
     backupService.migrateConsent();
@@ -185,6 +201,7 @@ if (!app.requestSingleInstanceLock()) {
 
   // Com "minimizar para a bandeja" o app segue vivo sem janela (rastreador e backups)
   app.on('window-all-closed', () => {
+    if (openingUpdateCheck) return;   // Só a janelinha da atualização fechou: a principal ainda vai abrir
     if (!shouldCloseToTray() && process.platform !== 'darwin') {
       app.quit();
     }

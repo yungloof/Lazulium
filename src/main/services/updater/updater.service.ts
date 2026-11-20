@@ -3,22 +3,34 @@ import { autoUpdater, ProgressInfo, UpdateInfo } from 'electron-updater';
 import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import type { UpdateStatus } from '@shared/types/ipc';
 import { sendToRenderer } from '../../ipc';
-import { setQuitting } from '../../app-shell';
+import { isMainWindowVisible, markHiddenRelaunch, setQuitting, SILENT_MODE } from '../../app-shell';
 import { fetchText } from '../metadata/http';
 import { isNewerVersion } from '@shared/utils/version';
+import { CHECK_INTERVAL_MS, FoundUpdate, QUIET_INSTALL_POLL_MS, canInstallQuietly, updateBeforeOpening } from './update-flow';
+import { createUpdateWindow, UpdateWindow } from './update-window';
 
 export type { UpdateStatus };
 
 const RELEASES_URL = 'https://github.com/yungloof/Lazulium/releases/latest';
 const LATEST_YML_URL = `${RELEASES_URL}/download/latest.yml`;
 const FIRST_CHECK_DELAY_MS = 15_000;
-const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
 const PROGRESS_STEP = 5;                 // Avisa a tela a cada 5% baixados, não a cada pedaço
 
 class UpdaterService {
   private status: UpdateStatus = { checking: false, available: false, downloaded: false, checked: false };
   private initialized = false;
+  private listening = false;
+  private checkedAtStartup = false;
   private lastProgressSent = -1;
+  private startupWindow: UpdateWindow | null = null;
+  private openingCheck = false;           // Atualização ao abrir em andamento: ela decide, não a da bandeja
+  private quietTimer: NodeJS.Timeout | undefined;
+  private isGameRunning: () => boolean = () => false;
+
+  // Quem sabe se tem jogo aberto é o rastreador; o index liga os dois
+  public setGameRunningCheck(check: () => boolean): void {
+    this.isGameRunning = check;
+  }
 
   // Instalado pelo instalador (NSIS): baixa e instala sozinho
   private canAutoUpdate(): boolean {
@@ -45,11 +57,58 @@ class UpdaterService {
 
     if (this.canAutoUpdate()) this.listen();
 
-    setTimeout(() => void this.checkForUpdates().catch(() => undefined), FIRST_CHECK_DELAY_MS).unref();
+    if (!this.checkedAtStartup) setTimeout(() => void this.checkForUpdates().catch(() => undefined), FIRST_CHECK_DELAY_MS).unref();
     setInterval(() => void this.checkForUpdates().catch(() => undefined), CHECK_INTERVAL_MS).unref();
   }
 
+  // Ao abrir, antes da janela principal: tendo versão nova, baixa, instala e abre de novo (como o Discord).
+  // Devolve true quando vai instalar (o app fecha sozinho; quem chamou não abre a janela).
+  public async updateBeforeOpening(): Promise<boolean> {
+    const fake = SILENT_MODE ? process.env.LAZULIUM_FAKE_UPDATE : undefined;   // Só para testes em modo silencioso
+    if (!fake && !this.canAutoUpdate()) return false;
+    if (!fake) this.listen();
+    this.checkedAtStartup = true;
+    this.openingCheck = true;
+    const result = await updateBeforeOpening({
+      check: () => (fake ? this.fakeCheck(fake) : this.checkAtStartup()),
+      install: () => {
+        if (fake) {
+          console.log(`[Updater] (teste) instalaria a ${fake} agora`);
+          setTimeout(() => app.quit(), 1_500);   // Como o instalador faria: o app fecha
+          return;
+        }
+        this.status.downloaded = true;      // O download terminou (a promessa dele resolveu)
+        this.quitAndInstall();
+      },
+      createUi: () => (this.startupWindow = createUpdateWindow())
+    });
+    this.openingCheck = false;
+    if (result === 'open') this.startupWindow = null;
+    console.log(`[Updater] Ao abrir: ${result === 'installing' ? 'instalando a versão nova' : 'abrindo normalmente'}`);
+    return result === 'installing';
+  }
+
+  private async checkAtStartup(): Promise<FoundUpdate | null> {
+    const result = await autoUpdater.checkForUpdates();
+    if (!result?.isUpdateAvailable || !result.downloadPromise) return null;
+    return { version: result.updateInfo.version, download: result.downloadPromise };
+  }
+
+  // LAZULIUM_FAKE_UPDATE=9.9.9 (só com LAZULIUM_SILENT=1): finge achar e baixar uma versão, sem instalar nada
+  private async fakeCheck(version: string): Promise<FoundUpdate | null> {
+    await new Promise((resolve) => setTimeout(resolve, 1_500));
+    const download = (async () => {
+      for (let percent = 0; percent <= 100; percent += 20) {
+        this.startupWindow?.progress(percent);
+        await new Promise((resolve) => setTimeout(resolve, 700));
+      }
+    })();
+    return { version, download };
+  }
+
   private listen(): void {
+    if (this.listening) return;
+    this.listening = true;
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
 
@@ -71,6 +130,7 @@ class UpdaterService {
       this.status.progress = percent;
       if (percent - this.lastProgressSent >= PROGRESS_STEP || percent === 100) {
         this.lastProgressSent = percent;
+        this.startupWindow?.progress(percent);
         this.publish();
       }
     });
@@ -91,7 +151,22 @@ class UpdaterService {
       console.log(`[Updater] Versão ${info.version} baixada e pronta para instalar`);
       this.publish();
       sendToRenderer(IPC_CHANNELS.UPDATER_READY, { version: info.version });
+      this.watchQuietInstall();
     });
+  }
+
+  // Baixada com o app aberto: instala sozinho assim que ele estiver na bandeja sem jogo aberto.
+  // Com a janela na tela continua o aviso de sempre (e instala ao fechar ou na próxima abertura).
+  private watchQuietInstall(): void {
+    const tryNow = () => {
+      if (this.openingCheck) return;
+      if (canInstallQuietly({ downloaded: this.status.downloaded, windowVisible: isMainWindowVisible(), gameRunning: this.isGameRunning(), uptimeMs: process.uptime() * 1000 })) {
+        console.log(`[Updater] Instalando a ${this.status.version} com o app na bandeja`);
+        this.quitAndInstall({ hidden: true });
+      }
+    };
+    if (!this.quietTimer) this.quietTimer = setInterval(tryNow, QUIET_INSTALL_POLL_MS).unref();
+    tryNow();
   }
 
   // Portátil: lê o latest.yml da última Release e compara com a versão aberta
@@ -140,8 +215,10 @@ class UpdaterService {
     return this.snapshot();
   }
 
-  public quitAndInstall(): void {
+  public quitAndInstall(options: { hidden?: boolean } = {}): void {
     if (!this.status.downloaded) return;
+    clearInterval(this.quietTimer);
+    if (options.hidden) markHiddenRelaunch();
     setQuitting();
     // Instalação silenciosa e abre o Lazulium de novo no fim
     autoUpdater.quitAndInstall(true, true);
