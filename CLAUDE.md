@@ -59,7 +59,7 @@ Lazulium/
 │       └── constants/           # Enums, canais IPC, configurações padrão
 ├── tests/                       # Testes automatizados (vitest): banco, categorias, mescla do scanner, filtros; Electron trocado por um dublê
 ├── resources/                   # Logo do dono (logo.png, não alterar), ícones e imagens do instalador gerados dela
-├── scripts/                     # generate-icons.mjs (npm run icons), check-package.mjs (conferência antes do empacotamento) e social-test/ (teste com servidor local)
+├── scripts/                     # generate-icons.mjs (npm run icons), check-package.mjs (conferência antes do empacotamento), check-asar.mjs (confere o app.asar pronto, no afterPack) e social-test/ (teste com servidor local)
 ├── server/igdb-proxy/           # Cloudflare Worker: tempo para zerar, busca e capas (IGDB) e preços (GG.deals)
 ├── server/social/               # Cloudflare Worker + D1: conta Lazulium (login pela Steam, amigos, feed)
 ├── web/profile/                 # Página web estática do perfil
@@ -108,7 +108,8 @@ npm run build:win
 npm run icons
 ```
 
-- **Dependências do main:** o processo main só pode usar, em tempo de execução, pacotes de `dependencies` que **não** estão nas exclusões de `build.files` no `package.json` (as libs do renderer ficam fora do pacote porque já vão no bundle do Vite). O `scripts/check-package.mjs` barra o build se isso for violado.
+- **Dependências do main:** o processo main só pode usar, em tempo de execução, pacotes de `dependencies` que **não** estão nas exclusões de `build.files` no `package.json` (as libs do renderer ficam fora do pacote porque já vão no bundle do Vite). O `scripts/check-package.mjs` barra o build se isso for violado, e o `scripts/check-asar.mjs` (afterPack do electron-builder) barra o instalador se faltar no `app.asar` alguma dessas bibliotecas ou das que elas usam.
+- **Build fora da pasta do projeto** (por exemplo, para deixar de fora mudança de outra pessoa ainda sem commit): `git worktree add` e **`npm ci`** dentro dela. Nunca ligue o `node_modules` por atalho de pasta (junction): o electron-builder não segue o atalho e o pacote sai sem as dependências (foi o que quebrou a 3.1.1).
 - **Build de teste fora de `out/`:** use caminho absoluto em `npx electron-vite build --outDir <caminho absoluto>`; com caminho relativo o renderer é gerado dentro de `src/renderer/`.
 - **Nova versão:** suba `version` no `package.json`, acrescente a seção no `CHANGELOG.md` e atualize os nomes dos instaladores no `README.md` e em `docs/guia-de-teste.md`.
 - **Novo serviço externo ou novo dado enviado:** atualize `docs/privacidade.md` e a tabela de serviços do `ARCHITECTURE.md`.
