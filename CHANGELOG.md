@@ -4,6 +4,15 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 3.1.1 — 20 de novembro de 2026
+
+### Correções
+
+- **O Lazulium percebe mais rápido quando o jogo abre e fecha.** Depois de fechar o jogo, o "Jogando agora" some em poucos segundos, e não mais depois de quase um minuto. Jogos que travam ao fechar também deixam de aparecer abertos. Jogos que trocam de programa ao abrir (o launcher que dá lugar ao jogo, ou o anticheat do Fortnite) continuam com o tempo contado certinho.
+- **PARAR funciona na hora.** O botão encerra a sessão no mesmo instante e conta o tempo até o clique, mesmo quando o jogo demora para sair ou o Windows não deixa fechá-lo. Enquanto aparece INICIANDO, um botão Cancelar deixa você desistir sem esperar.
+
+---
+
 ## 3.1.0 — 15 de novembro de 2026
 
 O controle ficou bem mais completo (teclado na tela e os símbolos do seu controle), conquistas e jogos zerados ganharam comemoração, a biblioteca lembra o que você jogou neste dia em outros anos e agora dá para dar um tempo com um amigo.

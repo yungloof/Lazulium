@@ -71,6 +71,15 @@ export function externalCandidates(games: Game[]): { game: Game; dir: string }[]
   return list.filter(({ dir }) => !list.some((other) => other.dir !== dir && other.dir.startsWith(dir)));
 }
 
+// Fecha os processos e tudo o que eles abriram (falha, como acesso negado, é ignorada)
+function killProcessTrees(pids: number[]): Promise<void> {
+  return Promise.all(
+    pids.map(
+      (pid) => new Promise<void>((resolve) => execFile('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true }, () => resolve()))
+    )
+  ).then(() => undefined);
+}
+
 // Erro de abertura em português claro, com o que o jogador pode fazer
 function launchErrorMessage(err: unknown, game: Game): string {
   if (err instanceof LaunchError) return err.message;
@@ -87,6 +96,8 @@ class PlaytimeService {
   private listener: StatusListener = () => {};
   private active = new Map<string, ActiveGame>();
   private launching = new Set<string>();
+  // Parar clicado enquanto o lançamento ainda estava em andamento (comando antes de abrir, launcher)
+  private cancelled = new Set<string>();
   private externalTimer: NodeJS.Timeout | undefined;
   private scanningExternal = false;
 
@@ -177,6 +188,7 @@ class PlaytimeService {
       return await this.launchUnlocked(game);
     } finally {
       this.launching.delete(gameId);
+      this.cancelled.delete(gameId);
     }
   }
 
@@ -216,6 +228,8 @@ class PlaytimeService {
       return false;
     }
 
+    // "Iniciando" aparece já no clique: o comando antes de abrir e o launcher podem levar um tempo
+    this.emit({ gameId, state: 'launching', isRunning: false });
     let handle;
     try {
       handle = await launchGame(game);
@@ -223,6 +237,12 @@ class PlaytimeService {
       console.error(`[Playtime] Falha ao lançar ${game.title}:`, err);
       this.emit({ gameId, state: 'stopped', isRunning: false, error: launchErrorMessage(err, game) });
       return false;
+    }
+
+    if (this.cancelled.has(gameId)) {
+      // O jogador desistiu enquanto abria: fecha o que o Lazulium abriu (o status já foi encerrado)
+      void killProcessTrees(handle.pid !== undefined ? [handle.pid] : []);
+      return true;
     }
 
     const matchDirs = getMatchDirs(game, handle.method === 'spawn');
@@ -263,7 +283,8 @@ class PlaytimeService {
     if (candidates.length === 0) return;
     this.scanningExternal = true;
     try {
-      const list = await processSnapshot.query();
+      // Sem o que o jogador mandou parar: um jogo que demora a fechar não volta a contar sozinho
+      const list = this.monitor.withoutReleased(await processSnapshot.query());
       for (const { game, dir } of candidates) {
         const matched = list.filter((p) => p.path && p.path.toLowerCase().startsWith(dir));
         if (matched.length === 0 || this.active.has(game.id) || this.launching.has(game.id)) continue;
@@ -276,22 +297,30 @@ class PlaytimeService {
     } finally {
       this.scanningExternal = false;
       // Sem jogo sendo acompanhado, o PowerShell da consulta não precisa ficar aberto
-      if (!this.monitor.hasWatches()) processSnapshot.stop();
+      if (!this.monitor.hasWatches()) processSnapshot.stopWhenIdle();
     }
   }
 
-  // Encerra a árvore de processos detectada; o monitor registra o fim da sessão
+  // Parar: encerra a sessão na hora (conta o tempo até agora) e fecha os processos do jogo.
+  // Não espera o monitor notar o fechamento: jogo que demora a sair, ou protegido por anticheat
+  // (o Windows recusa fechar), deixava o Lazulium mostrando o jogo aberto.
   async stop(gameId: string): Promise<boolean> {
-    const pids = this.monitor.getAlivePids(gameId);
-    if (pids.length === 0) return false;
-    await Promise.all(
-      pids.map(
-        (pid) =>
-          new Promise<void>((resolve) =>
-            execFile('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true }, () => resolve())
-          )
-      )
-    );
+    if (this.launching.has(gameId)) {
+      this.cancelled.add(gameId);
+      this.emit({ gameId, state: 'stopped', isRunning: false, cancelled: true });
+      return true;
+    }
+    const entry = this.active.get(gameId);
+    if (!entry) return false;
+    const pids = this.monitor.release(gameId);
+    if (entry.startedAt !== undefined) {
+      this.finish(gameId, entry.startedAt, Date.now());
+    } else {
+      // Ainda esperando o jogo aparecer: só para de esperar (nenhum tempo contado)
+      this.active.delete(gameId);
+      this.emit({ gameId, state: 'stopped', isRunning: false, cancelled: true });
+    }
+    await killProcessTrees(pids);
     return true;
   }
 

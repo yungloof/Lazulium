@@ -100,6 +100,7 @@ export function useAppEvents(): void {
 
       const { showNotice, dismissNotice } = useUiStore.getState();
       const title = titleOf(status.gameId, status.game?.title);
+      if (status.cancelled) return;
       if (status.error) {
         showNotice({ text: `${title}: ${status.error}`, tone: 'warn' });
       } else if (status.sessionSeconds) {

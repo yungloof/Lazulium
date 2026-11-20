@@ -136,6 +136,7 @@ export interface GameLaunchStatus {
   idleSeconds?: number;             // Tempo ausente descontado da sessão
   game?: Game;                      // Registro atualizado (playtime) ao encerrar
   error?: string;
+  cancelled?: boolean;              // Parar clicado antes de o jogo aparecer (nada a contar nem avisar)
 }
 
 // Contrato de window.electronAPI (exposto pelo preload). Erros chegam como Error com mensagem em português;

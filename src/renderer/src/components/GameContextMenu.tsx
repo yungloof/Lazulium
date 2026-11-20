@@ -79,11 +79,11 @@ export const GameContextMenu: React.FC<GameContextMenuProps> = ({
       : [
           {
             id: 'play',
-            label: isRunning ? 'Parar jogo' : isLaunching ? 'Iniciando...' : canInstall ? 'Instalar' : 'Jogar',
-            icon: isRunning ? <Square className={`${icon} text-red-400 fill-red-400`} /> : <Play className={`${icon} text-emerald-400 fill-emerald-400`} />,
+            label: isRunning ? 'Parar jogo' : isLaunching ? 'Cancelar início' : canInstall ? 'Instalar' : 'Jogar',
+            icon: isRunning || isLaunching ? <Square className={`${icon} text-red-400 fill-red-400`} /> : <Play className={`${icon} text-emerald-400 fill-emerald-400`} />,
             action: () => {
-              if (isRunning) onStop(game);
-              else if (!isLaunching) onLaunch(game);
+              if (isRunning || isLaunching) onStop(game);
+              else onLaunch(game);
             }
           }
         ]),

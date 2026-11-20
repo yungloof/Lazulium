@@ -31,12 +31,18 @@ export const PlayButton: React.FC<PlayButtonProps> = ({ game, onLaunch, size = '
     return () => clearInterval(timer);
   }, [status?.state]);
 
+  // Iniciando: dá para desistir (a Steam ou a Epic podem ficar atualizando ou pedindo algo por minutos)
   if (status?.state === 'launching') {
     return (
-      <button disabled aria-live="polite" className={`${base} bg-slate-700 text-slate-200 cursor-wait`}>
-        <Loader2 className="w-4 h-4 animate-spin" />
-        <span>INICIANDO...</span>
-      </button>
+      <div className="flex items-center gap-3">
+        <span aria-live="polite" className={`${base} bg-slate-700 text-slate-200 cursor-wait`}>
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>INICIANDO...</span>
+        </span>
+        <button data-nav-start onClick={() => stopGame(game)} className={`h-10 px-4 rounded-lg text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors ${focusRing}`}>
+          Cancelar
+        </button>
+      </div>
     );
   }
 
