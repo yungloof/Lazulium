@@ -4,6 +4,14 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 3.1.2 — 20 de novembro de 2026
+
+### Correções
+
+- **A 3.1.1 não abria.** O instalador da 3.1.1 saiu sem uma parte do Lazulium, e o app mostrava um erro ("Cannot find module") ao abrir. Esta versão traz as mesmas correções da 3.1.1, agora completas. Se você chegou a instalar a 3.1.1, baixe o instalador da 3.1.2 e instale por cima: sua biblioteca, horas e Diário continuam lá.
+
+---
+
 ## 3.1.1 — 20 de novembro de 2026
 
 ### Correções
