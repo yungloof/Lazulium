@@ -180,6 +180,12 @@ class PlaytimeService {
   async launch(gameId: string): Promise<boolean> {
     const game = db.getGameById(gameId);
     if (!game) return false;
+    // Cancelou e mandou jogar de novo antes de a primeira abertura terminar (o comando antes de
+    // abrir ou o launcher ainda rodando): ela volta a valer, em vez de o clique sumir sem aviso
+    if (this.launching.has(gameId) && this.cancelled.delete(gameId)) {
+      this.emit({ gameId, state: 'launching', isRunning: false });
+      return true;
+    }
     // Clique duplo (ou A repetido no controle) enquanto o primeiro lançamento ainda não terminou:
     // sem esta trava os dois passavam pela verificação e o jogo abria duas vezes
     if (this.active.has(gameId) || this.launching.has(gameId)) return true;

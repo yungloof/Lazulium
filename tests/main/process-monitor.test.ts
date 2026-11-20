@@ -21,9 +21,14 @@ vi.mock('child_process', async (importOriginal) => ({
     done();
   }
 }));
+// Abertura que demora (comando antes de abrir, launcher): o teste segura até chamar open()
+const launchGate = vi.hoisted(() => ({ pending: null as Promise<void> | null }));
 vi.mock('../../src/main/services/tracker/launcher.service', () => ({
   LaunchError: class extends Error {},
-  launchGame: async () => ({ method: 'uri', launchedAt: Date.now() }),
+  launchGame: async () => {
+    if (launchGate.pending) await launchGate.pending;
+    return { method: 'uri', launchedAt: Date.now() };
+  },
   runGameCommand: async () => undefined
 }));
 
@@ -209,6 +214,47 @@ describe('botão Parar', () => {
     expect(playtime.getState('epic-fn')).toBe('stopped');
     expect(statuses.at(-1)).toMatchObject({ state: 'stopped', cancelled: true });
     expect(db.getPlaytimeSessions('epic-fn')).toEqual([]);
+    playtime.shutdown();
+  });
+
+  it('Jogar logo depois de Cancelar aproveita a abertura que ainda estava em andamento', async () => {
+    snapshot.list = [];
+    let open!: () => void;
+    launchGate.pending = new Promise<void>((resolve) => (open = resolve));
+    const statuses: { state: string; cancelled?: boolean }[] = [];
+    playtime.setStatusListener((s) => statuses.push(s));
+    playtime.startExternalTracking();
+
+    const first = playtime.launch('epic-fn');
+    expect(statuses.at(-1)).toMatchObject({ state: 'launching' });
+    await playtime.stop('epic-fn');
+    expect(statuses.at(-1)).toMatchObject({ state: 'stopped', cancelled: true });
+
+    // O segundo clique não some: volta a mostrar Iniciando e a abertura em andamento segue valendo
+    expect(await playtime.launch('epic-fn')).toBe(true);
+    expect(statuses.at(-1)).toMatchObject({ state: 'launching' });
+    open();
+    launchGate.pending = null;
+    await first;
+    snapshot.list = [proc(100, 4, inDir('FortniteLauncher.exe'), T0 + 1_000)];
+    await vi.advanceTimersByTimeAsync(LAUNCH_POLL_MS);
+    expect(playtime.getState('epic-fn')).toBe('running');
+    playtime.shutdown();
+  });
+
+  it('Cancelar durante a abertura não deixa o jogo contar quando ele aparece', async () => {
+    snapshot.list = [];
+    let open!: () => void;
+    launchGate.pending = new Promise<void>((resolve) => (open = resolve));
+    playtime.startExternalTracking();
+    const first = playtime.launch('epic-fn');
+    await playtime.stop('epic-fn');
+    open();
+    launchGate.pending = null;
+    await first;
+    snapshot.list = [proc(100, 4, inDir('FortniteLauncher.exe'), T0 + 1_000)];
+    await vi.advanceTimersByTimeAsync(LAUNCH_POLL_MS);
+    expect(playtime.getState('epic-fn')).toBe('stopped');
     playtime.shutdown();
   });
 });
