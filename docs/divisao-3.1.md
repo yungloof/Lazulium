@@ -83,3 +83,4 @@ Nenhuma destas tarefas faz pedido novo ao servidor. Sempre com o foco visível d
 - **Retrospectiva em etapas:** a retrospectiva do ano no Perfil agora abre como uma história passo a passo, navegável pelo controle (`LB`/`RB` ou equivalente), e termina com um cartão resumido desenhado no próprio PC para você salvar como imagem sem enviar nada para fora.
 - **Dar um tempo:** no perfil de um amigo, silencie a pessoa por 1 dia, 1 semana, 1 mês ou até desfazer (o que ela faz some do seu feed e os avisos dela param, sem ela saber), bloqueie ou desfaça a amizade. Quem você bloqueou fica em *Amigos → Bloqueados*.
 - **Visual do Lazulium unificado:** o botão JOGAR agora usa o azul vivo do tema do app, deixando para trás o antigo verde herdado.
+- **Jogos soltos em atalho de pasta:** o Escanear agora entra nas pastas de jogos que são atalhos de pasta do Windows (link simbólico), e o Pokémon Sword do PC Recomp aparece com o nome da pasta, não como "SwShRecomp".

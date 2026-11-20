@@ -54,7 +54,7 @@ interface ScoredExecutable {
 // Usa o nome expressivo do executável, quando ele tem um
 function titleFromExecutable(exePath: string): string | null {
   const exeBase = basename(exePath).replace(/\.[^/.]+$/, '').trim();
-  const genericExeNames = new Set(['game', 'jogar', 'launcher', 'app', 'main', 'run', 'start', 'play', 'client', 'shipping', '2ship', 'soh', 'tmc_pc']);
+  const genericExeNames = new Set(['game', 'jogar', 'launcher', 'app', 'main', 'run', 'start', 'play', 'client', 'shipping', '2ship', 'soh', 'tmc_pc', 'swshrecomp']);
   
   // Se o executável tem um nome expressivo e descritivo (ex: "Link's Awakening DX HD" ou "God of War III")
   if (
@@ -106,7 +106,7 @@ async function findBestExecutableInGameDir(gameDir: string): Promise<string | nu
       for (const entry of entries) {
         const fullPath = join(currentDir, entry.name);
 
-        if (entry.isDirectory()) {
+        if (entry.isDirectory() || entry.isSymbolicLink()) {
           const lowerName = entry.name.toLowerCase();
           if (
             !lowerName.startsWith('.') &&
@@ -203,7 +203,7 @@ export function createStandaloneScanner(getDirectories: () => string[]): Platfor
           const entries = await readdir(rootDir, { withFileTypes: true });
 
           for (const entry of entries) {
-            if (!entry.isDirectory()) continue;
+            if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
 
             const folderName = entry.name;
 
