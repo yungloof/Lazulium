@@ -21,6 +21,7 @@ export const EXCLUDED_TABLES = new Set([
   'view_links',
   'view_viewers',
   'media',
+  'review_images',
   'calls',
   'now_playing',
   'user_sync',

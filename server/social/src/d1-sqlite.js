@@ -31,7 +31,14 @@ class Statement {
 export function openD1(path = ':memory:', schemaPath) {
   const db = new DatabaseSync(path);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = OFF;');
-  if (schemaPath) db.exec(readFileSync(schemaPath, 'utf-8'));
+  if (schemaPath) {
+    db.exec(readFileSync(schemaPath, 'utf-8'));
+    // Colunas que o schema.sql não acrescenta em banco antigo (na Cloudflare: migrations/*.sql, uma vez)
+    for (const [table, column] of [['library_games', 'review_images']]) {
+      const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+      if (columns.length && !columns.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`);
+    }
+  }
   return {
     raw: db,
     prepare: (sql) => new Statement(db, sql),

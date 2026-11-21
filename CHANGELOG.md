@@ -4,6 +4,30 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 3.3.0 — 21 de novembro de 2026
+
+Resenhas com imagens, como num blog: dá para pôr capturas de tela e imagens do PC em qualquer parte do texto.
+
+### Novidades
+
+- **Imagens nas resenhas.** Em *Meu registro*, embaixo da resenha, *Captura de tela* mostra as capturas daquele jogo e *Imagem do PC* abre qualquer imagem do computador. A imagem entra onde o cursor estava: no começo, no meio de um parágrafo ou no fim. Também dá para colar (Ctrl+V) ou arrastar uma imagem para dentro da resenha. Até 30 imagens por resenha.
+- **Arrumar as imagens.** Passe o mouse (ou o foco do controle) na imagem para subir, descer ou tirar da resenha. Cada trecho de texto entre as imagens é uma caixa própria, e o Teclado do controle escreve no trecho em que você estava.
+- **Os amigos veem as imagens.** Na página do jogo, na aba *Avaliações* do Perfil e na vitrine, a resenha aparece com o começo do texto e as imagens em miniatura; *Ler mais* abre tudo na ordem, com as imagens no meio do texto. No Diário, a lista mostra quantas imagens a resenha tem.
+
+### Melhorias
+
+- **Parágrafos nas resenhas dos amigos.** As resenhas que aparecem na página do jogo agora mantêm os parágrafos, em vez de virar um bloco só.
+
+### Bom saber
+
+- As imagens ficam guardadas no seu PC, já reduzidas. Elas só vão para o servidor da conta Lazulium quando alguém vai vê-las: com *Vitrine do perfil* e *Notas e resenhas* ligadas, ou com a sincronização entre PCs ligada (aí o outro PC traz as imagens sozinho). Sem conta, ficam só no seu PC.
+- Imagem tirada de todas as resenhas é apagada de vez depois de 15 dias. Desligar o compartilhamento das resenhas e a sincronização tira as imagens do servidor (elas continuam no seu PC).
+- Cada conta guarda até ~15 MB de imagens de resenha (até 300). Passou disso, a resenha aparece para os amigos sem as imagens novas.
+- GIF pequeno continua animado; GIF grande entra como imagem parada.
+- Quem ainda não atualizou vê só o texto da resenha, sem as imagens.
+
+---
+
 ## 3.2.0 — 20 de novembro de 2026
 
 O Lazulium agora se atualiza sozinho, do jeito do Discord: ninguém mais precisa procurar atualização nas configurações.

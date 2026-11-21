@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, Keyboard, Loader2, NotebookPen } from 'lucide-react';
 import { Game, GameLog } from '@shared/types/game';
+import { hasReviewContent } from '@shared/utils/review-blocks';
+import { ReviewEditor } from './ReviewEditor';
 import { useGamepadStore } from '../stores/useGamepadStore';
 import { useKeyboardStore } from '../stores/useKeyboardStore';
 import { useLibraryStore } from '../stores/useLibraryStore';
@@ -18,9 +20,7 @@ type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 export const GameLogCard: React.FC<{ game: Game }> = ({ game }) => {
   const upsertGameLocal = useLibraryStore((s) => s.upsertGameLocal);
   const hasGamepad = useGamepadStore((s) => !!s.gamepad?.connected);
-  const reviewRef = useRef<HTMLTextAreaElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
-  const [review, setReview] = useState(game.log?.review ?? '');
   const [notes, setNotes] = useState(game.log?.notes ?? '');
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +57,6 @@ export const GameLogCard: React.FC<{ game: Game }> = ({ game }) => {
   useEffect(() => {
     gameIdRef.current = game.id;
     logRef.current = game.log ?? {};
-    setReview(game.log?.review ?? '');
     setNotes(game.log?.notes ?? '');
     setSaveState('idle');
     return flush;
@@ -114,36 +113,19 @@ export const GameLogCard: React.FC<{ game: Game }> = ({ game }) => {
 
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-4">
           <div>
-            <label className="block">
-              <span className={`${labelClass} flex items-center justify-between gap-2`}>
-                <span>Minha resenha</span>
-                {hasGamepad && (
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    onClick={() => reviewRef.current && useKeyboardStore.getState().openFor(reviewRef.current, 'Minha resenha')}
-                    className="inline-flex items-center gap-1 whitespace-nowrap flex-shrink-0 text-[11px] font-normal normal-case tracking-normal text-indigo-300 hover:text-indigo-200"
-                  >
-                    <Keyboard className="w-3 h-3" /> Teclado
-                  </button>
-                )}
-              </span>
-              <textarea
-                ref={reviewRef}
-                aria-label="Minha resenha"
-                value={review}
-                onChange={(e) => {
-                  setReview(e.target.value);
-                  typeText({ review: e.target.value });
-                }}
-                onBlur={flush}
-                rows={8}
-                placeholder="O que achou do jogo? História, gameplay, o que ficou na memória..."
-                className={textArea}
-              />
-            </label>
+            {/* Uma caixa por trecho e as imagens no meio; troca de jogo = editor novo (key) */}
+            <ReviewEditor
+              key={game.id}
+              gameId={game.id}
+              review={game.log?.review}
+              images={game.log?.reviewImages}
+              hasGamepad={hasGamepad}
+              onChange={(changes) => typeText(changes)}
+              onBlur={flush}
+              onError={setError}
+            />
             {/* Curtidas e comentários dos amigos na sua resenha (só aparece quando alguém reagiu) */}
-            {(game.log?.review || game.log?.rating) && titleKey(game.title) && (
+            {(hasReviewContent(game.log) || game.log?.rating) && titleKey(game.title) && (
               <MyReactionBar kind="review" target={`t:${titleKey(game.title)}`} title={game.title} className="mt-2" />
             )}
           </div>

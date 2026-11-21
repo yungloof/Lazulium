@@ -10,8 +10,8 @@ Baixe um destes na página de downloads do Lazulium no GitHub:
 
 | Arquivo | |
 |---|---|
-| **`Lazulium-Setup-3.2.0.exe`** *(recomendado)* | Instala só para o seu usuário, sem pedir administrador, e cria os atalhos. |
-| **`Lazulium-Portable-3.2.0.exe`** | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
+| **`Lazulium-Setup-3.3.0.exe`** *(recomendado)* | Instala só para o seu usuário, sem pedir administrador, e cria os atalhos. |
+| **`Lazulium-Portable-3.3.0.exe`** | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
 
 Se já testou uma versão antiga, instale por cima. Nada se perde.
 
@@ -49,6 +49,7 @@ Os dados ficam em `%APPDATA%\Lazulium` e não são apagados ao desinstalar ou tr
 
 ### Diário, listas e desejos
 - No **Diário**, marque status, dê nota, escreva uma resenha e use **Registrar jogo** para um jogo de console. Exporte em CSV ou JSON e teste **Importar** com uma cópia JSON ou com a página salva do Your Gamer Profile ou as páginas Games e Reviews do Backloggd (a prévia aparece antes de gravar).
+- Na resenha de um jogo (*Meu registro*), ponha uma **Captura de tela** e uma **Imagem do PC** no meio do texto, cole uma com Ctrl+V e mude a ordem com subir/descer. Salve, feche e abra de novo: as imagens estão no mesmo lugar? Com a conta Lazulium e *Notas e resenhas* ligadas, um amigo vê as imagens na página do jogo (*Ler mais*)?
 - Crie uma lista (menu do jogo → *Adicionar à lista*).
 - Em **Desejos**, os preços da sua lista da Steam aparecem? Defina um preço-alvo.
 

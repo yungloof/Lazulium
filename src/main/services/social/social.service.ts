@@ -32,6 +32,7 @@ import { HttpError, describeError, httpRequest, statusError } from '../metadata/
 import { getRecentActivity } from '../profile/activity.service';
 import { parseEditionPrefs } from '@shared/utils/editions';
 import { LibraryRow, buildLibraryRows, compareWithFriend, libraryKeysOf } from './library-rows';
+import { reviewImagesService } from '../profile/review-images.service';
 import { ArtworkServerUnavailable, fetchIgdbArtwork } from '../metadata/igdb-artwork.service';
 import { notify } from '../../app-shell';
 
@@ -85,6 +86,7 @@ const PUBLIC_COVER = /^https:\/\/(cdn\.cloudflare\.steamstatic\.com|shared\.[a-z
 
 const SERVER_ERRORS: Record<string, string> = {
   invalid_code: 'Esse login expirou. Tente entrar de novo.',
+  review_images_full: 'O espaço de imagens das resenhas na sua conta acabou.',
   invite_not_found: 'Código não encontrado ou vencido. Peça um novo.',
   own_invite: 'Esse código é seu. Mande para outra pessoa.',
   you_blocked: 'Você bloqueou essa pessoa. Desbloqueie em Amigos, em Bloqueados, para aceitar o convite.',
@@ -185,10 +187,19 @@ class SocialService {
     schedule: () => void;
     sync: () => Promise<void>;
     clearLocal: () => void;
+    enabled: () => boolean;
   };
 
-  setLibrarySyncHooks(hooks: { schedule: () => void; sync: () => Promise<void>; clearLocal: () => void }): void {
+  setLibrarySyncHooks(hooks: { schedule: () => void; sync: () => Promise<void>; clearLocal: () => void; enabled: () => boolean }): void {
     this.librarySyncHooks = hooks;
+  }
+
+  // Imagens das resenhas ficam no servidor só enquanto alguém vai vê-las: resenhas compartilhadas ou outro PC
+  // sincronizado. Desligou as duas coisas: as que este PC mandou saem de lá.
+  async uploadReviewImages(settings = this.cached()?.settings): Promise<void> {
+    if (!this.isConnected() || !settings) return;
+    const wanted = (settings.shareProfile && settings.shareReviews) || !!this.librarySyncHooks?.enabled();
+    await reviewImagesService.syncServer(wanted).catch((err) => console.warn('[Social] Imagens das resenhas:', (err as Error).message));
   }
 
   setStatusListener(listener: (status: SocialStatus) => void): void {
@@ -196,6 +207,13 @@ class SocialService {
   }
 
   init(): void {
+    reviewImagesService.setRemote({
+      accountId: () => (this.token() ? this.cached()?.user.id : undefined),
+      serverOrigin: () => socialServerUrl(),
+      list: async () => (await this.api<{ images: { id: string; url: string }[] }>('GET', '/v1/me/review-images')).images ?? [],
+      put: async (id, base64) => (await this.api<{ url: string }>('PUT', `/v1/me/review-images/${id}`, { data: base64 })).url,
+      remove: async (id) => void (await this.api('DELETE', `/v1/me/review-images/${id}`))
+    });
     this.syncTimer = setInterval(() => void this.sync(), SYNC_INTERVAL_MS);
     this.syncTimer.unref();
     if (this.token()) setTimeout(() => void this.sync(), 20_000).unref();
@@ -365,7 +383,9 @@ class SocialService {
   // Manda só o que mudou desde o último envio, em lotes que cabem no servidor. Uma vez por semana manda tudo
   // de novo (reset), para consertar qualquer diferença (vitrine desligada e ligada em outro PC, por exemplo).
   private async pushLibrary(settings: SocialSettings): Promise<void> {
-    const rows = buildLibraryRows(db.getGames(), parseEditionPrefs(db.getSettings()), (id) => db.getGameAchievements(id), settings, publicCoverOf);
+    const rows = buildLibraryRows(db.getGames(), parseEditionPrefs(db.getSettings()), (id) => db.getGameAchievements(id), settings, publicCoverOf, (id) =>
+      reviewImagesService.publicUrl(id)
+    );
     let sent: { at?: number; rows?: Record<string, string> } = {};
     try {
       sent = JSON.parse(db.getSettings()[SOCIAL_SETTING_KEYS.librarySent] || '{}');
@@ -723,6 +743,7 @@ class SocialService {
         if (events.length) await this.api('POST', '/v1/me/activities', { events });
         db.setSetting(SOCIAL_SETTING_KEYS.lastPushAt, startedAt);
       }
+      await this.uploadReviewImages(settings);
       await this.librarySyncHooks?.sync().catch((err) => console.warn('[Social] Sincronização entre PCs:', (err as Error).message));
       if (settings.shareProfile) await this.pushShowcase(settings);
       // Servidor antigo ou falha passageira não estragam o resto do envio: tenta de novo na próxima

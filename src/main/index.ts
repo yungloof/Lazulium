@@ -8,6 +8,7 @@ import { playtimeService } from './services/tracker/playtime.service';
 import { backupService } from './services/cloudsync/backup.service';
 import { migrateMediaCache, registerMediaProtocol, registerMediaScheme } from './services/metadata/media-cache.service';
 import { registerScreenshotRoots } from './services/metadata/screenshots.service';
+import { reviewImagesService } from './services/profile/review-images.service';
 import { screenshotCaptureService } from './services/metadata/screenshot-capture.service';
 import { artworkService } from './services/metadata/artwork.service';
 import { gameMetadataService } from './services/metadata/game-metadata.service';
@@ -75,6 +76,11 @@ async function runStartupSync(hadGames: boolean, repairedArtwork: string[]): Pro
   gameMetadataService.enqueueMissing();
   profileService.syncInBackground();
   wishlistService.syncInBackground();
+  // Imagens que saíram das resenhas há 15 dias
+  await reviewImagesService
+    .sweepLocal()
+    .then((n) => n && console.log(`[Resenha] ${n} imagem(ns) sem uso apagada(s)`))
+    .catch((err) => console.warn('[Resenha] Limpeza das imagens:', (err as Error).message));
 }
 
 // Contabiliza sessões em andamento, encerra o worker de processos e grava o que estiver pendente
@@ -159,6 +165,7 @@ if (!app.requestSingleInstanceLock()) {
     const repairedArtwork = artworkService.repairMissingMedia();
     registerMediaProtocol();
     registerScreenshotRoots();
+    reviewImagesService.register();
     playtimeService.recoverInterruptedSessions();
     playtimeService.startExternalTracking();
 

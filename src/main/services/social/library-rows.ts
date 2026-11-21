@@ -1,9 +1,10 @@
-import { Game } from '@shared/types/game';
+import { Game, PublicReviewImage } from '@shared/types/game';
 import { GameAchievements } from '@shared/types/achievements';
 import { FriendCompareGame, FriendGameAchievements, FriendLibraryGame, SocialSettings } from '@shared/types/social';
 import { EditionPrefs, foldEditions } from '@shared/utils/editions';
 import { findOwnedGame, indexGamesByKey, libraryKeysOf, libraryTitleKey, steamKeyOf } from '@shared/utils/game-match';
 import { reviewDateOf } from '@shared/utils/review-order';
+import { hasReviewContent, shareableReview } from '@shared/utils/review-blocks';
 
 // Biblioteca resumida que vai para a conta Lazulium: um registro por jogo com alguma atividade (horas, Diário ou
 // conquista), para a página do jogo dos amigos mostrar quem jogou. Jogo comprado e nunca aberto não vai.
@@ -26,6 +27,7 @@ export interface LibraryRow {
   status?: string;
   rating?: number;
   review?: string;
+  reviewImages?: PublicReviewImage[];  // Só as que já estão no servidor; `at` conta no texto já cortado
   reviewAt?: string;
   achievements?: Required<FriendGameAchievements>;
 }
@@ -51,7 +53,8 @@ export function buildLibraryRows(
   prefs: EditionPrefs,
   achievementsOf: (gameId: string) => GameAchievements | null | undefined,
   settings: Pick<SocialSettings, 'sharePlaytime' | 'shareReviews' | 'shareAchievements'>,
-  coverOf: (game: Game) => string | null
+  coverOf: (game: Game) => string | null,
+  reviewImageUrl: (id: string) => string | undefined = () => undefined
 ): LibraryRow[] {
   const byId = new Map(raw.map((g) => [g.id, g]));
   const rows = new Map<string, LibraryRow & { seconds: number }>();
@@ -62,8 +65,8 @@ export function buildLibraryRows(
     const achievements = shareableAchievements(members.map((m) => achievementsOf(m.id)));
     const seconds = Math.max(0, Math.round(game.totalPlaytimeSeconds ?? 0));
     const log = game.log;
-    const review = log?.review?.trim();
-    if (seconds === 0 && !log?.status && !log?.rating && !review && !achievements?.unlocked) continue;
+    const hasReview = hasReviewContent(log);
+    if (seconds === 0 && !log?.status && !log?.rating && !hasReview && !achievements?.unlocked) continue;
 
     const row: LibraryRow & { seconds: number } = { titleKey: key, title: game.title.slice(0, MAX_TITLE), seconds };
     const steamKey = members.map(steamKeyOf).find(Boolean);
@@ -77,8 +80,10 @@ export function buildLibraryRows(
     if (settings.shareReviews) {
       if (log?.status) row.status = log.status;
       if (log?.rating) row.rating = log.rating;
-      if (review) {
-        row.review = review.slice(0, MAX_ROW_REVIEW);
+      const shared = hasReview ? shareableReview(log?.review, log?.reviewImages, reviewImageUrl, MAX_ROW_REVIEW) : null;
+      if (shared && (shared.review || shared.reviewImages)) {
+        if (shared.review) row.review = shared.review;
+        if (shared.reviewImages) row.reviewImages = shared.reviewImages;
         const date = reviewDateOf(game);
         if (date) row.reviewAt = date;
       }

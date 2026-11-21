@@ -8,6 +8,7 @@ import { GameCover, coverFrame } from '../journal/CoverCard';
 import { formatDay, formatHours, percent, shortDate } from '../journal/format';
 import { PLATFORM_FULL } from '../../utils/platform';
 import { reviewDateOf } from '@shared/utils/review-order';
+import { ReviewBody, ReviewToggle, ownReviewImages, reviewIsLong } from '../ReviewBody';
 
 // Com fundo escolhido (data-backdrop na raiz do perfil), o painel deixa de ser caixa: vira um véu preto sem borda nem sombra,
 // a arte passa por trás e a página parece uma coisa só. Escuro o bastante para ler sobre imagem ou vídeo claro.
@@ -70,7 +71,8 @@ export const ReviewCard: React.FC<{ game: Game; onOpen: () => void }> = ({ game,
   const [expanded, setExpanded] = useState(false);
   const date = reviewDateOf(game);
   const review = game.log?.review?.trim();
-  const long = !!review && (review.length > REVIEW_COLLAPSED_CHARS || review.split('\n').length > 5);
+  const images = ownReviewImages(game.log?.reviewImages);
+  const long = reviewIsLong(review, images.length, REVIEW_COLLAPSED_CHARS, 5);
   return (
     <article className="grid grid-cols-[72px_minmax(0,1fr)] sm:grid-cols-[96px_minmax(0,1fr)] gap-x-4 py-4 first:pt-0 last:pb-0 border-b border-slate-800/80 last:border-b-0">
       <button type="button" onClick={onOpen} title={game.title} className={`${coverFrame} self-start hover:border-slate-500 ${focusRing}`}>
@@ -94,15 +96,13 @@ export const ReviewCard: React.FC<{ game: Game; onOpen: () => void }> = ({ game,
           <StatusDot status={game.log?.status} />
           <span className="truncate">em {game.manualPlatform ?? PLATFORM_FULL[game.platform]}</span>
         </div>
-        {review && (
-          <>
-            <p className={`mt-3 text-[15px] leading-relaxed text-slate-300 whitespace-pre-wrap break-words select-text ${expanded ? '' : 'line-clamp-5'}`}>{review}</p>
+        {(review || images.length > 0) && (
+          <div className="mt-3">
+            <ReviewBody review={review} images={images} expanded={expanded} textClassName="text-[15px] leading-relaxed text-slate-300" clampClassName="line-clamp-5" />
             {long && (
-              <button type="button" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded} className={`mt-1 text-[15px] text-indigo-300 hover:underline rounded-sm ${focusRing}`}>
-                {expanded ? 'Ler menos' : 'Ler mais'}
-              </button>
+              <ReviewToggle expanded={expanded} onToggle={() => setExpanded((v) => !v)} className="mt-1 text-[15px] text-indigo-300 hover:underline" more="Ler mais" less="Ler menos" />
             )}
-          </>
+          </div>
         )}
       </div>
     </article>

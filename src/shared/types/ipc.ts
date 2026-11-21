@@ -60,6 +60,13 @@ import {
   SaveLocationSuggestion
 } from './cloudsync';
 
+// Imagem escolhida para a resenha, antes de reduzir (a tela reduz e devolve com saveReviewImage)
+export interface ReviewImageSource {
+  fileName: string;
+  mime: string;
+  bytes: Uint8Array;
+}
+
 // Jogo registrado à mão no Diário (ex: console, ou jogado antes do Lazulium)
 export interface JournalEntryInput {
   title: string;
@@ -185,6 +192,9 @@ export interface ElectronAPI {
   getPlaytimeSessions: (gameId: string) => Promise<PlaytimeSession[]>;
   setGameLog: (gameId: string, log: GameLog) => Promise<Game>;
   addJournalEntry: (entry: JournalEntryInput) => Promise<Game>;
+  pickReviewImageFile: () => Promise<ReviewImageSource | null>;              // null: cancelou
+  readReviewImageScreenshot: (gameId: string, screenshotId: string) => Promise<ReviewImageSource>;
+  saveReviewImage: (bytes: Uint8Array) => Promise<{ id: string; url: string }>; // WebP (ou GIF pequeno) já reduzido
   previewJournalImport: (items: JournalImportItem[], options: JournalImportOptions) => Promise<JournalImportPreviewItem[]>;
   applyJournalImport: (items: JournalImportItem[], options: JournalImportOptions) => Promise<JournalImportApplyResult>;
   searchGameCatalog: (query: string) => Promise<GameSearchResult[]>;

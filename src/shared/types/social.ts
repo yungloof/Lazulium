@@ -1,5 +1,5 @@
 import { ActivityKind } from './activity';
-import { GameLogStatus } from './game';
+import { GameLogStatus, PublicReviewImage } from './game';
 
 // Conta Lazulium (2.0): amigos, "jogando agora" e feed. Servidor em server/social.
 
@@ -151,6 +151,7 @@ export interface GameFriend {
   status?: GameLogStatus;
   rating?: number;
   review?: string;
+  reviewImages?: PublicReviewImage[];   // Servidor e app da 3.3 em diante
   reviewAt?: string;
   achievements?: FriendGameAchievements;
   titleKey?: string;                // t:<nome>: chave da resenha para curtir e comentar (servidor antigo não manda)

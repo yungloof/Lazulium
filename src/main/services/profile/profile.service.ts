@@ -1,3 +1,5 @@
+import { hasReviewContent, shareableReview } from '@shared/utils/review-blocks';
+import { reviewImagesService } from './review-images.service';
 import { app } from 'electron';
 import { copyFile, mkdir, readdir, stat, unlink } from 'fs/promises';
 import { extname, join } from 'path';
@@ -456,12 +458,14 @@ class ProfileService {
   private exportableRatings(): ProfileReview[] {
     let textBudget = MAX_RATINGS_TEXT_TOTAL;
     // Mesma ordem e mesma data da aba Avaliações do app
-    return sortByReviewDate(db.getGames().filter((g) => !g.isHidden && (g.log?.rating || g.log?.review?.trim())))
-      .slice(0, MAX_RATINGS)
+    return sortByReviewDate(db.getGames().filter((g) => !g.isHidden && (g.log?.rating || hasReviewContent(g.log))))
       .map((game) => {
         const date = reviewDateOf(game);
-        const full = game.log?.review?.trim();
-        const review = full ? full.slice(0, Math.min(MAX_REVIEW_TEXT, textBudget)) || undefined : undefined;
+        // Imagens só as já enviadas ao servidor da conta (endereço público); sem conta, a vitrine leva só o texto
+        const shared = hasReviewContent(game.log)
+          ? shareableReview(game.log?.review, game.log?.reviewImages, (id) => reviewImagesService.publicUrl(id), Math.min(MAX_REVIEW_TEXT, textBudget))
+          : null;
+        const review = shared?.review || undefined;
         if (review) textBudget -= review.length;
         return {
           id: game.id,
@@ -472,9 +476,13 @@ class ProfileService {
           status: game.log?.status,
           playtimeSeconds: game.totalPlaytimeSeconds ?? 0,
           date,
-          review
+          review,
+          reviewImages: shared?.reviewImages
         };
-      });
+      })
+      // Resenha só de imagens ainda não enviadas (ou cortada pelo limite) e sem nota: não vira um cartão vazio
+      .filter((entry) => entry.rating || entry.review || entry.reviewImages?.length)
+      .slice(0, MAX_RATINGS);
   }
 
   toExportable(profile: PlayerProfile): PlayerProfile {

@@ -9,6 +9,7 @@ import { LOG_STATUS, Stars } from '../GameLogFields';
 import { focusRing } from '../ui';
 import { PresenceAvatar } from './presence';
 import { ReactionBar } from './Reactions';
+import { ReviewBody, ReviewToggle, friendReviewImages, reviewIsLong } from '../ReviewBody';
 
 // Página do jogo: os amigos que jogaram, com horas, status do Diário, nota, resenha e conquistas.
 // Cada pedaço só aparece se o amigo deixou ver (as chaves de privacidade dele valem no servidor).
@@ -50,7 +51,9 @@ const FriendRow: React.FC<{ friend: GameFriend; mine: GameAchievements | null }>
     friend.playtimeSeconds !== undefined ? formatPlaytimeShort(friend.playtimeSeconds, friend.lastPlayedAt) : null,
     friend.lastPlayedAt && !friend.playingNow ? `jogou ${formatLastPlayed(friend.lastPlayedAt).toLowerCase()}` : null
   ].filter(Boolean);
-  const longReview = (friend.review?.length ?? 0) > 180;
+  const reviewImages = friendReviewImages(friend.reviewImages);
+  const hasReview = !!friend.review?.trim() || reviewImages.length > 0;
+  const longReview = reviewIsLong(friend.review, reviewImages.length, 180, 3);
 
   return (
     <li className="py-3 first:pt-0 last:pb-0">
@@ -93,17 +96,30 @@ const FriendRow: React.FC<{ friend: GameFriend; mine: GameAchievements | null }>
             ))}
           </p>
           {friend.achievements && <AchievementBar friend={friend} mine={mine} />}
-          {friend.review && (
+          {hasReview && (
             <div className="mt-2">
-              <p className={`text-xs leading-relaxed text-slate-300 whitespace-pre-line border-l-2 border-slate-700 pl-2.5 ${expanded ? '' : 'line-clamp-3'}`}>{friend.review}</p>
+              <div className="border-l-2 border-slate-700 pl-2.5">
+                <ReviewBody
+                  review={friend.review}
+                  images={reviewImages}
+                  expanded={expanded}
+                  textClassName="text-xs leading-relaxed text-slate-300"
+                  clampClassName="line-clamp-3"
+                  imageMaxHeight="max-h-[360px]"
+                />
+              </div>
               {longReview && (
-                <button type="button" onClick={() => setExpanded((v) => !v)} className={`mt-1 text-[11px] font-semibold text-indigo-300 hover:text-white rounded-sm px-1 ${focusRing}`}>
-                  {expanded ? 'Mostrar menos' : 'Ler a resenha toda'}
-                </button>
+                <ReviewToggle
+                  expanded={expanded}
+                  onToggle={() => setExpanded((v) => !v)}
+                  className="mt-1 text-[11px] font-semibold text-indigo-300 hover:text-white px-1"
+                  more="Ler a resenha toda"
+                  less="Mostrar menos"
+                />
               )}
             </div>
           )}
-          {friend.titleKey && (friend.review || friend.rating) && (
+          {friend.titleKey && (hasReview || friend.rating) && (
             <ReactionBar target={{ owner: friend.user.id, kind: 'review', target: friend.titleKey, title: friend.title }} className="mt-2" />
           )}
         </div>

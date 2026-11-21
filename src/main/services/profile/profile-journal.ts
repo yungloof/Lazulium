@@ -16,7 +16,8 @@ const isPublicJournalGame = (game: Game): boolean => {
       log?.rating !== undefined ||
       log?.startedOn ||
       log?.finishedOn ||
-      log?.review?.trim()
+      log?.review?.trim() ||
+      log?.reviewImages?.length
   );
 };
 

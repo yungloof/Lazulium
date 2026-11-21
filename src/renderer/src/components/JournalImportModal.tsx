@@ -17,6 +17,7 @@ const FIELD_LABEL: Record<keyof GameLog, string> = {
   startedOn: 'início',
   finishedOn: 'fim',
   review: 'resenha',
+  reviewImages: 'imagens da resenha',
   notes: 'anotações'
 };
 

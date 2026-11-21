@@ -74,7 +74,7 @@ Nenhuma destas tarefas faz pedido novo ao servidor. Sempre com o foco visível d
 
 ## 4. Novidades para o CHANGELOG (o Antigravity anota aqui)
 
-<!-- Até "Visual do Lazulium unificado", tudo entrou na 3.1.0; até "Atualização sozinha", na 3.2.0. Uma linha por novidade, na voz de quem joga. Ex.: "- Conquistas novas ganham uma comemoração (dá para desligar em Comportamento)." -->
+<!-- Até "Visual do Lazulium unificado", tudo entrou na 3.1.0; até "Atualização sozinha", na 3.2.0; até "Imagens nas resenhas", na 3.3.0. Uma linha por novidade, na voz de quem joga. Ex.: "- Conquistas novas ganham uma comemoração (dá para desligar em Comportamento)." -->
 - **Som de navegação:** dá para ligar, desligar e ajustar o volume dos cliques de navegação em *Configurações → Comportamento*.
 - **Cerimônias:** conquistas novas, jogos zerados e marcas de 100% agora aparecem numa comemoração com capa, brilho azul, som e vibração leve do controle (ou em modo calmo se o sistema usar movimento reduzido). Quando um jogo está em tela cheia, ela espera você fechar para aparecer; também dá para desligar em *Configurações → Comportamento*.
 - **Controle completo (parte 1):** os símbolos da barra de ajuda e da Ajuda mudam conforme o controle conectado (Xbox, PlayStation ou Switch), o botão View / Select abre o menu de opções do jogo focado e o analógico direito rola a página.
@@ -85,3 +85,4 @@ Nenhuma destas tarefas faz pedido novo ao servidor. Sempre com o foco visível d
 - **Visual do Lazulium unificado:** o botão JOGAR agora usa o azul vivo do tema do app, deixando para trás o antigo verde herdado.
 - **Jogos soltos em atalho de pasta:** o Escanear agora entra nas pastas de jogos que são atalhos de pasta do Windows (link simbólico), e o Pokémon Sword do PC Recomp aparece com o nome da pasta, não como "SwShRecomp".
 - **Atualização sozinha, como no Discord:** ao abrir, o Lazulium procura a versão nova antes da janela; se tiver, mostra "Baixando a versão…", instala e abre de novo já atualizado (dá para pular com *Abrir agora e atualizar depois*). Com o app na bandeja e nenhum jogo aberto, ele também se atualiza sozinho e volta para a bandeja. Ninguém mais precisa ir em *Configurações → Ajuda → Verificar atualizações*.
+- **Imagens nas resenhas:** capturas de tela e imagens do PC em qualquer parte da resenha, como num blog (também colando ou arrastando). Amigos, Perfil e vitrine mostram as imagens no meio do texto.

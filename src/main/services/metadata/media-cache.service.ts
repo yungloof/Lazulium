@@ -101,6 +101,7 @@ export function registerMediaScheme(): void {
 interface MediaRoot {
   resolveRoot: () => string | undefined | Promise<string | undefined>;
   allowPath?: RegExp;               // Caminho relativo (com '/') que pode ser servido dessa raiz
+  fetchMissing?: (relativePath: string) => Promise<boolean>;   // Arquivo que falta aqui: tenta trazer (true = trouxe)
 }
 
 // Outras pastas servidas pelo mesmo esquema (ex: capturas de tela), cada uma presa à sua raiz
@@ -128,7 +129,8 @@ export function registerMediaProtocol(): void {
       }
       const root = resolve(rootDir);
       const filePath = resolve(root, ...segments);
-      if (!filePath.startsWith(root + sep) || !existsSync(filePath)) {
+      if (!filePath.startsWith(root + sep)) return new Response('Not found', { status: 404 });
+      if (!existsSync(filePath) && !(extra?.fetchMissing && (await extra.fetchMissing(segments.join('/'))) && existsSync(filePath))) {
         return new Response('Not found', { status: 404 });
       }
       return net.fetch(pathToFileURL(filePath).toString());

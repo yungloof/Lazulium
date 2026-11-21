@@ -14,6 +14,7 @@ import {
 } from '@shared/types/sync';
 import { libraryTitleKey, steamKeyOf } from './game-match';
 import { normalizeTiers } from './tier-list';
+import { reviewImagesEqual, trimReview } from './review-blocks';
 
 export const SYNC_TOMBSTONE_MAX_AGE_MS = 90 * 86_400_000;
 
@@ -84,6 +85,7 @@ export function hasLogContent(log?: GameLog): boolean {
       log.startedOn ||
       log.finishedOn ||
       log.review?.trim() ||
+      log.reviewImages?.length ||
       log.notes?.trim()
   );
 }
@@ -95,8 +97,9 @@ export function normalizeLog(log?: GameLog): GameLog | undefined {
   if (log.rating !== undefined) out.rating = log.rating;
   if (log.startedOn) out.startedOn = log.startedOn;
   if (log.finishedOn) out.finishedOn = log.finishedOn;
-  const review = log.review?.trim();
+  const { review, reviewImages } = trimReview(log.review, log.reviewImages);
   if (review) out.review = review;
+  if (reviewImages) out.reviewImages = reviewImages;
   const notes = log.notes?.trim();
   if (notes) out.notes = notes;
   return hasLogContent(out) ? out : undefined;
@@ -113,6 +116,7 @@ const logsEqual = (a?: GameLog, b?: GameLog): boolean => {
     na.startedOn === nb.startedOn &&
     na.finishedOn === nb.finishedOn &&
     na.review === nb.review &&
+    reviewImagesEqual(na.reviewImages, nb.reviewImages) &&
     na.notes === nb.notes
   );
 };
@@ -128,7 +132,8 @@ function combineUnstampedLogs(a?: GameLog, b?: GameLog): GameLog | undefined {
     rating: na.rating ?? nb.rating,
     startedOn: na.startedOn ?? nb.startedOn,
     finishedOn: na.finishedOn ?? nb.finishedOn,
-    review: na.review ?? nb.review,
+    // A resenha vem inteira de um lado só: as imagens têm posição no texto dela
+    ...(na.review || na.reviewImages ? { review: na.review, reviewImages: na.reviewImages } : { review: nb.review, reviewImages: nb.reviewImages }),
     notes: na.notes ?? nb.notes
   });
 }

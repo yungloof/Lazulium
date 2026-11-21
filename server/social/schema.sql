@@ -134,6 +134,19 @@ CREATE INDEX IF NOT EXISTS calls_from ON calls (from_id, created_at);
 -- Biblioteca resumida: um registro por jogo com alguma atividade (horas, Diário ou conquista), para a página do
 -- jogo mostrar os amigos que jogaram. title_key junta lojas diferentes; steam_key acha pelo AppID quando o nome muda.
 -- ach_ids: { id da conquista: segundos Unix de quando desbloqueou (0 = sem data) }. Só com a vitrine ligada.
+-- Imagens das resenhas (3.3): uma linha por imagem. image_id é o nome do arquivo no app (hash do conteúdo):
+-- o mesmo arquivo enviado de novo (outro PC) não duplica. token é o endereço público, difícil de adivinhar.
+-- Bancos criados antes da 3.3: rode também migrations/2026-11-review-images.sql (coluna review_images acima).
+CREATE TABLE IF NOT EXISTS review_images (
+  token       TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL,
+  image_id    TEXT NOT NULL,
+  mime        TEXT NOT NULL,
+  data        TEXT NOT NULL,              -- Base64
+  created_at  TEXT NOT NULL,
+  UNIQUE (user_id, image_id)
+);
+
 CREATE TABLE IF NOT EXISTS library_games (
   user_id       TEXT NOT NULL,
   title_key     TEXT NOT NULL,
@@ -146,6 +159,7 @@ CREATE TABLE IF NOT EXISTS library_games (
   rating        REAL,
   review        TEXT,
   review_at     TEXT,
+  review_images TEXT,                       -- JSON [{at, t (token da imagem), w, h}]: imagens no meio da resenha
   ach_source    TEXT,
   ach_unlocked  INTEGER,
   ach_total     INTEGER,

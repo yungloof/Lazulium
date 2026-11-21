@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: https://*.steamstatic.com https://steamcdn-a.akamaihd.net https://*.steamusercontent.com https://images.igdb.com https://*.steamgriddb.com https://*.retroachievements.org https://147-15-123-238.sslip.io; media-src https://*.steamstatic.com https://147-15-123-238.sslip.io; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: https://*.steamstatic.com https://steamcdn-a.akamaihd.net https://*.steamusercontent.com https://images.igdb.com https://*.steamgriddb.com https://*.retroachievements.org https://147-15-123-238.sslip.io https://lazulium-social.yungloof.workers.dev; media-src https://*.steamstatic.com https://147-15-123-238.sslip.io; connect-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <title>Perfil Lazulium</title>
   <style>
@@ -124,6 +124,13 @@
     .dot { display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; }
     .post .body { margin-top: 10px; color: #cfd8e3; font-size: 15px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
     .post .body.clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+    .post .body p { margin: 0 0 10px; }
+    .post .body p:last-child { margin-bottom: 0; }
+    .post .body p.clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+    .post .body .rimg { display: block; max-width: 100%; max-height: 520px; width: auto; height: auto; margin: 4px 0 12px; border-radius: 10px; border: 1px solid rgba(148,163,184,.18); }
+    .post .thumbs { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+    .post .thumbs img { height: 64px; width: auto; max-width: 128px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(148,163,184,.18); }
+    .post .thumbs span { font-size: 12px; color: #94a3b8; }
     .post .more { margin-top: 4px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
     .post .more:hover { text-decoration: underline; }
     .post .c.blank { display: flex; align-items: center; justify-content: center; padding: 8px; color: var(--muted); font-size: 11px; text-align: center; }
@@ -331,8 +338,49 @@
       return box;
     }
 
-    function reviewBlock(review) {
-      const text = typeof review === 'string' ? review.trim() : '';
+    // Imagens no meio da resenha (3.3): cada uma com a posição no texto onde fica, como num blog
+    function reviewImages(images, length) {
+      return (Array.isArray(images) ? images : [])
+        .map((i, n) => ({ url: https(i && i.url), at: Number(i && i.at), n }))
+        .filter((i) => i.url && Number.isInteger(i.at))
+        .map((i) => ({ ...i, at: Math.max(0, Math.min(length, i.at)) }))
+        .sort((a, b) => a.at - b.at || a.n - b.n);
+    }
+
+    function blogPieces(text, images) {
+      const out = [];
+      let pos = 0;
+      const strip = (t) => t.replace(/^\n+|\n+$/g, '');
+      for (const i of images) {
+        const chunk = strip(text.slice(pos, Math.max(pos, i.at)));
+        if (chunk.trim()) out.push(el('p', null, chunk));
+        out.push(image(i.url, '', 'rimg'));
+        pos = Math.max(pos, i.at);
+      }
+      const rest = strip(text.slice(pos));
+      if (rest.trim()) out.push(el('p', null, rest));
+      return out;
+    }
+
+    function reviewBlock(review, images) {
+      const raw = typeof review === 'string' ? review : '';
+      const text = raw.trim();
+      const pics = reviewImages(images, raw.length);
+      if (pics.length) {
+        // Recolhida: começo do texto e miniaturas; aberta: tudo na ordem
+        const short = el('div', { class: 'body' },
+          text ? el('p', { class: 'clamp' }, text) : null,
+          el('div', { class: 'thumbs' }, pics.slice(0, 4).map((i) => image(i.url, '')), pics.length > 4 ? el('span', null, '+' + (pics.length - 4)) : null));
+        const full = el('div', { class: 'body', hidden: 'hidden' }, blogPieces(raw, pics));
+        const more = el('button', { type: 'button', class: 'more' }, 'Ler mais');
+        more.addEventListener('click', () => {
+          const open = full.hidden;
+          full.hidden = !open;
+          short.hidden = open;
+          more.textContent = open ? 'Ler menos' : 'Ler mais';
+        });
+        return [el('div', null, short, full), more];
+      }
       if (!text) return [null, null];
       const long = text.length > 360 || text.split('\n').length > 5;
       const body = el('p', { class: 'body' + (long ? ' clamp' : '') }, text);
@@ -342,7 +390,7 @@
     }
 
     function post(r) {
-      const [body, more] = reviewBlock(r.review);
+      const [body, more] = reviewBlock(r.review, r.reviewImages);
       const status = STATUS_LABEL[r.status];
       return el('article', { class: 'post' },
         image(r.coverUrl, r.title, 'c') || el('div', { class: 'c blank', title: r.title }, r.title),
@@ -609,7 +657,7 @@
 
     function renderRatings(profile) {
       const all = profile.ratings || [];
-      const written = all.filter((r) => typeof r.review === 'string' && r.review.trim());
+      const written = all.filter((r) => (typeof r.review === 'string' && r.review.trim()) || (Array.isArray(r.reviewImages) && r.reviewImages.length));
       const shown = view.onlyReviews ? written : all;
       const pill = (label, count, active, onClick) => {
         const node = el('button', { type: 'button', class: 'tab', 'aria-selected': String(active) }, label, el('small', null, String(count)));
@@ -642,11 +690,11 @@
       return entry.date ? longDate(entry.date) : '';
     };
 
-    function journalEntryRow(entry, reviewText) {
-      const [body, more] = reviewBlock(reviewText);
+    function journalEntryRow(entry, written) {
+      const [body, more] = reviewBlock(written ? written.review : '', written && written.reviewImages);
       const status = STATUS_LABEL[entry.status];
       const datesText = journalDatesText(entry);
-      const canReact = entry.rating > 0 || Boolean(reviewText);
+      const canReact = entry.rating > 0 || Boolean(body);
       return el('article', { class: 'post' },
         image(entry.coverUrl, entry.title, 'c') || el('div', { class: 'c blank', title: entry.title }, entry.title),
         el('div', { style: 'min-width:0' },
@@ -690,10 +738,12 @@
       const reviewByTitle = new Map();
       for (const r of profile.ratings || []) {
         const text = typeof r.review === 'string' ? r.review.trim() : '';
-        if (!text) continue;
-        if (r.id) reviewById.set(r.id, text);
+        const hasImages = Array.isArray(r.reviewImages) && r.reviewImages.length > 0;
+        if (!text && !hasImages) continue;
+        const written = { review: typeof r.review === 'string' ? r.review : '', reviewImages: r.reviewImages };
+        if (r.id) reviewById.set(r.id, written);
         const tk = titleKey(r.title);
-        if (tk && !reviewByTitle.has(tk)) reviewByTitle.set(tk, text);
+        if (tk && !reviewByTitle.has(tk)) reviewByTitle.set(tk, written);
       }
 
       if (!shown.length) return [stats, filters, el('p', { class: 'panel empty' }, 'Nenhum jogo nesse filtro.')];
@@ -708,7 +758,7 @@
       const sections = [...byMonth.entries()].map(([key, items]) =>
         section(monthLabel(key), items.length === 1 ? '1 jogo' : items.length + ' jogos',
           el('div', { class: 'panel posts' }, items.map((e) =>
-            journalEntryRow(e, reviewById.get(e.id) || reviewByTitle.get(titleKey(e.title)) || '')))));
+            journalEntryRow(e, reviewById.get(e.id) || reviewByTitle.get(titleKey(e.title)) || null)))));
       return [stats, filters, ...sections];
     }
 

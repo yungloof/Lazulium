@@ -61,12 +61,14 @@ describe('avaliações na página do perfil', () => {
   });
 
   it('corta resenhas enormes e respeita o teto de texto total', () => {
-    db.upsertGames(Array.from({ length: 100 }, (_, i) => makeGame({ id: `g${i}`, log: { review: 'x'.repeat(20_000), finishedOn: `2026-01-${String((i % 28) + 1).padStart(2, '0')}` } })));
+    db.upsertGames(Array.from({ length: 100 }, (_, i) => makeGame({ id: `g${i}`, log: { rating: i % 3 ? 4 : undefined, review: 'x'.repeat(20_000), finishedOn: `2026-01-${String((i % 28) + 1).padStart(2, '0')}` } })));
     const list = ratings();
     expect(list.every((r) => (r.review?.length ?? 0) <= 6000)).toBe(true);
     const total = list.reduce((sum, r) => sum + (r.review?.length ?? 0), 0);
     expect(total).toBeLessThanOrEqual(450_000);
     // Passado o teto, a nota continua; só o texto some
     expect(list.some((r) => !r.review)).toBe(true);
+    // Sem nota e sem o texto (passou do teto): não vira cartão vazio
+    expect(list.every((r) => r.rating || r.review)).toBe(true);
   });
 });

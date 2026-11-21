@@ -1,4 +1,4 @@
-import { GameLogStatus, GamePlatform } from './game';
+import { GameLogStatus, GamePlatform, PublicReviewImage } from './game';
 
 export interface ProfileGame {
   id: string;
@@ -25,6 +25,7 @@ export interface ProfileReview {
   playtimeSeconds: number;
   date?: string;                    // AAAA-MM-DD: quando terminou ou, sem isso, o último dia jogado (a lista vem nessa ordem)
   review?: string;
+  reviewImages?: PublicReviewImage[];   // Imagens no meio da resenha (só as já enviadas ao servidor da conta)
 }
 
 // Jogo registrado no Diário, como a página do perfil mostra na aba Diário (sem anotações pessoais)

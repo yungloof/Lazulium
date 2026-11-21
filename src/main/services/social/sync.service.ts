@@ -60,7 +60,8 @@ class LibrarySyncService {
     socialService.setLibrarySyncHooks({
       schedule: () => this.scheduleSync(),
       sync: () => this.syncIfEnabled(),
-      clearLocal: () => this.clearLocal()
+      clearLocal: () => this.clearLocal(),
+      enabled: () => this.isEnabled()
     });
   }
 
@@ -160,6 +161,8 @@ class LibrarySyncService {
   private async runSync(): Promise<void> {
     let didApplyLocal = false;
     try {
+      // Antes da cópia: o outro PC já acha no servidor as imagens das resenhas que vão nela
+      await socialService.uploadReviewImages();
       const firstGet = await socialService.apiRaw<RemoteSyncPayload>('GET', '/v1/me/sync');
       if (!firstGet.ok || !firstGet.data) throw new Error(syncErrorMessage(firstGet.status, firstGet.data?.error));
       let remote: RemoteSyncPayload = firstGet.data;

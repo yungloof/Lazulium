@@ -52,6 +52,14 @@ const MAX_LIBRARY_REMOVED_PER_POST = 500;
 const MAX_LIBRARY_GAMES = 5_000;
 const MAX_LIBRARY_BYTES = 800_000;
 const MAX_LIBRARY_REVIEW = 6_000;            // Igual à vitrine
+// Imagens no meio das resenhas (3.3). O app reduz cada uma (WebP) antes de enviar; GIF vai como está
+const MAX_REVIEW_IMAGE_BASE64 = 700_000;     // ~500 KB por imagem
+const MAX_REVIEW_IMAGES_PER_USER = 300;
+const MAX_REVIEW_IMAGE_STORAGE = 20_000_000; // Base64 somado por pessoa (~15 MB): o D1 é dividido entre todos
+const MAX_REVIEW_IMAGES_PER_GAME = 30;
+const REVIEW_IMAGE_ID = /^[a-f0-9]{16}\.(webp|gif)$/;
+const REVIEW_IMAGE_TOKEN = /^[A-Za-z0-9_-]{32}$/;
+const REVIEW_IMAGE_URL = /\/v1\/review-images\/([A-Za-z0-9_-]{32})$/;
 const MAX_ACHIEVEMENT_IDS = 1_000;
 const MAX_GAME_KEYS = 8;
 export const LIBRARY_STATUSES = ['backlog', 'playing', 'endless', 'paused', 'finished', 'completed', 'dropped'];
@@ -364,6 +372,7 @@ async function handleMe(request, env, auth) {
         'DELETE FROM sessions WHERE user_id = ?',
         'DELETE FROM showcases WHERE user_id = ?',
         'DELETE FROM media WHERE user_id = ?',
+        'DELETE FROM review_images WHERE user_id = ?',
         'DELETE FROM view_links WHERE token IN (SELECT token FROM view_viewers WHERE viewer_id = ?1)',
         'DELETE FROM view_viewers WHERE viewer_id = ?1 OR token IN (SELECT token FROM view_links WHERE owner_id = ?1)',
         'DELETE FROM view_links WHERE owner_id = ?',
@@ -746,6 +755,8 @@ export function toLibraryRow(game) {
     }
   }
   const rating = typeof game.rating === 'number' && game.rating >= 0.5 && game.rating <= 5 ? Math.round(game.rating * 2) / 2 : null;
+  // Com parágrafos (as imagens ficam entre eles); o app já manda o texto neste formato, então as posições batem
+  const review = cleanMultiline(game.review, MAX_LIBRARY_REVIEW) || null;
   return {
     titleKey,
     steamKey: typeof game.steamKey === 'string' && STEAM_KEY.test(game.steamKey) ? game.steamKey : null,
@@ -755,10 +766,40 @@ export function toLibraryRow(game) {
     lastPlayed: isoOrNull(game.lastPlayedAt),
     status: LIBRARY_STATUSES.includes(game.status) ? game.status : null,
     rating,
-    review: cleanText(game.review, MAX_LIBRARY_REVIEW) || null,
+    review,
     reviewAt: isoOrNull(game.reviewAt),
+    reviewImages: toReviewImages(game.reviewImages, review?.length ?? 0),
     achievements
   };
+}
+
+// Imagens da resenha: guarda só o token de cada uma (o endereço é montado na hora de mostrar) e a posição no texto
+export function toReviewImages(list, reviewLength) {
+  if (!Array.isArray(list)) return null;
+  const out = [];
+  for (const image of list.slice(0, MAX_REVIEW_IMAGES_PER_GAME)) {
+    const token = typeof image?.url === 'string' && image.url.length < 300 ? image.url.match(REVIEW_IMAGE_URL)?.[1] : null;
+    const at = intOrNull(image?.at, 1_000_000);
+    if (!token || at === null) continue;
+    const entry = { at: Math.min(at, reviewLength), t: token };
+    const w = intOrNull(image.width, 20_000);
+    const h = intOrNull(image.height, 20_000);
+    if (w && h) Object.assign(entry, { w, h });
+    out.push(entry);
+  }
+  return out.length ? out : null;
+}
+
+function reviewImagesView(raw, origin) {
+  try {
+    const list = JSON.parse(raw || '[]');
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter((i) => i && REVIEW_IMAGE_TOKEN.test(i.t) && Number.isInteger(i.at))
+      .map((i) => ({ at: i.at, url: `${origin}/v1/review-images/${i.t}`, ...(i.w && i.h ? { width: i.w, height: i.h } : {}) }));
+  } catch {
+    return [];
+  }
 }
 
 // O app manda só o que mudou, em lotes; reset = primeiro lote de um envio completo
@@ -784,10 +825,10 @@ async function handleLibrary(request, env, auth) {
     const a = row.achievements;
     statements.push(
       env.DB.prepare(
-        `INSERT INTO library_games (user_id, title_key, steam_key, title, cover_url, seconds, last_played, status, rating, review, review_at, ach_source, ach_unlocked, ach_total, ach_ids, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+        `INSERT INTO library_games (user_id, title_key, steam_key, title, cover_url, seconds, last_played, status, rating, review, review_at, ach_source, ach_unlocked, ach_total, ach_ids, updated_at, review_images)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
          ON CONFLICT (user_id, title_key) DO UPDATE SET steam_key = ?3, title = ?4, cover_url = ?5, seconds = ?6, last_played = ?7, status = ?8, rating = ?9,
-           review = ?10, review_at = ?11, ach_source = ?12, ach_unlocked = ?13, ach_total = ?14, ach_ids = ?15, updated_at = ?16`
+           review = ?10, review_at = ?11, ach_source = ?12, ach_unlocked = ?13, ach_total = ?14, ach_ids = ?15, updated_at = ?16, review_images = ?17`
       ).bind(
         userId,
         row.titleKey,
@@ -804,7 +845,8 @@ async function handleLibrary(request, env, auth) {
         a?.unlocked ?? null,
         a?.total ?? null,
         a ? JSON.stringify(a.ids) : null,
-        now
+        now,
+        row.reviewImages ? JSON.stringify(row.reviewImages) : null
       )
     );
   }
@@ -819,7 +861,7 @@ async function handleLibrary(request, env, auth) {
 }
 
 // O que um amigo deixa ver de um jogo, pelas chaves de privacidade dele
-function libraryView(row, settings, { withDetails }) {
+function libraryView(row, settings, { withDetails, origin = '' }) {
   const view = { titleKey: row.title_key, title: row.title, coverUrl: row.cover_url ?? null };
   if (settings.sharePlaytime) {
     view.playtimeSeconds = row.seconds ?? 0;
@@ -828,8 +870,10 @@ function libraryView(row, settings, { withDetails }) {
   if (settings.shareReviews) {
     if (row.status) view.status = row.status;
     if (row.rating) view.rating = row.rating;
-    if (withDetails && row.review) {
-      view.review = row.review;
+    const images = withDetails ? reviewImagesView(row.review_images, origin) : [];
+    if (withDetails && (row.review || images.length)) {
+      view.review = row.review ?? '';
+      if (images.length) view.reviewImages = images;
       if (row.review_at) view.reviewAt = row.review_at;
     }
   }
@@ -848,6 +892,7 @@ function libraryView(row, settings, { withDetails }) {
 
 // GET /v1/games/friends?key=t:...&key=steam:...: amigos que têm o jogo, com o que cada um deixa ver
 async function handleGameFriends(url, env, auth) {
+  const origin = url.origin;
   const keys = [...new Set(url.searchParams.getAll('key'))].slice(0, MAX_GAME_KEYS);
   const titleKeys = keys.filter((k) => TITLE_KEY.test(k));
   const steamKeys = keys.filter((k) => STEAM_KEY.test(k));
@@ -884,7 +929,7 @@ async function handleGameFriends(url, env, auth) {
     friends.push({
       user: { ...publicUser(user), lastSeenAt: presence.lastSeenAt, presence: presence.presence },
       playingNow,
-      ...libraryView(row, settings, { withDetails: true })
+      ...libraryView(row, settings, { withDetails: true, origin })
     });
   }
   friends.sort((x, y) => Number(y.playingNow) - Number(x.playingNow) || (y.playtimeSeconds ?? 0) - (x.playtimeSeconds ?? 0));
@@ -1398,6 +1443,59 @@ async function handleMediaGet(env, token) {
   return new Response(bytes, { headers: { 'Content-Type': row.mime, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' } });
 }
 
+// ---------- Imagens das resenhas ----------
+// O app manda cada imagem uma vez (o id é o hash do conteúdo) e guarda o endereço que volta. A lista serve para
+// outro PC da mesma pessoa saber o que já está aqui. Imagem que saiu de todas as resenhas o app apaga depois de 15 dias.
+
+const reviewImageUrl = (origin, token) => `${origin}/v1/review-images/${token}`;
+
+function isReviewImageBytes(base64, mime) {
+  const head = atob(base64.slice(0, 24));
+  if (mime === 'image/gif') return head.startsWith('GIF87a') || head.startsWith('GIF89a');
+  return head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP';
+}
+
+async function handleReviewImages(request, env, auth, imageId, origin) {
+  const userId = auth.user.id;
+  if (!imageId) {
+    if (request.method !== 'GET') throw new HttpError(405, 'method_not_allowed');
+    const { results } = await env.DB.prepare('SELECT image_id, token FROM review_images WHERE user_id = ? ORDER BY created_at').bind(userId).all();
+    return json({ images: results.map((r) => ({ id: r.image_id, url: reviewImageUrl(origin, r.token) })) });
+  }
+  if (!REVIEW_IMAGE_ID.test(imageId)) throw new HttpError(404, 'not_found');
+  if (request.method === 'DELETE') {
+    await env.DB.prepare('DELETE FROM review_images WHERE user_id = ? AND image_id = ?').bind(userId, imageId).run();
+    return json({ ok: true });
+  }
+  if (request.method !== 'PUT') throw new HttpError(405, 'method_not_allowed');
+  const existing = await env.DB.prepare('SELECT token FROM review_images WHERE user_id = ? AND image_id = ?').bind(userId, imageId).first();
+  if (existing) return json({ url: reviewImageUrl(origin, existing.token) });
+
+  const body = await readJson(request, MAX_REVIEW_IMAGE_BASE64 + 200);
+  const mime = imageId.endsWith('.gif') ? 'image/gif' : 'image/webp';
+  const data = typeof body?.data === 'string' && body.data.length <= MAX_REVIEW_IMAGE_BASE64 && body.data.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(body.data) ? body.data : null;
+  if (!data || !isReviewImageBytes(data, mime)) throw new HttpError(400, 'invalid_media');
+  const usage = await env.DB.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(LENGTH(data)), 0) AS size FROM review_images WHERE user_id = ?').bind(userId).first();
+  if (Number(usage?.n) >= MAX_REVIEW_IMAGES_PER_USER || Number(usage?.size) + data.length > MAX_REVIEW_IMAGE_STORAGE) {
+    throw new HttpError(413, 'review_images_full');
+  }
+  const token = randomToken(24);
+  // Dois envios ao mesmo tempo (dois PCs): o segundo não duplica e devolve o endereço do primeiro
+  await env.DB.prepare('INSERT INTO review_images (token, user_id, image_id, mime, data, created_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, image_id) DO NOTHING')
+    .bind(token, userId, imageId, mime, data, nowIso())
+    .run();
+  const saved = await env.DB.prepare('SELECT token FROM review_images WHERE user_id = ? AND image_id = ?').bind(userId, imageId).first();
+  return json({ url: reviewImageUrl(origin, saved?.token ?? token) });
+}
+
+async function handleReviewImageGet(env, token) {
+  const row = await env.DB.prepare('SELECT mime, data FROM review_images WHERE token = ?').bind(token).first();
+  if (!row) return new Response('Not found', { status: 404 });
+  const bytes = Uint8Array.from(atob(row.data), (c) => c.charCodeAt(0));
+  // Cada imagem tem endereço próprio, que nunca muda de conteúdo
+  return new Response(bytes, { headers: { 'Content-Type': row.mime, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; sandbox" } });
+}
+
 // ---------- Arquivos grandes (GIF e vídeo de fundo) ----------
 // O arquivo vai direto do app para a guarda de arquivos da VPS. Aqui só sai o bilhete assinado que autoriza o envio
 // e fica anotado quem tem arquivo lá (stored_media), para apagar junto com a conta.
@@ -1880,6 +1978,8 @@ async function route(request, env) {
   if (path === '/v1/auth/steam/callback' && request.method === 'GET') return handleCallback(url, env);
   const mediaGet = path.match(/^\/v1\/media\/([A-Za-z0-9_-]{20,64})$/);
   if (mediaGet && request.method === 'GET') return handleMediaGet(env, mediaGet[1]);
+  const reviewImageGet = path.match(/^\/v1\/review-images\/([A-Za-z0-9_-]{32})$/);
+  if (reviewImageGet && request.method === 'GET') return handleReviewImageGet(env, reviewImageGet[1]);
   const view = path.match(/^\/v1\/view\/([A-Za-z0-9_-]{20,64})$/);
   if (view && request.method === 'GET') return handleView(env, view[1]);
   const viewSocial = path.match(/^\/v1\/view\/([A-Za-z0-9_-]{20,64})\/(summary|thread|like|comments)(?:\/([0-9a-f-]{36}))?$/);
@@ -1907,6 +2007,8 @@ async function route(request, env) {
   if (path === '/v1/me/sync') return handleSync(request, env, auth);
   if (path === '/v1/me/presence') return handlePresence(request, env, auth);
   if (path === '/v1/me/library') return handleLibrary(request, env, auth);
+  const reviewImages = path.match(/^\/v1\/me\/review-images(?:\/([^/]+))?$/);
+  if (reviewImages) return handleReviewImages(request, env, auth, reviewImages[1] ?? null, url.origin);
   if (path === '/v1/me/poll') return handlePoll(request, url, env, auth);
   if (path === '/v1/me/notifications' && request.method === 'GET') return handleNotifications(url, env, auth);
   const social = path.match(/^\/v1\/social\/(summary|thread|like|comments)(?:\/([0-9a-f-]{36}))?$/);

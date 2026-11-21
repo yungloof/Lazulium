@@ -77,7 +77,7 @@ export function requireGame(gameId: string): Game {
 }
 
 // Diálogos ficam presos à janela que pediu (modal de verdade, sem cair atrás do app)
-function dialogParent(event: IpcMainInvokeEvent): BrowserWindow | null {
+export function dialogParent(event: IpcMainInvokeEvent): BrowserWindow | null {
   return BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getFocusedWindow();
 }
 

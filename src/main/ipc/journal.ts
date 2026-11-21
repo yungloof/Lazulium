@@ -10,7 +10,8 @@ import { socialService } from '../services/social/social.service';
 import { librarySyncService } from '../services/social/sync.service';
 import { addJournalEntry, journalToCsv, journalToJson, renameGame, setGameLog } from '../services/profile/journal.service';
 import { applyJournalImport, previewJournalImport } from '../services/profile/journal-import.service';
-import { handle, saveTextAs } from './helpers';
+import { reviewImagesService } from '../services/profile/review-images.service';
+import { dialogParent, handle, saveTextAs } from './helpers';
 
 // Diário: registro do jogador, jogos registrados à mão e exportação
 export function registerJournalHandlers(): void {
@@ -44,6 +45,14 @@ export function registerJournalHandlers(): void {
   });
 
   handle(IPC_CHANNELS.JOURNAL_SEARCH_CATALOG, (_event, query: string) => searchGameCatalog(query));
+
+  // Imagens da resenha: o main lê o arquivo (do PC ou uma captura), a tela reduz e devolve para guardar
+  handle(IPC_CHANNELS.REVIEW_IMAGE_PICK_FILE, (event) => reviewImagesService.pickFromPc(dialogParent(event)));
+  handle(IPC_CHANNELS.REVIEW_IMAGE_READ_SCREENSHOT, (_event, gameId: string, screenshotId: string) => {
+    if (typeof gameId !== 'string' || typeof screenshotId !== 'string') throw new Error('Captura inválida.');
+    return reviewImagesService.readScreenshot(gameId, screenshotId);
+  });
+  handle(IPC_CHANNELS.REVIEW_IMAGE_SAVE, (_event, bytes: Uint8Array) => reviewImagesService.saveImage(bytes));
 
   handle(IPC_CHANNELS.GAME_RENAME, (_event, gameId: string, title: string | null) => {
     const game = renameGame(gameId, title);

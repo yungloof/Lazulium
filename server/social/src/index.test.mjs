@@ -817,6 +817,98 @@ test('biblioteca resumida: amigos no jogo, por AppID ou nome, com as chaves de p
   assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM library_games').get().n, 0);
 });
 
+test('imagens das resenhas: envio uma vez por imagem, endereço público, resenha dos amigos com imagens e limpeza', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  await befriend(s, a, b);
+
+  const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.from([0, 0, 0, 0]), Buffer.from('WEBPVP8 '), Buffer.alloc(40, 7)]).toString('base64');
+  const id = 'abcdef0123456789.webp';
+  const first = await s.call('PUT', `/v1/me/review-images/${id}`, { token: b.token, body: { data: webp } });
+  assert.equal(first.status, 200);
+  assert.match(first.body.url, /^https:\/\/social\.test\/v1\/review-images\/[A-Za-z0-9_-]{32}$/);
+  // De novo (outro PC): mesmo endereço, sem duplicar
+  const again = await s.call('PUT', `/v1/me/review-images/${id}`, { token: b.token, body: { data: webp } });
+  assert.equal(again.body.url, first.body.url);
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM review_images').get().n, 1);
+  assert.deepEqual((await s.call('GET', '/v1/me/review-images', { token: b.token })).body.images, [{ id, url: first.body.url }]);
+  assert.deepEqual((await s.call('GET', '/v1/me/review-images', { token: a.token })).body.images, []);
+
+  // Público, como as outras imagens da vitrine
+  const res = await worker.fetch(new Request(first.body.url), s.env);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('Content-Type'), 'image/webp');
+  assert.equal(Buffer.from(await res.arrayBuffer()).toString('base64'), webp);
+
+  // Nome inválido, bytes que não são da imagem e PNG disfarçado são recusados
+  assert.equal((await s.call('PUT', '/v1/me/review-images/../x.webp', { token: b.token, body: { data: webp } })).status, 404);
+  assert.equal((await s.call('PUT', '/v1/me/review-images/0123456789abcdef.png', { token: b.token, body: { data: webp } })).status, 404);
+  const png = Buffer.from('\x89PNG\r\n\x1a\n0000000000000000').toString('base64');
+  assert.equal((await s.call('PUT', '/v1/me/review-images/0123456789abcdef.webp', { token: b.token, body: { data: png } })).status, 400);
+  assert.equal((await s.call('PUT', '/v1/me/review-images/0123456789abcdef.gif', { token: b.token, body: { data: webp } })).status, 400);
+  // Base64 com tamanho quebrado (não decodifica): recusado na entrada, não quebra ao servir
+  assert.equal((await s.call('PUT', '/v1/me/review-images/0123456789abcdef.webp', { token: b.token, body: { data: webp.slice(0, 41) } })).status, 400);
+  assert.match(res.headers.get('Content-Security-Policy') ?? '', /sandbox/);
+
+  // Resenha com imagem no meio; endereço de fora vira nada, posição além do texto vai para o fim
+  const review = 'Primeiro parágrafo.\n\nSegundo.';
+  const game = {
+    titleKey: 't:celeste',
+    title: 'Celeste',
+    playtimeSeconds: 3600,
+    rating: 5,
+    review,
+    reviewImages: [
+      { at: 19, url: first.body.url, width: 1600, height: 900 },
+      { at: 5, url: 'https://evil.example/x.png', width: 10, height: 10 },
+      { at: 9999, url: first.body.url }
+    ]
+  };
+  await s.call('POST', '/v1/me/library', { token: b.token, body: { reset: true, games: [game, { titleKey: 't:soimagem', title: 'Só imagem', playtimeSeconds: 60, reviewImages: [{ at: 0, url: first.body.url }] }] } });
+  const [friend] = (await s.call('GET', '/v1/games/friends?key=t:celeste', { token: a.token })).body.friends;
+  assert.equal(friend.review, review);
+  assert.deepEqual(friend.reviewImages, [
+    { at: 19, url: first.body.url, width: 1600, height: 900 },
+    { at: review.length, url: first.body.url }
+  ]);
+  // Resenha só com imagem também aparece
+  const [onlyImage] = (await s.call('GET', '/v1/games/friends?key=t:soimagem', { token: a.token })).body.friends;
+  assert.equal(onlyImage.review, '');
+  assert.equal(onlyImage.reviewImages.length, 1);
+  // Comparar não leva resenha nem imagens; resenhas desligadas escondem as imagens
+  assert.equal((await s.call('GET', `/v1/users/${b.user.id}/games`, { token: a.token })).body.games[0].reviewImages, undefined);
+  await s.call('PATCH', '/v1/me', { token: b.token, body: { settings: { shareReviews: false } } });
+  assert.equal((await s.call('GET', '/v1/games/friends?key=t:celeste', { token: a.token })).body.friends[0].reviewImages, undefined);
+
+  // Apagar uma imagem e apagar a conta
+  assert.equal((await s.call('DELETE', `/v1/me/review-images/${id}`, { token: b.token })).status, 200);
+  assert.equal((await worker.fetch(new Request(first.body.url), s.env)).status, 404);
+  await s.call('PUT', `/v1/me/review-images/${id}`, { token: b.token, body: { data: webp } });
+  await s.call('DELETE', '/v1/me', { token: b.token });
+  assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM review_images').get().n, 0);
+});
+
+test('imagens das resenhas: limite por pessoa', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  const a = await login(s, '76561198000000001');
+  const big = Buffer.concat([Buffer.from('RIFF'), Buffer.from([0, 0, 0, 0]), Buffer.from('WEBP'), Buffer.alloc(500_000, 1)]).toString('base64');
+  let full = null;
+  for (let i = 0; i < 70 && !full; i++) {
+    const res = await s.call('PUT', `/v1/me/review-images/${i.toString(16).padStart(16, '0')}.webp`, { token: a.token, body: { data: big } });
+    if (res.status !== 200) full = res;
+  }
+  assert.equal(full?.status, 413);
+  assert.equal(full.body.error, 'review_images_full');
+  // Grande demais para uma imagem só
+  const huge = Buffer.concat([Buffer.from('RIFF'), Buffer.from([0, 0, 0, 0]), Buffer.from('WEBP'), Buffer.alloc(600_000, 1)]).toString('base64');
+  assert.equal((await s.call('PUT', '/v1/me/review-images/ffffffffffffffff.webp', { token: a.token, body: { data: huge } })).status, 413);
+});
+
 test('curtidas e comentários: só amigos do dono, contagens, avisos e respostas; a vitrine comenta pelo link', async (t) => {
   const steam = fakeSteam();
   t.after(steam.restore);

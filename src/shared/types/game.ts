@@ -38,14 +38,32 @@ export interface GameLog {
   rating?: number;                  // 0,5 a 5 estrelas, de meia em meia
   startedOn?: string;               // AAAA-MM-DD
   finishedOn?: string;              // AAAA-MM-DD
-  review?: string;                  // Resenha / o que achou
+  review?: string;                  // Resenha / o que achou (texto puro; versões antigas mostram só ele)
+  reviewImages?: ReviewImage[];     // Imagens no meio da resenha, como num blog (src/shared/utils/review-blocks.ts)
   notes?: string;                   // Anotações de progresso
+}
+
+// Imagem da resenha: arquivo em userData/review-images, servido por lazulium-media://review/<id>.
+// `at` é a posição no texto da resenha onde ela fica (fim de um parágrafo); várias no mesmo ponto vão uma depois da outra.
+export interface ReviewImage {
+  id: string;                       // Nome do arquivo: 16 letras do hash do conteúdo + extensão (webp ou gif)
+  at: number;
+  width: number;
+  height: number;
+}
+
+// Como a imagem sai do PC (amigos, vitrine): endereço no servidor da conta Lazulium
+export interface PublicReviewImage {
+  at: number;
+  url: string;
+  width?: number;
+  height?: number;
 }
 
 // Entra no Diário quem foi registrado: status, nota, datas, resenha ou anotações (horas sozinhas não contam)
 export function isJournalEntry(game: Pick<Game, 'log' | 'manualEntry'>): boolean {
   const log = game.log;
-  return !!(game.manualEntry || log?.status || log?.rating || log?.startedOn || log?.finishedOn || log?.review?.trim() || log?.notes?.trim());
+  return !!(game.manualEntry || log?.status || log?.rating || log?.startedOn || log?.finishedOn || log?.review?.trim() || log?.reviewImages?.length || log?.notes?.trim());
 }
 
 export interface Game {

@@ -75,6 +75,12 @@ function plan(items: JournalImportItem[], options: JournalImportOptions): Plan[]
       }
     }
 
+    // Resenha trocada pela importada: as imagens que já estavam nela vão para o fim (a posição era no texto antigo)
+    if (changes.includes('review') && nextLog.reviewImages?.length) {
+      const end = nextLog.review?.trim().length ?? 0;
+      nextLog.reviewImages = nextLog.reviewImages.map((image) => ({ ...image, at: end }));
+    }
+
     const action = game ? (changes.length > 0 ? 'update' : 'unchanged') : changes.length > 0 ? 'create' : 'unchanged';
     return {
       item,

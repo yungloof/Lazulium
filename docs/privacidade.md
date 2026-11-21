@@ -1,6 +1,6 @@
 # Política de privacidade do Lazulium
 
-*Última atualização: 15 de novembro de 2026 · vale para o Lazulium 2.6.0 e posteriores*
+*Última atualização: 21 de novembro de 2026 · vale para o Lazulium 2.6.0 e posteriores (imagens nas resenhas: 3.3.0)*
 
 O Lazulium é um app para Windows que junta seus jogos de PC numa biblioteca só. Quem faz e responde por esta política é Lazuli Fool, de forma independente. Contato: **yungloof06@gmail.com**.
 
@@ -16,7 +16,7 @@ O Lazulium é um app para Windows que junta seus jogos de PC numa biblioteca só
 
 Tudo o que o Lazulium guarda fica na pasta `%APPDATA%\Lazulium` do seu usuário do Windows:
 
-- a biblioteca de jogos, horas jogadas e sessões, diário (status, notas, resenhas e anotações), listas, lista de desejos e o perfil que você editou;
+- a biblioteca de jogos, horas jogadas e sessões, diário (status, notas, resenhas com as imagens que você pôs nelas e anotações), listas, lista de desejos e o perfil que você editou;
 - o que você importa para o Diário (página salva do Your Gamer Profile ou do Backloggd, ou cópia do Lazulium) é lido só neste computador: o Lazulium não acessa o site do YGP nem o do Backloggd e não envia esses arquivos a lugar nenhum;
 - conquistas e informações de perfil trazidas da Steam e do RetroAchievements, guardadas para funcionar sem internet;
 - capas e artes baixadas, capturas de tela feitas pelo Lazulium e os backups de saves (`.zip`);
@@ -51,7 +51,7 @@ O Lazulium só se conecta a estes serviços (cada um tem a própria política de
 | **Conta Lazulium** (Cloudflare Workers + D1 e VPS Oracle) | Só se você entrar na conta Lazulium (aba *Amigos*) | O que aparece para os seus amigos (e, se usar vídeo ou GIF acima de 1 MB no fundo, o arquivo enviado vai para a VPS do Lazulium). Veja a seção 4. |
 | **Google** (Drive) | Só se você clicar em *Entrar com Google* | Veja a seção 3. |
 | **GitHub** (atualizações) | Ao procurar versão nova (ao abrir e a cada 4 horas) | O pedido do arquivo da versão mais recente e, na versão instalada, o download do instalador novo. Nenhum dado seu vai junto. |
-| **GitHub** | Só se você usar *Perfil → Publicar na web* | A página do perfil e o arquivo com os dados públicos do perfil (nome, avatar, horas, conquistas, listas e resenhas que você escolheu mostrar), enviados para um repositório seu, com o seu login do Git. Fica público na internet. Seu e-mail não vai junto. |
+| **GitHub** | Só se você usar *Perfil → Publicar na web* | A página do perfil e o arquivo com os dados públicos do perfil (nome, avatar, horas, conquistas, listas e resenhas que você escolheu mostrar, com o endereço das imagens que estão nelas), enviados para um repositório seu, com o seu login do Git. Fica público na internet. Seu e-mail não vai junto. |
 | **Sites de imagens** (Steam, SteamGridDB, RetroAchievements, IGDB) | Ao mostrar capas, ícones e avatares | O pedido da imagem, como em qualquer navegador. |
 
 Links externos (lojas, perfis, páginas de ajuda) abrem no seu navegador, fora do Lazulium.
@@ -59,7 +59,7 @@ Links externos (lojas, perfis, páginas de ajuda) abrem no seu navegador, fora d
 ### O que nunca é enviado
 
 - **Senhas.** Os logins acontecem nas páginas oficiais (Steam e Google no seu navegador; SteamGridDB e RetroAchievements numa janela com a página do próprio site). O Lazulium não lê nem guarda a senha: depois do login, ele só lê a chave de API na página de configurações do site.
-- Seus saves, capturas, anotações e o log, a não ser que você mesmo envie (o backup no Drive manda só os saves, e só se você conectou o Drive). Do Diário, só as notas e resenhas vão para os amigos, e só com a conta Lazulium e a chave *Notas e resenhas* ligadas.
+- Seus saves, capturas, anotações e o log, a não ser que você mesmo envie (o backup no Drive manda só os saves, e só se você conectou o Drive). Do Diário, só as notas e resenhas (com as imagens que você pôs nelas) vão para os amigos, e só com a conta Lazulium e a chave *Notas e resenhas* ligadas. Uma captura só sai do PC se você mesmo a colocar numa resenha.
 - Sem a conta Lazulium, nenhum dado seu chega a quem faz o Lazulium. Estatística ou relatório automático não existe, com ou sem conta.
 
 ## 3. Google Drive
@@ -91,6 +91,7 @@ A conta é opcional e serve para você ver o que seus amigos jogam e eles verem 
 - um resumo do seu perfil: número de jogos, horas, zerados, conquistas e os 12 mais jogados;
 - a vitrine do perfil (o mesmo conteúdo da página que o *Perfil → Publicar na web* gera: nome, bio, jogos e conquistas em destaque, mais jogados, suas listas e tier lists (nome, descrição e os jogos com nome e capa), nível e insígnias da Steam e, com a chave *Notas e resenhas* ligada, os jogos que você avaliou (aba *Avaliações*) e os registros do Diário (aba *Diário*, com status, datas de início e término, nota, horas e o texto da resenha, sem as anotações pessoais)) e, se você escolheu no Lazulium, o avatar, o fundo e a arte em destaque. Avatar, arte e imagens normais vão reduzidos; GIFs de até ~1,1 MB ficam no banco do servidor; e GIF maior ou vídeo de fundo (WEBM ou MP4) de até 50 MB ficam em disco na VPS (`147-15-123-238.sslip.io`), apagados ao trocar o fundo ou apagar a conta (acima de 50 MB fica só no seu PC). Seus amigos abrem a vitrine por um link que vale 30 minutos. Dá para esconder em *Vitrine do perfil*;
 - um resumo de cada jogo seu com alguma atividade (horas, registro no Diário ou conquista), para a página do jogo e a aba *Comparar* dos amigos: o nome do jogo, a capa pública, o código da Steam quando é da Steam e, conforme as chaves, as horas e a última vez que jogou, o status, a nota e a resenha do Diário, e quantas conquistas tem e quais (com a data de cada uma). Só vai com a *Vitrine do perfil* ligada; desligar apaga tudo isso do servidor. Jogo oculto ou nunca aberto não vai;
+- as imagens que você põe no meio das resenhas (capturas de tela ou imagens do PC), reduzidas pelo app antes de sair (WebP de até ~500 KB; GIF pequeno vai como está). Só são enviadas com a conta Lazulium e quando alguém vai vê-las: com *Vitrine do perfil* e *Notas e resenhas* ligadas (amigos e vitrine), ou com a sincronização entre PCs ligada (para o outro PC mostrar a resenha). Cada imagem tem um endereço difícil de adivinhar; quem recebe o endereço (amigos e quem abre a vitrine) consegue ver a imagem. Imagem tirada de todas as resenhas é apagada do servidor 15 dias depois; desligar as duas coisas (compartilhar as resenhas e a sincronização) tira do servidor as imagens que este PC enviou (as enviadas por outro PC ficam, porque ele ainda pode usar); e apagar a conta apaga todas. Cada conta tem até ~15 MB (até 300 imagens);
 - as curtidas e os comentários que você deixa em resenhas e listas (suas ou de amigos): quem curtiu ou escreveu, o texto do comentário (até 1.000 letras), onde (o dono, o jogo ou a lista e o nome dele, para o aviso) e quando. O comentário que você deixa na resenha de um amigo é visto por ele e pelos amigos dele, mesmo quem não é seu amigo. Você apaga o seu comentário quando quiser, e o dono da resenha ou lista também pode apagar; apagar a conta apaga as curtidas e os comentários que você fez e os que recebeu;
 - as listas em grupo de que você participa: nome da lista, descrição, se tem ranking, quem criou e quais amigos participam, e os jogos colocados nela (nome, capa pública, código da Steam quando houver e quem adicionou). Só quem criou e os amigos convidados enxergam e mexem na lista; se a amizade acabar ou se você sair, você deixa de vê-la. Quando quem criou apaga a lista ou a conta, a lista e as reações dela somem; quando um participante apaga a conta, o nome dele sai da lista e os jogos ficam sem autoria;
 - quem abriu a vitrine de quem (pelo link de 30 minutos), para a vitrine saber em nome de quem curtir e comentar. Some quando o link vence;
@@ -99,7 +100,7 @@ A conta é opcional e serve para você ver o que seus amigos jogam e eles verem 
 - a sessão de login, guardada só como uma impressão (hash) do código, que vence em 180 dias;
 - **se você ligar a sincronização entre PCs** (chave própria em *Configurações → Contas*, **desligada por padrão** neste PC): uma cópia privada dos seus registros do Diário (status, nota, datas, resenha, anotações pessoais e jogos adicionados à mão no Diário com nome, plataforma, horas registradas e capa pública), das suas listas e tier lists, das suas categorias (nome, regras e jogos pelos códigos públicos) e dos seus favoritos, junto das datas de alteração e marcas de exclusão. Essa cópia fica presa à sua conta só para sincronizar seus aparelhos: **nenhum amigo vê**. Você pode apagar a cópia sincronizada no servidor a qualquer momento sem apagar sua conta nem o que está no PC.
 
-**O que nunca vai:** e-mail, senha, nome de registro, caminhos e arquivos do seu PC, saves, capturas e a lista de desejos. Para amigos, as anotações do Diário, categorias e marcações individuais de favorito nunca são mostradas.
+**O que nunca vai:** e-mail, senha, nome de registro, caminhos e arquivos do seu PC, saves, capturas (a não ser as que você mesmo põe numa resenha) e a lista de desejos. Para amigos, as anotações do Diário, categorias e marcações individuais de favorito nunca são mostradas.
 
 **Quem vê.** Só as pessoas que viraram suas amigas com o seu código de convite (ou você com o delas) veem o que você escolher compartilhar; a sincronização entre PCs é só sua e não aparece para ninguém. Não existe perfil público nem busca de pessoas. Cada chave desligada some do feed e do seu perfil para os amigos na hora, e o app para de enviar aquele tipo de evento.
 

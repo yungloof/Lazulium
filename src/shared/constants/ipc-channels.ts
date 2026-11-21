@@ -35,6 +35,9 @@ export const IPC_CHANNELS = {
   JOURNAL_IMPORT_PREVIEW: 'journal:import-preview',
   JOURNAL_IMPORT_APPLY: 'journal:import-apply',
   JOURNAL_SEARCH_CATALOG: 'journal:search-catalog',
+  REVIEW_IMAGE_PICK_FILE: 'journal:review-image-pick-file',
+  REVIEW_IMAGE_READ_SCREENSHOT: 'journal:review-image-read-screenshot',
+  REVIEW_IMAGE_SAVE: 'journal:review-image-save',
   GAME_RENAME: 'game:rename',
 
   // Lista de desejos

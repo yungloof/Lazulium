@@ -16,6 +16,16 @@ npx wrangler@latest d1 execute lazulium-social --remote --file=schema.sql
 npx wrangler@latest deploy
 ```
 
+Banco criado antes da 3.3 (imagens nas resenhas): rode uma vez, **antes** do deploy, a coluna nova da biblioteca resumida
+(o `schema.sql` cria a tabela `review_images`, mas não acrescenta coluna em tabela que já existe):
+
+```powershell
+npx wrangler@latest d1 execute lazulium-social --remote --file=schema.sql
+npx wrangler@latest d1 execute lazulium-social --remote --file=migrations/2026-11-review-images.sql
+```
+
+O espelho da VPS (`server.mjs`) acrescenta essa coluna sozinho ao abrir.
+
 O endereço (`https://lazulium-social.<conta>.workers.dev`) vai em `SOCIAL_SERVER_URL`, em `src/main/services/social/social.service.ts`. Para testar o app com outro servidor: `LAZULIUM_SOCIAL_URL`.
 
 Não há segredos para o login (a própria Steam confirma via OpenID `check_authentication`). Para aceitar **GIF acima de ~1,1 MB e vídeo de fundo (até 50 MB)** em disco fora do D1, configure o mesmo segredo (`>= 32` caracteres) no Worker e na guarda de arquivos (`media-server.mjs`) da VPS (`MEDIA_STORE_URL` no `wrangler.toml`):

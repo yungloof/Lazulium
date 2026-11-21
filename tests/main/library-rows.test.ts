@@ -75,3 +75,27 @@ describe('biblioteca resumida para os amigos', () => {
     expect(common[0].mine).toEqual({ playtimeSeconds: 0 });
   });
 });
+
+describe('imagens na resenha para os amigos', () => {
+  const images = [
+    { id: 'aaaaaaaaaaaaaaaa.webp', at: 6, width: 1600, height: 900 },
+    { id: 'bbbbbbbbbbbbbbbb.webp', at: 6, width: 800, height: 600 }
+  ];
+  const uploaded = (id: string) => (id.startsWith('a') ? `https://social.test/v1/review-images/${'t'.repeat(32)}` : undefined);
+
+  it('vão só as já enviadas ao servidor, na posição do texto', () => {
+    const raw = [game('p', 'steam', { platformGameId: '620', totalPlaytimeSeconds: 60, log: { review: 'Antes.\n\nDepois.', reviewImages: images } })];
+    const [row] = buildLibraryRows(raw, EMPTY_EDITION_PREFS, () => null, ALL, noCover, uploaded);
+    expect(row.review).toBe('Antes.\n\nDepois.');
+    expect(row.reviewImages).toEqual([{ at: 6, url: uploaded('a'), width: 1600, height: 900 }]);
+  });
+
+  it('resenha só com imagem também conta; com resenhas desligadas não vai nada', () => {
+    const raw = [game('p', 'epic', { log: { reviewImages: [images[0]] } })];
+    const [row] = buildLibraryRows(raw, EMPTY_EDITION_PREFS, () => null, ALL, noCover, uploaded);
+    expect(row.review).toBeUndefined();
+    expect(row.reviewImages).toHaveLength(1);
+    const [hidden] = buildLibraryRows(raw, EMPTY_EDITION_PREFS, () => null, { ...ALL, shareReviews: false }, noCover, uploaded);
+    expect(hidden.reviewImages).toBeUndefined();
+  });
+});

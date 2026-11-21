@@ -5,6 +5,7 @@ import { CeremonyEvent, JournalEntryInput } from '@shared/types/ipc';
 import { db } from '../../database/db';
 import { ceremonyFromJournalTransition } from '../achievements/ceremony';
 import { recordLogChange } from './activity.service';
+import { trimReview } from '@shared/utils/review-blocks';
 
 const STATUS_VALUES: GameLogStatus[] = ['backlog', 'playing', 'endless', 'paused', 'finished', 'completed', 'dropped'];
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -32,7 +33,7 @@ export function sanitizeLog(log: GameLog): GameLog {
     rating: Number.isInteger(rating * 2) && rating >= 0.5 && rating <= 5 ? rating : undefined,
     startedOn: date(log.startedOn),
     finishedOn: date(log.finishedOn),
-    review: log.review?.trim().slice(0, MAX_TEXT_LENGTH) || undefined,
+    ...trimReview(log.review, log.reviewImages, MAX_TEXT_LENGTH),
     notes: log.notes?.trim().slice(0, MAX_TEXT_LENGTH) || undefined
   };
 }

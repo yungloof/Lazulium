@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Download, FileUp, LayoutGrid, List, NotebookPen, Pencil, Plus, Search, SearchX } from 'lucide-react';
+import { Download, FileUp, Images, LayoutGrid, List, NotebookPen, Pencil, Plus, Search, SearchX } from 'lucide-react';
 import { Game, GameLog, isJournalEntry } from '@shared/types/game';
+import { hasReviewContent } from '@shared/utils/review-blocks';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { PLATFORM_FULL } from '../utils/platform';
@@ -25,7 +26,7 @@ type SortKey = 'hours' | 'recent' | 'title' | 'rating';
 type ViewMode = 'grid' | 'list';
 type ReviewFilter = 'all' | 'review' | 'rating'; // Tudo, só com resenha escrita, só nota (sem resenha)
 
-const hasReview = (game: Game): boolean => !!game.log?.review?.trim();
+const hasReview = (game: Game): boolean => hasReviewContent(game.log);
 
 const VIEW_STORAGE_KEY = 'lazulium.journalView';
 
@@ -85,6 +86,11 @@ const JournalRow: React.FC<{
         {game.log?.review && (
           <span className="block mt-1.5 text-[13px] leading-snug text-slate-300 line-clamp-2" title={game.log.review}>
             {game.log.review}
+          </span>
+        )}
+        {!!game.log?.reviewImages?.length && (
+          <span className="inline-flex items-center gap-1 mt-1 text-[11px] text-slate-400">
+            <Images className="w-3 h-3" /> {game.log.reviewImages.length === 1 ? '1 imagem na resenha' : `${game.log.reviewImages.length} imagens na resenha`}
           </span>
         )}
       </span>
