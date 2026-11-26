@@ -22,6 +22,7 @@ import {
   SaveBackupPanel,
   ScreenshotsPanel,
   SettingsModal,
+  ShareCardModal,
   WelcomeModal,
   WhatsNewModal
 } from './lazy';
@@ -85,6 +86,8 @@ const ModalContent: React.FC<{ modal: AppModal }> = ({ modal }) => {
       return <RenameGameModal game={game} onClose={close} />;
     case 'launchOptions':
       return <LaunchOptionsModal game={game} onClose={close} />;
+    case 'shareCard':
+      return <ShareCardModal game={game} onClose={close} />;
     default:
       return null;
   }

@@ -53,6 +53,7 @@ export const GameCategoriesModal: LazyComponent<typeof import('../GameCategories
 export const ManageCategoriesModal: LazyComponent<typeof import('../ManageCategoriesModal')['ManageCategoriesModal']> = lazyNamed(() => import('../ManageCategoriesModal').then((m) => m.ManageCategoriesModal));
 export const RenameGameModal: LazyComponent<typeof import('../RenameGameModal')['RenameGameModal']> = lazyNamed(() => import('../RenameGameModal').then((m) => m.RenameGameModal));
 export const LaunchOptionsModal: LazyComponent<typeof import('../LaunchOptionsModal')['LaunchOptionsModal']> = lazyNamed(() => import('../LaunchOptionsModal').then((m) => m.LaunchOptionsModal));
+export const ShareCardModal: LazyComponent<typeof import('../ShareCardModal')['ShareCardModal']> = lazyNamed(() => import('../ShareCardModal').then((m) => m.ShareCardModal));
 
 // Ordem do download em segundo plano: o que se abre mais vem antes
 const PREFETCH_ORDER = [
@@ -75,7 +76,8 @@ const PREFETCH_ORDER = [
   GameCategoriesModal,
   ManageCategoriesModal,
   RenameGameModal,
-  LaunchOptionsModal
+  LaunchOptionsModal,
+  ShareCardModal
 ];
 
 let prefetched = false;

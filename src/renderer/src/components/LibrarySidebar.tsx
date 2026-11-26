@@ -1,5 +1,5 @@
 import React, { memo, useDeferredValue, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Gamepad2, Home, Plus, Search, Settings2, SlidersHorizontal, Star, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Gamepad2, Home, PanelLeftClose, Plus, Search, Settings2, SlidersHorizontal, Star, X } from 'lucide-react';
 import { isGameInCategory } from '@shared/utils/categories';
 import { Game, GamePlatform } from '@shared/types/game';
 import { Select } from './Select';
@@ -264,15 +264,26 @@ export const LibrarySidebar: React.FC = () => {
       />
 
       <div className="p-3 space-y-2 border-b border-slate-800/80">
-        <button
-          onClick={() => useUiStore.getState().goHome()}
-          aria-current={isHome ? 'page' : undefined}
-          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${focusRing} ${
-            isHome ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
-          }`}
-        >
-          <Home className="w-3.5 h-3.5" /> Início da biblioteca
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => useUiStore.getState().goHome()}
+            aria-current={isHome ? 'page' : undefined}
+            className={`flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${focusRing} ${
+              isHome ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+            }`}
+          >
+            <Home className="w-3.5 h-3.5 flex-shrink-0" /> <span className="truncate">Início da biblioteca</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => useLibraryViewStore.getState().toggleSidebar()}
+            title="Recolher barra lateral (Ctrl+B)"
+            aria-label="Recolher barra lateral"
+            className={iconButtonClass}
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
+        </div>
         <Select
           value={activeFilter}
           options={filters.map((f) => ({ value: f.id, label: f.label }))}

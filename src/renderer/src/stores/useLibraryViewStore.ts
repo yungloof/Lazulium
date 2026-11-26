@@ -12,6 +12,7 @@ const SORT_KEY = 'lazulium.librarySort';
 const SHOW_REMOVED_KEY = 'lazulium.showRemoved';
 const DENSITY_KEY = 'lazulium.gridDensity';
 const GROUPING_KEY = 'lazulium.sidebarGrouping';
+const SIDEBAR_COLLAPSED_KEY = 'lazulium.sidebarCollapsedShell';
 
 const SORTS: LibrarySort[] = ['title', 'recent', 'hours', 'added', 'rating', 'released'];
 const DENSITIES: GridDensity[] = ['compact', 'normal', 'large'];
@@ -42,6 +43,7 @@ interface LibraryViewState {
   showRemoved: boolean;
   density: GridDensity;
   sidebarGrouping: SidebarGrouping | null; // null: ainda não escolheu (categorias assim que existir uma)
+  sidebarCollapsed: boolean;
   setSort: (sort: LibrarySort) => void;
   setStatusFilter: (filter: LibraryStatusFilter) => void;
   setPlatformFilter: (filter: 'all' | GamePlatform) => void;
@@ -52,6 +54,8 @@ interface LibraryViewState {
   setShowRemoved: (show: boolean) => void;
   setDensity: (density: GridDensity) => void;
   setSidebarGrouping: (grouping: SidebarGrouping) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  toggleSidebar: () => void;
 }
 
 const savedSort = read(SORT_KEY) as LibrarySort | null;
@@ -86,10 +90,21 @@ export const useLibraryViewStore = create<LibraryViewState>((set) => ({
     set({ density });
   },
   sidebarGrouping: savedGrouping === 'platform' || savedGrouping === 'category' ? savedGrouping : null,
+  sidebarCollapsed: read(SIDEBAR_COLLAPSED_KEY) === 'true',
   setSidebarGrouping: (sidebarGrouping) => {
     write(GROUPING_KEY, sidebarGrouping);
     set({ sidebarGrouping });
-  }
+  },
+  setSidebarCollapsed: (sidebarCollapsed) => {
+    write(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
+    set({ sidebarCollapsed });
+  },
+  toggleSidebar: () =>
+    set((s) => {
+      const next = !s.sidebarCollapsed;
+      write(SIDEBAR_COLLAPSED_KEY, String(next));
+      return { sidebarCollapsed: next };
+    })
 }));
 
 // Largura mínima de cada capa por densidade: a grade preenche a linha com quantas couberem

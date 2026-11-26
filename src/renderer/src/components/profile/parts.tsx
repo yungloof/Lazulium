@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Clock } from 'lucide-react';
+import { Clock, Share2 } from 'lucide-react';
 import { Game } from '@shared/types/game';
 import { ProfileGame } from '@shared/types/profile';
+import { useUiStore } from '../../stores/useUiStore';
 import { buttonClass, focusRing } from '../ui';
 import { Stars, StatusDot } from '../GameLogFields';
 import { GameCover, coverFrame } from '../journal/CoverCard';
@@ -83,7 +84,16 @@ export const ReviewCard: React.FC<{ game: Game; onOpen: () => void }> = ({ game,
           <button type="button" onClick={onOpen} className={`min-w-0 truncate text-left text-[15px] font-bold text-white hover:underline rounded-sm ${focusRing}`}>
             {game.title}
           </button>
-          {date && <span className="flex-shrink-0 text-sm text-slate-500">· {formatDay(date, 'long')}</span>}
+          {date && <span className="flex-shrink-0 text-sm text-slate-400">· {formatDay(date, 'long')}</span>}
+          <button
+            type="button"
+            onClick={() => useUiStore.getState().openModal({ kind: 'shareCard', gameId: game.id })}
+            title="Gerar cartão para compartilhar"
+            aria-label={`Gerar cartão de ${game.title}`}
+            className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium text-slate-400 hover:text-white hover:bg-slate-800/70 transition-colors flex-shrink-0 ${focusRing}`}
+          >
+            <Share2 className="w-3 h-3" /> Cartão
+          </button>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-slate-400">
           {!!game.log?.rating && <Stars value={game.log.rating} size="w-3.5 h-3.5" />}

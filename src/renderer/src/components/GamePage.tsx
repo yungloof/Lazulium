@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  ArrowLeft,
   BarChart2,
   CalendarClock,
   Camera,
@@ -28,7 +29,7 @@ import { GameLogCard } from './GameLogCard';
 import { LOG_STATUS } from './GameLogFields';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { useLibraryViewStore } from '../stores/useLibraryViewStore';
-import { GameModalKind, useUiStore } from '../stores/useUiStore';
+import { AppView, GameModalKind, useUiStore } from '../stores/useUiStore';
 import { formatLastPlayed, formatPlaytimeLong, formatPlaytimeShort } from '../utils/format';
 import { PLATFORM_FULL } from '../utils/platform';
 import { launchGame, openGameFolder, setEditionsSplit, setPreferredEdition, toggleFavorite } from '../utils/gameActions';
@@ -64,6 +65,16 @@ function formatPlayLength(length: GamePlayLength): string {
 }
 
 const submissionsLabel = (count: number) => `${count} ${count === 1 ? 'envio' : 'envios'}`;
+
+const BACK_LABELS: Partial<Record<AppView, string>> = {
+  journal: 'Diário',
+  lists: 'Listas',
+  wishlist: 'Desejos',
+  gallery: 'Capturas',
+  friends: 'Amigos',
+  friend: 'Perfil do amigo',
+  profile: 'Perfil'
+};
 
 const open = (kind: GameModalKind, gameId: string, screenshotId?: string) => useUiStore.getState().openModal({ kind, gameId, screenshotId });
 
@@ -188,6 +199,8 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
   const screenshotsVersion = useUiStore((s) => s.screenshotsVersion);
   const achievementsVersion = useUiStore((s) => s.achievementsVersion);
   const isRunning = useLibraryStore((s) => s.launchStatuses[game.id]?.state === 'running');
+  const prevView = useUiStore((s) => s.history[s.history.length - 1]?.view);
+  const backLabel = prevView ? BACK_LABELS[prevView] : undefined;
   const friends = useGameFriends(game);
 
   useEffect(() => setHeroFailed(false), [game.media?.heroUrl]);
@@ -299,6 +312,15 @@ export const GamePage: React.FC<GamePageProps> = ({ game }) => {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-surface-bg via-surface-bg/25 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-transparent to-transparent" />
+        {backLabel && (
+          <button
+            type="button"
+            onClick={() => void useUiStore.getState().goBack()}
+            className={`absolute top-4 left-8 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/55 border border-white/15 backdrop-blur-sm text-xs font-medium text-slate-100 hover:bg-black/75 hover:text-white transition-colors ${focusRing}`}
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Voltar para {backLabel}
+          </button>
+        )}
         <div className="absolute left-8 right-8 bottom-6 space-y-3">
           {logoUrl ? (
             <img

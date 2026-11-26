@@ -696,7 +696,7 @@ async function handleUnblock(env, auth, otherId) {
   return json({ ok: true });
 }
 
-const activityJson = (row) => ({
+const activityJson = (row, reviewImages) => ({
   id: row.id,
   kind: row.kind,
   gameKey: row.game_key,
@@ -706,8 +706,34 @@ const activityJson = (row) => ({
   rating: row.rating ?? undefined,
   count: row.count ?? undefined,
   seconds: row.seconds ?? undefined,
-  text: row.text ?? undefined
+  text: row.text ?? undefined,
+  ...(reviewImages?.length ? { reviewImages } : {})
 });
+
+async function attachReviewImages(env, rows, origin) {
+  const reviewed = rows.filter((r) => r.kind === 'reviewed');
+  if (reviewed.length === 0) return new Map();
+  const userIds = [...new Set(reviewed.map((r) => r.user_id))];
+  const { results: libs } = await env.DB.prepare(
+    `SELECT user_id, title_key, steam_key, review_images FROM library_games WHERE user_id IN (${userIds.map(() => '?').join(',')}) AND review_images IS NOT NULL`
+  )
+    .bind(...userIds)
+    .all();
+  const byKey = new Map();
+  for (const lg of libs) {
+    const imgs = reviewImagesView(lg.review_images, origin);
+    if (!imgs.length) continue;
+    byKey.set(`${lg.user_id}|${lg.title_key}`, imgs);
+    if (lg.steam_key) byKey.set(`${lg.user_id}|${lg.steam_key}`, imgs);
+  }
+  const out = new Map();
+  for (const r of reviewed) {
+    const tKey = titleKeyOf(r.game_title);
+    const imgs = byKey.get(`${r.user_id}|${r.game_key}`) ?? (tKey ? byKey.get(`${r.user_id}|t:${tKey}`) : undefined);
+    if (imgs?.length) out.set(`${r.user_id}|${r.id}`, imgs);
+  }
+  return out;
+}
 
 // Só o que a pessoa escolheu mostrar
 const visibleKinds = (settings) => (settings.shareActivity ? ACTIVITY_KINDS.filter((k) => !KIND_SETTING[k] || settings[KIND_SETTING[k]]) : []);
@@ -735,11 +761,12 @@ async function handleFeed(url, env, auth) {
   )
     .bind(...args, beforeIso, limit)
     .all();
+  const images = await attachReviewImages(env, results, url.origin);
   const byId = new Map(friends.map((f) => [f.id, publicUser(f)]));
-  return json({ items: results.map((row) => ({ ...activityJson(row), user: byId.get(row.user_id) })) });
+  return json({ items: results.map((row) => ({ ...activityJson(row, images.get(`${row.user_id}|${row.id}`)), user: byId.get(row.user_id) })) });
 }
 
-async function handleUser(env, auth, userId) {
+async function handleUser(env, auth, userId, origin) {
   if (userId !== auth.user.id && !(await areFriends(env, auth.user.id, userId))) throw new HttpError(404, 'not_found');
   const row = await env.DB.prepare(
     `SELECT u.*, n.game_key AS np_game_key, n.game_title AS np_game_title, n.cover_url AS np_cover_url, n.since AS np_since, n.updated_at AS np_updated_at
@@ -758,6 +785,7 @@ async function handleUser(env, auth, userId) {
         .bind(userId, ...kinds)
         .all()
     : { results: [] };
+  const images = origin ? await attachReviewImages(env, results, origin) : new Map();
   let summary = null;
   try {
     summary = row.summary ? JSON.parse(row.summary) : null;
@@ -772,7 +800,7 @@ async function handleUser(env, auth, userId) {
     muted: userId === auth.user.id ? null : ((await mutesOf(env, auth.user.id)).get(userId) ?? null),
     nowPlaying: view.nowPlaying,
     summary,
-    activities: results.map(activityJson)
+    activities: results.map((r) => activityJson(r, images.get(`${r.user_id}|${r.id}`)))
   });
 }
 
@@ -2083,7 +2111,7 @@ async function route(request, env) {
   if (friendMatch) return handleFriends(request, env, auth, friendMatch[1]);
   if (path === '/v1/feed' && request.method === 'GET') return handleFeed(url, env, auth);
   const userMatch = path.match(/^\/v1\/users\/([0-9a-f-]{36})$/);
-  if (userMatch && request.method === 'GET') return handleUser(env, auth, userMatch[1]);
+  if (userMatch && request.method === 'GET') return handleUser(env, auth, userMatch[1], url.origin);
   const viewLink = path.match(/^\/v1\/users\/([0-9a-f-]{36})\/view$/);
   if (viewLink && request.method === 'POST') return handleViewLink(env, auth, viewLink[1], url.origin);
   const userGames = path.match(/^\/v1\/users\/([0-9a-f-]{36})\/games$/);

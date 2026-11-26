@@ -3,6 +3,7 @@ import { Game } from '@shared/types/game';
 import { Screenshot } from '@shared/types/screenshots';
 import { AppView, useUiStore } from '../../stores/useUiStore';
 import { useLibraryStore } from '../../stores/useLibraryStore';
+import { useLibraryViewStore } from '../../stores/useLibraryViewStore';
 import { openGame } from '../../utils/gameActions';
 import { ErrorBoundary, PageCrash } from '../ErrorBoundary';
 import { LibraryHome } from '../LibraryHome';
@@ -72,10 +73,11 @@ export const MainView: React.FC = () => {
   }, [scrollToken, view]);
 
   const isLibrary = view === 'home' || view === 'game';
+  const sidebarCollapsed = useLibraryViewStore((s) => s.sidebarCollapsed);
 
   return (
     <div className="flex-1 flex min-h-0">
-      {isLibrary && <LibrarySidebar />}
+      {isLibrary && !sidebarCollapsed && <LibrarySidebar />}
       <main
         ref={mainRef}
         className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden relative"

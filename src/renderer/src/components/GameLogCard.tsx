@@ -1,14 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, Keyboard, Loader2, NotebookPen } from 'lucide-react';
+import { Check, Keyboard, Loader2, NotebookPen, Share2 } from 'lucide-react';
 import { Game, GameLog } from '@shared/types/game';
 import { hasReviewContent } from '@shared/utils/review-blocks';
 import { ReviewEditor } from './ReviewEditor';
 import { useGamepadStore } from '../stores/useGamepadStore';
 import { useKeyboardStore } from '../stores/useKeyboardStore';
 import { useLibraryStore } from '../stores/useLibraryStore';
+import { useUiStore } from '../stores/useUiStore';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { DateField, StarRating, StatusPicker } from './GameLogFields';
-import { Notice, cardClass, inputClass, labelClass } from './ui';
+import { Button, Notice, cardClass, inputClass, labelClass } from './ui';
 import { MyReactionBar } from './friends/Reactions';
 import { titleKey } from '@shared/utils/title-key';
 
@@ -80,18 +81,30 @@ export const GameLogCard: React.FC<{ game: Game }> = ({ game }) => {
           </h3>
           <p className="mt-0.5 text-xs text-slate-400">Fica guardado no Diário, mesmo se você desinstalar o jogo.</p>
         </div>
-        <span className="flex items-center gap-1 h-5 text-xs text-slate-400" aria-live="polite">
-          {saveState === 'saving' && (
-            <>
-              <Loader2 className="w-3 h-3 animate-spin" /> Salvando
-            </>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1 h-5 text-xs text-slate-400" aria-live="polite">
+            {saveState === 'saving' && (
+              <>
+                <Loader2 className="w-3 h-3 animate-spin" /> Salvando
+              </>
+            )}
+            {saveState === 'saved' && (
+              <>
+                <Check className="w-3 h-3 text-emerald-400" /> Salvo
+              </>
+            )}
+          </span>
+          {(hasReviewContent(game.log) || game.log?.rating || game.log?.status) && (
+            <Button
+              variant="ghost"
+              icon={<Share2 className="w-3.5 h-3.5" />}
+              onClick={() => useUiStore.getState().openModal({ kind: 'shareCard', gameId: game.id })}
+              title="Gerar cartão para compartilhar"
+            >
+              Cartão
+            </Button>
           )}
-          {saveState === 'saved' && (
-            <>
-              <Check className="w-3 h-3 text-emerald-400" /> Salvo
-            </>
-          )}
-        </span>
+        </div>
       </header>
 
       <div className="p-5 space-y-5">

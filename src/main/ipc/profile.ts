@@ -11,6 +11,18 @@ import { askOpenPaths, handle, safeFileName, saveBufferAs, saveTextAs } from './
 const MAX_YEAR_REVIEW_PNG_BYTES = 15 * 1024 * 1024;
 const PNG_DATA_URL_PREFIX = 'data:image/png;base64,';
 
+function parsePngDataUrl(dataUrl: string): Buffer {
+  if (typeof dataUrl !== 'string' || !dataUrl.startsWith(PNG_DATA_URL_PREFIX)) {
+    throw new Error('Formato de imagem inválido.');
+  }
+  const buffer = Buffer.from(dataUrl.slice(PNG_DATA_URL_PREFIX.length), 'base64');
+  const isPng = buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+  if (!isPng || buffer.length > MAX_YEAR_REVIEW_PNG_BYTES) {
+    throw new Error('Imagem PNG inválida ou grande demais para salvar.');
+  }
+  return buffer;
+}
+
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
 const MEDIA_TITLES: Record<ProfileMediaKind, string> = {
   avatar: 'Escolher avatar',
@@ -41,20 +53,22 @@ export function registerProfileHandlers(): void {
   handle(IPC_CHANNELS.PROFILE_ON_THIS_DAY, () => getOnThisDayMemories());
   handle(IPC_CHANNELS.PROFILE_YEAR_REVIEW, (_event, year?: number) => buildYearReview(year));
   handle(IPC_CHANNELS.PROFILE_YEAR_REVIEW_IMAGE, (event, dataUrl: string, year: number) => {
-    if (typeof dataUrl !== 'string' || !dataUrl.startsWith(PNG_DATA_URL_PREFIX)) {
-      throw new Error('Formato de imagem inválido.');
-    }
-    const raw = dataUrl.slice(PNG_DATA_URL_PREFIX.length);
-    const buffer = Buffer.from(raw, 'base64');
-    const isPng = buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
-    if (!isPng || buffer.length > MAX_YEAR_REVIEW_PNG_BYTES) {
-      throw new Error('Imagem PNG inválida ou grande demais para salvar.');
-    }
+    const buffer = parsePngDataUrl(dataUrl);
     const safeYear = Number.isInteger(year) && year >= 1990 && year <= 2100 ? String(year) : 'ano';
     const fileName = `${safeFileName(`lazulium-retrospectiva-${safeYear}`, 'lazulium-retrospectiva')}.png`;
     return saveBufferAs(
       event,
       { title: 'Salvar imagem da retrospectiva', defaultPath: fileName, filters: [{ name: 'Imagem PNG', extensions: ['png'] }] },
+      buffer
+    );
+  });
+  handle(IPC_CHANNELS.PROFILE_SHARE_CARD_IMAGE, (event, dataUrl: string, gameTitle: string) => {
+    const buffer = parsePngDataUrl(dataUrl);
+    const title = typeof gameTitle === 'string' ? gameTitle.trim().slice(0, 80) : '';
+    const fileName = `${safeFileName(title ? `lazulium-${title}` : 'lazulium-cartao', 'lazulium-cartao')}.png`;
+    return saveBufferAs(
+      event,
+      { title: 'Salvar cartão do jogo', defaultPath: fileName, filters: [{ name: 'Imagem PNG', extensions: ['png'] }] },
       buffer
     );
   });

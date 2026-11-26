@@ -1,9 +1,12 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, Copy, Eye, Gamepad2, LogIn, RefreshCw, Rss, Shield, Ticket, UserPlus, Users } from 'lucide-react';
-import { SocialFeedItem, SocialFriend, SocialInvite } from '@shared/types/social';
+import { SocialActivity, SocialFeedItem, SocialFriend, SocialInvite } from '@shared/types/social';
+import { indexGamesByKey, libraryTitleKey } from '@shared/utils/game-match';
 import { friendPresence } from '@shared/utils/presence';
 import { useSocial } from '../hooks/useSocial';
+import { useLibraryStore } from '../stores/useLibraryStore';
 import { useUiStore } from '../stores/useUiStore';
+import { openGame } from '../utils/gameActions';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { ActivityCard } from './friends/parts';
 import { NotificationsBox } from './friends/Notifications';
@@ -11,7 +14,23 @@ import { forgetReactions } from '../stores/useReactionsStore';
 import { PresenceAvatar, PresenceLine } from './friends/presence';
 import { BlockedBox, MutedBadge } from './friends/TakeABreak';
 import { PageHeader, emptyBox, pageClass } from './journal/PageLayout';
-import { Button, EmptyState, Notice, SectionHeader, Skeleton, focusRing, inputClass } from './ui';
+import { Button, EmptyState, Notice, SectionHeader, Skeleton, focusRing, inputClass, pillTabClass } from './ui';
+
+type FeedFilter = 'all' | 'reviews' | 'finished' | 'achievements';
+
+const FEED_FILTERS: { id: FeedFilter; label: string }[] = [
+  { id: 'all', label: 'Tudo' },
+  { id: 'reviews', label: 'Resenhas' },
+  { id: 'finished', label: 'Zerados' },
+  { id: 'achievements', label: 'Conquistas' }
+];
+
+const matchesFeedFilter = (item: SocialActivity, filter: FeedFilter): boolean => {
+  if (filter === 'all') return true;
+  if (filter === 'reviews') return item.kind === 'reviewed' || item.kind === 'rated';
+  if (filter === 'finished') return item.kind === 'finished' || item.kind === 'completed' || item.kind === 'perfect';
+  return item.kind === 'achievements' || item.kind === 'perfect';
+};
 
 const openFriend = (friendId: string) => useUiStore.getState().openFriend(friendId);
 const openSettings = () => useUiStore.getState().openModal({ kind: 'settings' });
@@ -168,7 +187,15 @@ export const FriendsPage: React.FC = () => {
   const [feed, setFeed] = useState<SocialFeedItem[] | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>('all');
   const [error, setError] = useState<string | null>(null);
+  const rawGames = useLibraryStore((s) => s.rawGames);
+  const editionPrefs = useLibraryStore((s) => s.editionPrefs);
+  const ownedByKey = useMemo(() => indexGamesByKey(rawGames, editionPrefs), [rawGames, editionPrefs]);
+  const ownedFor = (item: SocialActivity) => {
+    const tKey = libraryTitleKey(item.gameTitle);
+    return (ownedByKey.get(item.gameKey) ?? (tKey ? ownedByKey.get(tKey) : undefined))?.game;
+  };
 
   const load = useCallback(async () => {
     setError(null);
@@ -212,6 +239,7 @@ export const FriendsPage: React.FC = () => {
   if (!connected) return <Welcome onLogin={() => void social.login()} busy={social.busy === 'login'} error={social.error} />;
 
   const playing = friends?.filter((f) => f.nowPlaying) ?? [];
+  const visibleFeed = feed ? feed.filter((item) => matchesFeedFilter(item, feedFilter)) : null;
 
   return (
     <div className={pageClass}>
@@ -233,14 +261,28 @@ export const FriendsPage: React.FC = () => {
 
       <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
         <section>
-          <SectionHeader icon={Rss} title="Feed" />
-          {feed === null ? (
+          <SectionHeader
+            icon={Rss}
+            title="Feed"
+            actions={
+              feed && feed.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Filtrar feed">
+                  {FEED_FILTERS.map((f) => (
+                    <button key={f.id} type="button" onClick={() => setFeedFilter(f.id)} aria-pressed={feedFilter === f.id} className={pillTabClass(feedFilter === f.id)}>
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              ) : undefined
+            }
+          />
+          {visibleFeed === null ? (
             <div className="space-y-3">
               {[0, 1, 2].map((i) => (
                 <Skeleton key={i} className="h-24 w-full" />
               ))}
             </div>
-          ) : feed.length === 0 ? (
+          ) : feed!.length === 0 ? (
             <div className={emptyBox}>
               <EmptyState
                 icon={Rss}
@@ -252,11 +294,39 @@ export const FriendsPage: React.FC = () => {
                 }
               />
             </div>
+          ) : visibleFeed.length === 0 ? (
+            <div className={emptyBox}>
+              <EmptyState
+                icon={Rss}
+                compact
+                title="Nada desse tipo nos itens carregados"
+                description="Tente mostrar tudo ou carregue eventos mais antigos."
+                actions={
+                  <>
+                    <Button onClick={() => setFeedFilter('all')}>Ver tudo</Button>
+                    {hasMore && (
+                      <Button variant="primary" loading={loadingMore} onClick={loadMore}>
+                        Carregar mais antigos
+                      </Button>
+                    )}
+                  </>
+                }
+              />
+            </div>
           ) : (
             <div className="space-y-3">
-              {feed.map((item) => (
-                <ActivityCard key={`${item.user.id}|${item.id}`} activity={item} user={item.user} onOpenUser={() => openFriend(item.user.id)} />
-              ))}
+              {visibleFeed.map((item) => {
+                const owned = ownedFor(item);
+                return (
+                  <ActivityCard
+                    key={`${item.user.id}|${item.id}`}
+                    activity={item}
+                    user={item.user}
+                    onOpenUser={() => openFriend(item.user.id)}
+                    onOpenGame={owned ? () => openGame(owned) : undefined}
+                  />
+                );
+              })}
               {hasMore && (
                 <div className="flex justify-center pt-1">
                   <Button loading={loadingMore} onClick={loadMore}>

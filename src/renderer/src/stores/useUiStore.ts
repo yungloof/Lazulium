@@ -9,7 +9,44 @@ export type AppView = 'home' | 'game' | 'profile' | 'journal' | 'gallery' | 'lis
 // Ordem das seções no LT/RT do controle (a página do jogo conta como a biblioteca)
 export const SECTION_ORDER = ['home', 'journal', 'lists', 'wishlist', 'gallery', 'friends', 'profile'] as const;
 
-export type GameModalKind = 'artwork' | 'achievements' | 'saves' | 'screenshots' | 'playtime' | 'addToList' | 'gameCategories' | 'rename' | 'launchOptions';
+export type GameModalKind =
+  | 'artwork'
+  | 'achievements'
+  | 'saves'
+  | 'screenshots'
+  | 'playtime'
+  | 'addToList'
+  | 'gameCategories'
+  | 'rename'
+  | 'launchOptions'
+  | 'shareCard';
+
+export interface NavEntry {
+  view: AppView;
+  selectedGameId: string | null;
+  openListId?: string;
+  openFriendId?: string;
+}
+
+const MAX_NAV_HISTORY = 20;
+
+const sameNavEntry = (a: NavEntry, b: NavEntry): boolean =>
+  a.view === b.view && a.selectedGameId === b.selectedGameId && a.openListId === b.openListId && a.openFriendId === b.openFriendId;
+
+const navSnapshot = (s: Pick<UiState, 'view' | 'selectedGameId' | 'openListId' | 'openFriendId'>): NavEntry => ({
+  view: s.view,
+  selectedGameId: s.selectedGameId,
+  openListId: s.openListId,
+  openFriendId: s.openFriendId
+});
+
+const nextHistory = (s: UiState, target: NavEntry): NavEntry[] => {
+  const current = navSnapshot(s);
+  if (sameNavEntry(current, target)) return s.history;
+  const last = s.history[s.history.length - 1];
+  if (last && sameNavEntry(last, current)) return s.history;
+  return [...s.history, current].slice(-MAX_NAV_HISTORY);
+};
 
 export type AppModal =
   | { kind: 'settings' | 'emulators' | 'addGame' | 'categories' }
@@ -35,6 +72,7 @@ interface UiState {
   selectedGameId: string | null;
   openListId?: string;
   openFriendId?: string;            // Perfil de amigo aberto em página inteira (view 'friend')
+  history: NavEntry[];
   scrollToken: number;              // Muda quando a tela deve voltar ao topo (mesma tela também)
   modal: AppModal | null;
   quickSearchOpen: boolean;
@@ -48,6 +86,7 @@ interface UiState {
 
   setView: (view: AppView) => void;
   goHome: () => void;
+  goBack: () => boolean;
   openGameId: (gameId: string) => void;
   openList: (listId?: string) => void;
   openFriend: (friendId: string) => void;
@@ -67,11 +106,12 @@ interface UiState {
 
 let noticeId = 0;
 
-export const useUiStore = create<UiState>((set) => ({
+export const useUiStore = create<UiState>((set, get) => ({
   view: 'home',
   selectedGameId: null,
   openListId: undefined,
   openFriendId: undefined,
+  history: [],
   scrollToken: 0,
   modal: null,
   quickSearchOpen: false,
@@ -83,11 +123,53 @@ export const useUiStore = create<UiState>((set) => ({
   screenshotsVersion: 0,
   achievementsVersion: 0,
 
-  setView: (view) => set((s) => ({ view, scrollToken: s.scrollToken + 1 })),
-  goHome: () => set((s) => ({ view: 'home', scrollToken: s.scrollToken + 1 })),
-  openGameId: (gameId) => set((s) => ({ view: 'game', selectedGameId: gameId, scrollToken: s.scrollToken + 1 })),
-  openList: (openListId) => set((s) => ({ view: 'lists', openListId, scrollToken: s.scrollToken + 1 })),
-  openFriend: (openFriendId) => set((s) => ({ view: 'friend', openFriendId, scrollToken: s.scrollToken + 1 })),
+  setView: (view) =>
+    set((s) => ({
+      view,
+      history: nextHistory(s, { ...navSnapshot(s), view }),
+      scrollToken: s.scrollToken + 1
+    })),
+  goHome: () =>
+    set((s) => ({
+      view: 'home',
+      history: nextHistory(s, { ...navSnapshot(s), view: 'home' }),
+      scrollToken: s.scrollToken + 1
+    })),
+  goBack: () => {
+    const s = get();
+    if (s.history.length === 0) return false;
+    const prev = s.history[s.history.length - 1];
+    set({
+      view: prev.view,
+      selectedGameId: prev.selectedGameId,
+      openListId: prev.openListId,
+      openFriendId: prev.openFriendId,
+      history: s.history.slice(0, -1),
+      scrollToken: s.scrollToken + 1
+    });
+    return true;
+  },
+  openGameId: (gameId) =>
+    set((s) => ({
+      view: 'game',
+      selectedGameId: gameId,
+      history: nextHistory(s, { ...navSnapshot(s), view: 'game', selectedGameId: gameId }),
+      scrollToken: s.scrollToken + 1
+    })),
+  openList: (openListId) =>
+    set((s) => ({
+      view: 'lists',
+      openListId,
+      history: nextHistory(s, { ...navSnapshot(s), view: 'lists', openListId }),
+      scrollToken: s.scrollToken + 1
+    })),
+  openFriend: (openFriendId) =>
+    set((s) => ({
+      view: 'friend',
+      openFriendId,
+      history: nextHistory(s, { ...navSnapshot(s), view: 'friend', openFriendId }),
+      scrollToken: s.scrollToken + 1
+    })),
   setOpenListId: (openListId) => set({ openListId }),
   openModal: (modal) => set({ modal, contextMenu: null }),
   closeModal: () => set({ modal: null }),

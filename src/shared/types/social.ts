@@ -105,6 +105,7 @@ export interface SocialActivity {
   count?: number;
   seconds?: number;
   text?: string;
+  reviewImages?: PublicReviewImage[];
 }
 
 export interface SocialFeedItem extends SocialActivity {

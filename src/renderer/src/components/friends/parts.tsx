@@ -5,7 +5,8 @@ import { formatLastPlayed } from '../../utils/format';
 import { ACTIVITY_ICON, describeActivity } from '../profile/ActivityTimeline';
 import { reviewTarget } from '@shared/utils/reactions';
 import { Stars } from '../GameLogFields';
-import { ReviewToggle, reviewIsLong } from '../ReviewBody';
+import { ReviewBody, ReviewToggle, friendReviewImages, reviewIsLong } from '../ReviewBody';
+import { focusRing } from '../ui';
 import { ReactionBar } from './Reactions';
 
 export const Avatar: React.FC<{ user: Pick<SocialUser, 'avatarUrl' | 'name'>; size?: 'xs' | 'sm' | 'md' | 'lg' }> = ({ user, size = 'md' }) => {
@@ -55,27 +56,44 @@ export const OnlineLine: React.FC = () => (
   </span>
 );
 
-// Um evento do feed: quem, o quê, quando e, se houver, a resenha
-export const ActivityCard: React.FC<{ activity: SocialActivity; user?: SocialUser; ownerId?: string; onOpenUser?: () => void }> = ({
-  activity,
-  user,
-  ownerId,
-  onOpenUser
-}) => {
+// Um evento do feed: quem, o quê, quando e, se houver, a resenha (com imagens e clique para abrir se você tem o jogo)
+export const ActivityCard: React.FC<{
+  activity: SocialActivity;
+  user?: SocialUser;
+  ownerId?: string;
+  onOpenUser?: () => void;
+  onOpenGame?: () => void;
+}> = ({ activity, user, ownerId, onOpenUser, onOpenGame }) => {
   const [expanded, setExpanded] = useState(false);
   const reactionOwner = ownerId ?? user?.id;
-  const longReview = activity.kind === 'reviewed' && reviewIsLong(activity.text, 0, 240, 4);
+  const images = activity.kind === 'reviewed' ? friendReviewImages(activity.reviewImages) : [];
+  const hasReview = activity.kind === 'reviewed' && (!!activity.text || images.length > 0);
+  const longReview = hasReview && reviewIsLong(activity.text, images.length, 240, 4);
+
+  const cover = <Cover url={activity.coverUrl} title={activity.gameTitle} gameKey={activity.gameKey} />;
 
   return (
     <article className="flex gap-3.5 rounded-xl bg-surface-panel/70 border border-slate-800/80 p-3.5">
-      <Cover url={activity.coverUrl} title={activity.gameTitle} gameKey={activity.gameKey} />
+      {onOpenGame ? (
+        <button
+          type="button"
+          onClick={onOpenGame}
+          title={`Abrir ${activity.gameTitle} na sua biblioteca`}
+          aria-label={`Abrir ${activity.gameTitle} na sua biblioteca`}
+          className={`self-start flex-shrink-0 rounded-md hover:opacity-90 transition-opacity ${focusRing}`}
+        >
+          {cover}
+        </button>
+      ) : (
+        cover
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 min-w-0">
           {user && (
             <button
               type="button"
               onClick={onOpenUser}
-              className="flex items-center gap-2 min-w-0 rounded-md hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              className={`flex items-center gap-2 min-w-0 rounded-md hover:text-white ${focusRing}`}
             >
               <Avatar user={user} size="sm" />
               <span className="text-sm font-semibold text-slate-100 truncate">{user.name}</span>
@@ -83,11 +101,22 @@ export const ActivityCard: React.FC<{ activity: SocialActivity; user?: SocialUse
           )}
           <span className="ml-auto text-xs text-slate-400 tabular-nums flex-shrink-0">{formatLastPlayed(activity.at)}</span>
         </div>
-        <p className="mt-1.5 flex items-start gap-2 text-sm text-slate-300">
-          <span className="mt-0.5 flex-shrink-0">{ACTIVITY_ICON[activity.kind]}</span>
-          <span className="min-w-0">{describeActivity(activity)}</span>
-        </p>
-        {activity.kind === 'reviewed' && activity.text && (
+        <div className="mt-1.5 flex items-start justify-between gap-2 text-sm text-slate-300">
+          <p className="flex items-start gap-2 min-w-0">
+            <span className="mt-0.5 flex-shrink-0">{ACTIVITY_ICON[activity.kind]}</span>
+            <span className="min-w-0">{describeActivity(activity)}</span>
+          </p>
+          {onOpenGame && (
+            <button
+              type="button"
+              onClick={onOpenGame}
+              className={`flex-shrink-0 px-2 py-0.5 rounded-md bg-indigo-500/15 border border-indigo-400/25 text-[11px] font-medium text-indigo-200 hover:bg-indigo-500/25 hover:text-white transition-colors ${focusRing}`}
+            >
+              Na biblioteca
+            </button>
+          )}
+        </div>
+        {hasReview && (
           <div className="mt-2.5">
             <blockquote className="rounded-lg bg-slate-950/45 border border-slate-800/75 px-3.5 py-2.5">
               {activity.rating ? (
@@ -96,9 +125,14 @@ export const ActivityCard: React.FC<{ activity: SocialActivity; user?: SocialUse
                   <span className="text-xs font-medium text-amber-300/90 tabular-nums">{String(activity.rating).replace('.', ',')}/5</span>
                 </div>
               ) : null}
-              <p className={`max-w-[68ch] text-sm leading-relaxed text-slate-200/95 whitespace-pre-line break-words select-text ${expanded ? '' : 'line-clamp-4'}`}>
-                {activity.text}
-              </p>
+              <ReviewBody
+                review={activity.text}
+                images={images}
+                expanded={expanded}
+                textClassName="max-w-[68ch] text-sm leading-relaxed text-slate-200/95"
+                clampClassName="line-clamp-4"
+                imageMaxHeight="max-h-[380px]"
+              />
             </blockquote>
             {longReview && (
               <ReviewToggle

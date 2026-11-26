@@ -1,8 +1,9 @@
 import React from 'react';
-import { Cpu, Plus, RefreshCw, Search, Settings } from 'lucide-react';
+import { Cpu, PanelLeft, Plus, RefreshCw, Search, Settings } from 'lucide-react';
 import { TitleBar } from '../TitleBar';
 import { AppView, useUiStore } from '../../stores/useUiStore';
 import { useLibraryStore } from '../../stores/useLibraryStore';
+import { useLibraryViewStore } from '../../stores/useLibraryViewStore';
 import { scanLibraries } from '../../utils/gameActions';
 import { focusRing } from '../ui';
 import { UpdateIndicator } from './UpdateIndicator';
@@ -26,6 +27,8 @@ export const AppHeader: React.FC = () => {
   const view = useUiStore((s) => s.view);
   const isScanning = useLibraryStore((s) => s.isScanning);
   const unread = useReactionsStore((s) => s.notifications?.unread ?? 0);
+  const sidebarCollapsed = useLibraryViewStore((s) => s.sidebarCollapsed);
+  const isLibrary = view === 'home' || view === 'game';
 
   const goTo = (target: AppView) => {
     const ui = useUiStore.getState();
@@ -37,7 +40,20 @@ export const AppHeader: React.FC = () => {
 
   return (
     <TitleBar>
-      <nav className="titlebar-no-drag h-full flex items-center" aria-label="Seções">
+      <div className="titlebar-no-drag h-full flex items-center">
+        {isLibrary && (
+          <button
+            type="button"
+            onClick={() => useLibraryViewStore.getState().toggleSidebar()}
+            aria-pressed={!sidebarCollapsed}
+            aria-label={sidebarCollapsed ? 'Mostrar barra lateral' : 'Recolher barra lateral'}
+            title={sidebarCollapsed ? 'Mostrar barra lateral (Ctrl+B)' : 'Recolher barra lateral (Ctrl+B)'}
+            className={`${actionButton} mr-1.5 ${!sidebarCollapsed ? 'text-slate-200' : 'text-indigo-300 bg-indigo-500/10'}`}
+          >
+            <PanelLeft className="w-4 h-4" />
+          </button>
+        )}
+        <nav className="h-full flex items-center" aria-label="Seções">
         {TABS.map((tab) => {
           const active = tab.view === 'home' ? view === 'home' || view === 'game' : tab.view === 'friends' ? view === 'friends' || view === 'friend' : view === tab.view;
           return (
@@ -62,7 +78,8 @@ export const AppHeader: React.FC = () => {
             </button>
           );
         })}
-      </nav>
+        </nav>
+      </div>
       <div className="titlebar-no-drag flex items-center gap-1 flex-shrink-0">
         <UpdateIndicator />
         <StatusMenu />

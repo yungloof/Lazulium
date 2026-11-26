@@ -3,6 +3,7 @@ import { Camera, ChevronRight, RefreshCw, Search, AlertTriangle } from 'lucide-r
 import { GameScreenshots, Screenshot } from '@shared/types/screenshots';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { Button, EmptyState, Skeleton, compactInputClass, focusRing, focusRingInset } from './ui';
+import { PageHeader, pageClass } from './journal/PageLayout';
 
 interface GalleryPageProps {
   version: number;                  // Muda quando uma captura é apagada ou anexada
@@ -53,19 +54,19 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ version, onOpenGallery
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-8 py-8 space-y-6 animate-fade-in">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-[28px] font-semibold leading-tight text-white">Capturas</h1>
-          <p className="mt-1 text-sm text-slate-400 tabular-nums">{groups ? `${total} capturas em ${groups.length} jogos` : 'Procurando capturas...'}</p>
-        </div>
-        {groups && groups.length > 0 && (
-          <div className="relative w-64">
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar jogo" aria-label="Buscar jogo nas capturas" className={`${compactInputClass} pl-8`} />
-          </div>
-        )}
-      </header>
+    <div className={pageClass}>
+      <PageHeader
+        title="Capturas"
+        subtitle={<span className="tabular-nums">{groups ? `${total} capturas em ${groups.length} jogos` : 'Procurando capturas...'}</span>}
+        actions={
+          groups && groups.length > 0 ? (
+            <div className="relative w-64">
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar jogo" aria-label="Buscar jogo nas capturas" className={`${compactInputClass} pl-8`} />
+            </div>
+          ) : undefined
+        }
+      />
 
       {!groups ? (
         <div className="space-y-5" aria-busy="true">

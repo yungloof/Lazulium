@@ -4,6 +4,23 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 3.4.0 — 26 de novembro de 2026
+
+Feed de amigos conectado à sua biblioteca, cartão de jogo/resenha para compartilhar, prévia ao vivo de tema, navegação de volta real e barra lateral recolhível.
+
+### Novidades
+
+- **Cartão para compartilhar.** Em *Meu registro* na página do jogo e nas suas resenhas do *Perfil*, o botão *Cartão* gera uma imagem pronta (`1200×630`) com capa, status, nota, horas jogadas e trecho da resenha nas cores do seu tema atual, para copiar direto para o Discord ou salvar em PNG.
+- **Prévia ao vivo em Aparência.** A aba *Aparência* nas Configurações mostra uma miniatura interativa no topo que atualiza na hora conforme você troca tema, cores, acento ou arredondamento, além de avisar quando uma combinação fica com baixo contraste.
+
+### Melhorias
+
+- **Feed de Amigos rico e conectado.** As resenhas no feed agora exibem as miniaturas das imagens anexadas e permitem filtrar por *Tudo*, *Resenhas*, *Zerados* ou *Conquistas*. Se o jogo já estiver na sua biblioteca, clicar na capa ou no botão *Na biblioteca* abre direto a página dele.
+- **Navegação de volta real e barra lateral recolhível.** Abrir um jogo pelo *Diário*, *Amigos*, *Listas* ou *Perfil* guarda o caminho percorrido: o botão *Voltar para ...*, `Alt+←`, `Backspace`, o botão lateral do mouse e `B` no controle levam exatamente de volta. Na *Biblioteca*, a barra lateral pode ser recolhida (`Ctrl+B` ou pelo botão no cabeçalho) para dar mais espaço às capas.
+- **Busca rápida (`Ctrl+K`) expandida e Galeria unificada.** A busca rápida passa a incluir jogos cadastrados manualmente no *Diário*, suas *Listas* e atalhos para navegar entre telas e abrir Configurações. A página de *Capturas* recebeu o mesmo cabeçalho padrão das demais seções.
+
+---
+
 ## 3.3.1 — 26 de novembro de 2026
 
 Correção de resenhas repetidas no feed de amigos e ajustes visuais em todo o aplicativo.

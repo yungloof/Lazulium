@@ -175,3 +175,40 @@ export function saveTheme(theme: ThemeSettings): void {
 export function initTheme(): void {
   applyTheme(loadTheme());
 }
+
+function linearChannel(c: number): number {
+  const s = c / 255;
+  return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+}
+
+function hexLuminance(hex: string): number | null {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  const r = linearChannel((n >> 16) & 255);
+  const g = linearChannel((n >> 8) & 255);
+  const b = linearChannel(n & 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG 2.1 contrast ratio between two hex colors (1..21). */
+export function contrastRatio(hexA: string, hexB: string): number | null {
+  const lumA = hexLuminance(hexA);
+  const lumB = hexLuminance(hexB);
+  if (lumA === null || lumB === null) return null;
+  const bright = Math.max(lumA, lumB);
+  const dark = Math.min(lumA, lumB);
+  return (bright + 0.05) / (dark + 0.05);
+}
+
+/** Resolves effective background, panel, and text hex colors for contrast validation. */
+export function resolvePreviewColors(theme: ThemeSettings): { bg: string; panel: string; textMain: string; textSoft: string } {
+  const baseScale = scale(theme.base, SURFACE_L, 60);
+  const base = theme.base ? hexToHsl(theme.base) : null;
+  const tone = base ? Math.min(base[1], 60) : 0;
+  const bg = theme.bg ?? (base ? hsl(base[0], tone, 9) : '#0e1426');
+  const panel = theme.panel ?? (base ? hsl(base[0], tone, 12) : '#151c30');
+  const textMain = theme.textMain ?? (baseScale ? baseScale[1] : '#e2e9f7');
+  const textSoft = theme.textSoft ?? (baseScale ? baseScale[3] : '#a7b5d3');
+  return { bg, panel, textMain, textSoft };
+}

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useGamepad } from './useGamepad';
 import { useVisibleFilters } from './useLibraryGames';
 import { useLibraryStore } from '../stores/useLibraryStore';
+import { useLibraryViewStore } from '../stores/useLibraryViewStore';
 import { SECTION_ORDER, selectAnyOverlay, useUiStore } from '../stores/useUiStore';
 import { useKeyboardStore } from '../stores/useKeyboardStore';
 import { isEditableTextElement } from '../utils/onScreenKeyboard';
@@ -53,6 +54,7 @@ export function useShellControls(): void {
       const library = useLibraryStore.getState();
       if (ui.contextMenu) ui.setContextMenu(null);
       else if (closeTopOverlay()) return;
+      else if (ui.goBack()) return;
       else if (ui.view === 'friend') ui.setView('friends');
       else if (ui.view !== 'home') ui.goHome();
       else if (library.searchQuery) library.setSearchQuery('');
@@ -162,13 +164,19 @@ export function useShellControls(): void {
     return () => cancelAnimationFrame(frame);
   }, [view, anyOverlay, activeFilter, keyboardOpen]);
 
-  // Ctrl+K: busca rápida de qualquer lugar
+  // Ctrl+K: busca rápida de qualquer lugar; Ctrl+B: recolher/mostrar barra lateral na biblioteca
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         const ui = useUiStore.getState();
         ui.setQuickSearchOpen(!ui.quickSearchOpen);
+      } else if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'b' && !isTextField(e.target)) {
+        const ui = useUiStore.getState();
+        if (!selectAnyOverlay(ui) && (ui.view === 'home' || ui.view === 'game')) {
+          e.preventDefault();
+          useLibraryViewStore.getState().toggleSidebar();
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -178,15 +186,21 @@ export function useShellControls(): void {
   // Voltar como num navegador: botão "voltar" do mouse, Alt+← ou Backspace (fora de campos de texto)
   useEffect(() => {
     if (view === 'home' || anyOverlay) return;
-    const goHome = () => useUiStore.getState().goHome();
+    const goBackOrHome = () => {
+      const ui = useUiStore.getState();
+      if (!ui.goBack()) {
+        if (ui.view === 'friend') ui.setView('friends');
+        else ui.goHome();
+      }
+    };
     const onMouseUp = (e: MouseEvent) => {
-      if (e.button === 3) goHome();
+      if (e.button === 3) goBackOrHome();
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (isTextField(e.target)) return;
       if (e.key === 'Backspace' || (e.altKey && e.key === 'ArrowLeft')) {
         e.preventDefault();
-        goHome();
+        goBackOrHome();
       }
     };
     window.addEventListener('mouseup', onMouseUp);

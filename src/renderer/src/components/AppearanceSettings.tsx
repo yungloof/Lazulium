@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { Check, ChevronDown, Download, RotateCcw, Upload } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, Download, Gamepad2, Play, RotateCcw, Upload } from 'lucide-react';
 import { Select } from './Select';
-import { Button, Notice, focusRing, inputClass } from './ui';
-import { FONT_CHOICES, PRESETS, ThemeSettings, applyTheme, loadTheme, sanitizeTheme, saveTheme } from '../utils/theme';
+import { Button, Notice, focusRing, inputClass, warnBoxClass } from './ui';
+import { FONT_CHOICES, PRESETS, ThemeSettings, applyTheme, contrastRatio, loadTheme, resolvePreviewColors, sanitizeTheme, saveTheme } from '../utils/theme';
 import { Segmented, SettingRow, SettingsGroup } from './settings/controls';
 
 type ColorKey = 'base' | 'accent' | 'textMain' | 'textSoft' | 'success' | 'warn' | 'danger' | 'bg' | 'panel' | 'header' | 'sidebar';
@@ -148,8 +148,62 @@ export const AppearanceSettings: React.FC = () => {
     <ColorRow key={c.key} label={c.label} hint={c.hint} value={theme[c.key]} fallback={DEFAULT_COLORS[c.key]} onChange={(hex) => setColor(c.key, hex)} onClear={() => setColor(c.key, undefined)} />
   );
 
+  const resolved = resolvePreviewColors(theme);
+  const panelRatio = contrastRatio(resolved.textMain, resolved.panel);
+  const bgRatio = contrastRatio(resolved.textMain, resolved.bg);
+  const minRatio = panelRatio !== null && bgRatio !== null ? Math.min(panelRatio, bgRatio) : null;
+
   return (
     <div className="space-y-6">
+      <section aria-label="Prévia ao vivo">
+        <h3 className="mb-2.5 px-1 text-[13px] font-semibold text-slate-200">Prévia ao vivo</h3>
+        <div className="rounded-lg border border-slate-800 overflow-hidden bg-surface-bg shadow-sm">
+          <div className="h-8 px-3 bg-surface-header border-b border-slate-800/80 flex items-center justify-between text-[11px]">
+            <div className="flex items-center gap-3">
+              <span className="font-display font-semibold text-slate-100">Lazulium</span>
+              <span className="text-white font-semibold border-b-2 border-indigo-400 pb-0.5">Biblioteca</span>
+              <span className="text-slate-400">Diário</span>
+              <span className="text-slate-400">Amigos</span>
+            </div>
+            <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 text-[10px] font-medium">On-line</span>
+          </div>
+          <div className="grid grid-cols-[120px_minmax(0,1fr)] min-h-[112px]">
+            <div className="bg-surface-sidebar border-r border-slate-800/80 p-2 space-y-1 text-[11px]">
+              <div className="px-2 py-1 rounded bg-indigo-500/20 text-white font-medium truncate">Hades II</div>
+              <div className="px-2 py-1 rounded text-slate-400 truncate">Chrono Trigger</div>
+              <div className="px-2 py-1 rounded text-slate-400 truncate">Hollow Knight</div>
+            </div>
+            <div className="p-3 flex items-center gap-3">
+              <span className="w-12 aspect-[2/3] rounded-md bg-slate-800 border border-slate-700/70 flex items-center justify-center flex-shrink-0">
+                <Gamepad2 className="w-4 h-4 text-slate-400" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="rounded-lg bg-surface-panel/90 border border-slate-800/80 p-2.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-display text-sm font-semibold text-slate-50 truncate">Hades II</p>
+                    <p className="text-[11px] text-slate-400 truncate">42 h jogadas · Steam</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500 text-white text-[11px] font-bold">
+                      <Play className="w-2.5 h-2.5 fill-current" /> JOGAR
+                    </span>
+                    <span className="px-2 py-1 rounded-lg bg-slate-800 text-slate-200 text-[11px]">Opções</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {minRatio !== null && minRatio < 4.5 && (
+          <p className={`${warnBoxClass} mt-2.5`}>
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+            <span>
+              Contraste baixo entre o texto principal e o fundo ({minRatio.toFixed(1).replace('.', ',')}:1). Recomendado pelo menos 4,5:1 para leitura confortável.
+            </span>
+          </p>
+        )}
+      </section>
+
       <section>
         <h3 className="mb-2.5 px-1 text-[13px] font-semibold text-slate-200">Temas prontos</h3>
         <div className="grid grid-cols-3 gap-2.5">

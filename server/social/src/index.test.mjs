@@ -874,6 +874,16 @@ test('imagens das resenhas: envio uma vez por imagem, endereço público, resenh
     { at: 19, url: first.body.url, width: 1600, height: 900 },
     { at: review.length, url: first.body.url }
   ]);
+  // Feed e perfil do amigo também trazem as imagens anexadas nas resenhas
+  await s.call('POST', '/v1/me/activities', {
+    token: b.token,
+    body: { events: [event({ id: 'rev-celeste', kind: 'reviewed', gameKey: 't:celeste', gameTitle: 'Celeste', rating: 5, text: review })] }
+  });
+  const feedWithImgs = (await s.call('GET', '/v1/feed', { token: a.token })).body.items;
+  assert.equal(feedWithImgs[0].reviewImages.length, 2);
+  assert.equal(feedWithImgs[0].reviewImages[0].url, first.body.url);
+  const profileWithImgs = (await s.call('GET', `/v1/users/${b.user.id}`, { token: a.token })).body.activities;
+  assert.equal(profileWithImgs[0].reviewImages.length, 2);
   // Resenha só com imagem também aparece
   const [onlyImage] = (await s.call('GET', '/v1/games/friends?key=t:soimagem', { token: a.token })).body.friends;
   assert.equal(onlyImage.review, '');
@@ -882,6 +892,8 @@ test('imagens das resenhas: envio uma vez por imagem, endereço público, resenh
   assert.equal((await s.call('GET', `/v1/users/${b.user.id}/games`, { token: a.token })).body.games[0].reviewImages, undefined);
   await s.call('PATCH', '/v1/me', { token: b.token, body: { settings: { shareReviews: false } } });
   assert.equal((await s.call('GET', '/v1/games/friends?key=t:celeste', { token: a.token })).body.friends[0].reviewImages, undefined);
+  assert.equal((await s.call('GET', '/v1/feed', { token: a.token })).body.items.length, 0);
+  await s.call('PATCH', '/v1/me', { token: b.token, body: { settings: { shareReviews: true } } });
 
   // Apagar uma imagem e apagar a conta
   assert.equal((await s.call('DELETE', `/v1/me/review-images/${id}`, { token: b.token })).status, 200);

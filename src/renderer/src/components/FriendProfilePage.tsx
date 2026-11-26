@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Coffee, Star } from 'lucide-react';
 import { SocialFriendProfile, SocialMute } from '@shared/types/social';
+import { indexGamesByKey, libraryTitleKey } from '@shared/utils/game-match';
 import { useLibraryStore } from '../stores/useLibraryStore';
 import { useUiStore } from '../stores/useUiStore';
+import { openGame } from '../utils/gameActions';
 import { ipcErrorMessage } from '../utils/ipcErrorMessage';
 import { formatPlaytimeShort } from '../utils/format';
 import { friendPresence } from '@shared/utils/presence';
@@ -28,7 +30,9 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
   const [error, setError] = useState<string | null>(null);
   const [breakOpen, setBreakOpen] = useState(false);
   const games = useLibraryStore((s) => s.rawGames); // Cada loja: o GTA V da Epic do amigo também conta como "Você tem"
+  const editionPrefs = useLibraryStore((s) => s.editionPrefs);
   const mine = useMemo(() => new Map(games.map((g) => [gameKey(g.platform, g.platformGameId, g.title), g])), [games]);
+  const ownedByKey = useMemo(() => indexGamesByKey(games, editionPrefs), [games, editionPrefs]);
 
   // Vitrine: a página do perfil que o amigo decorou, por um link de 30 minutos do servidor
   const [showcase, setShowcase] = useState<{ url: string | null; reason?: 'hidden' | 'not_sent' } | null>(null);
@@ -206,9 +210,11 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
                   <p className="text-sm text-slate-500">Nada por aqui ainda.</p>
                 ) : (
                   <div className="space-y-2.5">
-                    {profile.activities.map((a) => (
-                      <ActivityCard key={a.id} activity={a} ownerId={profile.user.id} />
-                    ))}
+                    {profile.activities.map((a) => {
+                      const tKey = libraryTitleKey(a.gameTitle);
+                      const owned = (ownedByKey.get(a.gameKey) ?? (tKey ? ownedByKey.get(tKey) : undefined))?.game;
+                      return <ActivityCard key={a.id} activity={a} ownerId={profile.user.id} onOpenGame={owned ? () => openGame(owned) : undefined} />;
+                    })}
                   </div>
                 )}
               </section>
