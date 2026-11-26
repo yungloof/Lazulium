@@ -59,7 +59,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   return (
     <Modal title="Configurações" icon={<Settings className="w-4 h-4 text-indigo-400" />} size="2xl" tall onClose={onClose} bodyClassName="p-0">
       <div className="flex h-full">
-        <nav aria-label="Seções das configurações" className="w-56 flex-shrink-0 p-2.5 space-y-0.5 overflow-y-auto border-r border-slate-800 bg-slate-950/30">
+        <nav role="tablist" aria-orientation="vertical" aria-label="Seções das configurações" className="w-56 flex-shrink-0 p-2.5 space-y-0.5 overflow-y-auto border-r border-slate-800 bg-slate-950/30">
           {SECTIONS.map((s) => {
             const on = s.id === active;
             const Icon = s.icon;

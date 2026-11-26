@@ -178,7 +178,7 @@ const PlayingCard = memo<{ game: Game }>(({ game }) => (
     onClick={() => openGame(game)}
     onContextMenu={(e) => openContextMenu(game, e)}
     title={game.title}
-    className={`group min-w-0 flex items-center gap-3 p-3 rounded-lg bg-slate-900/70 border border-slate-800 hover:border-slate-600 hover:bg-slate-900 transition-colors text-left ${focusRing}`}
+    className={`group min-w-0 flex items-center gap-3 p-3 rounded-lg bg-surface-panel/70 border border-slate-800/80 hover:border-slate-600 hover:bg-surface-panel transition-colors text-left ${focusRing}`}
   >
     <span className="w-12 aspect-[2/3] flex-shrink-0 overflow-hidden rounded-md bg-slate-800 flex items-center justify-center">
       {game.media?.coverUrl ? <img src={game.media.coverUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-contain" /> : <Gamepad2 className="w-4 h-4 text-slate-500" />}

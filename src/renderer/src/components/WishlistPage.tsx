@@ -77,20 +77,20 @@ const WishlistCard: React.FC<{
             <span className="text-xs text-slate-400">Sem preço no Brasil ainda</span>
           ) : item.priceLabel ? (
             <>
-              <span className={`font-display text-lg font-semibold ${discount > 0 ? 'text-emerald-300' : 'text-slate-100'}`}>{item.priceLabel}</span>
-              {discount > 0 && item.initialCents !== undefined && <span className="text-xs text-slate-500 line-through">{brl(item.initialCents)}</span>}
+              <span className={`font-display text-lg font-semibold tabular-nums ${discount > 0 ? 'text-emerald-300' : 'text-slate-100'}`}>{item.priceLabel}</span>
+              {discount > 0 && item.initialCents !== undefined && <span className="text-xs text-slate-400 tabular-nums line-through">{brl(item.initialCents)}</span>}
             </>
           ) : (
             <Skeleton className="h-5 w-20" />
           )}
         </div>
-        <p className="min-h-4 text-[11px] text-slate-500">{atLowest ? 'Menor preço que o Lazulium já viu' : item.lowestCents !== undefined ? `Menor visto: ${brl(item.lowestCents)}` : ''}</p>
+        <p className="min-h-4 text-[11px] text-slate-400 tabular-nums">{atLowest ? 'Menor preço que o Lazulium já viu' : item.lowestCents !== undefined ? `Menor visto: ${brl(item.lowestCents)}` : ''}</p>
         {deals && (deals.retailCents !== undefined || deals.keyshopCents !== undefined) && (
           <dl className="mt-2 pt-2 border-t border-slate-800 space-y-0.5 text-[11px]">
             {deals.retailCents !== undefined && (
               <div className="flex justify-between gap-2">
                 <dt className="text-slate-400">Lojas oficiais</dt>
-                <dd className={cheaperElsewhere ? 'text-emerald-300 font-semibold' : 'text-slate-200'}>{money(deals.retailCents, deals.currency)}</dd>
+                <dd className={`tabular-nums ${cheaperElsewhere ? 'text-emerald-300 font-semibold' : 'text-slate-200'}`}>{money(deals.retailCents, deals.currency)}</dd>
               </div>
             )}
             {deals.keyshopCents !== undefined && (
@@ -98,13 +98,13 @@ const WishlistCard: React.FC<{
                 <dt className="text-slate-400" title="Revendedores de chaves: mais baratos, mas sem garantia da loja oficial">
                   Revendedores de chaves
                 </dt>
-                <dd className="text-slate-200">{money(deals.keyshopCents, deals.currency)}</dd>
+                <dd className="text-slate-200 tabular-nums">{money(deals.keyshopCents, deals.currency)}</dd>
               </div>
             )}
             {deals.lowestRetailCents !== undefined && (
               <div className="flex justify-between gap-2">
-                <dt className="text-slate-500">Menor preço histórico</dt>
-                <dd className="text-slate-400">{money(deals.lowestRetailCents, deals.currency)}</dd>
+                <dt className="text-slate-400">Menor preço histórico</dt>
+                <dd className="text-slate-400 tabular-nums">{money(deals.lowestRetailCents, deals.currency)}</dd>
               </div>
             )}
             <div className="pt-0.5 text-right text-[10px] text-slate-500">

@@ -84,6 +84,10 @@ const MAX_LIST_DESCRIPTION = 500;
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // Sem 0/O e 1/I, para ditar por voz
 
 export const ACTIVITY_KINDS = ['played', 'started', 'finished', 'completed', 'dropped', 'rated', 'reviewed', 'achievements', 'perfect'];
+const SINGLETON_ACTIVITY_KINDS = new Set(['reviewed', 'rated']);
+const STATUS_ACTIVITY_KINDS = new Set(['started', 'finished', 'completed', 'dropped']);
+const ACTIVITY_MERGE_WINDOW_MS = 6 * 60 * 60 * 1000;
+const DEDUPE_SINGLETON_SQL = `(a.kind NOT IN ('reviewed', 'rated') OR NOT EXISTS (SELECT 1 FROM activities newer WHERE newer.user_id = a.user_id AND newer.kind = a.kind AND newer.game_key = a.game_key AND (newer.at > a.at OR (newer.at = a.at AND newer.id > a.id))))`;
 export const DEFAULT_SETTINGS = { shareProfile: true, shareActivity: true, sharePlaytime: true, shareAchievements: true, shareReviews: true, shareNowPlaying: true };
 // Qual chave de privacidade libera cada tipo de evento
 const KIND_SETTING = {
@@ -427,18 +431,58 @@ async function handleActivities(request, env, auth) {
   const body = await readJson(request, 1_000_000);
   const events = Array.isArray(body?.events) ? body.events : null;
   if (!events || events.length > MAX_EVENTS_PER_POST) throw new HttpError(400, 'invalid_events');
-  const rows = events.map(toActivityRow).filter(Boolean);
-  if (rows.length) {
-    await env.DB.batch(
-      rows.map((r) =>
-        env.DB.prepare(
-          `INSERT INTO activities (user_id, id, kind, game_key, game_title, cover_url, at, rating, count, seconds, text)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT (user_id, id) DO UPDATE SET kind = excluded.kind, game_key = excluded.game_key, game_title = excluded.game_title,
-             cover_url = excluded.cover_url, at = excluded.at, rating = excluded.rating, count = excluded.count, seconds = excluded.seconds, text = excluded.text`
-        ).bind(auth.user.id, r.id, r.kind, r.gameKey, r.title, r.cover, r.at, r.rating, r.count, r.seconds, r.text)
-      )
+  const rawRows = events.map(toActivityRow).filter(Boolean);
+  if (rawRows.length) {
+    const singletonByKey = new Map();
+    const rows = [];
+    for (const r of rawRows) {
+      if (SINGLETON_ACTIVITY_KINDS.has(r.kind)) {
+        const key = `${r.kind}|${r.gameKey}`;
+        const prev = singletonByKey.get(key);
+        if (!prev || r.at > prev.at || (r.at === prev.at && r.id > prev.id)) singletonByKey.set(key, r);
+      } else {
+        rows.push(r);
+      }
+    }
+    rows.push(...singletonByKey.values());
+
+    const statements = rows.map((r) =>
+      env.DB.prepare(
+        `INSERT INTO activities (user_id, id, kind, game_key, game_title, cover_url, at, rating, count, seconds, text)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (user_id, id) DO UPDATE SET kind = excluded.kind, game_key = excluded.game_key, game_title = excluded.game_title,
+           cover_url = excluded.cover_url, at = excluded.at, rating = excluded.rating, count = excluded.count, seconds = excluded.seconds, text = excluded.text`
+      ).bind(auth.user.id, r.id, r.kind, r.gameKey, r.title, r.cover, r.at, r.rating, r.count, r.seconds, r.text)
     );
+
+    for (const r of rows) {
+      if (SINGLETON_ACTIVITY_KINDS.has(r.kind)) {
+        statements.push(
+          env.DB.prepare(
+            `DELETE FROM activities
+             WHERE user_id = ? AND kind = ? AND game_key = ?
+               AND id != (
+                 SELECT id FROM activities
+                 WHERE user_id = ? AND kind = ? AND game_key = ?
+                 ORDER BY at DESC, id DESC
+                 LIMIT 1
+               )`
+          ).bind(auth.user.id, r.kind, r.gameKey, auth.user.id, r.kind, r.gameKey)
+        );
+      } else if (STATUS_ACTIVITY_KINDS.has(r.kind)) {
+        const windowStart = new Date(Date.parse(r.at) - ACTIVITY_MERGE_WINDOW_MS).toISOString();
+        statements.push(
+          env.DB.prepare(
+            `DELETE FROM activities
+             WHERE user_id = ? AND kind = ? AND game_key = ?
+               AND (at < ? OR (at = ? AND id < ?))
+               AND at >= ?`
+          ).bind(auth.user.id, r.kind, r.gameKey, r.at, r.at, r.id, windowStart)
+        );
+      }
+    }
+
+    await env.DB.batch(statements);
     // Guarda só os mais recentes de cada pessoa
     await env.DB.prepare(
       'DELETE FROM activities WHERE user_id = ? AND id IN (SELECT id FROM activities WHERE user_id = ? ORDER BY at DESC LIMIT -1 OFFSET ?)'
@@ -446,7 +490,7 @@ async function handleActivities(request, env, auth) {
       .bind(auth.user.id, auth.user.id, MAX_ACTIVITIES_PER_USER)
       .run();
   }
-  return json({ accepted: rows.length, rejected: events.length - rows.length });
+  return json({ accepted: rawRows.length, rejected: events.length - rawRows.length });
 }
 
 // O app manda os eventos que a pessoa removeu (nota apagada, jogo escondido)
@@ -686,7 +730,9 @@ async function handleFeed(url, env, auth) {
     args.push(friend.id, ...kinds);
   }
   if (clauses.length === 0) return json({ items: [] });
-  const { results } = await env.DB.prepare(`SELECT a.* FROM activities a WHERE (${clauses.join(' OR ')}) AND a.at < ? ORDER BY a.at DESC LIMIT ?`)
+  const { results } = await env.DB.prepare(
+    `SELECT a.* FROM activities a WHERE (${clauses.join(' OR ')}) AND a.at < ? AND ${DEDUPE_SINGLETON_SQL} ORDER BY a.at DESC LIMIT ?`
+  )
     .bind(...args, beforeIso, limit)
     .all();
   const byId = new Map(friends.map((f) => [f.id, publicUser(f)]));
@@ -706,7 +752,9 @@ async function handleUser(env, auth, userId) {
   const settings = parseSettings(row.settings);
   const kinds = visibleKinds(settings);
   const { results } = kinds.length
-    ? await env.DB.prepare(`SELECT * FROM activities WHERE user_id = ? AND kind IN (${kinds.map(() => '?').join(',')}) ORDER BY at DESC LIMIT 40`)
+    ? await env.DB.prepare(
+        `SELECT a.* FROM activities a WHERE a.user_id = ? AND a.kind IN (${kinds.map(() => '?').join(',')}) AND ${DEDUPE_SINGLETON_SQL} ORDER BY a.at DESC LIMIT 40`
+      )
         .bind(userId, ...kinds)
         .all()
     : { results: [] };

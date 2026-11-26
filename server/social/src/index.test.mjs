@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import worker, { retryPurges } from './index.js';
 import { openD1 } from './d1-sqlite.js';
@@ -1441,4 +1441,74 @@ test('bloquear: desfaz a amizade, limpa o que a pessoa deixou e nenhum convite v
   await s.call('POST', `/v1/friends/${b.user.id}/block`, { token: a.token });
   await s.call('DELETE', '/v1/me', { token: a.token });
   assert.equal(s.env.DB.raw.prepare('SELECT COUNT(*) AS n FROM blocks').get().n, 0);
+});
+
+test('atividades: resenha e nota deduplicadas no envio, no feed, no perfil e na migração D1', async (t) => {
+  const steam = fakeSteam();
+  t.after(steam.restore);
+  const s = setup();
+  const a = await login(s, '76561198000000001');
+  const b = await login(s, '76561198000000002');
+  await befriend(s, a, b);
+
+  // Vários rascunhos da mesma resenha e nota com ids diferentes (em um mesmo POST e em POSTs separados)
+  const batchRes = await s.call('POST', '/v1/me/activities', {
+    token: b.token,
+    body: {
+      events: [
+        event({ id: 'rev-1', kind: 'reviewed', gameKey: 'steam:1546970', gameTitle: 'GTA San Andreas: The Definitive Edition', rating: 3.5, text: 'Rascunho 1', at: '2026-11-10T18:00:00.000Z' }),
+        event({ id: 'rev-2', kind: 'reviewed', gameKey: 'steam:1546970', gameTitle: 'GTA San Andreas: The Definitive Edition', rating: 3.5, text: 'Rascunho 2', at: '2026-11-10T18:05:00.000Z' }),
+        event({ id: 'rat-1', kind: 'rated', gameKey: 'steam:1546970', gameTitle: 'GTA San Andreas: The Definitive Edition', rating: 3, at: '2026-11-10T18:00:00.000Z' })
+      ]
+    }
+  });
+  assert.deepEqual(batchRes.body, { accepted: 3, rejected: 0 });
+
+  await s.call('POST', '/v1/me/activities', {
+    token: b.token,
+    body: {
+      events: [
+        event({ id: 'rev-3', kind: 'reviewed', gameKey: 'steam:1546970', gameTitle: 'GTA San Andreas: The Definitive Edition', rating: 3.5, text: 'Resenha final', at: '2026-11-10T18:10:00.000Z' }),
+        event({ id: 'rat-2', kind: 'rated', gameKey: 'steam:1546970', gameTitle: 'GTA San Andreas: The Definitive Edition', rating: 3.5, at: '2026-11-10T18:11:00.000Z' })
+      ]
+    }
+  });
+
+  // Envio atrasado com data mais antiga não sobrescreve nem duplica o mais recente
+  await s.call('POST', '/v1/me/activities', {
+    token: b.token,
+    body: {
+      events: [
+        event({ id: 'rev-stale', kind: 'reviewed', gameKey: 'steam:1546970', gameTitle: 'GTA San Andreas: The Definitive Edition', rating: 2, text: 'Velha', at: '2026-11-10T17:00:00.000Z' })
+      ]
+    }
+  });
+
+  const feed1 = await s.call('GET', '/v1/feed', { token: a.token });
+  assert.deepEqual(feed1.body.items.map((i) => i.id), ['rat-2', 'rev-3']);
+  assert.equal(feed1.body.items[1].text, 'Resenha final');
+  const profile1 = await s.call('GET', `/v1/users/${b.user.id}`, { token: a.token });
+  assert.deepEqual(profile1.body.activities.map((i) => i.id), ['rat-2', 'rev-3']);
+
+  // Duplicatas antigas já salvas direto no banco também são filtradas no feed (inclusive com paginação) e no perfil
+  const insertLegacy = s.env.DB.raw.prepare(
+    'INSERT INTO activities (user_id, id, kind, game_key, game_title, cover_url, at, rating, count, seconds, text) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, NULL, NULL, ?)'
+  );
+  insertLegacy.run(b.user.id, 'rev-legacy-1', 'reviewed', 'steam:1546970', 'GTA San Andreas: The Definitive Edition', '2026-11-10T16:00:00.000Z', 3.5, 'Antiga 1');
+  insertLegacy.run(b.user.id, 'rev-legacy-2', 'reviewed', 'steam:1546970', 'GTA San Andreas: The Definitive Edition', '2026-11-10T16:30:00.000Z', 3.5, 'Antiga 2');
+  insertLegacy.run(b.user.id, 'played-legacy', 'played', 'steam:1546970', 'GTA San Andreas: The Definitive Edition', '2026-11-10T15:00:00.000Z', null, null);
+  insertLegacy.run(b.user.id, 'finished-legacy', 'finished', 'steam:1546970', 'GTA San Andreas: The Definitive Edition', '2026-11-10T14:00:00.000Z', null, null);
+
+  const page1 = await s.call('GET', '/v1/feed?limit=2', { token: a.token });
+  assert.deepEqual(page1.body.items.map((i) => i.id), ['rat-2', 'rev-3']);
+  const page2 = await s.call('GET', `/v1/feed?before=${encodeURIComponent(page1.body.items[1].at)}&limit=5`, { token: a.token });
+  assert.deepEqual(page2.body.items.map((i) => i.id), ['played-legacy', 'finished-legacy']);
+  const profile2 = await s.call('GET', `/v1/users/${b.user.id}`, { token: a.token });
+  assert.deepEqual(profile2.body.activities.map((i) => i.id), ['rat-2', 'rev-3', 'played-legacy', 'finished-legacy']);
+
+  // Migração SQL limpa as linhas antigas duplicadas mantendo a mais recente e preservando outros tipos
+  const migrationPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'migrations', '2026-11-dedupe-activities.sql');
+  s.env.DB.raw.exec(readFileSync(migrationPath, 'utf8'));
+  const remaining = s.env.DB.raw.prepare('SELECT id FROM activities WHERE user_id = ? ORDER BY at DESC').all(b.user.id).map((r) => r.id);
+  assert.deepEqual(remaining, ['rat-2', 'rev-3', 'played-legacy', 'finished-legacy']);
 });

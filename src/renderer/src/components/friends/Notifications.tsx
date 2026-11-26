@@ -58,7 +58,7 @@ export const NotificationsBox: React.FC = () => {
   const items = showAll ? notifications.items : notifications.items.slice(0, SHOWN);
 
   return (
-    <section className="rounded-xl bg-slate-900/50 border border-slate-800/90 p-3">
+    <section className="rounded-xl bg-surface-panel/70 border border-slate-800/80 p-3">
       <h3 className="flex items-center gap-1.5 px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
         <Bell className="w-3.5 h-3.5" /> Avisos
       </h3>
@@ -81,7 +81,7 @@ export const NotificationsBox: React.FC = () => {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-xs leading-snug text-slate-200 line-clamp-3 break-words">{notificationText(n)}</span>
-                  <span className={`block mt-0.5 text-[11px] ${isNew ? 'text-indigo-300 font-semibold' : 'text-slate-500'}`}>{formatAgo(n.at)}</span>
+                  <span className={`block mt-0.5 text-[11px] tabular-nums ${isNew ? 'text-indigo-300 font-semibold' : 'text-slate-400'}`}>{formatAgo(n.at)}</span>
                 </span>
               </button>
             </li>

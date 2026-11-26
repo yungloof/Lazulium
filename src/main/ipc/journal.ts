@@ -16,7 +16,7 @@ import { dialogParent, handle, saveTextAs } from './helpers';
 // Diário: registro do jogador, jogos registrados à mão e exportação
 export function registerJournalHandlers(): void {
   handle(IPC_CHANNELS.GAME_SET_LOG, (_event, gameId: string, log: GameLog) => {
-    const game = setGameLog(gameId, log);
+    const game = setGameLog(gameId, log, (ids) => socialService.deleteActivities(ids));
     socialService.scheduleSync();
     return game;
   });

@@ -4,6 +4,23 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 3.3.1 — 26 de novembro de 2026
+
+Correção de resenhas repetidas no feed de amigos e ajustes visuais em todo o aplicativo.
+
+### Correções
+
+- **Resenhas e notas não duplicam mais no feed.** Editar o texto enquanto o salvamento automático envia suas alterações (ou mudar a resenha e a nota em outro momento) agora atualiza o mesmo registro no feed dos amigos em vez de criar várias cópias. Apagar uma resenha ou nota do Diário também remove o evento do feed.
+- **Corte na última linha das resenhas no feed.** Em resenhas maiores no feed de amigos, a quinta linha não fica mais cortada pela metade na borda da caixa.
+
+### Melhorias
+
+- **Ler resenha inteira no feed.** Resenhas longas no feed de amigos agora têm o botão *Ler resenha inteira* para abrir e fechar sem precisar sair da tela.
+- **Curtidas e comentários no perfil do amigo.** A aba *Atividade* do perfil de cada amigo também mostra as curtidas e comentários nas resenhas e notas, com estrelas vetoriais no lugar dos caracteres antigos.
+- **Acabamento visual coerente com seu tema.** Seleção de texto e cursor acompanham a cor do tema escolhido em *Aparência*, os cartões de registro, feed e amigos passam a respeitar a cor de painel configurada, os preços na Lista de Desejos ficam alinhados em coluna e os detalhes de data e metadados ganharam melhor contraste.
+
+---
+
 ## 3.3.0 — 21 de novembro de 2026
 
 Resenhas com imagens, como num blog: dá para pôr capturas de tela e imagens do PC em qualquer parte do texto.

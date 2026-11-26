@@ -152,7 +152,7 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
             <>
               {totals && (
                 <StatStrip
-                  className="rounded-xl bg-slate-900/50 border border-slate-800/90 py-4"
+                  className="rounded-xl bg-surface-panel/70 border border-slate-800/80 py-4"
                   stats={[
                     { label: 'Jogos', value: totals.games },
                     { label: 'Horas', value: totals.playtimeSeconds ? Math.round(totals.playtimeSeconds / 3600) : '—' },
@@ -181,7 +181,7 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
                           <p className="mt-1.5 text-xs font-semibold text-slate-200 truncate" title={g.title}>
                             {g.title}
                           </p>
-                          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-slate-500 whitespace-nowrap">
+                          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-slate-400 tabular-nums whitespace-nowrap">
                             {g.playtimeSeconds > 0 && <span>{formatPlaytimeShort(g.playtimeSeconds)}</span>}
                             {g.rating && (
                               <span className="inline-flex items-center gap-0.5 text-amber-300">
@@ -207,7 +207,7 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
                 ) : (
                   <div className="space-y-2.5">
                     {profile.activities.map((a) => (
-                      <ActivityCard key={a.id} activity={a} />
+                      <ActivityCard key={a.id} activity={a} ownerId={profile.user.id} />
                     ))}
                   </div>
                 )}

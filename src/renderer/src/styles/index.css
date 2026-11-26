@@ -112,6 +112,20 @@
     color-scheme: dark;
     font-feature-settings: 'cv11', 'ss01';
   }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-indigo-500) 34%, transparent);
+    color: var(--color-slate-50);
+  }
+
+  input,
+  textarea {
+    caret-color: var(--color-indigo-400);
+  }
+
+  a {
+    text-underline-offset: 3px;
+  }
 }
 
 /* Títulos com a fonte da marca */
@@ -119,6 +133,7 @@ h1,
 h2 {
   font-family: var(--font-display);
   letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
 /* A classe rounded simples não acompanha os raios do tema */

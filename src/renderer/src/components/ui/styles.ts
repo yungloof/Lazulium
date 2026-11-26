@@ -35,7 +35,7 @@ export const hintClass = 'block mt-1.5 text-xs text-slate-400';
 
 export const sectionTitleClass = 'flex items-center gap-2 text-xs font-semibold text-slate-300 uppercase tracking-wider';
 
-export const cardClass = 'rounded-lg bg-slate-900/60 border border-slate-800';
+export const cardClass = 'rounded-lg bg-surface-panel/70 border border-slate-800/80';
 
 // --- Acréscimos da 1.0 (as classes acima continuam iguais para quem já usa) ---
 

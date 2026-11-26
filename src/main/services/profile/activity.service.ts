@@ -14,28 +14,67 @@ const STATUS_EVENT: Partial<Record<GameLogStatus, StoredActivityKind>> = {
 };
 // Editar a nota ou a resenha várias vezes seguidas vira um evento só
 const MERGE_WINDOW_MS = 6 * 60 * 60 * 1000;
+const SINGLETON_KINDS = new Set<StoredActivityKind>(['reviewed', 'rated']);
 const MIN_PLAYED_SECONDS = 5 * 60;          // Abrir e fechar o jogo não é "jogou"
 const DEFAULT_LIMIT = 30;
 const localDayKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 export { localDayKey };
 const MAX_LIMIT = 200;
 
-// Compara o Diário antes e depois de salvar e grava o que mudou
-export function recordLogChange(gameId: string, before: GameLog | undefined, after: GameLog | undefined, at = new Date()): void {
+// Compara o Diário antes e depois de salvar e grava o que mudou (e devolve os ids apagados, se tirou nota ou resenha)
+export function recordLogChange(gameId: string, before: GameLog | undefined, after: GameLog | undefined, at = new Date()): string[] {
   const iso = at.toISOString();
-  const entries: StoredActivity[] = [];
+  const candidates: Array<{ kind: StoredActivityKind; rating?: number }> = [];
   const statusKind = after?.status && after.status !== before?.status ? STATUS_EVENT[after.status] : undefined;
-  if (statusKind) entries.push({ id: randomUUID(), kind: statusKind, gameId, at: iso });
-  if (after?.rating && after.rating !== before?.rating) entries.push({ id: randomUUID(), kind: 'rated', gameId, at: iso, rating: after.rating });
-  if (after?.review && after.review !== before?.review) entries.push({ id: randomUUID(), kind: 'reviewed', gameId, at: iso });
-  if (entries.length === 0) return;
+  if (statusKind) candidates.push({ kind: statusKind });
+  if (after?.rating && after.rating !== before?.rating) candidates.push({ kind: 'rated', rating: after.rating });
+  if (after?.review && after.review !== before?.review) candidates.push({ kind: 'reviewed' });
 
-  const merged = new Set(entries.map((e) => e.kind));
-  const stale = db
-    .getActivityLog()
-    .filter((e) => e.gameId === gameId && merged.has(e.kind) && at.getTime() - Date.parse(e.at) < MERGE_WINDOW_MS)
-    .map((e) => e.id);
+  const existingLog = db.getActivityLog();
+  const stale: string[] = [];
+  const entries: StoredActivity[] = [];
+  const removedIds: string[] = [];
+
+  for (const candidate of candidates) {
+    const isSingleton = SINGLETON_KINDS.has(candidate.kind);
+    const matches = existingLog
+      .filter(
+        (e) =>
+          e.gameId === gameId &&
+          e.kind === candidate.kind &&
+          (isSingleton || Math.abs(at.getTime() - Date.parse(e.at)) < MERGE_WINDOW_MS)
+      )
+      .sort((a, b) => b.at.localeCompare(a.at));
+    for (const match of matches) stale.push(match.id);
+    entries.push({
+      id: matches[0]?.id ?? randomUUID(),
+      kind: candidate.kind,
+      gameId,
+      at: iso,
+      ...(candidate.rating !== undefined ? { rating: candidate.rating } : {})
+    });
+  }
+
+  if (before?.rating && !after?.rating) {
+    for (const e of existingLog) {
+      if (e.gameId === gameId && e.kind === 'rated') {
+        stale.push(e.id);
+        removedIds.push(e.id);
+      }
+    }
+  }
+  if (before?.review && !after?.review) {
+    for (const e of existingLog) {
+      if (e.gameId === gameId && e.kind === 'reviewed') {
+        stale.push(e.id);
+        removedIds.push(e.id);
+      }
+    }
+  }
+
+  if (entries.length === 0 && stale.length === 0) return [];
   db.replaceActivity(stale, entries);
+  return [...new Set(removedIds)];
 }
 
 const gameInfo = (game: Game) => ({ gameId: game.id, gameTitle: game.title, coverUrl: game.media?.coverUrl });
@@ -59,14 +98,27 @@ export function getRecentActivity(limit = DEFAULT_LIMIT): ActivityEvent[] {
   const games = new Map(db.getGames().filter((g) => !g.isHidden).map((g) => [g.id, g]));
   const events: ActivityEvent[] = [];
 
-  for (const entry of db.getActivityLog()) {
+  const seenSingleton = new Set<string>();
+  const sortedLog = [...db.getActivityLog()].sort((a, b) => b.at.localeCompare(a.at));
+  for (const entry of sortedLog) {
     const game = games.get(entry.gameId);
     if (!game) continue;
-    // Resenha: o texto atual (se foi apagada depois, o evento some)
+    // Resenha e nota: usam o valor atual (se foram apagadas depois, o evento some)
     if (entry.kind === 'reviewed') {
       if (!game.log?.review) continue;
+      const key = `${entry.gameId}|${entry.kind}`;
+      if (seenSingleton.has(key)) continue;
+      seenSingleton.add(key);
       events.push({ id: entry.id, kind: entry.kind, at: entry.at, rating: game.log.rating, text: game.log.review, ...gameInfo(game) });
-    } else events.push({ id: entry.id, kind: entry.kind, at: entry.at, rating: entry.rating, ...gameInfo(game) });
+    } else if (entry.kind === 'rated') {
+      if (!game.log?.rating) continue;
+      const key = `${entry.gameId}|${entry.kind}`;
+      if (seenSingleton.has(key)) continue;
+      seenSingleton.add(key);
+      events.push({ id: entry.id, kind: entry.kind, at: entry.at, rating: game.log.rating, ...gameInfo(game) });
+    } else {
+      events.push({ id: entry.id, kind: entry.kind, at: entry.at, rating: entry.rating, ...gameInfo(game) });
+    }
   }
 
   const sessions = [...games.keys()].flatMap((id) => db.getPlaytimeSessions(id));

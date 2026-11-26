@@ -50,7 +50,7 @@ export const AppHeader: React.FC = () => {
             >
               {tab.label}
               {tab.view === 'friends' && unread > 0 && (
-                <span className="absolute top-2 right-0.5 xl:right-1.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-[10px] font-bold leading-4 text-white tabular-nums" aria-hidden>
+                <span className="absolute top-2 right-0.5 xl:right-1.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 ring-2 ring-surface-header text-[10px] font-bold leading-4 text-white tabular-nums" aria-hidden>
                   {unread > 9 ? '9+' : unread}
                 </span>
               )}
@@ -86,6 +86,7 @@ export const AppHeader: React.FC = () => {
           <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin text-indigo-400' : ''}`} />
           <span className="hidden xl:inline">{isScanning ? 'Escaneando...' : 'Escanear'}</span>
         </button>
+        <span className="hidden sm:block w-px h-4 bg-slate-800 mx-1" aria-hidden />
         <button onClick={() => openModal({ kind: 'emulators' })} title="Emuladores" aria-label="Emuladores" className={actionButton}>
           <Cpu className="w-4 h-4" />
         </button>

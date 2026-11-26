@@ -62,12 +62,13 @@ export function setJournalCeremonyListener(listener: (event: CeremonyEvent) => v
   ceremonyListener = listener;
 }
 
-export function setGameLog(gameId: string, log: GameLog): Game {
+export function setGameLog(gameId: string, log: GameLog, onActivitiesRemoved?: (ids: string[]) => void): Game {
   const game = db.getGameById(gameId);
   if (!game) throw new Error('Jogo não encontrado.');
   const updated: Game = { ...game, log: sanitizeLog(log), logUpdatedAt: new Date().toISOString() };
   db.upsertGame(updated);
-  recordLogChange(gameId, game.log, updated.log);
+  const removed = recordLogChange(gameId, game.log, updated.log);
+  if (removed.length) onActivitiesRemoved?.(removed);
   const ceremony = ceremonyFromJournalTransition(game.log?.status, updated);
   if (ceremony) ceremonyListener?.(ceremony);
   return updated;

@@ -3,7 +3,7 @@ import { Copy, Minus, Square, X, Gamepad2 } from 'lucide-react';
 import { useGamepadStore } from '../stores/useGamepadStore';
 import logo from '../assets/logo.png';
 
-const windowButton = 'w-11 h-12 flex items-center justify-center text-slate-400 hover:text-white transition-colors';
+const windowButton = 'w-11 h-12 flex items-center justify-center text-slate-400 hover:text-white focus-visible:outline-none focus-visible:bg-slate-800/80 transition-colors';
 
 // Uma barra só: marca, seções, ações e controles da janela. O que não é botão arrasta a janela.
 export const TitleBar: React.FC<{ children?: React.ReactNode }> = ({ children }) => {

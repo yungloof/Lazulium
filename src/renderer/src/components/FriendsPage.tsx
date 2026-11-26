@@ -97,7 +97,7 @@ const InviteBox: React.FC<{ onFriendAdded: () => void }> = ({ onFriendAdded }) =
   };
 
   return (
-    <section className="rounded-xl bg-slate-900/50 border border-slate-800/90 p-4 space-y-3">
+    <section className="rounded-xl bg-surface-panel/70 border border-slate-800/80 p-4 space-y-3">
       <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-100">
         <UserPlus className="w-4 h-4 text-indigo-300" /> Adicionar amigo
       </h3>
@@ -280,14 +280,14 @@ export const FriendsPage: React.FC = () => {
               </ul>
             </section>
           )}
-          <section className="rounded-xl bg-slate-900/50 border border-slate-800/90 p-3">
+          <section className="rounded-xl bg-surface-panel/70 border border-slate-800/80 p-3">
             <h3 className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Amigos {friends ? <span className="tabular-nums text-slate-500">{friends.length}</span> : null}
+              Amigos {friends ? <span className="tabular-nums text-slate-400">{friends.length}</span> : null}
             </h3>
             {friends === null ? (
               <Skeleton className="h-24 w-full" />
             ) : friends.length === 0 ? (
-              <p className="px-1 py-2 text-xs text-slate-500">Ninguém ainda. Use o convite abaixo.</p>
+              <p className="px-1 py-2 text-xs text-slate-400">Ninguém ainda. Use o convite abaixo.</p>
             ) : (
               <ul>
                 {friends.map((f) => (

@@ -51,7 +51,8 @@ export const SOCIAL_SETTING_KEYS = {
   media: 'socialMedia',               // { avatar: { hash, url }, ... } das imagens já enviadas
   librarySent: 'socialLibrarySent',   // { at, rows: { titleKey: hash } } da biblioteca resumida já enviada
   notifications: 'socialNotifications', // Avisos de curtida e comentário já buscados (reactions.service)
-  summarySent: 'socialSummarySent'    // { hash, at } do último resumo enviado: só manda de novo se mudar
+  summarySent: 'socialSummarySent',   // { hash, at } do último resumo enviado: só manda de novo se mudar
+  deletedActivities: 'socialDeletedActivities' // Ids de eventos apagados localmente aguardando remoção no servidor
 } as const;
 // Fora do token: o renderer pode ler e mudar
 export const SOCIAL_NOTIFY_SETTING = 'socialNotifyPlaying';
@@ -647,6 +648,23 @@ class SocialService {
     this.debounceTimer.unref();
   }
 
+  private readDeletedActivities(): string[] {
+    try {
+      const parsed = JSON.parse(db.getSettings()[SOCIAL_SETTING_KEYS.deletedActivities] || '[]');
+      return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string' && id.length > 0 && id.length <= 200) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  deleteActivities(ids: string[]): void {
+    const clean = ids.filter((id) => typeof id === 'string' && id.length > 0 && id.length <= 200);
+    if (clean.length === 0) return;
+    const merged = [...new Set([...this.readDeletedActivities(), ...clean])].slice(-MAX_PUSH);
+    db.setSetting(SOCIAL_SETTING_KEYS.deletedActivities, JSON.stringify(merged));
+    this.scheduleSync();
+  }
+
   private toWire(event: ActivityEvent, game: Game, settings: SocialSettings): SocialActivity | null {
     const gameKey = gameKeyOf(game);
     if (!gameKey) return null;
@@ -727,10 +745,16 @@ class SocialService {
       const me = await this.api<CachedProfile>('GET', '/v1/me');
       this.saveProfile(me);
       const settings = me.settings;
+      const pendingDeletes = this.readDeletedActivities();
+      if (pendingDeletes.length) {
+        await this.api('POST', '/v1/me/activities/delete', { ids: pendingDeletes });
+        db.setSetting(SOCIAL_SETTING_KEYS.deletedActivities, '');
+      }
       if (settings.shareActivity) {
+        const deletedSet = new Set(pendingDeletes);
         const lastPush = Date.parse(db.getSettings()[SOCIAL_SETTING_KEYS.lastPushAt] || '');
         const since = Number.isNaN(lastPush) ? Date.now() - FIRST_PUSH_DAYS * 86_400_000 : lastPush - PUSH_OVERLAP_MS;
-        const recent = getRecentActivity(MAX_PUSH).filter((e) => Date.parse(e.at) >= since);
+        const recent = getRecentActivity(MAX_PUSH).filter((e) => Date.parse(e.at) >= since && !deletedSet.has(e.id));
         await this.resolvePublicCovers(recent.map((e) => e.gameId));
         const games = new Map(db.getGames().map((g) => [g.id, g]));
         const events = recent
