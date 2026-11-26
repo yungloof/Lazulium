@@ -4,6 +4,20 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 3.4.1 — 26 de novembro de 2026
+
+Correção na exibição das capas no cartão para compartilhar.
+
+### Correções
+
+- **Capa do jogo no cartão para compartilhar.** Jogos com capa em cache local (`lazulium-media://`) ou em CDNs sem cabeçalho CORS agora carregam a arte normalmente no cartão `1200×630` em vez de cair no quadro com o título.
+
+### Melhorias
+
+- **Pílula de status acompanhando o tema.** O destaque de status no cartão compartilhável agora usa a cor de destaque do tema ativo em *Aparência*.
+
+---
+
 ## 3.4.0 — 26 de novembro de 2026
 
 Feed de amigos conectado à sua biblioteca, cartão de jogo/resenha para compartilhar, prévia ao vivo de tema, navegação de volta real e barra lateral recolhível.

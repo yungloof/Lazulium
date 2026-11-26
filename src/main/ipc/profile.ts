@@ -3,6 +3,7 @@ import { IPC_CHANNELS } from '@shared/constants/ipc-channels';
 import { ProfileCustom, ProfileMediaKind, ProfileWebLink } from '@shared/types/profile';
 import { profileService } from '../services/profile/profile.service';
 import { profileWebService } from '../services/profile/profile-web.service';
+import { resolveShareCardCoverDataUrl } from '../services/profile/share-card-cover';
 import { buildYearReview } from '../services/profile/year-review.service';
 import { getRecentActivity } from '../services/profile/activity.service';
 import { getOnThisDayMemories } from '../services/profile/on-this-day.service';
@@ -71,6 +72,10 @@ export function registerProfileHandlers(): void {
       { title: 'Salvar cartão do jogo', defaultPath: fileName, filters: [{ name: 'Imagem PNG', extensions: ['png'] }] },
       buffer
     );
+  });
+  handle(IPC_CHANNELS.PROFILE_SHARE_CARD_COVER, (_event, gameIds: string | string[]) => {
+    const ids = Array.isArray(gameIds) ? gameIds : typeof gameIds === 'string' ? [gameIds] : [];
+    return resolveShareCardCoverDataUrl(ids);
   });
   handle(IPC_CHANNELS.PROFILE_SYNC_ACHIEVEMENTS, () => profileService.syncAllAchievements());
   handle(IPC_CHANNELS.PROFILE_SAVE_CUSTOM, (_event, custom: ProfileCustom) => profileService.saveCustom(custom));

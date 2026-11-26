@@ -167,6 +167,7 @@ const electronAPI: ElectronAPI = {
   getYearReview: (year?: number) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_YEAR_REVIEW, year),
   saveYearReviewImage: (dataUrl: string, year: number) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_YEAR_REVIEW_IMAGE, dataUrl, year),
   saveShareCardImage: (dataUrl: string, gameTitle: string) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SHARE_CARD_IMAGE, dataUrl, gameTitle),
+  getShareCardCover: (gameIds: string | string[]) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SHARE_CARD_COVER, gameIds),
   syncAllAchievements: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SYNC_ACHIEVEMENTS),
   saveProfileCustom: (custom: ProfileCustom) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SAVE_CUSTOM, custom),
   pickProfileMedia: (kind: ProfileMediaKind) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_PICK_MEDIA, kind),

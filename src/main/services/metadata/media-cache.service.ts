@@ -115,28 +115,36 @@ export function mediaUrl(host: string, relativePath: string): string {
   return `${MEDIA_SCHEME}://${host}/${relativePath.split(/[\\/]/).map(encodeURIComponent).join('/')}`;
 }
 
+// Resolve uma URL lazulium-media://<host>/<caminho> para o arquivo local dentro da raiz permitida
+export async function resolveMediaFilePath(rawUrl?: string): Promise<string | undefined> {
+  if (!rawUrl?.startsWith(`${MEDIA_SCHEME}://`)) return undefined;
+  const cacheRoot = resolve(getCacheRoot());
+  try {
+    const url = new URL(rawUrl);
+    const segments = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+    const extra = extraRoots.get(url.host);
+    const rootDir = url.host === MEDIA_HOST ? cacheRoot : extra ? await extra.resolveRoot() : undefined;
+    if (!rootDir || (extra?.allowPath && !extra.allowPath.test(segments.join('/')))) {
+      return undefined;
+    }
+    const root = resolve(rootDir);
+    const filePath = resolve(root, ...segments);
+    if (!filePath.startsWith(root + sep)) return undefined;
+    if (!existsSync(filePath) && !(extra?.fetchMissing && (await extra.fetchMissing(segments.join('/'))) && existsSync(filePath))) {
+      return undefined;
+    }
+    return filePath;
+  } catch {
+    return undefined;
+  }
+}
+
 // lazulium-media://<host>/<caminho> -> arquivo dentro da raiz daquele host (nunca fora dela)
 export function registerMediaProtocol(): void {
-  const cacheRoot = resolve(getCacheRoot());
   protocol.handle(MEDIA_SCHEME, async (request) => {
-    try {
-      const url = new URL(request.url);
-      const segments = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
-      const extra = extraRoots.get(url.host);
-      const rootDir = url.host === MEDIA_HOST ? cacheRoot : extra ? await extra.resolveRoot() : undefined;
-      if (!rootDir || (extra?.allowPath && !extra.allowPath.test(segments.join('/')))) {
-        return new Response('Not found', { status: 404 });
-      }
-      const root = resolve(rootDir);
-      const filePath = resolve(root, ...segments);
-      if (!filePath.startsWith(root + sep)) return new Response('Not found', { status: 404 });
-      if (!existsSync(filePath) && !(extra?.fetchMissing && (await extra.fetchMissing(segments.join('/'))) && existsSync(filePath))) {
-        return new Response('Not found', { status: 404 });
-      }
-      return net.fetch(pathToFileURL(filePath).toString());
-    } catch {
-      return new Response('Bad request', { status: 400 });
-    }
+    const filePath = await resolveMediaFilePath(request.url);
+    if (!filePath) return new Response('Not found', { status: 404 });
+    return net.fetch(pathToFileURL(filePath).toString());
   });
 }
 

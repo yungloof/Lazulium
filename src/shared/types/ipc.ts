@@ -280,6 +280,7 @@ export interface ElectronAPI {
   getYearReview: (year?: number) => Promise<YearReview>;
   saveYearReviewImage: (dataUrl: string, year: number) => Promise<string | null>; // Salva o cartão PNG só no PC
   saveShareCardImage: (dataUrl: string, gameTitle: string) => Promise<string | null>; // Salva o cartão do jogo em PNG só no PC
+  getShareCardCover: (gameIds: string | string[]) => Promise<string | null>; // Traz a capa como data URL segura para o canvas
   syncAllAchievements: () => Promise<AchievementsSyncResult>;
   saveProfileCustom: (custom: ProfileCustom) => Promise<ProfileCustom>;
   pickProfileMedia: (kind: ProfileMediaKind) => Promise<string | null>; // URL do arquivo copiado (null se cancelado)

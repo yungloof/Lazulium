@@ -124,6 +124,7 @@ export const IPC_CHANNELS = {
   PROFILE_YEAR_REVIEW: 'profile:year-review',
   PROFILE_YEAR_REVIEW_IMAGE: 'profile:year-review-image',
   PROFILE_SHARE_CARD_IMAGE: 'profile:share-card-image',
+  PROFILE_SHARE_CARD_COVER: 'profile:share-card-cover',
   PROFILE_SYNC_ACHIEVEMENTS: 'profile:sync-achievements',
   PROFILE_EXPORT: 'profile:export',
   PROFILE_SAVE_CUSTOM: 'profile:save-custom',

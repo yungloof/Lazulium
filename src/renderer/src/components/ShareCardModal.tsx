@@ -23,12 +23,32 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({ game, onClose })
 
   const hasReview = !!game.log?.review?.trim();
   const hasPlaytime = (game.totalPlaytimeSeconds ?? 0) >= 60;
+  const editionKey = (game.editions ?? []).map((e) => e.id).join('|');
 
   useEffect(() => {
     let alive = true;
-    void loadCardImage(game.media?.coverUrl).then((img) => {
-      if (alive) setCoverImg(img);
-    });
+    setCoverImg(null);
+    const coverIds = [game.id, ...(game.editions?.map((e) => e.id).filter((id) => id !== game.id) ?? [])];
+    const directFallback = game.media?.coverUrl ?? game.media?.publicCoverUrl ?? game.media?.heroUrl;
+
+    const loadCover = async () => {
+      try {
+        const dataUrl = await window.electronAPI?.getShareCardCover?.(coverIds);
+        if (dataUrl) {
+          const loaded = await loadCardImage(dataUrl);
+          if (alive && loaded) {
+            setCoverImg(loaded);
+            return;
+          }
+        }
+      } catch {
+        // Cai para o carregamento direto se a leitura pelo processo principal falhar
+      }
+      const fallback = await loadCardImage(directFallback);
+      if (alive) setCoverImg(fallback);
+    };
+
+    void loadCover();
     window.electronAPI
       ?.getPlayerProfile()
       .then((p) => {
@@ -38,7 +58,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({ game, onClose })
     return () => {
       alive = false;
     };
-  }, [game.id, game.media?.coverUrl]);
+  }, [game.id, game.media?.coverUrl, game.media?.publicCoverUrl, game.media?.heroUrl, editionKey]);
 
   useEffect(() => {
     if (!canvasRef.current) return;

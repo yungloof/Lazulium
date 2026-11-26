@@ -182,7 +182,23 @@ function drawVectorStars(ctx: CanvasRenderingContext2D, x: number, y: number, ra
   return x + 5 * (size + gap);
 }
 
-/** Loads a cover URL with CORS enabled; falls back to null so canvas export never taints. */
+/** Converts a hex or rgb CSS color into an rgba() string with the requested alpha. */
+function colorWithAlpha(color: string, alpha: number): string {
+  const c = color.trim();
+  const hex6 = c.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (hex6) {
+    return `rgba(${parseInt(hex6[1], 16)}, ${parseInt(hex6[2], 16)}, ${parseInt(hex6[3], 16)}, ${alpha})`;
+  }
+  const hex3 = c.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i);
+  if (hex3) {
+    return `rgba(${parseInt(hex3[1] + hex3[1], 16)}, ${parseInt(hex3[2] + hex3[2], 16)}, ${parseInt(hex3[3] + hex3[3], 16)}, ${alpha})`;
+  }
+  const rgb = c.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (rgb) return `rgba(${rgb[1]}, ${rgb[2]}, ${rgb[3]}, ${alpha})`;
+  return `rgba(74, 128, 255, ${alpha})`;
+}
+
+/** Loads an image URL for canvas drawing; skips CORS on inline data URLs so local IPC covers load reliably. */
 export function loadCardImage(url?: string): Promise<HTMLImageElement | null> {
   if (!url || typeof Image === 'undefined') return Promise.resolve(null);
   return new Promise((resolve) => {
@@ -195,7 +211,7 @@ export function loadCardImage(url?: string): Promise<HTMLImageElement | null> {
       resolve(result);
     };
     const timer = setTimeout(() => done(null), 3000);
-    img.crossOrigin = 'anonymous';
+    if (!/^data:/i.test(url)) img.crossOrigin = 'anonymous';
     img.onload = () => done(img.naturalWidth > 0 ? img : null);
     img.onerror = () => done(null);
     img.src = url;
@@ -281,7 +297,7 @@ export function drawShareCard(
     ctx.font = `600 14px ${FONT}`;
     const pw = Math.ceil(ctx.measureText(label).width) + 24;
     roundedRectPath(ctx, pillX, y - 16, pw, 28, 14);
-    ctx.fillStyle = 'rgba(74, 128, 255, 0.16)';
+    ctx.fillStyle = colorWithAlpha(palette.accent, 0.16);
     ctx.fill();
     ctx.strokeStyle = palette.accent;
     ctx.lineWidth = 1;
