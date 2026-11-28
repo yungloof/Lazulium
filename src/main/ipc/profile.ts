@@ -7,6 +7,7 @@ import { resolveShareCardCoverDataUrl } from '../services/profile/share-card-cov
 import { buildYearReview } from '../services/profile/year-review.service';
 import { getRecentActivity } from '../services/profile/activity.service';
 import { getOnThisDayMemories } from '../services/profile/on-this-day.service';
+import { socialService } from '../services/social/social.service';
 import { askOpenPaths, handle, safeFileName, saveBufferAs, saveTextAs } from './helpers';
 
 const MAX_YEAR_REVIEW_PNG_BYTES = 15 * 1024 * 1024;
@@ -78,7 +79,12 @@ export function registerProfileHandlers(): void {
     return resolveShareCardCoverDataUrl(ids);
   });
   handle(IPC_CHANNELS.PROFILE_SYNC_ACHIEVEMENTS, () => profileService.syncAllAchievements());
-  handle(IPC_CHANNELS.PROFILE_SAVE_CUSTOM, (_event, custom: ProfileCustom) => profileService.saveCustom(custom));
+  // Os amigos veem o perfil novo em segundos, sem precisar publicar nada (como na Steam)
+  handle(IPC_CHANNELS.PROFILE_SAVE_CUSTOM, (_event, custom: ProfileCustom) => {
+    const saved = profileService.saveCustom(custom);
+    socialService.scheduleSync();
+    return saved;
+  });
 
   handle(IPC_CHANNELS.PROFILE_PICK_MEDIA, async (event, kind: ProfileMediaKind) => {
     if (!Object.hasOwn(MEDIA_TITLES, kind)) throw new Error('Tipo de arquivo de perfil inválido.');

@@ -15,6 +15,7 @@ import { saveGameList } from '../services/profile/lists.service';
 import { createCategory, deleteCategory, renameCategory, reorderCategories, setCategoryGames, updateCategoryRule } from '../services/library/categories.service';
 import { importSteamCollections } from '../services/library/steam-collections.service';
 import { librarySyncService } from '../services/social/sync.service';
+import { socialService } from '../services/social/social.service';
 import { sendToRenderer } from './events';
 import { addGameToSteam, removeGameFromSteam } from '../services/steam/steam-shortcut-writer.service';
 import { cleanPath, handle } from './helpers';
@@ -76,13 +77,15 @@ export function registerLibraryHandlers(): void {
   handle(IPC_CHANNELS.LIBRARY_UPDATE_GAME, (_event, id: string, updates: Partial<Game>) => {
     const existing = db.getGameById(id);
     if (!existing) throw new Error('Jogo não encontrado. Ele pode ter sido removido da biblioteca.');
-    return db.upsertGame({ ...existing, ...cleanGameUpdates(updates) });
+    const saved = db.upsertGame({ ...existing, ...cleanGameUpdates(updates) });
+    socialService.scheduleSync(); // Nome, oculto e afins aparecem na vitrine dos amigos
+    return saved;
   });
 
   handle(IPC_CHANNELS.LIBRARY_DELETE_GAME, async (_event, id: string) => {
     const deleted = db.deleteGame(id);
     if (deleted) {
-      librarySyncService.scheduleSync();
+      socialService.scheduleSync(); // Vitrine e, se ligada, a sincronização entre PCs
       await removeGameMedia(id).catch((err) => console.warn('[IPC] Artes do jogo removido ficaram no disco:', (err as Error).message));
     }
     return deleted;
@@ -90,7 +93,7 @@ export function registerLibraryHandlers(): void {
 
   handle(IPC_CHANNELS.LIBRARY_TOGGLE_FAVORITE, (_event, id: string) => {
     const isFavorite = db.toggleFavorite(id);
-    librarySyncService.scheduleSync();
+    socialService.scheduleSync();
     return isFavorite;
   });
 
@@ -118,11 +121,16 @@ export function registerLibraryHandlers(): void {
     librarySyncService.scheduleSync();
     return value;
   };
+  // Mudança que aparece na vitrine: envia logo (e a sincronização entre PCs vai junto)
+  const showcaseAfter = <T,>(value: T): T => {
+    socialService.scheduleSync();
+    return value;
+  };
 
   // Listas de jogos
   handle(IPC_CHANNELS.LISTS_GET, () => db.getGameLists());
-  handle(IPC_CHANNELS.LISTS_SAVE, (_event, input: GameListInput) => syncAfter(saveGameList(input)));
-  handle(IPC_CHANNELS.LISTS_DELETE, (_event, id: string) => syncAfter(db.deleteGameList(id)));
+  handle(IPC_CHANNELS.LISTS_SAVE, (_event, input: GameListInput) => showcaseAfter(saveGameList(input)));
+  handle(IPC_CHANNELS.LISTS_DELETE, (_event, id: string) => showcaseAfter(db.deleteGameList(id)));
 
   // Categorias da biblioteca
   handle(IPC_CHANNELS.CATEGORIES_GET, () => db.getGameCategories());

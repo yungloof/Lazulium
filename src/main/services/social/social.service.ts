@@ -144,6 +144,7 @@ class SocialService {
   private debounceTimer: NodeJS.Timeout | undefined;
   private keepAlive: NodeJS.Timeout | undefined;
   private syncing = false;
+  private syncAgain = false;            // Mudou algo durante um envio: manda de novo quando ele terminar
   private syncError: string | undefined;
   private gifRefused = false;            // Servidor ainda sem GIF: não insiste a cada sincronização
   private storeUnavailable = false;      // Servidor ainda sem guarda de arquivos na VPS: não insiste na mesma sessão
@@ -729,7 +730,11 @@ class SocialService {
 
   async sync(): Promise<SocialStatus> {
     const cached = this.cached();
-    if (!this.token() || !cached || this.syncing) return this.getStatus();
+    if (!this.token() || !cached) return this.getStatus();
+    if (this.syncing) {
+      this.syncAgain = true;
+      return this.getStatus();
+    }
     this.syncing = true;
     try {
       // As escolhas podem ter mudado em outro PC
@@ -774,6 +779,10 @@ class SocialService {
     } finally {
       this.syncing = false;
       this.publish();
+      if (this.syncAgain) {
+        this.syncAgain = false;
+        this.scheduleSync();
+      }
     }
     return this.getStatus();
   }

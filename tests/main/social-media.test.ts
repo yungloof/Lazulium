@@ -88,6 +88,11 @@ beforeEach(async () => {
     if (req.method === 'PUT' && (path === '/v1/me/showcase' || path === '/v1/me/summary')) {
       return send(200, { ok: true });
     }
+    // Servidor de capas (IGDB): só conhece o Zelda do emulador
+    if (req.method === 'GET' && path === '/v1/artwork') {
+      const title = new URL(req.url ?? '/', 'http://127.0.0.1').searchParams.get('title');
+      return send(200, title === 'Zelda TOTK' ? { found: true, name: title, cover: 'https://images.igdb.com/igdb/image/upload/t_cover_big/totk.jpg' } : { found: false });
+    }
     return send(404, { error: 'not_found' });
   });
 
@@ -95,6 +100,7 @@ beforeEach(async () => {
   const { port } = server.address() as AddressInfo;
   origin = `http://127.0.0.1:${port}`;
   process.env.LAZULIUM_SOCIAL_URL = origin;
+  process.env.LAZULIUM_IGDB_PROXY_URL = origin;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const electron = (await import('electron')) as any;
@@ -129,6 +135,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   delete process.env.LAZULIUM_SOCIAL_URL;
+  delete process.env.LAZULIUM_IGDB_PROXY_URL;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const electron = (await import('electron')) as any;
   delete electron.nativeImage.createFromPath;
@@ -245,5 +252,27 @@ describe('envio de mídia de fundo para amigos', () => {
     expect(calls.some((c) => c.path === '/media/upload')).toBe(true);
     const showcase = JSON.parse(calls.findLast((c) => c.path === '/v1/me/showcase')!.body.toString());
     expect(showcase.web.background).toBeUndefined();
+  }, 20_000);
+});
+
+describe('capas da vitrine', () => {
+  it('jogo de emulador, da Epic e com capa escolhida chegam aos amigos com capa que abre na página', async () => {
+    const game = (id: string, title: string, platform: string, media: Record<string, string>) =>
+      ({ id, title, platform, executablePath: '', media, isFavorite: false, isHidden: false, tags: [], totalPlaytimeSeconds: 3600, createdAt: '', updatedAt: '' }) as never;
+    db.upsertGames([
+      game('zelda', 'Zelda TOTK', 'emulator', { coverUrl: 'lazulium-media://media/zelda/cover.png' }),
+      game('epic', 'Jogo da Epic', 'epic', { coverUrl: 'https://cdn1.epicgames.com/offer/x/capa.jpg' }),
+      game('sgdb', 'Capa escolhida', 'gog', { coverUrl: 'lazulium-media://media/sgdb/cover.png', coverSourceUrl: 'https://cdn2.steamgriddb.com/grid/abc.png' })
+    ]);
+    db.setProfileCustom({ featuredGameIds: ['zelda', 'epic', 'sgdb'] });
+    db.saveGameList({ id: 'top', title: 'Top', ranked: true, featured: true, gameIds: ['zelda', 'epic', 'sgdb'], createdAt: '', updatedAt: '' });
+
+    await socialService.sync();
+    const showcase = JSON.parse(calls.findLast((c) => c.path === '/v1/me/showcase')!.body.toString());
+    const expected = ['https://images.igdb.com/igdb/image/upload/t_cover_big/totk.jpg', undefined, 'https://cdn2.steamgriddb.com/grid/abc.png'];
+    expect(showcase.featuredGames.map((g: { coverUrl?: string }) => g.coverUrl)).toEqual(expected);
+    expect(showcase.lists[0].games.map((g: { coverUrl?: string }) => g.coverUrl)).toEqual(expected);
+    // A capa achada fica guardada: a próxima vitrine não procura de novo
+    expect(db.getGameById('zelda')?.media?.publicCoverUrl).toBe(expected[0]);
   }, 20_000);
 });
