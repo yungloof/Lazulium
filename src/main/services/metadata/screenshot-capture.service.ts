@@ -15,6 +15,9 @@ const THUMB_WIDTH = 480;
 const THUMB_QUALITY = 85;
 const FOREGROUND_TIMEOUT_MS = 3_000;
 const BLACK_FRAME_BRIGHTNESS = 2;
+// Apertou a tecla de novo antes de a anterior terminar: o quadro entra na fila e é salvo também.
+// Só muitas seguidas (tecla presa, por exemplo) são ignoradas.
+const MAX_QUEUED_GRABS = 4;
 const SILENT_MODE = process.env.LAZULIUM_SILENT === '1';
 
 // Janela em primeiro plano, em pixels físicos
@@ -92,11 +95,17 @@ function fileStamp(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
 }
 
-// Duas capturas no mesmo segundo teriam o mesmo nome: a segunda apagaria a primeira
-function uniqueBaseName(dir: string, base: string): string {
+// Duas capturas no mesmo segundo teriam o mesmo nome: a segunda apagaria a primeira. Conta também os nomes
+// reservados por capturas que ainda estão sendo gravadas, que ainda não existem no disco.
+function uniqueBaseName(dir: string, base: string, reserved: Set<string>): string {
   let name = base;
-  for (let n = 2; existsSync(join(dir, `${name}.png`)); n++) name = `${base} (${n})`;
+  for (let n = 2; reserved.has(join(dir, name)) || existsSync(join(dir, `${name}.png`)); n++) name = `${base} (${n})`;
   return name;
+}
+
+interface GrabbedFrame {
+  image: NativeImage;
+  takenAt: Date;
 }
 
 type TakenListener = (result: ScreenshotTaken) => void;
@@ -106,7 +115,9 @@ class ScreenshotCaptureService {
   private runningGames = new Set<string>();
   private pidsOf: (gameId: string) => number[] = () => [];
   private listener: TakenListener = () => {};
-  private capturing = false;
+  private grabQueue: Promise<unknown> = Promise.resolve();
+  private queuedGrabs = 0;
+  private reservedNames = new Set<string>();
 
   setListener(listener: TakenListener): void {
     this.listener = listener;
@@ -168,48 +179,71 @@ class ScreenshotCaptureService {
     if (gameId) await this.capture(gameId).catch((err) => console.warn(`[Capturas] ${(err as Error).message}`));
   }
 
+  // Cada aperto vira uma captura: só a foto da tela espera a anterior (duas leituras da tela ao mesmo tempo
+  // disputam o Windows); gravar o PNG, que é a parte demorada, corre em paralelo.
   async capture(gameId: string): Promise<ScreenshotTaken> {
     const game = db.getGameById(gameId);
     if (!game) throw new Error('Jogo não encontrado.');
-    if (this.capturing) throw new Error('Ainda salvando a captura anterior.');
-    this.capturing = true;
+    if (this.queuedGrabs >= MAX_QUEUED_GRABS) throw new Error('Muitas capturas seguidas: espere as anteriores terminarem.');
+    const pressedAt = new Date();
+    this.queuedGrabs++;
+    const grab = this.grabQueue.then(() => this.grabFrame(gameId, pressedAt));
+    this.grabQueue = grab.catch(() => undefined);
+    let frame: GrabbedFrame;
     try {
-      const displays = screen.getAllDisplays();
-      const thumbnailSize = {
-        width: Math.max(...displays.map((d) => physicalBounds(d).width)),
-        height: Math.max(...displays.map((d) => physicalBounds(d).height))
-      };
-      // Primeiro o quadro: o resto pode demorar sem perder o momento
-      const [sources, foreground] = await Promise.all([desktopCapturer.getSources({ types: ['screen'], thumbnailSize }), readForegroundWindow()]);
-      if (sources.length === 0) throw new Error('O Windows não entregou a imagem da tela.');
+      frame = await grab;
+    } finally {
+      this.queuedGrabs--;
+    }
+    return this.save(gameId, game.title, frame);
+  }
 
-      const center = foreground ? { x: foreground.rect.x + foreground.rect.width / 2, y: foreground.rect.y + foreground.rect.height / 2 } : null;
-      const display = center ? displays.find((d) => {
-        const b = physicalBounds(d);
-        return center.x >= b.x && center.x < b.x + b.width && center.y >= b.y && center.y < b.y + b.height;
-      }) ?? screen.getPrimaryDisplay() : screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-      const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0];
+  private async grabFrame(gameId: string, takenAt: Date): Promise<GrabbedFrame> {
+    const displays = screen.getAllDisplays();
+    const thumbnailSize = {
+      width: Math.max(...displays.map((d) => physicalBounds(d).width)),
+      height: Math.max(...displays.map((d) => physicalBounds(d).height))
+    };
+    // Primeiro o quadro: o resto pode demorar sem perder o momento
+    const [sources, foreground] = await Promise.all([desktopCapturer.getSources({ types: ['screen'], thumbnailSize }), readForegroundWindow()]);
+    if (sources.length === 0) throw new Error('O Windows não entregou a imagem da tela.');
 
-      let image = source.thumbnail;
-      const bounds = physicalBounds(display);
-      const isGameWindow = foreground && this.pidsOf(gameId).includes(foreground.pid);
-      // Jogo em janela: só ele. Em tela cheia a janela cobre a tela, e o corte não faz nada.
-      if (isGameWindow && foreground && (foreground.rect.width < bounds.width || foreground.rect.height < bounds.height)) {
-        const size = image.getSize();
-        const x = Math.max(0, foreground.rect.x - bounds.x);
-        const y = Math.max(0, foreground.rect.y - bounds.y);
-        const width = Math.min(foreground.rect.width, size.width - x);
-        const height = Math.min(foreground.rect.height, size.height - y);
-        if (width > 0 && height > 0) image = image.crop({ x, y, width, height });
-      }
+    const center = foreground ? { x: foreground.rect.x + foreground.rect.width / 2, y: foreground.rect.y + foreground.rect.height / 2 } : null;
+    const display = center ? displays.find((d) => {
+      const b = physicalBounds(d);
+      return center.x >= b.x && center.x < b.x + b.width && center.y >= b.y && center.y < b.y + b.height;
+    }) ?? screen.getPrimaryDisplay() : screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0];
 
-      const { width, height } = image.getSize();
-      if (image.isEmpty() || width === 0 || height === 0) throw new Error('O Windows não entregou a imagem da tela.');
-      const blackFrame = isBlackFrame(image);
-      // Os arquivos entram na galeria do jogo como capturas do Lazulium (screenshots.service)
-      const dir = customScreenshotsDir(gameId);
-      await mkdir(dir, { recursive: true });
-      const baseName = uniqueBaseName(dir, `${game.title.replace(/[^\p{L}\p{N} ._-]+/gu, '').trim().slice(0, 60) || 'captura'} ${fileStamp(new Date())}`);
+    let image = source.thumbnail;
+    const bounds = physicalBounds(display);
+    const isGameWindow = foreground && this.pidsOf(gameId).includes(foreground.pid);
+    // Jogo em janela: só ele. Em tela cheia a janela cobre a tela, e o corte não faz nada.
+    if (isGameWindow && foreground && (foreground.rect.width < bounds.width || foreground.rect.height < bounds.height)) {
+      const size = image.getSize();
+      const x = Math.max(0, foreground.rect.x - bounds.x);
+      const y = Math.max(0, foreground.rect.y - bounds.y);
+      const width = Math.min(foreground.rect.width, size.width - x);
+      const height = Math.min(foreground.rect.height, size.height - y);
+      if (width > 0 && height > 0) image = image.crop({ x, y, width, height });
+    }
+
+    const { width, height } = image.getSize();
+    if (image.isEmpty() || width === 0 || height === 0) throw new Error('O Windows não entregou a imagem da tela.');
+    return { image, takenAt };
+  }
+
+  private async save(gameId: string, title: string, { image, takenAt }: GrabbedFrame): Promise<ScreenshotTaken> {
+    const { width, height } = image.getSize();
+    const blackFrame = isBlackFrame(image);
+    // Os arquivos entram na galeria do jogo como capturas do Lazulium (screenshots.service)
+    const dir = customScreenshotsDir(gameId);
+    await mkdir(dir, { recursive: true });
+    // O nome é a hora do aperto, não a de quando a gravação terminou
+    const baseName = uniqueBaseName(dir, `${title.replace(/[^\p{L}\p{N} ._-]+/gu, '').trim().slice(0, 60) || 'captura'} ${fileStamp(takenAt)}`, this.reservedNames);
+    const reservation = join(dir, baseName);
+    this.reservedNames.add(reservation);
+    try {
       await writeFile(join(dir, `${baseName}.png`), image.toPNG());
       try {
         await writeFile(join(dir, `${baseName}.thumb.jpg`), image.resize({ width: Math.min(THUMB_WIDTH, width), quality: 'best' }).toJPEG(THUMB_QUALITY));
@@ -217,24 +251,24 @@ class ScreenshotCaptureService {
         // Sem miniatura a galeria usa a imagem inteira: a captura em si já está salva
         console.warn(`[Capturas] Miniatura não gravada: ${(err as NodeJS.ErrnoException).code ?? (err as Error).message}`);
       }
-
-      const result: ScreenshotTaken = {
-        gameId,
-        gameTitle: game.title,
-        fileName: `${baseName}.png`,
-        width,
-        height,
-        warning: blackFrame ? 'A captura saiu preta. Se a tela do jogo não estava escura nesse momento, troque para "tela cheia sem bordas" nas opções dele.' : undefined
-      };
-      console.log(`[Capturas] ${game.title}: ${width}x${height}${blackFrame ? ' (preta)' : ''}`);
-      this.listener(result);
-      if (!SILENT_MODE && Notification.isSupported()) {
-        new Notification({ title: blackFrame ? 'Captura saiu preta' : 'Captura salva', body: result.warning ?? `${game.title} · ${width}x${height}`, silent: false }).show();
-      }
-      return result;
     } finally {
-      this.capturing = false;
+      this.reservedNames.delete(reservation);
     }
+
+    const result: ScreenshotTaken = {
+      gameId,
+      gameTitle: title,
+      fileName: `${baseName}.png`,
+      width,
+      height,
+      warning: blackFrame ? 'A captura saiu preta. Se a tela do jogo não estava escura nesse momento, troque para "tela cheia sem bordas" nas opções dele.' : undefined
+    };
+    console.log(`[Capturas] ${title}: ${width}x${height}${blackFrame ? ' (preta)' : ''}`);
+    this.listener(result);
+    if (!SILENT_MODE && Notification.isSupported()) {
+      new Notification({ title: blackFrame ? 'Captura saiu preta' : 'Captura salva', body: result.warning ?? `${title} · ${width}x${height}`, silent: false }).show();
+    }
+    return result;
   }
 
   stop(): void {
