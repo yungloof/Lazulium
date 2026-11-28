@@ -4,6 +4,22 @@ Da versão mais nova para a mais antiga.
 
 ---
 
+## 3.4.2 — 28 de novembro de 2026
+
+Capas de volta na vitrine que seus amigos veem, e ela se atualiza sozinha em segundos.
+
+### Correções
+
+- **Capas na vitrine dos amigos.** Jogos de emulador, da Epic e os que você cadastrou à mão apareciam sem capa nos destaques, nas listas e no Diário que seus amigos veem. Agora vai a mesma arte que você escolheu e, quando não há uma, a capa oficial do jogo. Se mesmo assim faltar imagem, aparece um cartão com o nome do jogo no lugar de um quadro vazio.
+- **Capturas apertadas em sequência.** Apertar a tecla de captura de novo antes da anterior terminar de salvar fazia a segunda sumir. Agora cada aperto vira uma captura.
+- **Conquistas quando a Steam pede uma pausa.** Com uma biblioteca grande, a Steam às vezes pede para ir mais devagar, e o Lazulium desistia de todos os jogos e mostrava centenas de falhas. Agora ele segue com os jogos das outras plataformas e volta sozinho aos da Steam alguns minutos depois, sem você precisar fazer nada.
+
+### Melhorias
+
+- **A vitrine se atualiza sozinha.** Mudou o perfil, uma lista, uma capa ou um favorito? Seus amigos veem em segundos, sem precisar publicar nada.
+
+---
+
 ## 3.4.1 — 26 de novembro de 2026
 
 A capa do jogo volta a aparecer no cartão para compartilhar.

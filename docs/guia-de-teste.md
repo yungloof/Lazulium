@@ -10,8 +10,8 @@ Baixe um destes na página de downloads do Lazulium no GitHub:
 
 | Arquivo | |
 |---|---|
-| **`Lazulium-Setup-3.4.1.exe`** *(recomendado)* | Instala só para o seu usuário, sem pedir administrador, e cria os atalhos. |
-| **`Lazulium-Portable-3.4.1.exe`** | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
+| **`Lazulium-Setup-3.4.2.exe`** *(recomendado)* | Instala só para o seu usuário, sem pedir administrador, e cria os atalhos. |
+| **`Lazulium-Portable-3.4.2.exe`** | Um arquivo só, sem instalar. Abre um pouco mais devagar. |
 
 Se já testou uma versão antiga, instale por cima. Nada se perde.
 
