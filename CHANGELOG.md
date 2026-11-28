@@ -6,15 +6,15 @@ Da versão mais nova para a mais antiga.
 
 ## 3.4.1 — 26 de novembro de 2026
 
-Correção na exibição das capas no cartão para compartilhar.
+A capa do jogo volta a aparecer no cartão para compartilhar.
 
 ### Correções
 
-- **Capa do jogo no cartão para compartilhar.** Jogos com capa em cache local (`lazulium-media://`) ou em CDNs sem cabeçalho CORS agora carregam a arte normalmente no cartão `1200×630` em vez de cair no quadro com o título.
+- **Capa do jogo no cartão para compartilhar.** Em alguns jogos o cartão mostrava só o nome no lugar da capa. Agora sai a mesma capa que você vê na biblioteca.
 
 ### Melhorias
 
-- **Pílula de status acompanhando o tema.** O destaque de status no cartão compartilhável agora usa a cor de destaque do tema ativo em *Aparência*.
+- **Status na cor do seu tema.** No cartão para compartilhar, o selo com o status do jogo usa a cor de destaque que você escolheu em *Aparência*.
 
 ---
 
@@ -24,7 +24,7 @@ Feed de amigos conectado à sua biblioteca, cartão de jogo/resenha para compart
 
 ### Novidades
 
-- **Cartão para compartilhar.** Em *Meu registro* na página do jogo e nas suas resenhas do *Perfil*, o botão *Cartão* gera uma imagem pronta (`1200×630`) com capa, status, nota, horas jogadas e trecho da resenha nas cores do seu tema atual, para copiar direto para o Discord ou salvar em PNG.
+- **Cartão para compartilhar.** Em *Meu registro* na página do jogo e nas suas resenhas do *Perfil*, o botão *Cartão* gera uma imagem pronta com capa, status, nota, horas jogadas e trecho da resenha nas cores do seu tema atual, para copiar direto para o Discord ou salvar em PNG.
 - **Prévia ao vivo em Aparência.** A aba *Aparência* nas Configurações mostra uma miniatura interativa no topo que atualiza na hora conforme você troca tema, cores, acento ou arredondamento, além de avisar quando uma combinação fica com baixo contraste.
 
 ### Melhorias
@@ -47,7 +47,7 @@ Correção de resenhas repetidas no feed de amigos e ajustes visuais em todo o a
 ### Melhorias
 
 - **Ler resenha inteira no feed.** Resenhas longas no feed de amigos agora têm o botão *Ler resenha inteira* para abrir e fechar sem precisar sair da tela.
-- **Curtidas e comentários no perfil do amigo.** A aba *Atividade* do perfil de cada amigo também mostra as curtidas e comentários nas resenhas e notas, com estrelas vetoriais no lugar dos caracteres antigos.
+- **Curtidas e comentários no perfil do amigo.** A aba *Atividade* do perfil de cada amigo também mostra as curtidas e comentários nas resenhas e notas, com estrelas mais nítidas.
 - **Acabamento visual coerente com seu tema.** Seleção de texto e cursor acompanham a cor do tema escolhido em *Aparência*, os cartões de registro, feed e amigos passam a respeitar a cor de painel configurada, os preços na Lista de Desejos ficam alinhados em coluna e os detalhes de data e metadados ganharam melhor contraste.
 
 ---
@@ -291,7 +291,7 @@ Sua biblioteca agora entende o catálogo: traz gênero, ano e série dos jogos, 
 
 ### Correções
 
-- **Sincronização de conquistas da Steam.** Redirecionamentos para nomes curtos (como *Portal 2* e *Team Fortress 2*) agora mantêm `?xml=1` em vez de cair na página HTML, páginas HTML de erro temporário ou de permissão não são mais confundidas com "jogo sem conquistas", jogos em cache válido não sofrem pausa de rede, erros `429` usam espera escalonada antes de desistir e as falhas passaram a registrar o motivo real no log e na tela do Perfil.
+- **Conquistas da Steam.** Jogos como *Portal 2* e *Team Fortress 2* voltam a trazer as conquistas, e um tropeço passageiro da Steam não faz mais um jogo parecer "sem conquistas". Quando a Steam pede para ir mais devagar, o Lazulium espera e tenta de novo, e se algo falhar a tela do Perfil diz o motivo.
 - **Menu e avisos do Perfil.** O menu `...` do Perfil agora ajusta a largura pelo conteúdo e abre alinhado à direita sem cortar os textos nem sair da janela, e os avisos de falha de sincronização do topo e do corpo da página se limpam mutuamente para não aparecerem duplicados.
 
 ---
@@ -300,7 +300,7 @@ Sua biblioteca agora entende o catálogo: traz gênero, ano e série dos jogos, 
 
 ### Correções
 
-- **Preços de outras lojas em listas de desejos grandes.** O proxy do GG.deals passou a respeitar o limite de subrequests por chamada do Cloudflare Workers gratuito em lotes maiores, e o app agora consulta de 20 em 20 jogos (priorizando quem ainda está sem preço e preservando os lotes já recebidos caso bata cota momentânea).
+- **Preços de outras lojas em listas de desejos grandes.** Com muitos jogos na lista de desejos, parte dos preços não chegava. Agora eles vêm aos poucos, primeiro os jogos que ainda estão sem preço, e o que já chegou não se perde se a busca parar no meio.
 
 ---
 
