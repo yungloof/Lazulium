@@ -235,7 +235,11 @@ export function useAppEvents(): void {
       const store = useSocialLiveStore.getState();
       if (event.kind === 'incoming') store.addIncoming(event.call);
       else if (event.kind === 'answered') store.removeIncoming(event.callId);
-      else {
+      else if (event.kind === 'rang') store.markRang(event.friendId, event.callId);
+      else if (event.kind === 'cancelled') {
+        store.removeIncoming(event.callId);
+        useUiStore.getState().showNotice({ text: `${event.from.name} desligou a chamada`, tone: 'warn' });
+      } else {
         const { notice } = event;
         store.markAnswered(notice.user.id, notice.id, notice.answer);
         useUiStore.getState().showNotice({ text: `${notice.user.name}: ${CALL_ANSWER_TEXT[notice.answer]}`, tone: notice.answer === 'yes' ? 'ok' : 'warn' });

@@ -1,5 +1,5 @@
 import { app, shell } from 'electron';
-import { CallAnswer, CallAnswerNotice, CallEvent, IncomingCall, SocialFriend } from '@shared/types/social';
+import { CallAnswer, CallAnswerNotice, CallEvent, CallRang, IncomingCall, SocialFriend } from '@shared/types/social';
 import { CALL_ANSWER_TEXT, CALL_CHAOS_SECONDS, decideCallDelivery, friendPresence, parseCallSettings } from '@shared/utils/presence';
 import { db } from '../../database/db';
 import { notify } from '../../app-shell';
@@ -24,6 +24,8 @@ const UUID = /^[0-9a-f-]{36}$/;
 export interface CallsPoll {
   incoming?: IncomingCall[];
   answers?: CallAnswerNotice[];
+  rang?: CallRang[];            // Servidor 3.5+: minhas chamadas que já tocaram do outro lado
+  cancelled?: string[];         // Servidor 3.5+: chamadas para mim que quem chamou desligou
 }
 
 class CallsService {
@@ -61,6 +63,8 @@ class CallsService {
   apply(result: CallsPoll | undefined): void {
     for (const call of result?.incoming ?? []) this.receive(call);
     for (const notice of result?.answers ?? []) this.receiveAnswer(notice);
+    for (const rang of result?.rang ?? []) if (UUID.test(rang.id)) this.listener({ kind: 'rang', callId: rang.id, friendId: rang.user.id });
+    for (const id of result?.cancelled ?? []) this.receiveCancel(id);
   }
 
   // Saiu da conta: o que esperava resposta não vale mais
@@ -76,6 +80,12 @@ class CallsService {
     return result.call;
   }
 
+  // Desligar antes de o amigo responder: se ainda não tocou, nem chega; se tocou, a tela e o aviso fecham do outro lado
+  async cancel(callId: string): Promise<void> {
+    if (!UUID.test(callId)) throw new Error('Chamada inválida.');
+    await socialService.api('POST', `/v1/calls/${callId}/cancel`);
+  }
+
   getPending(): IncomingCall[] {
     const cutoff = Date.now() - PENDING_MAX_AGE_MS;
     for (const [id, call] of this.pending) if (Date.parse(call.createdAt) < cutoff) this.pending.delete(id);
@@ -85,15 +95,22 @@ class CallsService {
   async answer(callId: string, answer: CallAnswer): Promise<void> {
     if (!UUID.test(callId)) throw new Error('Chamada inválida.');
     closeCallOverlay(callId);
-    await socialService.api('POST', `/v1/calls/${callId}/answer`, { answer });
+    const result = await socialService.api<{ answer?: string }>('POST', `/v1/calls/${callId}/answer`, { answer });
+    const call = this.pending.get(callId);
     this.pending.delete(callId);
+    // Quem chamou desligou um instante antes: não abre o Discord à toa
+    if (result?.answer === 'cancelled') {
+      if (call) this.listener({ kind: 'cancelled', callId, from: call.from });
+      return;
+    }
     this.listener({ kind: 'answered', callId, answer });
     if (answer === 'yes') this.openDiscord();
   }
 
-  // Só deixa de lado (fechou sem responder): continua na lista do app
-  dismiss(callId: string): void {
+  // Fechou o aviso sem responder (ou chamou de volta): some da tela e não volta quando o app recarrega
+  forget(callId: string): void {
     closeCallOverlay(callId);
+    this.pending.delete(callId);
   }
 
   // Botão "Testar" das configurações: a própria tela doida, sem avisar ninguém
@@ -131,6 +148,14 @@ class CallsService {
         }
       );
     }
+  }
+
+  private receiveCancel(callId: string): void {
+    const call = this.pending.get(callId);
+    closeCallOverlay(callId);
+    if (!call) return;
+    this.pending.delete(callId);
+    this.listener({ kind: 'cancelled', callId, from: call.from });
   }
 
   private receiveAnswer(notice: CallAnswerNotice): void {

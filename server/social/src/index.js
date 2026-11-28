@@ -1328,19 +1328,36 @@ async function handlePoll(request, url, env, auth) {
   return json(out);
 }
 
+// incoming: chamadas novas para mim (uma vez só). answers: respostas às minhas (uma vez só).
+// rang: minhas chamadas que já tocaram no PC do amigo e esperam resposta (a cada consulta, enquanto tocam).
+// cancelled: chamadas para mim que quem chamou desligou depois de tocar (uma vez só), para fechar a tela e o aviso.
+// Desligar usa a mesma coluna da resposta ('cancelled'): nada de coluna nova no banco.
 async function handleCalls(env, auth) {
   const now = Date.now();
   const since = new Date(now - CALL_TTL_MS).toISOString();
-  const [incoming, answers] = await Promise.all([
+  const ringing = new Date(now - CALL_RING_MS).toISOString();
+  const [incoming, answers, rang, cancelled] = await Promise.all([
     env.DB.prepare(
       `SELECT c.id AS call_id, c.created_at AS call_at, u.* FROM calls c JOIN users u ON u.id = c.from_id
-       WHERE c.to_id = ? AND c.delivered_at IS NULL AND c.created_at > ? ORDER BY c.created_at`
+       WHERE c.to_id = ? AND c.delivered_at IS NULL AND c.answer IS NULL AND c.created_at > ? ORDER BY c.created_at`
     )
       .bind(auth.user.id, since)
       .all(),
     env.DB.prepare(
       `SELECT c.id AS call_id, c.answer, c.answered_at, u.* FROM calls c JOIN users u ON u.id = c.to_id
-       WHERE c.from_id = ? AND c.answer IS NOT NULL AND c.answer_seen = 0 AND c.created_at > ?`
+       WHERE c.from_id = ? AND c.answer IS NOT NULL AND c.answer != 'cancelled' AND c.answer_seen = 0 AND c.created_at > ?`
+    )
+      .bind(auth.user.id, since)
+      .all(),
+    env.DB.prepare(
+      `SELECT c.id AS call_id, c.delivered_at, u.* FROM calls c JOIN users u ON u.id = c.to_id
+       WHERE c.from_id = ? AND c.delivered_at IS NOT NULL AND c.answer IS NULL AND c.created_at > ?`
+    )
+      .bind(auth.user.id, ringing)
+      .all(),
+    env.DB.prepare(
+      `SELECT c.id AS call_id FROM calls c
+       WHERE c.to_id = ? AND c.answer = 'cancelled' AND c.delivered_at IS NOT NULL AND c.answer_seen = 0 AND c.created_at > ?`
     )
       .bind(auth.user.id, since)
       .all()
@@ -1350,15 +1367,30 @@ async function handleCalls(env, auth) {
   const hidden = incoming.results.length ? await hiddenFrom(env, auth.user.id) : new Set();
   const marks = [
     ...incoming.results.map((r) => env.DB.prepare('UPDATE calls SET delivered_at = ? WHERE id = ?').bind(stamp, r.call_id)),
-    ...answers.results.map((r) => env.DB.prepare('UPDATE calls SET answer_seen = 1 WHERE id = ?').bind(r.call_id))
+    ...answers.results.map((r) => env.DB.prepare('UPDATE calls SET answer_seen = 1 WHERE id = ?').bind(r.call_id)),
+    ...cancelled.results.map((r) => env.DB.prepare('UPDATE calls SET answer_seen = 1 WHERE id = ?').bind(r.call_id))
   ];
   if (marks.length) await env.DB.batch(marks);
   return json({
     incoming: incoming.results
       .filter((r) => !hidden.has(r.id))
       .map((r) => ({ id: r.call_id, from: publicUser(r), createdAt: r.call_at, missed: now - Date.parse(r.call_at) > CALL_RING_MS })),
-    answers: answers.results.map((r) => ({ id: r.call_id, user: publicUser(r), answer: r.answer, answeredAt: r.answered_at }))
+    answers: answers.results.map((r) => ({ id: r.call_id, user: publicUser(r), answer: r.answer, answeredAt: r.answered_at })),
+    rang: rang.results.map((r) => ({ id: r.call_id, user: publicUser(r), deliveredAt: r.delivered_at })),
+    cancelled: cancelled.results.map((r) => r.call_id)
   });
+}
+
+// Quem chamou desliga: a chamada que ainda não tocou nem chega; a que já tocou fecha do outro lado na próxima consulta
+async function handleCallCancel(env, auth, callId) {
+  const call = await env.DB.prepare('SELECT from_id, answer, delivered_at FROM calls WHERE id = ?').bind(callId).first();
+  if (!call || call.from_id !== auth.user.id) throw new HttpError(404, 'not_found');
+  if (call.answer) return json({ ok: true, answer: call.answer });
+  // Não tocou: ninguém precisa saber que foi desligada
+  await env.DB.prepare("UPDATE calls SET answer = 'cancelled', answered_at = ?, answer_seen = ? WHERE id = ? AND answer IS NULL")
+    .bind(nowIso(), call.delivered_at ? 0 : 1, callId)
+    .run();
+  return json({ ok: true, answer: 'cancelled' });
 }
 
 async function handleCallAnswer(request, env, auth, callId) {
@@ -2092,8 +2124,9 @@ async function route(request, env) {
   if (path === '/v1/games/friends' && request.method === 'GET') return handleGameFriends(url, env, auth);
   if (path === '/v1/calls' && request.method === 'POST') return handleCallCreate(request, env, auth);
   if (path === '/v1/calls' && request.method === 'GET') return handleCalls(env, auth);
-  const callAnswer = path.match(/^\/v1\/calls\/([0-9a-f-]{36})\/answer$/);
-  if (callAnswer && request.method === 'POST') return handleCallAnswer(request, env, auth, callAnswer[1]);
+  const callAnswer = path.match(/^\/v1\/calls\/([0-9a-f-]{36})\/(answer|cancel)$/);
+  if (callAnswer?.[2] === 'answer' && request.method === 'POST') return handleCallAnswer(request, env, auth, callAnswer[1]);
+  if (callAnswer?.[2] === 'cancel' && request.method === 'POST') return handleCallCancel(env, auth, callAnswer[1]);
   const mediaTicket = path.match(/^\/v1\/me\/media\/([a-z]+)\/upload$/);
   if (mediaTicket) return handleUploadTicket(request, env, auth, mediaTicket[1]);
   const mediaPut = path.match(/^\/v1\/me\/media\/([a-z]+)$/);

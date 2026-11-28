@@ -57,11 +57,20 @@ export interface CallAnswerNotice {
   answeredAt: string;
 }
 
+// Sua chamada já tocou no PC do amigo e espera resposta
+export interface CallRang {
+  id: string;
+  user: SocialUser;
+  deliveredAt: string;
+}
+
 // main -> renderer
 export type CallEvent =
   | { kind: 'incoming'; call: IncomingCall; how: 'chaos' | 'notify' | 'quiet' }
   | { kind: 'answered'; callId: string; answer: CallAnswer }   // Respondida (na tela doida ou no app)
-  | { kind: 'answer'; notice: CallAnswerNotice };               // Resposta de quem você chamou
+  | { kind: 'answer'; notice: CallAnswerNotice }                // Resposta de quem você chamou
+  | { kind: 'rang'; callId: string; friendId: string }          // Sua chamada tocou no PC do amigo
+  | { kind: 'cancelled'; callId: string; from: SocialUser };    // Quem te chamou desligou
 
 // O que a pessoa escolhe mostrar aos amigos (tudo vale só para amigos)
 export interface SocialSettings {

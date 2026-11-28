@@ -356,6 +356,8 @@ export interface ElectronAPI {
   socialCallFriend: (friendId: string) => Promise<{ id: string; createdAt: string }>;
   socialAnswerCall: (callId: string, answer: CallAnswer) => Promise<void>;
   socialGetPendingCalls: () => Promise<IncomingCall[]>;
+  socialCancelCall: (callId: string) => Promise<void>;     // Quem chamou desliga
+  socialForgetCall: (callId: string) => Promise<void>;     // Quem recebeu fecha o aviso sem responder
   socialTestCall: () => Promise<void>;
   onCallEvent: (callback: (event: CallEvent) => void) => () => void;
   // Página do jogo: amigos que jogaram (ids de todas as lojas do card); null = sem conta Lazulium

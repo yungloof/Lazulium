@@ -728,8 +728,32 @@ test('chamar pra call: só amigos, chega uma vez, resposta volta para quem chamo
   assert.deepEqual(answers.map((x) => [x.user.id, x.answer]), [[b.user.id, 'yes']]);
   assert.equal((await s.call('GET', '/v1/calls', { token: a.token })).body.answers.length, 0);
 
+  // Desligar: só quem chamou. Antes de tocar, a chamada nem chega; depois de tocar, o outro lado fica sabendo uma vez
+  const old = (id, ms) => s.env.DB.raw.prepare('UPDATE calls SET created_at = ? WHERE id = ?').run(new Date(Date.now() - ms).toISOString(), id);
+  old(callId, 60_000); // a do "yes" já não conta para o intervalo entre chamadas
+  const second = (await s.call('POST', '/v1/calls', { token: a.token, body: { to: b.user.id } })).body.call.id;
+  assert.equal((await s.call('POST', `/v1/calls/${second}/cancel`, { token: b.token })).status, 404);
+  assert.equal((await s.call('POST', `/v1/calls/${second}/cancel`, { token: a.token })).body.answer, 'cancelled');
+  const afterCancel = (await s.call('GET', '/v1/calls', { token: b.token })).body;
+  assert.equal(afterCancel.incoming.length, 0);
+  assert.deepEqual(afterCancel.cancelled, []);
+  assert.equal((await s.call('GET', '/v1/calls', { token: a.token })).body.answers.length, 0, 'desligar não vira resposta');
+
+  old(second, 60_000);
+  const third = (await s.call('POST', '/v1/calls', { token: a.token, body: { to: b.user.id } })).body.call.id;
+  assert.equal((await s.call('GET', '/v1/calls', { token: a.token })).body.rang.length, 0, 'ainda não tocou');
+  assert.equal((await s.call('GET', '/v1/calls', { token: b.token })).body.incoming[0].id, third);
+  const ringingNow = (await s.call('GET', '/v1/calls', { token: a.token })).body.rang;
+  assert.deepEqual(ringingNow.map((r) => [r.id, r.user.id]), [[third, b.user.id]]);
+  await s.call('POST', `/v1/calls/${third}/cancel`, { token: a.token });
+  assert.deepEqual((await s.call('GET', '/v1/calls', { token: b.token })).body.cancelled, [third]);
+  assert.deepEqual((await s.call('GET', '/v1/calls', { token: b.token })).body.cancelled, [], 'uma vez só');
+  assert.equal((await s.call('GET', '/v1/calls', { token: a.token })).body.rang.length, 0, 'desligada não toca mais');
+  // Resposta depois de desligar não muda nada
+  assert.equal((await s.call('POST', `/v1/calls/${third}/answer`, { token: b.token, body: { answer: 'yes' } })).body.answer, 'cancelled');
+
   // Chamada antiga chega como perdida
-  s.env.DB.raw.prepare('UPDATE calls SET created_at = ?, delivered_at = NULL WHERE id = ?').run(new Date(Date.now() - 5 * 60_000).toISOString(), callId);
+  s.env.DB.raw.prepare('UPDATE calls SET created_at = ?, delivered_at = NULL, answer = NULL WHERE id = ?').run(new Date(Date.now() - 5 * 60_000).toISOString(), callId);
   assert.equal((await s.call('GET', '/v1/calls', { token: b.token })).body.incoming[0].missed, true);
 
   // Apagar a conta leva as chamadas
@@ -1225,7 +1249,7 @@ test('consulta única: chamadas, amigos e avisos num pedido só, e só as partes
 
   // A chamada chega uma vez só, como na rota antiga; parte não pedida não vem
   const onlyCalls = await s.call('GET', '/v1/me/poll?parts=calls', { token: b.token });
-  assert.deepEqual(onlyCalls.body, { calls: { incoming: [], answers: [] } });
+  assert.deepEqual(onlyCalls.body, { calls: { incoming: [], answers: [], rang: [], cancelled: [] } });
   const later = new Date(Date.now() + 1000).toISOString();
   assert.deepEqual((await s.call('GET', `/v1/me/poll?parts=notifications&since=${later}`, { token: b.token })).body, { notifications: [] });
 

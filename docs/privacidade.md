@@ -1,6 +1,6 @@
 # Política de privacidade do Lazulium
 
-*Última atualização: 21 de novembro de 2026 · vale para o Lazulium 2.6.0 e posteriores (imagens nas resenhas: 3.3.0)*
+*Última atualização: 28 de novembro de 2026 · vale para o Lazulium 2.6.0 e posteriores (imagens nas resenhas: 3.3.0)*
 
 O Lazulium é um app para Windows que junta seus jogos de PC numa biblioteca só. Quem faz e responde por esta política é Lazuli Fool, de forma independente. Contato: **yungloof06@gmail.com**.
 
@@ -87,7 +87,7 @@ A conta é opcional e serve para você ver o que seus amigos jogam e eles verem 
 - os eventos que vão para o feed: jogou (o jogo e quanto tempo no dia), começou, zerou, 100%, largou, conquistas do dia, nota e resenha. Cada evento leva o nome do jogo, a data e, quando existe, o endereço público da capa (Steam, IGDB ou SteamGridDB). Ficam os 2.000 mais recentes;
 - o jogo aberto agora ("jogando agora"), que some sozinho 15 minutos depois do último sinal do app;
 - o seu status (Disponível, Ausente, Não perturbar ou Invisível), até quando ele vale e se foi o app que pôs Ausente sozinho (PC parado ou tela bloqueada). Com Invisível, seus amigos veem você off-line e o "jogando agora" não é enviado;
-- os avisos que você e seus amigos mandam um para o outro pelo app: quem mandou, para quem, quando e a resposta. São apagados depois de 1 dia;
+- os avisos que você e seus amigos mandam um para o outro pelo app: quem mandou, para quem, quando, se já chegou ao app da outra pessoa (quem mandou vê isso enquanto espera a resposta), a resposta e se quem mandou cancelou. São apagados depois de 1 dia;
 - um resumo do seu perfil: número de jogos, horas, zerados, conquistas e os 12 mais jogados;
 - a vitrine do perfil (o mesmo conteúdo da página que o *Perfil → Publicar na web* gera: nome, bio, jogos e conquistas em destaque, mais jogados, suas listas e tier lists (nome, descrição e os jogos com nome e capa), nível e insígnias da Steam e, com a chave *Notas e resenhas* ligada, os jogos que você avaliou (aba *Avaliações*) e os registros do Diário (aba *Diário*, com status, datas de início e término, nota, horas e o texto da resenha, sem as anotações pessoais)) e, se você escolheu no Lazulium, o avatar, o fundo e a arte em destaque. Avatar, arte e imagens normais vão reduzidos; GIFs de até ~1,1 MB ficam no banco do servidor; e GIF maior ou vídeo de fundo (WEBM ou MP4) de até 50 MB ficam em disco na VPS (`147-15-123-238.sslip.io`), apagados ao trocar o fundo ou apagar a conta (acima de 50 MB fica só no seu PC). Seus amigos abrem a vitrine por um link que vale 30 minutos. Dá para esconder em *Vitrine do perfil*;
 - um resumo de cada jogo seu com alguma atividade (horas, registro no Diário ou conquista), para a página do jogo e a aba *Comparar* dos amigos: o nome do jogo, a capa pública, o código da Steam quando é da Steam e, conforme as chaves, as horas e a última vez que jogou, o status, a nota e a resenha do Diário, e quantas conquistas tem e quais (com a data de cada uma). Só vai com a *Vitrine do perfil* ligada; desligar apaga tudo isso do servidor. Jogo oculto ou nunca aberto não vai;

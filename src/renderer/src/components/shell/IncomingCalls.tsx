@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Phone, PhoneMissed, X } from 'lucide-react';
 import { CallAnswer, IncomingCall } from '@shared/types/social';
 import { useSocialLiveStore } from '../../stores/useSocialLiveStore';
@@ -12,10 +12,23 @@ import { focusRing } from '../ui';
 
 const timeOf = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
+const RING_MS = 2 * 60_000;
+
 const CallCard: React.FC<{ call: IncomingCall }> = ({ call }) => {
   const [busy, setBusy] = useState<CallAnswer | 'back' | null>(null);
-  const missed = call.missed || Date.now() - Date.parse(call.createdAt) > 2 * 60_000;
-  const dismiss = () => useSocialLiveStore.getState().removeIncoming(call.id);
+  const [now, setNow] = useState(() => Date.now());
+  const missed = call.missed || now - Date.parse(call.createdAt) > RING_MS;
+  // Passados os 2 minutos a chamada vira "perdida" sozinha, sem esperar outra coisa redesenhar o aviso
+  useEffect(() => {
+    if (missed) return;
+    const timer = setTimeout(() => setNow(Date.now()), Math.max(1_000, Date.parse(call.createdAt) + RING_MS - Date.now() + 500));
+    return () => clearTimeout(timer);
+  }, [missed, call.createdAt, now]);
+  // Fechar sem responder: some daqui e do main (senão voltava quando o app recarrega as chamadas)
+  const dismiss = () => {
+    useSocialLiveStore.getState().removeIncoming(call.id);
+    void window.electronAPI?.socialForgetCall(call.id).catch(() => undefined);
+  };
 
   const answer = async (value: CallAnswer) => {
     setBusy(value);
@@ -28,13 +41,13 @@ const CallCard: React.FC<{ call: IncomingCall }> = ({ call }) => {
     }
   };
 
-  // Chamada perdida: chamar de volta faz o mesmo barulho do outro lado
+  // Chamada perdida: chamar de volta faz o mesmo barulho do outro lado. A perdida só sai da lista
+  // (antes ela respondia "Tô indo!", e quem tinha chamado recebia um "Tô indo pra call" que não era verdade)
   const callBack = async () => {
     setBusy('back');
     try {
       const sent = await window.electronAPI?.socialCallFriend(call.from.id);
       if (sent) useSocialLiveStore.getState().markCalled(call.from.id, sent.id);
-      void window.electronAPI?.socialAnswerCall(call.id, 'yes').catch(() => undefined);
       dismiss();
       useUiStore.getState().showNotice({ text: `Chamando ${call.from.name}...`, tone: 'ok' });
     } catch (err) {

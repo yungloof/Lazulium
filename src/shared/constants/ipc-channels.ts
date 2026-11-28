@@ -179,6 +179,8 @@ export const IPC_CHANNELS = {
   SOCIAL_CALL_FRIEND: 'social:call-friend',
   SOCIAL_CALL_ANSWER: 'social:call-answer',
   SOCIAL_CALL_PENDING: 'social:call-pending',
+  SOCIAL_CALL_CANCEL: 'social:call-cancel',
+  SOCIAL_CALL_FORGET: 'social:call-forget',
   SOCIAL_CALL_TEST: 'social:call-test',
   SOCIAL_CALL_EVENT: 'social:call-event',
   SOCIAL_GAME_FRIENDS: 'social:game-friends',

@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS calls (
   to_id         TEXT NOT NULL,
   created_at    TEXT NOT NULL,
   delivered_at  TEXT,
-  answer        TEXT,                     -- yes | no | busy
+  answer        TEXT,                     -- yes | no | busy (de quem recebeu) ou cancelled (quem chamou desligou)
   answered_at   TEXT,
   answer_seen   INTEGER NOT NULL DEFAULT 0
 );

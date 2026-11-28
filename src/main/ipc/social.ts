@@ -87,6 +87,8 @@ export function registerSocialHandlers(): void {
     return callsService.answer(String(callId ?? ''), answer as CallAnswer);
   });
   handle(IPC_CHANNELS.SOCIAL_CALL_PENDING, () => callsService.getPending());
+  handle(IPC_CHANNELS.SOCIAL_CALL_CANCEL, (_event, callId: string) => callsService.cancel(String(callId ?? '')));
+  handle(IPC_CHANNELS.SOCIAL_CALL_FORGET, (_event, callId: string) => callsService.forget(String(callId ?? '')));
   handle(IPC_CHANNELS.SOCIAL_CALL_TEST, () => callsService.test());
 
   // Listas em grupo

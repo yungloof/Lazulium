@@ -13,6 +13,7 @@ import { NotificationsBox } from './friends/Notifications';
 import { forgetReactions } from '../stores/useReactionsStore';
 import { PresenceAvatar, PresenceLine } from './friends/presence';
 import { BlockedBox, MutedBadge } from './friends/TakeABreak';
+import { QuickCallButton } from './friends/CallButton';
 import { PageHeader, emptyBox, pageClass } from './journal/PageLayout';
 import { Button, EmptyState, Notice, SectionHeader, Skeleton, focusRing, inputClass, pillTabClass } from './ui';
 
@@ -154,8 +155,8 @@ const InviteBox: React.FC<{ onFriendAdded: () => void }> = ({ onFriendAdded }) =
 const FriendRow: React.FC<{ friend: SocialFriend }> = ({ friend }) => {
   const presence = friendPresence(friend);
   return (
-    <li>
-      <button type="button" onClick={() => openFriend(friend.id)} className={`w-full flex items-center gap-3 rounded-lg px-2.5 py-2 text-left hover:bg-slate-800/50 ${focusRing}`}>
+    <li className="flex items-center gap-1 pr-1.5">
+      <button type="button" onClick={() => openFriend(friend.id)} className={`min-w-0 flex-1 flex items-center gap-3 rounded-lg px-2.5 py-2 text-left hover:bg-slate-800/50 ${focusRing}`}>
         <PresenceAvatar user={friend} status={presence} />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">
@@ -165,6 +166,7 @@ const FriendRow: React.FC<{ friend: SocialFriend }> = ({ friend }) => {
           <PresenceLine status={presence} nowPlaying={friend.nowPlaying} lastSeen={friend.lastSeenAt ? formatSeen(friend.lastSeenAt) : 'há tempo'} />
         </span>
       </button>
+      {presence !== 'offline' && <QuickCallButton friendId={friend.id} friendName={friend.name} />}
     </li>
   );
 };

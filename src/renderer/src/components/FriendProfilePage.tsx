@@ -67,7 +67,7 @@ export const FriendProfilePage: React.FC<{ friendId: string }> = ({ friendId }) 
     tab === 'showcase' && showcase && !showcase.url
       ? showcase.reason === 'hidden'
         ? 'Essa pessoa escondeu a vitrine do perfil. Abaixo, o que dá para comparar.'
-        : 'A vitrine aparece quando essa pessoa atualizar o Lazulium para a 2.2 ou mais nova. Abaixo, o que dá para comparar.'
+        : `A vitrine de ${profile?.user.name ?? 'quem você abriu'} ainda não chegou: ela aparece sozinha quando essa pessoa abrir o Lazulium. Abaixo, o que dá para comparar.`
       : null;
 
   const setMuted = (muted: SocialMute | null) => setProfile((p) => (p ? { ...p, muted } : p));
