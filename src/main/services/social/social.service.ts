@@ -28,10 +28,12 @@ import {
   SocialMute
 } from '@shared/types/social';
 import { db } from '../../database/db';
+import { needsPublicCoverLookup, publicCoverOf, STEAM_COVER, steamAppIdOf } from '../metadata/public-cover';
 import { HttpError, describeError, httpRequest, statusError } from '../metadata/http';
 import { getRecentActivity } from '../profile/activity.service';
 import { parseEditionPrefs } from '@shared/utils/editions';
 import { LibraryRow, buildLibraryRows, compareWithFriend, libraryKeysOf } from './library-rows';
+import { showcaseGameIds } from './showcase-covers';
 import { reviewImagesService } from '../profile/review-images.service';
 import { ArtworkServerUnavailable, fetchIgdbArtwork } from '../metadata/igdb-artwork.service';
 import { notify } from '../../app-shell';
@@ -82,8 +84,7 @@ const MEDIA_MAX_WIDTH = { avatar: 256, background: 1920, artwork: 1280 } as cons
 type MediaKind = keyof typeof MEDIA_MAX_WIDTH;
 const MAX_FRIEND_COVER_LOOKUPS = 30;   // Capas de jogos de amigos conferidas por vez
 const MAX_COVER_LOOKUPS = 15;          // Capas padrão buscadas por sincronização (o resto vai nas próximas)
-const STEAM_COVER = (appId: string) => `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`;
-const PUBLIC_COVER = /^https:\/\/(cdn\.cloudflare\.steamstatic\.com|shared\.[a-z.]*steamstatic\.com|steamcdn-a\.akamaihd\.net|images\.igdb\.com|cdn2\.steamgriddb\.com)\//i;
+const MAX_SHOWCASE_COVER_LOOKUPS = 40; // Na vitrine: destaques e listas inteiras pedem mais de uma vez só
 
 const SERVER_ERRORS: Record<string, string> = {
   invalid_code: 'Esse login expirou. Tente entrar de novo.',
@@ -136,16 +137,6 @@ export function gameKeyOf(game: Pick<Game, 'platform' | 'platformGameId' | 'titl
   return normalized ? `t:${normalized}` : null;
 }
 
-// Só endereço público: a capa guardada no PC (lazulium-media://) não abre no PC do amigo
-const steamAppIdOf = (game: Game) => (game.platform === 'steam' && game.platformGameId && /^\d{1,10}$/.test(game.platformGameId) ? game.platformGameId : undefined);
-
-export function publicCoverOf(game: Game): string | null {
-  const appId = steamAppIdOf(game);
-  // Steam: a capa conferida (jogos novos não têm o endereço antigo) ou, até conferir, o endereço padrão
-  if (appId) return game.media?.publicCoverUrl && PUBLIC_COVER.test(game.media.publicCoverUrl) ? game.media.publicCoverUrl : STEAM_COVER(appId);
-  for (const url of [game.media?.coverSourceUrl, game.media?.coverUrl, game.media?.publicCoverUrl]) if (url && PUBLIC_COVER.test(url)) return url;
-  return null;
-}
 
 class SocialService {
   private cancelLogin: (() => void) | undefined;
@@ -610,13 +601,13 @@ class SocialService {
   }
 
   // Jogo sem capa pública (capa escolhida no PC, emulador, avulso): procura a capa padrão no IGDB e guarda
-  private async resolvePublicCovers(gameIds: string[]): Promise<void> {
+  private async resolvePublicCovers(gameIds: string[], limit = MAX_COVER_LOOKUPS): Promise<void> {
     let lookups = 0;
     for (const id of new Set(gameIds)) {
-      if (lookups >= MAX_COVER_LOOKUPS) break;
+      if (lookups >= limit) break;
       const game = db.getGameById(id);
       const appId = game ? steamAppIdOf(game) : undefined;
-      if (!game || this.coverMisses.has(id) || (appId ? game.media?.publicCoverUrl : publicCoverOf(game))) continue;
+      if (!game || this.coverMisses.has(id) || !needsPublicCoverLookup(game)) continue;
       lookups++;
       try {
         let cover: string | undefined;
@@ -962,21 +953,16 @@ class SocialService {
   // O mesmo perfil da página web, com as imagens escolhidas e as capas públicas dos jogos
   private async pushShowcase(settings: SocialSettings): Promise<void> {
     const built = await profileService.build();
+    // Jogo de emulador, avulso ou com capa só no PC ainda sem capa pública: procura antes de montar,
+    // primeiro os que aparecem logo na página (destaques, recentes, começo das listas)
+    await this.resolvePublicCovers(showcaseGameIds(built, db.getGameLists(), db.getGames(), settings.shareReviews), MAX_SHOWCASE_COVER_LOOKUPS);
     const showcase: PlayerProfile = profileService.toExportable(built);
     const custom = built.custom;
     // Horas escondidas na vitrine também, se a pessoa desligou "Horas jogadas"
-    const withCover = (g: ProfileGame): ProfileGame => {
-      const hours = settings.sharePlaytime ? g : { ...g, playtimeSeconds: 0 };
-      if (hours.coverUrl) return hours;
-      const game = db.getGameById(g.id);
-      return { ...hours, coverUrl: (game && publicCoverOf(game)) || undefined };
-    };
-    // Notas e resenhas só vão se a pessoa deixou essa chave ligada; as capas são as públicas
+    const withHours = (g: ProfileGame): ProfileGame => (settings.sharePlaytime ? g : { ...g, playtimeSeconds: 0 });
+    // Notas e resenhas só vão se a pessoa deixou essa chave ligada
     showcase.ratings = settings.shareReviews
-      ? (showcase.ratings ?? []).map((r) => {
-          const game = db.getGameById(r.id);
-          return { ...r, coverUrl: (game && publicCoverOf(game)) || undefined, playtimeSeconds: settings.sharePlaytime ? r.playtimeSeconds : 0 };
-        })
+      ? (showcase.ratings ?? []).map((r) => (settings.sharePlaytime ? r : { ...r, playtimeSeconds: 0 }))
       : [];
     showcase.journal = maskShowcaseJournal(showcase.journal, settings, (id) => {
       const game = db.getGameById(id);
@@ -987,7 +973,7 @@ class SocialService {
       showcase.recentPlaytimeSeconds = 0;
     }
     for (const key of ['featuredGames', 'recentGames', 'mostPlayed', 'recentlyPlayed', 'favorites'] as const) {
-      showcase[key] = showcase[key].map(withCover);
+      showcase[key] = showcase[key].map(withHours);
     }
     const web = { ...showcase.web };
     const avatar = await this.uploadProfileImage('avatar', custom.avatarUrl);

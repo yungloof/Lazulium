@@ -29,6 +29,7 @@ import { reviewDateOf, sortByReviewDate } from '@shared/utils/review-order';
 import { parseEditionPrefs } from '@shared/utils/editions';
 import { exportableJournal } from './profile-journal';
 import { exportableLists } from './profile-lists';
+import { publicCoverOf, publicHeroOf } from '../metadata/public-cover';
 
 const MAX_ACHIEVEMENT_CHOICES = 300;
 const MAX_RATINGS = 300;                // Jogos avaliados na página do perfil
@@ -470,7 +471,7 @@ class ProfileService {
         return {
           id: game.id,
           title: game.title,
-          coverUrl: game.media?.coverUrl && game.media.coverUrl.startsWith('https://') ? game.media.coverUrl : undefined,
+          coverUrl: publicCoverOf(game) ?? undefined,
           platform: game.manualPlatform ?? game.platform,
           rating: game.log?.rating,
           status: game.log?.status,
@@ -487,13 +488,18 @@ class ProfileService {
 
   toExportable(profile: PlayerProfile): PlayerProfile {
     const publicUrl = (url?: string) => (url && /^https:\/\//.test(url) ? url : undefined);
-    const mapGame = (g: ProfileGame) => ({ ...g, coverUrl: publicUrl(g.coverUrl), heroUrl: publicUrl(g.heroUrl) });
+    // Capas pela regra única (a escolhida, a conferida ou a do IGDB), nunca a cópia local nem endereço que a página barra
+    const coverOf = (g: ProfileGame) => {
+      const game = db.getGameById(g.id);
+      return (game ? publicCoverOf(game) : publicHeroOf(g.coverUrl)) ?? undefined;
+    };
+    const mapGame = (g: ProfileGame) => ({ ...g, coverUrl: coverOf(g), heroUrl: publicHeroOf(g.heroUrl) });
     // Arquivos do perfil Steam pelo endereço original (na tela do app são as cópias locais).
     // Nome real, país e o steamId ficam de fora de propósito.
     const { custom } = profile;
     const steam = profile.steam && db.getSteamProfileCache();
     const mode = custom.backgroundMode ?? (steam?.background ? 'steam' : 'game');
-    const gameBackground = publicUrl(custom.bannerGameId ? db.getGameById(custom.bannerGameId)?.media?.heroUrl : undefined) ?? profile.recentGames.map((g) => publicUrl(g.heroUrl)).find(Boolean);
+    const gameBackground = publicHeroOf(custom.bannerGameId ? db.getGameById(custom.bannerGameId)?.media?.heroUrl : undefined) ?? profile.recentGames.map((g) => publicHeroOf(g.heroUrl)).find(Boolean);
     return {
       ...profile,
       avatarUrl: publicUrl(profile.avatarUrl) ?? steam?.avatarUrl,

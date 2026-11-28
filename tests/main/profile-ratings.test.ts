@@ -52,12 +52,15 @@ describe('avaliações na página do perfil', () => {
   it('usa o nome digitado à mão como plataforma e só capas públicas', () => {
     db.upsertGames([
       makeGame({ id: 'x', title: 'Celeste', platform: 'standalone', manualEntry: true, manualPlatform: 'Switch', log: { rating: 4 }, media: { coverUrl: 'lazulium-media://covers/x.jpg' } }),
-      makeGame({ id: 'y', title: 'Hades', log: { rating: 5 }, media: { coverUrl: 'https://example.com/hades.jpg' } })
+      makeGame({ id: 'y', title: 'Hades', log: { rating: 5 }, media: { coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/hades.jpg' } }),
+      // Capa da Epic é https, mas a página do perfil barra esse endereço: vai a padrão do IGDB achada antes
+      makeGame({ id: 'z', title: 'Alan Wake 2', platform: 'epic', log: { rating: 4 }, media: { coverUrl: 'https://cdn1.epicgames.com/x/alan.jpg', publicCoverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/aw2.jpg' } })
     ]);
     const byId = Object.fromEntries(ratings().map((r) => [r.id, r]));
     expect(byId.x.platform).toBe('Switch');
     expect(byId.x.coverUrl).toBeUndefined();
-    expect(byId.y.coverUrl).toBe('https://example.com/hades.jpg');
+    expect(byId.y.coverUrl).toBe('https://images.igdb.com/igdb/image/upload/t_cover_big/hades.jpg');
+    expect(byId.z.coverUrl).toBe('https://images.igdb.com/igdb/image/upload/t_cover_big/aw2.jpg');
   });
 
   it('corta resenhas enormes e respeita o teto de texto total', () => {

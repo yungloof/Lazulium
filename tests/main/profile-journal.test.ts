@@ -45,7 +45,7 @@ describe('exportableJournal', () => {
         platform: 'steam',
         title: 'Hades',
         totalPlaytimeSeconds: 36000,
-        media: { coverUrl: 'https://cdn.example.com/hades.jpg' },
+        media: { coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/hades.jpg' },
         log: { status: 'completed', rating: 5, startedOn: '2026-01-05', finishedOn: '2026-02-20' }
       }),
       makeGame({
@@ -105,7 +105,7 @@ describe('exportableJournal', () => {
     expect(out[2]).toEqual({
       id: 'steam-hades',
       title: 'Hades',
-      coverUrl: 'https://cdn.example.com/hades.jpg',
+      coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/hades.jpg',
       platform: 'steam',
       status: 'completed',
       rating: 5,

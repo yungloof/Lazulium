@@ -2,7 +2,8 @@ import { foldEditions, parseEditionPrefs } from '@shared/utils/editions';
 import { libraryTitleKey, steamKeyOf } from '@shared/utils/game-match';
 import { CreateGroupListInput, GroupList, UpdateGroupListInput } from '@shared/types/social';
 import { db } from '../../database/db';
-import { publicCoverOf, socialService } from './social.service';
+import { socialService } from './social.service';
+import { publicCoverOf } from '../metadata/public-cover';
 
 // Listas em grupo: salvas no servidor da conta Lazulium; jogos usam titleKey/steamKey e capa pública, nunca ids locais
 class GroupListsService {

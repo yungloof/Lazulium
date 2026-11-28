@@ -2,12 +2,12 @@ import { Game } from '@shared/types/game';
 import { GameList } from '@shared/types/lists';
 import { ProfileList, ProfileListGame } from '@shared/types/profile';
 import { unrankedIds } from '@shared/utils/tier-list';
+import { publicCoverOf } from '../metadata/public-cover';
 
 // Listas para a página do perfil (amigos e web): só o que aparece no cartão e na lista aberta, com capas públicas
 export const MAX_PROFILE_LISTS = 12;
 export const MAX_PROFILE_LIST_GAMES = 80;   // Por lista, somando as fileiras de uma tier list
 
-const publicCover = (url?: string) => (url && url.startsWith('https://') ? url : undefined);
 
 export function exportableLists(lists: GameList[], games: Map<string, Game>): ProfileList[] {
   const visible = (ids: string[]) =>
@@ -16,7 +16,7 @@ export function exportableLists(lists: GameList[], games: Map<string, Game>): Pr
       return game && !game.isHidden ? [game] : [];
     });
   const toGame = (game: Game): ProfileListGame => {
-    const coverUrl = publicCover(game.media?.coverUrl);
+    const coverUrl = publicCoverOf(game);
     return coverUrl ? { title: game.title, coverUrl } : { title: game.title };
   };
 

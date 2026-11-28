@@ -3,7 +3,7 @@ import { Game } from '../../src/shared/types/game';
 import { GameList } from '../../src/shared/types/lists';
 import { MAX_PROFILE_LISTS, MAX_PROFILE_LIST_GAMES, exportableLists } from '../../src/main/services/profile/profile-lists';
 
-const game = (id: string, extra: Partial<Game> = {}) => ({ id, title: `Jogo ${id}`, media: { coverUrl: `https://cdn.test/${id}.jpg` }, isHidden: false, ...extra }) as Game;
+const game = (id: string, extra: Partial<Game> = {}) => ({ id, title: `Jogo ${id}`, media: { coverUrl: `https://images.igdb.com/igdb/image/upload/t_cover_big/${id}.jpg` }, isHidden: false, ...extra }) as Game;
 const list = (id: string, gameIds: string[], extra: Partial<GameList> = {}): GameList => ({ id, title: `Lista ${id}`, ranked: false, featured: false, gameIds, createdAt: '', updatedAt: '', ...extra });
 
 describe('listas na página do perfil', () => {
@@ -19,7 +19,7 @@ describe('listas na página do perfil', () => {
       description: 'top',
       ranked: true,
       featured: false,
-      games: [{ title: 'Jogo b', coverUrl: 'https://cdn.test/b.jpg' }, { title: 'Jogo local' }, { title: 'Jogo a', coverUrl: 'https://cdn.test/a.jpg' }]
+      games: [{ title: 'Jogo b', coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/b.jpg' }, { title: 'Jogo local' }, { title: 'Jogo a', coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/a.jpg' }]
     });
   });
 
@@ -31,7 +31,7 @@ describe('listas na página do perfil', () => {
     const [out] = exportableLists([list('t', ['a', 'b', 'c'], { ranked: true, tiers })], games);
     expect(out.ranked).toBe(false);
     expect(out.tiers).toEqual([
-      { label: 'S', color: '#ff7f7f', games: [{ title: 'Jogo c', coverUrl: 'https://cdn.test/c.jpg' }] },
+      { label: 'S', color: '#ff7f7f', games: [{ title: 'Jogo c', coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/c.jpg' }] },
       { label: 'A', color: '#ffbf7f', games: [] }
     ]);
     expect(out.games.map((g) => g.title)).toEqual(['Jogo a', 'Jogo b']);

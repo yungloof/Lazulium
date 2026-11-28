@@ -1,11 +1,10 @@
 import { Game } from '@shared/types/game';
 import { ProfileJournalEntry } from '@shared/types/profile';
 import { EditionPrefs, EMPTY_EDITION_PREFS, foldEditions } from '@shared/utils/editions';
+import { publicCoverOf } from '../metadata/public-cover';
 
 export const MAX_PROFILE_JOURNAL = 400;
 
-const httpsCover = (url?: string): string | undefined =>
-  url && /^https:\/\//i.test(url) ? url : undefined;
 
 // Anotações pessoais (`notes`) nunca saem do PC: quem só tem `notes` também fica de fora
 const isPublicJournalGame = (game: Game): boolean => {
@@ -44,7 +43,7 @@ export function exportableJournal(
 
   return entries.map(({ game, date }) => {
     const log = game.log;
-    const coverUrl = httpsCover(game.media?.coverUrl);
+    const coverUrl = publicCoverOf(game);
     return {
       id: game.id,
       title: game.title,

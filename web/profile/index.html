@@ -16,6 +16,7 @@
       --faint: #76879a;
       --accent: #6b9bff;
       --gold: #e6c869;
+      --blank: rgba(255, 255, 255, 0.07); /* Fundo de capa que falta: claro sobre qualquer cor de fundo */
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; min-height: 100%; }
@@ -41,7 +42,7 @@
     }
     .panel { background: var(--panel); border-radius: 14px; }
     #identity { display: flex; gap: 20px; padding: 20px; min-width: 0; }
-    #avatar { position: relative; flex: none; width: 148px; height: 148px; background: #151c30; border-radius: 12px; }
+    #avatar { position: relative; flex: none; width: 148px; height: 148px; background: var(--blank); border-radius: 12px; }
     #avatar > .photo { width: 100%; height: 100%; object-fit: cover; }
     #avatar > .frame { position: absolute; inset: -7%; width: 114%; height: 114%; max-width: none; pointer-events: none; }
     #avatar > .letter { display: flex; height: 100%; align-items: center; justify-content: center; font-size: 56px; color: var(--faint); }
@@ -71,7 +72,7 @@
     .bar { height: 4px; margin-top: 4px; background: rgba(0, 0, 0, 0.6); overflow: hidden; }
     .bar i { display: block; height: 100%; background: var(--accent); }
     .icons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-    .icons img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #151c30; border-radius: 8px; }
+    .icons img { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--blank); border-radius: 8px; }
     /* Títulos e legendas ficam soltos sobre a arte: a sombra garante a leitura em fundo claro */
     .section-head, figcaption, footer { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 12px rgba(0, 0, 0, 0.6); }
     .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
@@ -82,7 +83,7 @@
     .stack { display: flex; flex-direction: column; gap: 6px; }
     .game { padding: 12px; }
     .game .top { display: flex; align-items: flex-start; gap: 12px; }
-    .game .capsule { flex: none; width: 184px; aspect-ratio: 184 / 69; object-fit: cover; background: #151c30; border-radius: 10px; }
+    .game .capsule { flex: none; width: 184px; aspect-ratio: 184 / 69; object-fit: cover; background: var(--blank); border-radius: 10px; }
     .game .title { flex: 1; min-width: 0; color: #fff; overflow-wrap: anywhere; }
     .game .time { flex: none; text-align: right; font-size: 12px; color: var(--muted); line-height: 1.6; }
     .game .ach { display: flex; align-items: center; gap: 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
@@ -90,9 +91,10 @@
     .game .ach .row { display: flex; flex: none; gap: 4px; }
     .game .ach .row img { width: 32px; height: 32px; }
     .covers { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; padding: 12px; }
-    .cover img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #151c30; border-radius: 10px; }
+    .cover img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: var(--blank); border-radius: 10px; }
     .cover b { display: block; margin-top: 6px; font-size: 12px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cover small { color: var(--muted); font-size: 11px; }
+    .cover .blank { display: flex; width: 100%; aspect-ratio: 2 / 3; align-items: center; justify-content: center; padding: 8px; border-radius: 10px; background: var(--blank); color: var(--muted); font-size: 12px; text-align: center; overflow-wrap: anywhere; }
     .rare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
     .rare { display: flex; align-items: center; gap: 12px; padding: 8px; min-width: 0; }
     .rare img { flex: none; width: 44px; height: 44px; }
@@ -112,7 +114,7 @@
     .posts { padding: 4px 18px; }
     .post { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 0 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
     .post:last-child { border-bottom: 0; }
-    .post .c { width: 96px; aspect-ratio: 3 / 4; object-fit: cover; background: #151c30; border-radius: 6px; align-self: start; }
+    .post .c { width: 96px; aspect-ratio: 3 / 4; object-fit: cover; background: var(--blank); border-radius: 6px; align-self: start; }
     .post .head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
     .post .head b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; font-size: 15px; }
     .post .head span { flex: none; color: var(--faint); }
@@ -148,7 +150,7 @@
     .list-card:hover { background: rgba(255, 255, 255, 0.08); }
     .list-card:focus-visible, .back:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .collage { position: relative; display: block; width: 100%; aspect-ratio: 100 / 51; margin-bottom: 10px; }
-    .collage img, .collage .blank { position: absolute; top: 0; height: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 6px; background: #151c30; box-shadow: 4px 0 12px rgba(0, 0, 0, 0.45); }
+    .collage img, .collage .blank { position: absolute; top: 0; height: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 6px; background: var(--blank); box-shadow: 4px 0 12px rgba(0, 0, 0, 0.45); }
     .list-card b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; color: #fff; }
     .list-card small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
     .list-card p { margin-top: 6px; color: #cfd8e3; font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -158,7 +160,7 @@
     .list-head p { margin-top: 6px; color: var(--muted); white-space: pre-wrap; }
     .list-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 14px; padding: 14px; }
     .list-item { position: relative; min-width: 0; }
-    .list-item img, .list-item .blank { display: block; width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 8px; background: #151c30; }
+    .list-item img, .list-item .blank { display: block; width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 8px; background: var(--blank); }
     .list-item .blank { display: flex; align-items: center; justify-content: center; padding: 6px; color: var(--muted); font-size: 11px; text-align: center; }
     .list-item b { display: block; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 400; }
     .list-item .rank { position: absolute; top: 6px; left: 6px; min-width: 26px; height: 26px; padding: 0 6px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(0, 0, 0, 0.8); color: #fff; font-size: 13px; }
@@ -167,7 +169,7 @@
     .tier:last-child { border-bottom: 0; }
     .tier .label { flex: none; width: 92px; display: flex; align-items: center; justify-content: center; padding: 8px; color: #10131c; font-size: 20px; font-weight: 700; text-align: center; overflow-wrap: anywhere; }
     .tier .row { flex: 1; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; padding: 6px; }
-    .tier .row img, .tier .row .blank { width: 64px; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 6px; background: #151c30; }
+    .tier .row img, .tier .row .blank { width: 64px; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 6px; background: var(--blank); }
     .tier .row .blank { display: flex; align-items: center; justify-content: center; padding: 4px; color: var(--muted); font-size: 9px; text-align: center; overflow: hidden; }
     /* Curtir e comentar (só na vitrine aberta por um amigo dentro do Lazulium) */
     .react { margin-top: 10px; }
@@ -181,7 +183,7 @@
     .react .thread { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.35); }
     .react .likers { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
     .react .comment { display: flex; gap: 8px; margin-bottom: 10px; }
-    .react .comment img, .react .comment .face { flex: none; width: 22px; height: 22px; border-radius: 6px; object-fit: cover; background: #151c30; }
+    .react .comment img, .react .comment .face { flex: none; width: 22px; height: 22px; border-radius: 6px; object-fit: cover; background: var(--blank); }
     .react .comment .who { font-size: 12px; color: #fff; font-weight: 600; }
     .react .comment .who small { margin-left: 6px; color: var(--faint); font-weight: 400; }
     .react .comment p { color: #cfd8e3; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -287,6 +289,22 @@
       node.addEventListener('error', () => node.remove());
       return node;
     };
+    // Capa com plano B: tenta cada endereço e, se nenhum abrir (sem capa, endereço barrado, 404), põe no mesmo
+    // lugar um quadro com o nome do jogo, para a grade não ficar com buraco nem com um quadro vazio
+    const coverImage = (urls, title, className, withText = true) => {
+      const list = [].concat(urls).map(https).filter(Boolean);
+      const blank = () => el('div', { class: (className ? className + ' ' : '') + 'blank', title }, withText ? title : null);
+      if (!list.length) return blank();
+      let index = 0;
+      const node = el('img', { src: list[0], alt: title || '', class: className, loading: 'lazy', referrerpolicy: 'no-referrer' });
+      node.addEventListener('error', () => {
+        if (++index < list.length) { node.src = list[index]; return; }
+        const box = blank();
+        box.style.cssText = node.style.cssText;
+        node.replaceWith(box);
+      });
+      return node;
+    };
     const section = (title, extra, ...children) =>
       el('section', null, el('div', { class: 'section-head' }, el('h2', null, title), extra ? el('span', null, extra) : null), children);
 
@@ -295,7 +313,12 @@
       box.replaceChildren();
       const poster = https(background && background.imageUrl);
       const video = https(background && background.videoUrl);
-      if (poster) box.append(el('img', { src: poster, alt: '', referrerpolicy: 'no-referrer' }));
+      if (poster) {
+        // Fundo que não abre some (sem o ícone de imagem quebrada no canto)
+        const img = el('img', { src: poster, alt: '', referrerpolicy: 'no-referrer' });
+        img.addEventListener('error', () => img.remove());
+        box.append(img);
+      }
       if (video && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
         const node = el('video', { src: video, poster, preload: 'auto' });
         node.muted = true;
@@ -315,7 +338,7 @@
       const unlocked = Number(game.achievementsUnlocked) || 0;
       return el('div', { class: 'game panel' },
         el('div', { class: 'top' },
-          image(game.heroUrl || game.coverUrl, '', 'capsule') || el('div', { class: 'capsule' }),
+          coverImage([game.heroUrl, game.coverUrl], game.title, 'capsule', false),
           el('div', { class: 'title' }, game.title),
           el('div', { class: 'time' },
             el('div', null, hours(game.playtimeSeconds) + ' registradas'),
@@ -393,7 +416,7 @@
       const [body, more] = reviewBlock(r.review, r.reviewImages);
       const status = STATUS_LABEL[r.status];
       return el('article', { class: 'post' },
-        image(r.coverUrl, r.title, 'c') || el('div', { class: 'c blank', title: r.title }, r.title),
+        coverImage(r.coverUrl, r.title, 'c'),
         el('div', { style: 'min-width:0' },
           el('div', { class: 'head' }, el('b', { title: r.title }, r.title), r.date ? el('span', null, '· ' + longDate(r.date)) : null),
           el('div', { class: 'meta' },
@@ -603,14 +626,7 @@
     const hexColor = (value) => (typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value : '#cfcfcf');
     const listGames = (list) => [...(Array.isArray(list.tiers) ? list.tiers.flatMap((t) => (Array.isArray(t.games) ? t.games : [])) : []), ...(Array.isArray(list.games) ? list.games : [])];
     // Capa do jogo na lista; sem capa (ou se ela falhar), um quadro com o nome, para o jogo não sumir da lista
-    const coverOrBlank = (game) => {
-      const blank = () => el('div', { class: 'blank', title: game.title }, game.title);
-      const src = https(game.coverUrl);
-      if (!src) return blank();
-      const node = el('img', { src, alt: game.title, loading: 'lazy', referrerpolicy: 'no-referrer' });
-      node.addEventListener('error', () => node.replaceWith(blank()));
-      return node;
-    };
+    const coverOrBlank = (game) => coverImage(game.coverUrl, game.title, '');
 
     function listCard(list, profile) {
       const covers = listGames(list).slice(0, COLLAGE_SIZE);
@@ -618,7 +634,7 @@
       const kind = Array.isArray(list.tiers) ? ' · tier list' : list.ranked ? ' · ranqueada' : '';
       const node = el('button', { type: 'button', class: 'list-card' },
         el('span', { class: 'collage' }, covers.map((g, i) => {
-          const pic = image(g.coverUrl, '') || el('span', { class: 'blank' });
+          const pic = coverImage(g.coverUrl, g.title, '', false);
           pic.style.left = (i * COLLAGE_STEP) + '%';
           pic.style.zIndex = String(COLLAGE_SIZE - i);
           return pic;
@@ -696,7 +712,7 @@
       const datesText = journalDatesText(entry);
       const canReact = entry.rating > 0 || Boolean(body);
       return el('article', { class: 'post' },
-        image(entry.coverUrl, entry.title, 'c') || el('div', { class: 'c blank', title: entry.title }, entry.title),
+        coverImage(entry.coverUrl, entry.title, 'c'),
         el('div', { style: 'min-width:0' },
           el('div', { class: 'head' }, el('b', { title: entry.title }, entry.title), datesText ? el('span', null, '· ' + datesText) : null),
           el('div', { class: 'meta' },
@@ -808,7 +824,7 @@
           : null),
         featured: () => ((profile.featuredGames || []).length
           ? section('Jogos em destaque', '', el('div', { class: 'covers panel' }, profile.featuredGames.map((g) =>
-              el('div', { class: 'cover' }, image(g.coverUrl, g.title) || el('img', { alt: '' }), el('b', { title: g.title }, g.title), el('small', null, hours(g.playtimeSeconds))))))
+              el('div', { class: 'cover' }, coverImage(g.coverUrl, g.title), el('b', { title: g.title }, g.title), el('small', null, hours(g.playtimeSeconds))))))
           : null),
         achievements: () => {
           const chosen = (profile.featuredAchievements || []).length ? profile.featuredAchievements : profile.rarestAchievements || [];
