@@ -254,5 +254,6 @@ export interface AchievementsSyncResult {
   synced: number;
   failed: number;
   privateGames: number;             // Jogos que a Steam não mostrou por privacidade ("Detalhes do jogo" privado)
+  postponed?: number;               // Jogos da Steam deixados para depois porque ela limitou os pedidos; voltam sozinhos em minutos
   reason?: string;                  // Motivo principal quando algum jogo falha (ex: limite 429, sem conexão)
 }

@@ -69,6 +69,8 @@ export const ProfileSteamNotice: React.FC<ProfileSteamNoticeProps> = ({ isPrivat
             ? `Conquistas de ${result.failed} jogo(s) não vieram. ${detail}`
             : `Não foi possível falar com a Steam. ${detail}`
         );
+      } else if (result?.postponed) {
+        setAchievementsSyncError(`A Steam pediu uma pausa: as conquistas de ${result.postponed} jogo(s) chegam sozinhas nos próximos minutos, sem precisar fazer nada.`);
       }
     } catch (err) {
       setAchievementsSyncError(`Não foi possível buscar as conquistas: ${ipcErrorMessage(err)}. Tente de novo.`);

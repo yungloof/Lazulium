@@ -148,13 +148,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenSettings, onSele
           // Números e o aviso de conquistas escondidas atualizam na hora
           await load();
           const detail = result?.reason || 'Confira a internet e tente de novo.';
+          // Limite da Steam não é falha: os jogos dela voltam sozinhos daqui a alguns minutos
+          const later = result?.postponed ? ` A Steam pediu uma pausa: ${result.postponed} jogo(s) dela atualizam sozinhos daqui a alguns minutos.` : '';
           return {
             tone: result?.failed ? 'error' : 'success',
             text: `${
               result?.failed && !result.synced
                 ? `Não foi possível atualizar as conquistas (${result.failed} falharam). ${detail}`
                 : `Conquistas atualizadas em ${result?.synced ?? 0} jogo(s)${result?.failed ? `; ${result.failed} falharam. ${detail}` : '.'}`
-            }${
+            }${later}${
               result?.privateGames ? ` A Steam escondeu ${result.privateGames} jogo(s): deixe "Detalhes do jogo" como Público na privacidade da Steam e atualize de novo.` : ''
             }`
           };

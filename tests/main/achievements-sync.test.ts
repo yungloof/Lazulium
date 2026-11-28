@@ -179,28 +179,63 @@ describe('sincronização completa de conquistas do perfil', () => {
     expect(sleepCalls).toEqual([450, 10_000, 750]);
   });
 
-  it('interrompe após esgotar as esperas de 429, devolve o motivo e contabiliza os restantes', async () => {
+  const rateLimited = (gameId: string): GameAchievements => ({
+    gameId,
+    source: 'steam',
+    total: 0,
+    unlocked: 0,
+    items: [],
+    syncedAt: new Date().toISOString(),
+    retryable: true,
+    warning: 'A Steam limitou os pedidos temporariamente (erro 429). Espere alguns minutos e tente de novo.'
+  });
+
+  it('esgotadas as esperas de 429, deixa os jogos da Steam para depois em vez de contar como falha', async () => {
     seedPlayedSteamGames(5);
-    vi.spyOn(achievementsService, 'getAchievements').mockImplementation(async (gameId): Promise<GameAchievements> => {
-      if (gameId === 'steam-1') return makeAchievements(gameId, 1);
-      return {
-        gameId,
-        source: 'steam',
-        total: 0,
-        unlocked: 0,
-        items: [],
-        syncedAt: new Date().toISOString(),
-        retryable: true,
-        warning: 'A Steam limitou os pedidos temporariamente (erro 429). Espere alguns minutos e tente de novo.'
-      };
-    });
+    const getSpy = vi.spyOn(achievementsService, 'getAchievements').mockImplementation(async (gameId): Promise<GameAchievements> =>
+      gameId === 'steam-1' ? makeAchievements(gameId, 1) : rateLimited(gameId)
+    );
 
     const result = await profileService.syncAllAchievements();
 
-    expect(result.synced).toBe(1);
-    expect(result.failed).toBe(4);
-    expect(result.reason).toContain('429');
+    expect(result).toEqual({ synced: 1, failed: 0, privateGames: 0, postponed: 4 });
     expect(sleepCalls).toEqual([450, 10_000, 20_000, 35_000]);
+    // Depois de desistir, não insiste com a Steam jogo a jogo: 1 + 4 tentativas no jogo 2, e só
+    expect(getSpy).toHaveBeenCalledTimes(5);
+  });
+
+  it('com a Steam em pausa, os outros jogos (RetroAchievements, do PC) continuam', async () => {
+    seedPlayedSteamGames(3);
+    db.upsertGame(makeGame({ id: 'emu-1', title: 'Zelda', platform: 'emulator', isInstalled: true }));
+    const getSpy = vi.spyOn(achievementsService, 'getAchievements').mockImplementation(async (gameId): Promise<GameAchievements> =>
+      gameId.startsWith('steam') ? rateLimited(gameId) : { ...makeAchievements(gameId, 1), source: 'retroachievements' }
+    );
+
+    const result = await profileService.syncAllAchievements();
+
+    expect(result).toEqual({ synced: 1, failed: 0, privateGames: 0, postponed: 3 });
+    expect(getSpy.mock.calls.map(([id]) => id).filter((id) => id === 'emu-1')).toHaveLength(1);
+  });
+
+  it('volta sozinha aos jogos que ficaram para depois e retoma no ritmo calmo', async () => {
+    seedPlayedSteamGames(3);
+    let steamLimited = true;
+    const getSpy = vi.spyOn(achievementsService, 'getAchievements').mockImplementation(async (gameId): Promise<GameAchievements> =>
+      steamLimited && gameId !== 'steam-1' ? rateLimited(gameId) : makeAchievements(gameId, 1)
+    );
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      expect(await profileService.syncAllAchievements()).toMatchObject({ postponed: 2 });
+      steamLimited = false;
+      getSpy.mockClear();
+      sleepCalls.length = 0;
+      await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+      await vi.waitFor(() => expect(getSpy).toHaveBeenCalledTimes(3));
+      // Na volta, ritmo cauteloso desde o primeiro jogo
+      expect(sleepCalls.every((ms) => ms === 750)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('interrompe cedo após 8 falhas de rede seguidas sem aplicar espera longa de 429', async () => {

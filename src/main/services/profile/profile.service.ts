@@ -77,6 +77,9 @@ const RATE_LIMIT_COOLDOWN_MS = [10_000, 20_000, 35_000]; // Espera escalonada qu
 const MAX_RATE_LIMIT_PAUSES = 6;       // Evita loop infinito de pausas numa sincronização longa
 const MAX_CONSECUTIVE_TRANSIENT_FAILURES = 8; // Sem rede ou com a Steam fora, interrompe cedo em vez de tentar a biblioteca toda
 const MAX_FAILURE_LOGS = 5;
+// A Steam seguiu limitando depois das esperas: os jogos dela ficam para depois e a sincronização volta sozinha,
+// cada vez esperando mais se a Steam continuar sem responder (até a próxima abertura do app ou o dia seguinte)
+const STEAM_RESUME_DELAYS_MS = [10, 20, 40, 60].map((min) => min * 60 * 1000);
 
 const isRateLimitWarning = (warning?: string): boolean => Boolean(warning && /\b429\b|limite|pedidos demais/i.test(warning));
 
@@ -89,6 +92,9 @@ function steamStatsKey(game: Game): string | undefined {
 
 class ProfileService {
   private syncingPromise?: Promise<AchievementsSyncResult>;
+  private resumeTimer?: ReturnType<typeof setTimeout>;
+  private resumeAttempt = 0;
+  private steamLimitedLastRun = false;
 
   private trackedSeconds(game: Game, since: number): number {
     return db
@@ -346,12 +352,29 @@ class ProfileService {
     achievementsService.applyPerfectGames();
     const last = Number(db.getSettings()[AUTO_SYNC_SETTING] ?? 0);
     if (Date.now() - last < AUTO_SYNC_INTERVAL_MS) return;
+    this.runBackgroundSync();
+  }
+
+  private runBackgroundSync(): void {
     this.syncAllAchievements()
       .then((result) => {
-        if (result.failed === 0) db.setSetting(AUTO_SYNC_SETTING, String(result.privateGames ? Date.now() - AUTO_SYNC_INTERVAL_MS + PRIVATE_RETRY_MS : Date.now()));
-        console.log(`[Conquistas] Atualização automática: ${result.synced} jogos, ${result.failed} falhas`);
+        if (result.failed === 0 && !result.postponed) db.setSetting(AUTO_SYNC_SETTING, String(result.privateGames ? Date.now() - AUTO_SYNC_INTERVAL_MS + PRIVATE_RETRY_MS : Date.now()));
+        console.log(`[Conquistas] Atualização automática: ${result.synced} jogos, ${result.failed} falhas${result.postponed ? `, ${result.postponed} para depois` : ''}`);
       })
       .catch((err) => logBackgroundFailure('[Conquistas] Atualização automática falhou:', err));
+  }
+
+  // Volta aos jogos da Steam que ficaram para depois. Os já atualizados saem do cache, sem pedir nada à Steam.
+  private scheduleSteamResume(madeProgress: boolean): void {
+    if (madeProgress) this.resumeAttempt = 0;
+    if (this.resumeTimer || this.resumeAttempt >= STEAM_RESUME_DELAYS_MS.length) return;
+    const delay = STEAM_RESUME_DELAYS_MS[this.resumeAttempt++];
+    console.log(`[Conquistas] A Steam pediu uma pausa; os jogos dela continuam daqui a ${delay / 60_000} min`);
+    this.resumeTimer = setTimeout(() => {
+      this.resumeTimer = undefined;
+      this.runBackgroundSync();
+    }, delay);
+    this.resumeTimer.unref?.();
   }
 
   // Busca conquistas de todos os jogos já jogados (respeita o cache de 6h de cada jogo)
@@ -360,11 +383,15 @@ class ProfileService {
     this.syncingPromise = (async () => {
       let synced = 0;
       let failed = 0;
+      let postponed = 0;
+      let fetched = 0;
       let privateGames = 0;
       let consecutiveFailures = 0;
       let consecutiveRateLimits = 0;
       let totalRateLimitPauses = 0;
-      let rateLimitedBefore = false;
+      // Logo depois de um limite da Steam, começa já no ritmo mais calmo
+      let rateLimitedBefore = this.steamLimitedLastRun;
+      let steamPaused = false;
       let loggedFailures = 0;
       let firstReason: string | undefined;
 
@@ -384,6 +411,11 @@ class ProfileService {
           .filter((g) => !g.isHidden && (g.platform === 'steam' ? (g.totalPlaytimeSeconds ?? 0) > 0 : g.isInstalled !== false || (g.totalPlaytimeSeconds ?? 0) > 0 || isJournalEntry(g)));
         for (let i = 0; i < candidates.length; i++) {
           const game = candidates[i];
+          // A Steam pediu pausa: os jogos dela esperam a próxima rodada e os outros (RetroAchievements, do PC) seguem
+          if (steamPaused && game.platform === 'steam') {
+            postponed++;
+            continue;
+          }
           const prevCached = db.getGameAchievements(game.id);
           let touchedNetwork = true;
           try {
@@ -400,18 +432,25 @@ class ProfileService {
 
             if (result?.retryable) {
               const rateLimited = isRateLimitWarning(result.warning);
-              if (rateLimited && consecutiveRateLimits < RATE_LIMIT_COOLDOWN_MS.length && totalRateLimitPauses < MAX_RATE_LIMIT_PAUSES) {
+              if (rateLimited && !steamPaused && consecutiveRateLimits < RATE_LIMIT_COOLDOWN_MS.length && totalRateLimitPauses < MAX_RATE_LIMIT_PAUSES) {
                 const cooldown = RATE_LIMIT_COOLDOWN_MS[consecutiveRateLimits];
                 consecutiveRateLimits++;
                 totalRateLimitPauses++;
                 rateLimitedBefore = true;
-                firstReason ??= result.warning?.trim();
                 console.warn(`[Conquistas] Steam limitou pedidos (429) em "${game.title}" (${i + 1}/${candidates.length}); aguardando ${cooldown / 1000}s...`);
                 await sleep(cooldown);
                 i--;
                 continue;
               }
-              if (!rateLimited) consecutiveRateLimits = 0;
+              if (rateLimited) {
+                // Esperou e a Steam seguiu limitando: não é falha do jogo, é a vez dele que fica para depois
+                if (!steamPaused) console.warn(`[Conquistas] A Steam seguiu limitando em ${i + 1}/${candidates.length}; os jogos dela ficam para depois`);
+                steamPaused = true;
+                consecutiveRateLimits = 0;
+                postponed++;
+                continue;
+              }
+              consecutiveRateLimits = 0;
               failed++;
               consecutiveFailures++;
               recordFailure(game, result.warning);
@@ -420,6 +459,7 @@ class ProfileService {
               // Marcos são calculados aqui mesmo: não provam que a rede voltou (sem internet, a biblioteca mista seguiria até o fim)
               if (result?.source !== 'lazulium') consecutiveFailures = 0;
               if (result && result.total > 0) synced++;
+              if (touchedNetwork && !result?.warning) fetched++;
               if (result?.warning?.startsWith('Perfil da Steam privado')) privateGames++;
             }
           } catch (err) {
@@ -429,7 +469,8 @@ class ProfileService {
             recordFailure(game, describeError(err));
           }
 
-          if (consecutiveFailures >= MAX_CONSECUTIVE_TRANSIENT_FAILURES || consecutiveRateLimits >= RATE_LIMIT_COOLDOWN_MS.length) {
+          // Sem internet ou com o serviço fora do ar: para cedo em vez de tentar a biblioteca toda
+          if (consecutiveFailures >= MAX_CONSECUTIVE_TRANSIENT_FAILURES) {
             const remaining = candidates.length - (i + 1);
             failed += remaining;
             console.warn(
@@ -445,10 +486,15 @@ class ProfileService {
         this.syncingPromise = undefined;
       }
 
-      if (failed > 0) {
-        console.warn(`[Conquistas] Resumo: ${synced} sincronizado(s), ${failed} falha(s), ${privateGames} privado(s). Motivo: ${firstReason ?? 'não informado'}`);
+      this.steamLimitedLastRun = postponed > 0;
+      if (postponed > 0) this.scheduleSteamResume(fetched > 0);
+      else this.resumeAttempt = 0;
+      if (failed > 0 || postponed > 0) {
+        console.warn(
+          `[Conquistas] Resumo: ${synced} com conquistas, ${failed} falha(s), ${postponed} para depois (limite da Steam), ${privateGames} privado(s)${failed > 0 ? `. Motivo: ${firstReason ?? 'não informado'}` : ''}`
+        );
       }
-      return { synced, failed, privateGames, ...(failed > 0 && firstReason ? { reason: firstReason } : {}) };
+      return { synced, failed, privateGames, ...(postponed > 0 ? { postponed } : {}), ...(failed > 0 && firstReason ? { reason: firstReason } : {}) };
     })();
     return this.syncingPromise;
   }
